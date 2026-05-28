@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VulcansTrace.Linux.Core\VulcansTrace.Linux.Core.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Engine\VulcansTrace.Linux.Engine.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Evidence\VulcansTrace.Linux.Evidence.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Avalonia\VulcansTrace.Linux.Avalonia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy test log files to output directory for integration tests -->
+    <Content Include="Data\**\*.log">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Data/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+</Project>
