@@ -1,0 +1,78 @@
+# VulcansTrace Linux Edition - Demo Guide
+
+This guide walks through the key features of VulcansTrace Linux Edition.
+
+## Launch the Application
+
+```bash
+dotnet run --project VulcansTrace.Linux.Avalonia
+```
+
+## Load Sample Firewall Log
+
+Use one of the sample logs from the test data:
+
+- `VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log`
+- Or paste sample log content directly into the text area
+
+Sample iptables log snippet:
+```
+kernel: Jan 19 10:15:32 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=192.168.1.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 DF PROTO=TCP SPT=54321 DPT=22 WINDOW=64240 RES=0x00 SYN
+kernel: Jan 19 10:15:33 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=192.168.1.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12346 DF PROTO=TCP SPT=54321 DPT=23 WINDOW=64240 RES=0x00 SYN
+```
+
+## Select Analysis Intensity
+
+Choose from three intensity levels:
+
+- **Low**: Critical threat triage (conservative thresholds)
+- **Medium**: Investigation review (balanced thresholds)
+- **High**: Deep hunt / forensics (aggressive thresholds)
+
+## Run Analysis
+
+Click the "Analyze" button to process the log and detect security findings.
+
+## Review Findings
+
+- Check the **Findings** tab for detected threats
+- Switch to **Timeline** to visualize events over time with time-scaled bars per category
+- Review **Parse Errors** and **Warnings** tabs if needed
+- The top panel shows total findings, high/critical alerts, warnings, parse errors, skipped lines, and advisor tips
+
+## Export Evidence
+
+Click **Export Evidence** to generate a signed ZIP bundle containing:
+
+| File | Format |
+|------|--------|
+| `findings.csv` | CSV |
+| `findings.json` | SIEM-friendly JSON |
+| `findings.stix.json` | STIX 2.1 bundle (identity, observed-data, notes, IP observables) |
+| `report.html` | Formatted HTML report |
+| `summary.md` | Markdown summary |
+| `log.txt` | Original raw log |
+| `manifest.json` + `manifest.hmac` | HMAC integrity verification |
+
+## Sample Attack Scenarios
+
+The sample log (`iptables-attack.log`) demonstrates a **port scan** — one source host probing 39 distinct destination ports in rapid succession. It is a minimal, clean example designed to reliably trigger PortScan findings at all intensities.
+
+For logs that trigger other detectors, use the integration test fixtures or craft logs with:
+- **TCP flags** (`FLAGS=FIN`, `FLAGS=FIN,PSH,URG`) for FlagAnomaly
+- **Multiple MACs** per source IP for MacSpoofing
+- **Multiple interfaces** (`IN=eth0` / `IN=eth1`) for InterfaceHopping
+- **Packet lengths** (`LEN=60`, `LEN=5000`) for UnusualPacketSize
+- **Periodic intervals** spanning minutes/hours for Beaconing and C2Channel
+- **Multiple destination hosts** for LateralMovement
+- **High-volume bursts** for Flood/DoS
+
+## Performance and Profiling
+
+```bash
+# Benchmark default sizes (100, 500, 1000, 5000 lines)
+dotnet run --project VulcansTrace.Linux.PerformanceConsole
+
+# Run profiling mode
+dotnet run --project VulcansTrace.Linux.PerformanceConsole -- profile
+```
