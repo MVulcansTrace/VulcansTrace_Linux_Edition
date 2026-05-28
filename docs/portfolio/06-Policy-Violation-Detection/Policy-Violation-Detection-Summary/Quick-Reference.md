@@ -94,9 +94,9 @@ Raw iptables log
 
 ## File References
 
-| File | Path | Lines |
+| File | Path | Role |
 |---|---|---|
-| PolicyViolationDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | 71 |
-| IpClassification.cs | `VulcansTrace.Linux.Engine/Net/` | 157 |
-| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | 195 |
-| PolicyViolationDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | 138 |
+| PolicyViolationDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | Detection logic |
+| IpClassification.cs | `VulcansTrace.Linux.Engine/Net/` | Internal/external network classification |
+| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | Disallowed port configuration |
+| PolicyViolationDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | Detector behavior coverage |

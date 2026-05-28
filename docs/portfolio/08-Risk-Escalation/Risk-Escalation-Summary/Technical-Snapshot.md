@@ -34,8 +34,6 @@ The risk escalation subsystem receives findings from all detectors, groups them 
 
 | Metric | Value |
 |--------|-------|
-| Lines in RiskEscalator.cs | 130 |
-| Lines in SentryAnalyzer.cs | 303 |
 | Correlation rules | 3 |
 | Detection layers | 3 (baseline, Linux deep inspection, advanced) |
 | Parse error cap | 500 |

@@ -96,7 +96,7 @@ Raw iptables log
 
 ## File References
 
-| File | Path | Lines |
+| File | Path | Role |
 |---|---|---|
-| NoveltyDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | 83 |
-| NoveltyDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | 74 |
+| NoveltyDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | Detection logic |
+| NoveltyDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | Detector behavior coverage |

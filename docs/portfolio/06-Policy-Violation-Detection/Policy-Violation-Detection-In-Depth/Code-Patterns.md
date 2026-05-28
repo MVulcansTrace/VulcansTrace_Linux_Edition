@@ -10,12 +10,12 @@ Policy violation detection must evaluate every event with complete reliability �
 
 | Pattern | Location | Purpose |
 |---|---|---|
-| Guard clause | Lines 10-11 | Early return when disabled or empty |
-| Null-coalescing | Line 13 | Graceful handling of missing configuration |
-| HashSet lookup | Line 27 | O(1) port membership check |
-| Triple-continue filter | Lines 21-28 | Flat, readable three-condition check |
-| Dictionary grouping | Lines 15, 30-36 | Group matching events by (SourceIP, DstPort) |
-| Per-group finding | Lines 41-60 | Aggregated finding per group |
+| Guard clause | Detector implementation | Early return when disabled or empty |
+| Null-coalescing | Detector implementation | Graceful handling of missing configuration |
+| HashSet lookup | Detector implementation | O(1) port membership check |
+| Triple-continue filter | Detector implementation | Flat, readable three-condition check |
+| Dictionary grouping | Detector implementation | Group matching events by (SourceIP, DstPort) |
+| Per-group finding | Detector implementation | Aggregated finding per group |
 
 ---
 
@@ -116,9 +116,9 @@ Even though the policy violation detector is O(n) with no expensive operations, 
 
 ## Implementation Evidence
 
-- [PolicyViolationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — all patterns in context (71 lines)
-- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — `IsInternal()` and `IsExternal()` used in filter (157 lines)
-- [PolicyViolationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — validates filter conditions (138 lines)
+- [PolicyViolationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — all patterns in context
+- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — `IsInternal()` and `IsExternal()` used in filter
+- [PolicyViolationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — validates filter conditions
 
 ---
 

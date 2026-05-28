@@ -127,6 +127,12 @@ The UI can export a signed ZIP evidence package containing:
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
 
+The optional CLI runner can verify an exported bundle with that key:
+
+```bash
+dotnet run --project tools/TestAnalysis -- --verify evidence.zip --key <64-character-hex-key>
+```
+
 Evidence documentation:
 
 - [HMAC evidence signing key flow](docs/HMAC_EVIDENCE.md)

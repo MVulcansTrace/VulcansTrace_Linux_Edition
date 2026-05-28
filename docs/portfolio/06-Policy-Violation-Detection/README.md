@@ -29,7 +29,7 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [PolicyViolationDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — filter-and-group policy violation detector (71 lines)
-- [IpClassification.cs](../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 internal/external classification (157 lines)
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration (195 lines)
-- [PolicyViolationDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — baseline test coverage (138 lines)
+- [PolicyViolationDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — filter-and-group policy violation detector
+- [IpClassification.cs](../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 internal/external classification
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration
+- [PolicyViolationDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — baseline test coverage

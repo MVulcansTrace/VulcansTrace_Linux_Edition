@@ -30,12 +30,12 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [UnifiedEventTests.cs](../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — event construction, connection key, IP validation (437 lines)
-- [LinuxIptablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — iptables field extraction and edge cases (821 lines)
-- [LinuxNftablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — nftables field extraction and action derivation (854 lines)
-- [LogNormalizerTests.cs](../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) — format detection and normalization pipeline (300 lines)
-- [PortScanDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — threshold boundary, multi-source, and property validation tests (514 lines)
-- [SentryAnalyzerTests.cs](../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests (977 lines)
-- [RealWorldAttackScenarioTests.cs](../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests (351 lines)
-- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence package integrity tests (674 lines)
-- [LogScenarioBuilder.cs](../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator helper (106 lines)
+- [UnifiedEventTests.cs](../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — event construction, connection key, IP validation
+- [LinuxIptablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — iptables field extraction and edge cases
+- [LinuxNftablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — nftables field extraction and action derivation
+- [LogNormalizerTests.cs](../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) — format detection and normalization pipeline
+- [PortScanDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — threshold boundary, multi-source, and property validation tests
+- [SentryAnalyzerTests.cs](../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests
+- [RealWorldAttackScenarioTests.cs](../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests
+- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence package integrity tests
+- [LogScenarioBuilder.cs](../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator helper

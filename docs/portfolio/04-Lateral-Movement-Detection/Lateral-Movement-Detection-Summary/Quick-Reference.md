@@ -99,9 +99,9 @@ Raw iptables log
 
 ## File References
 
-| File | Path | Lines |
+| File | Path | Role |
 |---|---|---|
-| LateralMovementDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | 120 |
-| IpClassification.cs | `VulcansTrace.Linux.Engine/Net/` | 157 |
-| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | 195 |
-| LateralMovementDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | 687 |
+| LateralMovementDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | Detection logic |
+| IpClassification.cs | `VulcansTrace.Linux.Engine/Net/` | Internal/external network classification |
+| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | Threshold configuration |
+| LateralMovementDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | Detector behavior coverage |

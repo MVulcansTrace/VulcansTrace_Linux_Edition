@@ -10,15 +10,15 @@ Security detectors must be both correct and resilient. A detector that crashes o
 
 | Pattern | Location in PrivilegeEscalationDetector.cs | Purpose |
 |---|---|---|
-| Guard clause | Lines 20–23 | Early exit on disabled/empty input |
-| Baseline + profile merging | Lines 26–29 | Extensible admin port configuration |
-| Admin port filtering | Lines 32–34 | Reduce dataset to relevant events only |
-| Per-source grouping with ordering | Lines 36–40 | Isolate attacker activity chronologically |
-| Sliding window spike detection | Lines 59–131 | Two-pointer sliding window with inFinding state machine for spike detection |
-| Two-pointer dictionary sweep | Lines 133–232 | Dictionary-based two-pointer sweep with inFinding state machine |
-| Cooperative cancellation | Line 38 | Safe shutdown on large inputs |
-| Burst-aware finding emission | Lines 84–128 (spikes), 177–229 (sweeps) | Peak tracking and post-loop finalization for both sub-detectors |
-| Early exit guards | Lines 62–65, 137–140 | Skip impossible detection paths |
+| Guard clause | Detector implementation | Early exit on disabled/empty input |
+| Baseline + profile merging | Detector implementation | Extensible admin port configuration |
+| Admin port filtering | Detector implementation | Reduce dataset to relevant events only |
+| Per-source grouping with ordering | Detector implementation | Isolate attacker activity chronologically |
+| Sliding window spike detection | Detector implementation | Two-pointer sliding window with inFinding state machine for spike detection |
+| Two-pointer dictionary sweep | Detector implementation | Dictionary-based two-pointer sweep with inFinding state machine |
+| Cooperative cancellation | Detector implementation | Safe shutdown on large inputs |
+| Burst-aware finding emission | Detector implementation | Peak tracking and post-loop finalization for both sub-detectors |
+| Early exit guards | Detector implementation | Skip impossible detection paths |
 
 ---
 
@@ -222,10 +222,10 @@ Both sub-detectors check for impossible conditions before processing. The `windo
 
 ## Implementation Evidence
 
-- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — all patterns shown above (233 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — `EnablePrivilegeEscalationDetection`, `PrivilegeSpikeWindowMinutes`, `AdminPorts` properties (195 lines)
-- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — Low/Medium/High profile presets (239 lines)
-- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — validates guard clause, threshold boundaries, and finding properties (679 lines)
+- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — all patterns shown above
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — `EnablePrivilegeEscalationDetection`, `PrivilegeSpikeWindowMinutes`, `AdminPorts` properties
+- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — Low/Medium/High profile presets
+- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — validates guard clause, threshold boundaries, and finding properties
 
 ---
 

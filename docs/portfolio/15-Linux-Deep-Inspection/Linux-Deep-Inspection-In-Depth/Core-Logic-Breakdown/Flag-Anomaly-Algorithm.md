@@ -133,8 +133,8 @@ After all events are processed, one finding is emitted per `(SourceIP, AnomalyTy
 
 ## Implementation Evidence
 
-- [FlagAnomalyDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — detector implementation (86 lines)
-- [FlagAnomalyDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite (422 lines)
+- [FlagAnomalyDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — detector implementation
+- [FlagAnomalyDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite
 
 ---
 

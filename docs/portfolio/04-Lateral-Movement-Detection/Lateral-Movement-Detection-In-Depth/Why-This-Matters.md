@@ -18,7 +18,7 @@ The detector operates on pre-normalized `UnifiedEvent` records and applies a thr
 2. **Temporal analysis** — group by source IP and apply a two-pointer sliding window over sorted events
 3. **Threshold detection** — count distinct destination IPs in the window and emit a finding when the count exceeds the configured minimum
 
-The entire implementation is 120 lines of production C#, making it auditable, testable, and maintainable.
+The implementation is compact production C#, making it auditable, testable, and maintainable.
 
 ---
 
@@ -48,10 +48,10 @@ The entire implementation is 120 lines of production C#, making it auditable, te
 
 ## Implementation Evidence
 
-- [LateralMovementDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — core detection with two-pointer window (120 lines)
-- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 / IPv6 ULA classification (157 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — configurable thresholds (195 lines)
-- [LateralMovementDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — test suite (687 lines)
+- [LateralMovementDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — core detection with two-pointer window
+- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 / IPv6 ULA classification
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — configurable thresholds
+- [LateralMovementDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — test suite
 
 ---
 

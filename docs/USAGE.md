@@ -32,6 +32,12 @@ The signing key is generated per analysis session and masked in the UI. Re-runni
 
 Bundles can be verified end-to-end using the built-in Verify API, which checks the HMAC signature and recomputes SHA-256 hashes for every file in the manifest.
 
+The optional CLI runner can verify a saved evidence bundle when you provide the copied signing key:
+
+```bash
+dotnet run --project tools/TestAnalysis -- --verify evidence.zip --key <64-character-hex-key>
+```
+
 See `docs/HMAC_EVIDENCE.md` for the step-by-step HMAC signing key flow.
 
 ## Supported Log Formats
@@ -55,4 +61,11 @@ The optional CLI runner in `tools/TestAnalysis` (not in the solution file) can a
 
 ```bash
 dotnet run --project tools/TestAnalysis -- VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log
+```
+
+It can also export and verify evidence bundles:
+
+```bash
+dotnet run --project tools/TestAnalysis -- VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log --export /tmp/vulcan-evidence --intensity Medium
+dotnet run --project tools/TestAnalysis -- --verify /tmp/vulcan-evidence/iptables-attack_Medium.zip --key <printed-signing-key>
 ```

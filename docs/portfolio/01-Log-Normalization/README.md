@@ -29,11 +29,11 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [LogNormalizer.cs](../../../VulcansTrace.Linux.Core/LogNormalizer.cs) — orchestrator: size guard, format detection, mixed-format routing, parser delegation (227 lines)
-- [LinuxIptablesParser.cs](../../../VulcansTrace.Linux.Core/LinuxIptablesParser.cs) — iptables regex extraction and action derivation (203 lines)
-- [LinuxNftablesParser.cs](../../../VulcansTrace.Linux.Core/LinuxNftablesParser.cs) — nftables regex extraction and chain-based action derivation (227 lines)
-- [UnifiedEvent.cs](../../../VulcansTrace.Linux.Core/UnifiedEvent.cs) — immutable domain model with validation and `ConnectionKey` (205 lines)
-- [LogNormalizerTests.cs](../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) — format detection and end-to-end normalization tests (300 lines)
-- [LinuxIptablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — iptables parsing coverage (821 lines)
-- [LinuxNftablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — nftables parsing coverage (854 lines)
-- [UnifiedEventTests.cs](../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — domain model and `ConnectionKey` tests (437 lines)
+- [LogNormalizer.cs](../../../VulcansTrace.Linux.Core/LogNormalizer.cs) — orchestrator: size guard, format detection, mixed-format routing, parser delegation
+- [LinuxIptablesParser.cs](../../../VulcansTrace.Linux.Core/LinuxIptablesParser.cs) — iptables regex extraction and action derivation
+- [LinuxNftablesParser.cs](../../../VulcansTrace.Linux.Core/LinuxNftablesParser.cs) — nftables regex extraction and chain-based action derivation
+- [UnifiedEvent.cs](../../../VulcansTrace.Linux.Core/UnifiedEvent.cs) — immutable domain model with validation and `ConnectionKey`
+- [LogNormalizerTests.cs](../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) — format detection and end-to-end normalization tests
+- [LinuxIptablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — iptables parsing coverage
+- [LinuxNftablesParserTests.cs](../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — nftables parsing coverage
+- [UnifiedEventTests.cs](../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — domain model and `ConnectionKey` tests

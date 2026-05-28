@@ -10,11 +10,11 @@ Security detectors must be both correct and resilient. A detector that crashes o
 
 | Pattern | Location in PortScanDetector.cs | Purpose |
 |---|---|---|
-| Guard clause | Lines 21–24 | Early exit on disabled/empty input |
+| Guard clause | Detector implementation | Early exit on disabled/empty input |
 | Source grouping | Source grouping in `Detect` | Per-scanner analysis |
 | Sliding-window counters | Inner loop in `Detect` | Per-window threshold evaluation |
-| Optional truncation with warning | Lines 36–40 | Bounded resource usage with transparency |
-| Pre-computation gate | Lines 42–48 | Skip sources that cannot possibly trigger |
+| Optional truncation with warning | Detector implementation | Bounded resource usage with transparency |
+| Pre-computation gate | Detector implementation | Skip sources that cannot possibly trigger |
 | Cooperative cancellation | Outer and inner loops | Safe shutdown on large inputs |
 
 ---

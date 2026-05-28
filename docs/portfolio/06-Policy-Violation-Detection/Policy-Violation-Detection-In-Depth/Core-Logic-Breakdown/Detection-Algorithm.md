@@ -152,7 +152,7 @@ The `Target` field shows the specific destination IP when only one was contacted
 
 ## Implementation Evidence
 
-- [PolicyViolationDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — full implementation (71 lines)
-- [IpClassification.cs](../../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — IP classification used in filter (157 lines)
-- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration (195 lines)
-- [PolicyViolationDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — test coverage (138 lines)
+- [PolicyViolationDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — full implementation
+- [IpClassification.cs](../../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — IP classification used in filter
+- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration
+- [PolicyViolationDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — test coverage

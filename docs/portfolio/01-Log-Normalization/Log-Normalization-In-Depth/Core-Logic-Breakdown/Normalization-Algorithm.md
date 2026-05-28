@@ -132,7 +132,7 @@ The parser returns a `ParseResult`:
 
 | Dimension | Value |
 |---|---|
-| Time complexity | O(N × R) where N = lines, R = regexes per line (~30) |
+| Time complexity | O(N × R) where N = lines, R = regexes per line |
 | Space complexity | O(N) for events + O(E) for errors |
 | Regex compilation | Once at class load (static fields) |
 | Error handling | Per-line try/catch, fail-soft |

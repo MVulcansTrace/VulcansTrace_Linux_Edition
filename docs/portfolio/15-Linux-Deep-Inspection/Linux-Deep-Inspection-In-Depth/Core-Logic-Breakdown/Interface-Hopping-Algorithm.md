@@ -189,8 +189,8 @@ A Medium-severity finding is emitted when the best sliding window contains more 
 
 ## Implementation Evidence
 
-- [InterfaceHoppingDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — detector implementation (117 lines)
-- [InterfaceHoppingDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite (553 lines)
+- [InterfaceHoppingDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — detector implementation
+- [InterfaceHoppingDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite
 
 ---
 

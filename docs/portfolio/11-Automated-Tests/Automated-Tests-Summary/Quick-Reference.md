@@ -113,14 +113,14 @@ VulcansTrace.Linux.Tests/
 
 ## Key Test Files
 
-| File | Role | Lines |
-|---|---|---|
-| [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs), [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs), [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs), [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) | Core parsing unit tests | — |
-| [PortScanDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) | Detector boundary tests | 514 |
-| [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) | Full-pipeline integration | 976 |
-| [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) | Attack scenario tests | 351 |
-| [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) | Evidence integrity tests | 591 |
-| [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) | Synthetic log generator | 106 |
+| File | Role |
+|---|---|
+| [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs), [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs), [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs), [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) | Core parsing unit tests |
+| [PortScanDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) | Detector boundary tests |
+| [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) | Full-pipeline integration |
+| [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) | Attack scenario tests |
+| [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) | Evidence integrity tests |
+| [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) | Synthetic log generator |
 
 ---
 

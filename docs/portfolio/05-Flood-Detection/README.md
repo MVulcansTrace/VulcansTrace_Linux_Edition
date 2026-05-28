@@ -29,6 +29,6 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [FloodDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — sliding-window flood detector (98 lines)
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration record (195 lines)
-- [FloodDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — baseline test coverage (403 lines)
+- [FloodDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — sliding-window flood detector
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration record
+- [FloodDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — baseline test coverage

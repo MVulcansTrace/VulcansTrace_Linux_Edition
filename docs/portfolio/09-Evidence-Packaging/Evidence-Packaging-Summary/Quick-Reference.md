@@ -46,13 +46,13 @@ AnalysisResult + rawLog
 
 ## Formatter Capabilities
 
-| Formatter | Lines | Key Security Feature | Output Standard |
-|---|---|---|---|
-| `CsvFormatter` | 90 | Formula injection defense (prepend `'` to `=+-@`) | RFC 4180 |
-| `HtmlFormatter` | 93 | `HtmlEncode` on all user content | HTML5 |
-| `JsonFormatter` | 97 | camelCase naming, null-omission | JSON (SIEM-compatible) |
-| `MarkdownFormatter` | 102 | Pipe/backtick/bracket escaping, newline-to-`<br>` | GFM |
-| `StixFormatter` | 361 | IP validation via `IPAddress.TryParse`, deduplication | STIX 2.1 |
+| Formatter | Key Security Feature | Output Standard |
+|---|---|---|
+| `CsvFormatter` | Formula injection defense (prepend `'` to `=+-@`) | RFC 4180 |
+| `HtmlFormatter` | `HtmlEncode` on all user content | HTML5 |
+| `JsonFormatter` | camelCase naming, null-omission | JSON (SIEM-compatible) |
+| `MarkdownFormatter` | Pipe/backtick/bracket escaping, newline-to-`<br>` | GFM |
+| `StixFormatter` | IP validation via `IPAddress.TryParse`, deduplication | STIX 2.1 |
 
 ---
 

@@ -1,6 +1,6 @@
 # Lateral Movement Detection — Technical Snapshot
 
-> The lateral movement detector catches the critical post-exploitation phase where an attacker pivots through an internal network. By filtering for internal-to-internal traffic on administrative ports (SMB/445, RDP/3389, SSH/22) and applying a two-pointer sliding window over distinct destination hosts, the detector transforms raw firewall logs into actionable high-severity findings — all in 120 lines of production C# with 687 lines of dedicated test coverage.
+> The lateral movement detector catches the critical post-exploitation phase where an attacker pivots through an internal network. By filtering for internal-to-internal traffic on administrative ports (SMB/445, RDP/3389, SSH/22) and applying a two-pointer sliding window over distinct destination hosts, the detector transforms raw firewall logs into actionable high-severity findings — all in compact production C# with focused test coverage.
 >
 > This subsystem demonstrates skills in **streaming time-series analysis**, **threshold-based anomaly detection**, **internal network classification (RFC 1918 and IPv6 private ranges)**, and **profile-driven configuration** — all core competencies for network security tooling.
 
@@ -16,9 +16,7 @@ The detector receives a pre-normalized `UnifiedEvent` list, filters to internal-
 
 | Metric | Value |
 |---|---|
-| Production code | 120 lines |
-| Test code | 687 lines |
-| Test-to-code ratio | 5.7 : 1 |
+| Test coverage | Unit-tested across thresholds, host counting, and burst handling |
 | Time complexity | O(n log n) per source — sorting dominates; sliding window scan is O(n) |
 | Space complexity | O(n) per source |
 | Configurable thresholds | 3 (Low / Medium / High) |

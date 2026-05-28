@@ -1,6 +1,6 @@
 # Technical Snapshot: Linux Deep Inspection
 
-> The Linux Deep Inspection subsystem comprises five specialized detectors totaling 593 lines of implementation code and 2,913 lines of test coverage. Together they analyze Linux-specific metadata from iptables/nftables logs — TCP flags, MAC addresses, kernel module signatures, network interfaces, and packet sizes — to detect reconnaissance, L2/L3 integrity violations, defensive posture gaps, segmentation bypass, and covert channels. All five detectors implement `IDetector` and integrate with the `RiskEscalator` for correlated threat escalation.
+> The Linux Deep Inspection subsystem comprises five specialized detectors spanning five implementation files and their focused test coverage. Together they analyze Linux-specific metadata from iptables/nftables logs — TCP flags, MAC addresses, kernel module signatures, network interfaces, and packet sizes — to detect reconnaissance, L2/L3 integrity violations, defensive posture gaps, segmentation bypass, and covert channels. All five detectors implement `IDetector` and integrate with the `RiskEscalator` for correlated threat escalation.
 
 ---
 
@@ -8,13 +8,13 @@
 
 The subsystem operates on the unified event stream enriched with `LinuxSpecific` metadata extracted during log normalization. Each detector targets a distinct analytical dimension:
 
-| Detector | Lines | Category | Severity | Purpose |
-|---|---|---|---|---|
-| FlagAnomalyDetector | 86 | FlagAnomaly | Medium | Detect FIN-without-SYN and XMAS (FIN+PSH+URG) scan patterns |
-| MacSpoofingDetector | 121 | MacSpoofing | High | Flag IPs associated with multiple distinct MACs within a sliding window |
-| KernelModuleDetector | 95 | KernelModule | Info | Enumerate firewall kernel modules from raw log signatures |
-| InterfaceHoppingDetector | 116 | InterfaceHopping | Medium | Detect rapid interface switching via sliding window per source IP |
-| UnusualPacketSizeDetector | 173 | UnusualPacketSize | Low–Medium | Identify oversized/undersized packets and statistical size anomalies |
+| Detector | Category | Severity | Purpose |
+|---|---|---|---|
+| FlagAnomalyDetector | FlagAnomaly | Medium | Detect FIN-without-SYN and XMAS (FIN+PSH+URG) scan patterns |
+| MacSpoofingDetector | MacSpoofing | High | Flag IPs associated with multiple distinct MACs within a sliding window |
+| KernelModuleDetector | KernelModule | Info | Enumerate firewall kernel modules from raw log signatures |
+| InterfaceHoppingDetector | InterfaceHopping | Medium | Detect rapid interface switching via sliding window per source IP |
+| UnusualPacketSizeDetector | UnusualPacketSize | Low–Medium | Identify oversized/undersized packets and statistical size anomalies |
 
 ---
 
@@ -22,8 +22,6 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 
 | Metric | Value |
 |---|---|
-| Total implementation size | 591 lines (5 detectors) |
-| Total test coverage | 2,913 lines (5 test classes) |
 | Interfaces implemented | `IDetector` (all 5) |
 | Finding categories | `FlagAnomaly`, `MacSpoofing`, `KernelModule`, `InterfaceHopping`, `UnusualPacketSize` |
 | Severity range | Info → High |
@@ -45,17 +43,17 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 
 ## Key Evidence
 
-- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis (86 lines)
-- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC spoofing detection (121 lines)
-- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture (95 lines)
-- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detection (117 lines)
-- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size analysis (173 lines)
-- [RiskEscalator.cs](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation (130 lines)
-- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite (422 lines)
-- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite (643 lines)
-- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite (630 lines)
-- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite (553 lines)
-- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite (665 lines)
+- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis
+- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC spoofing detection
+- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture
+- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detection
+- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size analysis
+- [RiskEscalator.cs](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation
+- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite
+- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite
+- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite
+- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite
+- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite
 
 ---
 

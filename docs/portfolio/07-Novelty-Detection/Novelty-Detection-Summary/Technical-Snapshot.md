@@ -1,6 +1,6 @@
 # Novelty Detection — Technical Snapshot
 
-> The novelty detector finds the needles that volume-based detectors miss — external destinations that appear no more than `NoveltyMaxGlobalOccurrences` times (default 1, i.e. strict singletons). In 83 lines of production C#, it uses a two-pass algorithm (frequency counting, then rarity extraction) followed by grouping novel destinations by source IP to produce aggregated findings with comma-separated target lists. Each source IP's novel destinations are collected into one finding with up to 5 destination `IP:Port` entries and a count-based summary. Disabled by default in low-sensitivity profiles, it activates for medium and high-intensity analysis where deep forensic coverage is required.
+> The novelty detector finds the needles that volume-based detectors miss — external destinations that appear no more than `NoveltyMaxGlobalOccurrences` times (default 1, i.e. strict singletons). In compact production C#, it uses a two-pass algorithm (frequency counting, then rarity extraction) followed by grouping novel destinations by source IP to produce aggregated findings with comma-separated target lists. Each source IP's novel destinations are collected into one finding with up to 5 destination `IP:Port` entries and a count-based summary. Disabled by default in low-sensitivity profiles, it activates for medium and high-intensity analysis where deep forensic coverage is required.
 >
 > This subsystem demonstrates skills in **frequency-based anomaly detection**, **two-pass algorithm design**, **source-grouped reporting**, and **conservative severity assignment**.
 
@@ -16,9 +16,7 @@ The detector receives a pre-normalized `UnifiedEvent` list, filters to events wi
 
 | Metric | Value |
 |---|---|
-| Production code | 83 lines |
-| Test code | 74 lines |
-| Test-to-code ratio | 0.9 : 1 |
+| Test coverage | Unit-tested across singleton detection and profile gating |
 | Time complexity | O(n) — two passes, hash-based counting |
 | Space complexity | O(n) — frequency dictionary |
 | Numeric thresholds | `NoveltyMaxGlobalOccurrences` — configurable rarity threshold (default 1) |

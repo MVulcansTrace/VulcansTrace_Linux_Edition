@@ -31,14 +31,14 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [MainWindow.axaml.cs](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root, engine chain wiring, timeline canvas rendering (193 lines)
-- [MainWindow.axaml](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml) — XAML layout: summary badges, bot advisor, log input, findings DataGrid, timeline tab (408 lines)
-- [MainViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs) — central orchestrator: AnalyzeCommand, CancelCommand, advisor messages, child VM delegation (490 lines)
-- [FindingsViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — items/filtered collections, severity filter, text search, parse error capping at 200 (237 lines)
-- [EvidenceViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, 32-byte key generation, save dialog, clipboard copy, StatusChanged event (281 lines)
-- [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation (182 lines)
-- [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching (181 lines)
-- [IDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface (35 lines)
-- [MainViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — command gating and engine wiring tests (210 lines)
-- [FindingsViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/FindingsViewModelTests.cs) — load, filter, search, and parse-error cap tests (116 lines)
-- [EvidenceViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/EvidenceViewModelTests.cs) — context gating and command enablement tests (180 lines)
+- [MainWindow.axaml.cs](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root, engine chain wiring, timeline canvas rendering
+- [MainWindow.axaml](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml) — XAML layout: summary badges, bot advisor, log input, findings DataGrid, timeline tab
+- [MainViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs) — central orchestrator: AnalyzeCommand, CancelCommand, advisor messages, child VM delegation
+- [FindingsViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — items/filtered collections, severity filter, text search, parse error capping at 200
+- [EvidenceViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, 32-byte key generation, save dialog, clipboard copy, StatusChanged event
+- [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation
+- [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching
+- [IDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface
+- [MainViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — command gating and engine wiring tests
+- [FindingsViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/FindingsViewModelTests.cs) — load, filter, search, and parse-error cap tests
+- [EvidenceViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/EvidenceViewModelTests.cs) — context gating and command enablement tests

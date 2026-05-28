@@ -31,11 +31,11 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [EvidenceBuilder.cs](../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) — builder pattern: renders 6 files, hashes, manifest, HMAC, ZIP archive (310 lines)
-- [CsvFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/CsvFormatter.cs) — RFC 4180 CSV with formula injection defense (90 lines)
-- [HtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/HtmlFormatter.cs) — dark-themed HTML report with XSS prevention (93 lines)
-- [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata (109 lines)
-- [MarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/MarkdownFormatter.cs) — GFM tables with severity grouping and escaping (102 lines)
+- [EvidenceBuilder.cs](../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) — builder pattern: renders 6 files, hashes, manifest, HMAC, ZIP archive
+- [CsvFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/CsvFormatter.cs) — RFC 4180 CSV with formula injection defense
+- [HtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/HtmlFormatter.cs) — dark-themed HTML report with XSS prevention
+- [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata
+- [MarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/MarkdownFormatter.cs) — GFM tables with severity grouping and escaping
 - [StixFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) — STIX 2.1 bundle with identity, observed-data, IP observables, and deterministic IDs
-- [IntegrityHasher.cs](../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 wrapper (34 lines)
-- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, reproducibility, and HMAC verification tests (674 lines)
+- [IntegrityHasher.cs](../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 wrapper
+- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, reproducibility, and HMAC verification tests

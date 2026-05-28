@@ -18,7 +18,7 @@ The detector operates on pre-normalized `UnifiedEvent` records through a three-s
 2. **Temporal analysis** — sort events by timestamp and apply a two-pointer sliding window
 3. **Threshold detection** — count events within the window and emit a finding when volume exceeds the configured minimum
 
-The entire implementation is 98 lines of production C#.
+The implementation is compact production C#.
 
 ---
 
@@ -48,13 +48,13 @@ The entire implementation is 98 lines of production C#.
 
 ## Implementation Evidence
 
-- [FloodDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — core detection with two-pointer window (98 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — configurable thresholds (195 lines)
-- [FloodDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — test suite (403 lines)
+- [FloodDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — core detection with two-pointer window
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — configurable thresholds
+- [FloodDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — test suite
 
 ---
 
-> **Elevator Pitch:** This detector is the network's pulse monitor — watching for any single IP that starts hammering connections faster than the network can handle, and flagging it before services go down. In 98 lines of clean C#, it transforms millions of firewall log entries into actionable alerts.
+> **Elevator Pitch:** This detector is the network's pulse monitor — watching for any single IP that starts hammering connections faster than the network can handle, and flagging it before services go down. In clean C#, it transforms millions of firewall log entries into actionable alerts.
 
 ---
 
@@ -63,5 +63,5 @@ The entire implementation is 98 lines of production C#.
 - Flood detection protects service availability — the most fundamental security property
 - The two-pointer sliding window provides accurate temporal detection without boundary artifacts
 - Profile-driven thresholds allow operations teams to calibrate to their specific traffic patterns
-- The 4.1:1 test-to-code ratio validates threshold behavior across edge cases and multi-source scenarios
+- Focused tests validate threshold behavior across edge cases and multi-source scenarios
 - Burst-aware design limits duplicate findings while capturing repeated attack episodes

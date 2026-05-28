@@ -120,10 +120,10 @@ Every detector checks its enable flag first. When a detector is disabled (e.g., 
 
 ## Implementation Evidence
 
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record definition (195 lines)
-- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory with switch expression (239 lines)
-- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution, distribution, filtering, and finding caps (303 lines)
-- [ProfileComparisonTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — cross-profile test (123 lines)
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record definition
+- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory with switch expression
+- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution, distribution, filtering, and finding caps
+- [ProfileComparisonTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — cross-profile test
 
 ---
 

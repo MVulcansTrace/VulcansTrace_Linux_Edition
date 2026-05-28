@@ -34,15 +34,15 @@ Raw Log Text
      ▼
 ┌──────────────┐
 │ LogNormalizer│  Size guard + format detection
-│  (227 lines) │
+│  │
 └──────┬───────┘
        │
-        ├── Iptables ──► LinuxIptablesParser (203 lines)
+        ├── Iptables ──► LinuxIptablesParser
        │                      │
        │                      ▼
        │               UnifiedEvent (LogFormat.Iptables)
        │
-        └── Nftables ──► LinuxNftablesParser (227 lines)
+        └── Nftables ──► LinuxNftablesParser
                               │
                               ▼
                        UnifiedEvent (LogFormat.Nftables)
@@ -101,7 +101,7 @@ Raw Log Text
 
 | Dimension | Analysis |
 |---|---|
-| **Time** | O(N × R) where N = number of lines and R = number of regex fields applied per line (~30) |
+| **Time** | O(N × R) where N = number of lines and R = number of regex fields applied per line |
 | **Space** | O(N) for the events list plus O(E) for error messages, where E = number of malformed lines |
 
 ---
@@ -131,16 +131,16 @@ Raw Log Text
 
 ## File References
 
-| File | Lines | Role |
-|---|---|---|
-| [LogNormalizer.cs](../../../../VulcansTrace.Linux.Core/LogNormalizer.cs) | 227 | Orchestrator and format detector |
-| [LinuxIptablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxIptablesParser.cs) | 203 | iptables regex parser |
-| [LinuxNftablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxNftablesParser.cs) | 227 | nftables regex parser |
-| [UnifiedEvent.cs](../../../../VulcansTrace.Linux.Core/UnifiedEvent.cs) | 205 | Immutable validated event model |
-| [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) | 300 | Format detection and normalization tests |
-| [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) | 821 | iptables parsing test coverage |
-| [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) | 854 | nftables parsing test coverage |
-| [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) | 437 | Domain model and ConnectionKey tests |
+| File | Role |
+|---|---|
+| [LogNormalizer.cs](../../../../VulcansTrace.Linux.Core/LogNormalizer.cs) | Orchestrator and format detector |
+| [LinuxIptablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxIptablesParser.cs) | iptables regex parser |
+| [LinuxNftablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxNftablesParser.cs) | nftables regex parser |
+| [UnifiedEvent.cs](../../../../VulcansTrace.Linux.Core/UnifiedEvent.cs) | Immutable validated event model |
+| [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) | Format detection and normalization tests |
+| [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) | iptables parsing test coverage |
+| [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) | nftables parsing test coverage |
+| [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) | Domain model and ConnectionKey tests |
 
 ---
 

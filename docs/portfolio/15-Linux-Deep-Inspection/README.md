@@ -34,14 +34,14 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [FlagAnomalyDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis detector (86 lines)
-- [MacSpoofingDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC address spoofing detector (121 lines)
-- [KernelModuleDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture detector (95 lines)
-- [InterfaceHoppingDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detector (116 lines)
-- [UnusualPacketSizeDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size anomaly detector (173 lines)
-- [RiskEscalator.cs](../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation (130 lines)
-- [FlagAnomalyDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — flag anomaly test suite (422 lines)
-- [MacSpoofingDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — MAC spoofing test suite (643 lines)
-- [KernelModuleDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — kernel module test suite (630 lines)
-- [InterfaceHoppingDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — interface hopping test suite (553 lines)
-- [UnusualPacketSizeDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — packet size test suite (665 lines)
+- [FlagAnomalyDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis detector
+- [MacSpoofingDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC address spoofing detector
+- [KernelModuleDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture detector
+- [InterfaceHoppingDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detector
+- [UnusualPacketSizeDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size anomaly detector
+- [RiskEscalator.cs](../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation
+- [FlagAnomalyDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — flag anomaly test suite
+- [MacSpoofingDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — MAC spoofing test suite
+- [KernelModuleDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — kernel module test suite
+- [InterfaceHoppingDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — interface hopping test suite
+- [UnusualPacketSizeDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — packet size test suite

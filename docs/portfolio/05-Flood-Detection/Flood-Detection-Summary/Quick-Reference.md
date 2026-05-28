@@ -99,8 +99,8 @@ Raw iptables log
 
 ## File References
 
-| File | Path | Lines |
+| File | Path | Role |
 |---|---|---|
-| FloodDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | 98 |
-| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | 195 |
-| FloodDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | 403 |
+| FloodDetector.cs | `VulcansTrace.Linux.Engine/Detectors/` | Detection logic |
+| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | Threshold configuration |
+| FloodDetectorTests.cs | `VulcansTrace.Linux.Tests/Detectors/Baseline/` | Detector behavior coverage |

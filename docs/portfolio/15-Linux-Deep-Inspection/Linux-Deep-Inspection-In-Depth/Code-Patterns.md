@@ -181,16 +181,16 @@ The FlagAnomalyDetector aggregates events by `(SourceIP, AnomalyType)` during th
 
 ## Implementation Evidence
 
-- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — guard clause, metadata access, cancellation, composite-key aggregation (86 lines)
-- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — guard clause, LINQ grouping, sliding window, cancellation (121 lines)
-- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — guard clause, Dictionary timestamp tracking, cancellation (96 lines)
-- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — guard clause, LINQ grouping, sliding window, cancellation (117 lines)
-- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — guard clause, two-phase analysis, grouping, sample gate (173 lines)
-- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — validates guard, flag combinations, protocol filtering (422 lines)
-- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — validates grouping, MAC normalization, sliding window (643 lines)
-- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — validates signature matching, timestamp tracking (630 lines)
-- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — validates sliding window, multi-interface detection (553 lines)
-- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — validates per-packet and aggregate analysis (665 lines)
+- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — guard clause, metadata access, cancellation, composite-key aggregation
+- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — guard clause, LINQ grouping, sliding window, cancellation
+- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — guard clause, Dictionary timestamp tracking, cancellation
+- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — guard clause, LINQ grouping, sliding window, cancellation
+- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — guard clause, two-phase analysis, grouping, sample gate
+- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — validates guard, flag combinations, protocol filtering
+- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — validates grouping, MAC normalization, sliding window
+- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — validates signature matching, timestamp tracking
+- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — validates sliding window, multi-interface detection
+- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — validates per-packet and aggregate analysis
 
 ---
 

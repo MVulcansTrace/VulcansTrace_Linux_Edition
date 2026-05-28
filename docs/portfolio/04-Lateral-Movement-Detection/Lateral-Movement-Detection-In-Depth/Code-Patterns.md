@@ -10,12 +10,12 @@ Lateral movement detection must process potentially millions of firewall log ent
 
 | Pattern | Location | Purpose |
 |---|---|---|
-| Guard clause | Lines 18-19 | Early return when detector is disabled or no data |
-| HashSet lookup | Lines 23-24, 29 | O(1) membership testing for admin ports |
-| LINQ group-and-sort | Lines 31-36 | Declarative grouping and ordering |
-| Dictionary host counting | Lines 40-70 | O(1) add/remove per event, tracks distinct hosts |
-| Two-pointer window | Lines 46-105 | Efficient temporal sliding window with finding state tracking |
-| Post-loop finalization | Lines 107-114 | Updates TimeRangeEnd and Details for any active finding |
+| Guard clause | Detector implementation | Early return when detector is disabled or no data |
+| HashSet lookup | Detector implementation | O(1) membership testing for admin ports |
+| LINQ group-and-sort | Detector implementation | Declarative grouping and ordering |
+| Dictionary host counting | Detector implementation | O(1) add/remove per event, tracks distinct hosts |
+| Two-pointer window | Detector implementation | Efficient temporal sliding window with finding state tracking |
+| Post-loop finalization | Detector implementation | Updates TimeRangeEnd and Details for any active finding |
 
 ---
 
@@ -95,9 +95,9 @@ Placed inside the outer loop, this gives the orchestration layer the ability to 
 
 ## Implementation Evidence
 
-- [LateralMovementDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — all patterns visible in context (120 lines)
-- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — `IsInternal()` used in the filter (157 lines)
-- [LateralMovementDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — validates guard clauses, thresholds, and window behavior (687 lines)
+- [LateralMovementDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — all patterns visible in context
+- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — `IsInternal()` used in the filter
+- [LateralMovementDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — validates guard clauses, thresholds, and window behavior
 
 ---
 

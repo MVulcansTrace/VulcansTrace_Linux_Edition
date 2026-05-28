@@ -4,18 +4,18 @@
 
 ## ViewModel Responsibilities
 
-| ViewModel | Lines | Responsibility |
-|---|---|---|
-| `MainViewModel` | 490 | Central orchestrator: LogText, SummaryText, AdvisorMessage, IsBusy, SelectedIntensity. AnalyzeCommand/CancelCommand. Delegates to child VMs |
-| `FindingsViewModel` | 237 | Items/FilteredItems collections, severity filter, text search, parse errors (capped at 200), warnings display |
-| `EvidenceViewModel` | 281 | Export evidence flow, 32-byte signing key generation, save file dialog, clipboard copy. StatusChanged event |
-| `TimelineViewModel` | 182 | Groups findings by category, normalizes to 0–1 range, assigns row positions, computes canvas height |
-| `FindingItemViewModel` | 46 | Adapts a `Finding` for UI display (Category, Severity, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
-| `IntensityOption` | 38 | DTO binding intensity levels to UI dropdown (Low/Medium/High) |
-| `SeverityFilterOption` | 32 | DTO binding severity thresholds to filter dropdown (All / High+Critical / Critical only) |
-| `ViewModelBase` | 45 | INotifyPropertyChanged with generic `SetField<T>` equality check |
-| `RelayCommand` | 30 | ICommand implementation with manual `RaiseCanExecuteChanged()` |
-| `AsyncRelayCommand` | 104 | Async ICommand with exception handler callback |
+| ViewModel | Responsibility |
+|---|---|
+| `MainViewModel` | Central orchestrator: LogText, SummaryText, AdvisorMessage, IsBusy, SelectedIntensity. AnalyzeCommand/CancelCommand. Delegates to child VMs |
+| `FindingsViewModel` | Items/FilteredItems collections, severity filter, text search, parse errors (capped at 200), warnings display |
+| `EvidenceViewModel` | Export evidence flow, 32-byte signing key generation, save file dialog, clipboard copy. StatusChanged event |
+| `TimelineViewModel` | Groups findings by category, normalizes to 0–1 range, assigns row positions, computes canvas height |
+| `FindingItemViewModel` | Adapts a `Finding` for UI display (Category, Severity, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
+| `IntensityOption` | DTO binding intensity levels to UI dropdown (Low/Medium/High) |
+| `SeverityFilterOption` | DTO binding severity thresholds to filter dropdown (All / High+Critical / Critical only) |
+| `ViewModelBase` | INotifyPropertyChanged with generic `SetField<T>` equality check |
+| `RelayCommand` | ICommand implementation with manual `RaiseCanExecuteChanged()` |
+| `AsyncRelayCommand` | Async ICommand with exception handler callback |
 
 ---
 

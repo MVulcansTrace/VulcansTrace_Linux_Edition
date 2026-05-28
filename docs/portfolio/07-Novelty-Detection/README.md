@@ -30,5 +30,5 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [NoveltyDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — two-pass singleton detector (83 lines)
-- [NoveltyDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — baseline test coverage (74 lines)
+- [NoveltyDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — two-pass singleton detector
+- [NoveltyDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — baseline test coverage

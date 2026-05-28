@@ -1,6 +1,6 @@
 # Flood Detection — Technical Snapshot
 
-> The flood detector identifies denial-of-service attacks by counting connection events per source IP within a sliding time window. In 98 lines of production C#, it transforms raw firewall logs into high-severity findings — flagging when a single IP generates 100–400+ events within 60 seconds, depending on the analysis profile. The implementation uses a two-pointer sliding window for O(n log n) efficiency, with 403 lines of test coverage validating threshold behavior, edge cases, and multi-source scenarios.
+> The flood detector identifies denial-of-service attacks by counting connection events per source IP within a sliding time window. In compact production C#, it transforms raw firewall logs into high-severity findings — flagging when a single IP generates 100–400+ events within 60 seconds, depending on the analysis profile. The implementation uses a two-pointer sliding window for O(n log n) efficiency, with focused test coverage validating threshold behavior, edge cases, and multi-source scenarios.
 >
 > This subsystem demonstrates skills in **time-series volume analysis**, **sliding-window algorithms**, **threshold-based anomaly detection**, and **profile-driven configuration**.
 
@@ -16,9 +16,7 @@ The detector receives a pre-normalized `UnifiedEvent` list, groups events by sou
 
 | Metric | Value |
 |---|---|
-| Production code | 98 lines |
-| Test code | 403 lines |
-| Test-to-code ratio | 4.1 : 1 |
+| Test coverage | Unit-tested across thresholds, burst behavior, and multi-source scenarios |
 | Time complexity | O(n log n) per source (sort + linear scan) |
 | Space complexity | O(n) per source |
 | Configurable thresholds | 3 (Low / Medium / High) |

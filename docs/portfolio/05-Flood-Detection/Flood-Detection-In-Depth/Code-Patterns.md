@@ -10,11 +10,11 @@ Flood detection must process high-volume event streams efficiently, as the detec
 
 | Pattern | Location | Purpose |
 |---|---|---|
-| Guard clause | Lines 17-18 | Early return when disabled or empty |
-| LINQ group | Line 22 | Declarative partitioning by source |
-| Sort-then-scan | Lines 29-82 | Chronological ordering followed by linear scan |
-| Integer window count | Line 46 | O(1) counting without allocation |
-| Burst tracking with inFinding | Lines 47-81 | One finding per contiguous burst |
+| Guard clause | Detector implementation | Early return when disabled or empty |
+| LINQ group | Detector implementation | Declarative partitioning by source |
+| Sort-then-scan | Detector implementation | Chronological ordering followed by linear scan |
+| Integer window count | Detector implementation | O(1) counting without allocation |
+| Burst tracking with inFinding | Detector implementation | One finding per contiguous burst |
 
 ---
 
@@ -106,8 +106,8 @@ The `inFinding` flag tracks whether the detector is currently inside an active a
 
 ## Implementation Evidence
 
-- [FloodDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — all patterns in context (98 lines)
-- [FloodDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — validates patterns across scenarios (403 lines)
+- [FloodDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — all patterns in context
+- [FloodDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — validates patterns across scenarios
 
 ---
 

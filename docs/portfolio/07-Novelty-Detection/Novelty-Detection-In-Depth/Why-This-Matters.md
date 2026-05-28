@@ -48,8 +48,8 @@ The two-pass design is mandatory: a single-pass approach cannot determine whethe
 
 ## Implementation Evidence
 
-- [NoveltyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — two-pass singleton detector (83 lines)
-- [NoveltyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — test suite (74 lines)
+- [NoveltyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — two-pass singleton detector
+- [NoveltyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — test suite
 
 ---
 
@@ -63,4 +63,4 @@ The two-pass design is mandatory: a single-pass approach cannot determine whethe
 - The two-pass algorithm is the simplest correct approach — frequency must be fully computed before singletons can be identified
 - Low severity reflects appropriate uncertainty — singletons are leads, not conclusions
 - Disabled in Low profile acknowledges the noise inherent in singleton detection on large networks
-- The 83-line implementation demonstrates that effective security tooling can be minimal and auditable
+- The implementation demonstrates that effective security tooling can be minimal and auditable

@@ -31,8 +31,8 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record with all config knobs (195 lines)
-- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory mapping IntensityLevel to AnalysisProfile (239 lines)
-- [IntensityLevel.cs](../../../VulcansTrace.Linux.Engine/IntensityLevel.cs) — Low / Medium / High enum (18 lines)
-- [SentryAnalyzer.cs](../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — orchestrator that resolves profile and runs all detectors (303 lines)
-- [ProfileComparisonTests.cs](../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — integration test comparing findings across profiles (123 lines)
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record with all config knobs
+- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory mapping IntensityLevel to AnalysisProfile
+- [IntensityLevel.cs](../../../VulcansTrace.Linux.Engine/IntensityLevel.cs) — Low / Medium / High enum
+- [SentryAnalyzer.cs](../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — orchestrator that resolves profile and runs all detectors
+- [ProfileComparisonTests.cs](../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — integration test comparing findings across profiles

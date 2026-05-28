@@ -139,6 +139,6 @@ The `inFinding` flag begins tracking the active burst. As long as the window cou
 
 ## Implementation Evidence
 
-- [FloodDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — full algorithm implementation (98 lines)
-- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration (195 lines)
-- [FloodDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — test coverage (403 lines)
+- [FloodDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/FloodDetector.cs) — full algorithm implementation
+- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration
+- [FloodDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/FloodDetectorTests.cs) — test coverage

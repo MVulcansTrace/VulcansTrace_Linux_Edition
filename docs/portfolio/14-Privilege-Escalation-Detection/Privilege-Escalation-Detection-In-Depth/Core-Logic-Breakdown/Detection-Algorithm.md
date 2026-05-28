@@ -245,10 +245,10 @@ The sweep detector uses a two-pointer sliding window with a `Dictionary<int, int
 
 ## Implementation Evidence
 
-- [PrivilegeEscalationDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation (233 lines)
-- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record (195 lines)
-- [AnalysisProfileProvider.cs](../../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets (239 lines)
-- [PrivilegeEscalationDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite (679 lines)
+- [PrivilegeEscalationDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation
+- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record
+- [AnalysisProfileProvider.cs](../../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets
+- [PrivilegeEscalationDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite
 
 ---
 

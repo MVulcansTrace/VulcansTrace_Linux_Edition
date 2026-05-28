@@ -152,8 +152,8 @@ If the best window found more than one distinct MAC address, a High-severity fin
 
 ## Implementation Evidence
 
-- [MacSpoofingDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — detector implementation (121 lines)
-- [MacSpoofingDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite (643 lines)
+- [MacSpoofingDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — detector implementation
+- [MacSpoofingDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite
 
 ---
 

@@ -154,6 +154,11 @@
                       SelectedItem="{Binding SelectedIntensity}"
                       AutomationProperties.AutomationId="IntensityComboBox"
                       Margin="0,4,0,4"/>
+            <TextBlock Text="Low shows only High/Critical findings. Medium shows Medium+. High shows all severities."
+                       Foreground="#94a3b8"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,8"/>
 
             <Expander Header="Advanced" Margin="0,0,0,12">
                 <ScrollViewer MaxHeight="260">

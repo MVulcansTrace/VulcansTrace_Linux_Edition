@@ -6,7 +6,7 @@ An analyst receives an iptables log from a compromised web server. The log conta
 
 ## Worked Example
 
-**Input — raw iptables log (5 lines):**
+**Input — raw iptables log:**
 
 ```
 kernel: Jan 19 10:15:32 webserver IPTABLES-DROP IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=203.0.113.50 DST=192.168.1.10 LEN=60 TOS=0x00 PREC=0x00 TTL=52 ID=44821 DF PROTO=TCP SPT=49152 DPT=22 WINDOW=64240 RES=0x00 SYN

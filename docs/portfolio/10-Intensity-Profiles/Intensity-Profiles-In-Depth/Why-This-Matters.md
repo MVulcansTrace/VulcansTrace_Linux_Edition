@@ -49,10 +49,10 @@ The `SentryAnalyzer` orchestrator resolves the profile once per analysis call (l
 
 ## Implementation Evidence
 
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record with all config knobs (195 lines)
-- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory mapping (239 lines)
-- [IntensityLevel.cs](../../../../VulcansTrace.Linux.Engine/IntensityLevel.cs) — enum definition (18 lines)
-- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution and distribution (303 lines)
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record with all config knobs
+- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory mapping
+- [IntensityLevel.cs](../../../../VulcansTrace.Linux.Engine/IntensityLevel.cs) — enum definition
+- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution and distribution
 
 ---
 

@@ -1,6 +1,6 @@
 # Policy Violation Detection — Technical Snapshot
 
-> The policy violation detector is one of the most deterministic detectors in the engine — a filter that flags internal hosts connecting to external destinations on prohibited ports, then groups violations by `(SourceIP, DstPort)` to produce aggregated findings. In just 71 lines of production C#, it enforces outbound firewall policy by checking three conditions per event: internal source, external destination, and disallowed port. Each group generates its own finding with connection counts and distinct destination tallies, providing complete audit coverage for compliance and forensic analysis.
+> The policy violation detector is one of the most deterministic detectors in the engine — a filter that flags internal hosts connecting to external destinations on prohibited ports, then groups violations by `(SourceIP, DstPort)` to produce aggregated findings. In compact production C#, it enforces outbound firewall policy by checking three conditions per event: internal source, external destination, and disallowed port. Each group generates its own finding with connection counts and distinct destination tallies, providing complete audit coverage for compliance and forensic analysis.
 >
 > This subsystem demonstrates skills in **policy-as-code enforcement**, **dictionary-based event grouping**, **network classification**, and **compliance-oriented detection**.
 
@@ -16,9 +16,7 @@ The detector iterates over every `UnifiedEvent`, checking whether the source is 
 
 | Metric | Value |
 |---|---|
-| Production code | 71 lines |
-| Test code | 138 lines |
-| Test-to-code ratio | 1.9 : 1 |
+| Test coverage | Unit-tested across policy ports, IP direction, and grouping behavior |
 | Time complexity | O(n) — single pass, constant-time checks per event |
 | Space complexity | O(k) — k = number of (SourceIP, DstPort) groups |
 | Disallowed ports | 3 (21/FTP, 23/Telnet, 445/SMB) |

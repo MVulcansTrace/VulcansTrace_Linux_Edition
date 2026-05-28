@@ -16,7 +16,7 @@ Without automated detection, both patterns are buried in firewall logs. A busy S
 
 ## Implementation Overview
 
-The detector is a 233-line implementation that operates on the normalized event stream. It filters events targeting a curated set of administrative ports, groups them by source IP, and runs two complementary sub-detectors: `DetectAdminSpikes` flags high-volume bursts using a sliding time window (High severity), and `DetectAdminPortSweeps` flags multi-port service enumeration using a sliding time window with dictionary port tracking (Medium severity). The detector is profile-gated and adapts its time window based on analysis intensity.
+The detector operates on the normalized event stream. It filters events targeting a curated set of administrative ports, groups them by source IP, and runs two complementary sub-detectors: `DetectAdminSpikes` flags high-volume bursts using a sliding time window (High severity), and `DetectAdminPortSweeps` flags multi-port service enumeration using a sliding time window with dictionary port tracking (Medium severity). The detector is profile-gated and adapts its time window based on analysis intensity.
 
 ---
 
@@ -47,16 +47,16 @@ The detector is a 233-line implementation that operates on the normalized event 
 
 ## Implementation Evidence
 
-- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation (233 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record (195 lines)
-- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets (239 lines)
-- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite (679 lines)
+- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record
+- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets
+- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite
 
 ---
 
 ## Elevator Pitch
 
-> The privilege escalation detector takes a stream of normalized firewall events and, in 233 lines, identifies two critical attack patterns: brute-force admin-port bursts and multi-port admin service sweeps. It uses dual sub-detectors with sliding time windows, adapts sensitivity through profile-based configuration, and is cancellation-safe for reliable operation on large log datasets.
+> The privilege escalation detector takes a stream of normalized firewall events and, identifies two critical attack patterns: brute-force admin-port bursts and multi-port admin service sweeps. It uses dual sub-detectors with sliding time windows, adapts sensitivity through profile-based configuration, and is cancellation-safe for reliable operation on large log datasets.
 
 ---
 

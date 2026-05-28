@@ -192,7 +192,7 @@ This produces **one finding per contiguous above-threshold burst** rather than o
 
 ## Implementation Evidence
 
-- [LateralMovementDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — full algorithm implementation (120 lines)
-- [IpClassification.cs](../../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — internal/external classification used in Step B (157 lines)
-- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration (195 lines)
-- [LateralMovementDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — test coverage validating each step (687 lines)
+- [LateralMovementDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — full algorithm implementation
+- [IpClassification.cs](../../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — internal/external classification used in Step B
+- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration
+- [LateralMovementDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — test coverage validating each step

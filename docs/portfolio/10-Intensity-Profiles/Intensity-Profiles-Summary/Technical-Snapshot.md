@@ -1,6 +1,6 @@
 # Intensity Profiles — Technical Snapshot
 
-> The intensity profile subsystem is the central nervous system of Vulcan's Trace. In 755 lines of production C# across the profile model, factory, enum, and analyzer, it maps a single user-facing concept — Low, Medium, or High sensitivity — into a fully configured analysis profile with 13 detector enable flags, 20+ threshold knobs, shared policy lists, an output severity filter, and a per-category finding cap. The sealed-record data model ensures immutability, the switch-expression factory provides exhaustive pattern matching, and the orchestrator resolves the profile once per analysis run — making every detection decision traceable to a single configuration object.
+> The intensity profile subsystem is the central nervous system of Vulcan's Trace. In the production profile code across the profile model, factory, enum, and analyzer, it maps a single user-facing concept — Low, Medium, or High sensitivity — into a fully configured analysis profile with 13 detector enable flags, 20+ threshold knobs, shared policy lists, an output severity filter, and a per-category finding cap. The sealed-record data model ensures immutability, the switch-expression factory provides exhaustive pattern matching, and the orchestrator resolves the profile once per analysis run — making every detection decision traceable to a single configuration object.
 >
 > This subsystem demonstrates skills in **configuration-driven architecture**, **sealed-record immutability**, **switch-expression exhaustive matching**, **defense-in-depth threshold tuning**, and **profile-aware feature toggling**.
 
@@ -16,9 +16,7 @@ The `AnalysisProfile` sealed record holds every config knob: enable flags for 13
 
 | Metric | Value |
 |---|---|
-| Production code | 755 lines (AnalysisProfile, AnalysisProfileProvider, IntensityLevel, SentryAnalyzer) |
-| Test code | 123 lines |
-| Test-to-code ratio | 0.17 : 1 (profile comparison integration test only) |
+| Profile comparison coverage | Integration-tested across Low, Medium, and High |
 | Detector enable flags | 13 |
 | Numeric thresholds | 20+ |
 | Shared policy lists | 2 (AdminPorts, DisallowedOutboundPorts) |

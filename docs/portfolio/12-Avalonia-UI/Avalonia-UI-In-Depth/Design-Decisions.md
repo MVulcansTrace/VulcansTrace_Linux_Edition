@@ -9,7 +9,7 @@
 **Rationale:**
 
 - The UI is the only entry point — there is no need for scoped lifetimes, interceptor support, or modular registration
-- Every dependency is visible in one 60-line block — a reviewer can audit the complete wiring without searching multiple configuration files
+- Every dependency is visible in one composition block — a reviewer can audit the complete wiring without searching multiple configuration files
 - No DI container means no reflection overhead at startup and no hidden registrations that could inject a malicious detector or formatter
 - The constructor is the single source of truth for the dependency graph
 
@@ -79,7 +79,7 @@
 **Rationale:**
 
 - The timeline visualization is simple: horizontal bars grouped by category with severity colors
-- A charting library (LiveCharts, ScottPlot, OxyPlot) would add a dependency for a feature that requires ~50 lines of code
+- A charting library (LiveCharts, ScottPlot, OxyPlot) would add a dependency for a compact, application-specific rendering feature
 - Canvas rendering gives pixel-perfect control over bar positioning, tooltips, and colors
 - The `TimelineViewModel` normalizes positions to 0–1 range, making the rendering resolution-independent
 

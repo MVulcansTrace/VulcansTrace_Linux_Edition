@@ -29,7 +29,7 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [LateralMovementDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — sliding-window lateral movement detector (120 lines)
-- [IpClassification.cs](../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 and IPv6 ULA internal/external classification (157 lines)
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration record (195 lines)
-- [LateralMovementDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — baseline test coverage (687 lines)
+- [LateralMovementDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/LateralMovementDetector.cs) — sliding-window lateral movement detector
+- [IpClassification.cs](../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — RFC 1918 and IPv6 ULA internal/external classification
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold and enable-flag configuration record
+- [LateralMovementDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/LateralMovementDetectorTests.cs) — baseline test coverage

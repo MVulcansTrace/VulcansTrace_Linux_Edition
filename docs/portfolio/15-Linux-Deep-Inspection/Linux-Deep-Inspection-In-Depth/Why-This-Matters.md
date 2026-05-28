@@ -18,15 +18,15 @@ The five Linux Deep Inspection detectors address each of these gaps by analyzing
 
 ## Implementation Overview
 
-The subsystem comprises five independent `IDetector` implementations totaling 593 lines, each targeting a specific analytical dimension:
+The subsystem comprises five independent `IDetector` implementations with each detector targeting a specific analytical dimension:
 
-| Detector | Lines | Signal | Attack Addressed |
-|---|---|---|---|
-| FlagAnomalyDetector | 86 | TCP flag combinations | Stealth/XMAS scanning (T1046, T1595) |
-| MacSpoofingDetector | 121 | MAC-to-IP mappings | ARP poisoning, L2 masquerading (T1200) |
-| KernelModuleDetector | 96 | Raw log line signatures | Defensive posture gaps (T1562.001) |
-| InterfaceHoppingDetector | 117 | Interface-per-IP switching | Segmentation bypass (T1046, T1595) |
-| UnusualPacketSizeDetector | 173 | Packet length analysis | Covert channels, exfiltration (T1048, T1571) |
+| Detector | Signal | Attack Addressed |
+|---|---|---|
+| FlagAnomalyDetector | TCP flag combinations | Stealth/XMAS scanning (T1046, T1595) |
+| MacSpoofingDetector | MAC-to-IP mappings | ARP poisoning, L2 masquerading (T1200) |
+| KernelModuleDetector | Raw log line signatures | Defensive posture gaps (T1562.001) |
+| InterfaceHoppingDetector | Interface-per-IP switching | Segmentation bypass (T1046, T1595) |
+| UnusualPacketSizeDetector | Packet length analysis | Covert channels, exfiltration (T1048, T1571) |
 
 All detectors consume the `LinuxSpecific` metadata dictionary populated during log normalization, keeping the core `UnifiedEvent` schema clean while enabling Linux-specific analysis.
 
@@ -59,23 +59,23 @@ All detectors consume the `LinuxSpecific` metadata dictionary populated during l
 
 ## Implementation Evidence
 
-- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis (86 lines)
-- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC spoofing detection (121 lines)
-- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture (96 lines)
-- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detection (117 lines)
-- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size analysis (173 lines)
-- [RiskEscalator.cs](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation (130 lines)
-- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite (422 lines)
-- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite (643 lines)
-- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite (630 lines)
-- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite (553 lines)
-- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite (665 lines)
+- [FlagAnomalyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs) — TCP flag analysis
+- [MacSpoofingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/MacSpoofingDetector.cs) — MAC spoofing detection
+- [KernelModuleDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — kernel module posture
+- [InterfaceHoppingDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/InterfaceHoppingDetector.cs) — interface hopping detection
+- [UnusualPacketSizeDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — packet size analysis
+- [RiskEscalator.cs](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlated severity escalation
+- [FlagAnomalyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/FlagAnomalyDetectorTests.cs) — test suite
+- [MacSpoofingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/MacSpoofingDetectorTests.cs) — test suite
+- [KernelModuleDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite
+- [InterfaceHoppingDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/InterfaceHoppingDetectorTests.cs) — test suite
+- [UnusualPacketSizeDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite
 
 ---
 
 ## Elevator Pitch
 
-> The Linux Deep Inspection subsystem takes the Linux-specific metadata that iptables logs provide — TCP flags, MAC addresses, interface identifiers, packet sizes, and kernel module signatures — and, across 593 lines in five focused detectors, identifies stealth scanning, ARP poisoning, segmentation bypass, covert channels, and defensive posture gaps. The RiskEscalator then correlates these signals with baseline detectors, promoting independent Medium and High findings to Critical when they converge on the same host.
+> The Linux Deep Inspection subsystem takes the Linux-specific metadata that iptables logs provide — TCP flags, MAC addresses, interface identifiers, packet sizes, and kernel module signatures — and, across five focused detectors, identifies stealth scanning, ARP poisoning, segmentation bypass, covert channels, and defensive posture gaps. The RiskEscalator then correlates these signals with baseline detectors, promoting independent Medium and High findings to Critical when they converge on the same host.
 
 ---
 

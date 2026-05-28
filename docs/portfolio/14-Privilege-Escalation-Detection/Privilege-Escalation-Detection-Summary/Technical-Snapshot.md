@@ -1,6 +1,6 @@
 # Technical Snapshot: Privilege Escalation Detection
 
-> The privilege escalation detector is a 233-line detector that monitors network traffic against administrative ports, running two complementary sub-detectors: one that flags high-volume admin-port bursts (>= `PrivilegeSpikeMinAttempts` attempts in a sliding window) and one that flags multi-port admin sweeps (>= `PrivilegeSweepMinDistinctPorts` distinct admin ports in a sliding window). It implements `IDetector`, is cancellation-safe, and adapts its sensitivity through profile-based time windows and thresholds.
+> The privilege escalation detector monitors network traffic against administrative ports, running two complementary sub-detectors: one that flags high-volume admin-port bursts (>= `PrivilegeSpikeMinAttempts` attempts in a sliding window) and one that flags multi-port admin sweeps (>= `PrivilegeSweepMinDistinctPorts` distinct admin ports in a sliding window). It implements `IDetector`, is cancellation-safe, and adapts its sensitivity through profile-based time windows and thresholds.
 
 ---
 
@@ -14,7 +14,6 @@ The detector operates on the unified event stream produced by the log normalizat
 
 | Metric | Value |
 |---|---|
-| Implementation size | 233 lines |
 | Interfaces implemented | `IDetector` |
 | Finding category | `PrivilegeEscalation` |
 | Severities emitted | High (admin spikes), Medium (admin port sweeps) |
@@ -23,7 +22,7 @@ The detector operates on the unified event stream produced by the log normalizat
 | Sweep threshold | `PrivilegeSweepMinDistinctPorts` per window (profile-dependent: 3 Medium, 2 High) |
 | Time window range | 5–10 minutes (configurable) |
 | Cancellation points | 1 (outer per-source loop) |
-| Test coverage | 17 test methods (679 lines) |
+| Test coverage | 17 test methods |
 
 ---
 
@@ -39,10 +38,10 @@ The detector operates on the unified event stream produced by the log normalizat
 
 ## Key Evidence
 
-- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation (233 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record (195 lines)
-- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets (239 lines)
-- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite (679 lines)
+- [PrivilegeEscalationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — threshold configuration record
+- [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity presets
+- [PrivilegeEscalationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — test suite
 
 ---
 

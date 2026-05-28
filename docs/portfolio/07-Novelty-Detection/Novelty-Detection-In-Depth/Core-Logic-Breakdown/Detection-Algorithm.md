@@ -161,5 +161,5 @@ Singletons are grouped by source IP — each source produces a single finding. T
 
 ## Implementation Evidence
 
-- [NoveltyDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — full implementation (83 lines)
-- [NoveltyDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — test coverage (74 lines)
+- [NoveltyDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — full implementation
+- [NoveltyDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — test coverage

@@ -213,8 +213,8 @@ If the standard deviation exceeds `varianceRatio` (default 0.5) times the mean, 
 
 ## Implementation Evidence
 
-- [UnusualPacketSizeDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — detector implementation (173 lines)
-- [UnusualPacketSizeDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite (665 lines)
+- [UnusualPacketSizeDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/UnusualPacketSizeDetector.cs) — detector implementation
+- [UnusualPacketSizeDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/UnusualPacketSizeDetectorTests.cs) — test suite
 
 ---
 

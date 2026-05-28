@@ -20,3 +20,13 @@ key is generated, the button enables so you can copy the key.
 
 - The key shown is the full HMAC key for the session.
 - If you re-run analysis and export again, a new key is generated for that analysis session.
+
+## Verify a bundle from the CLI
+
+The optional `tools/TestAnalysis` runner can verify a bundle with the copied key:
+
+```bash
+dotnet run --project tools/TestAnalysis -- --verify evidence.zip --key <64-character-hex-key>
+```
+
+Verification fails if the manifest HMAC does not match, if any manifest-listed file is missing, or if a file hash no longer matches the manifest.

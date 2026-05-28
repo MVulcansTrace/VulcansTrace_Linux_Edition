@@ -19,7 +19,7 @@ The test suite validates the VulcansTrace analysis pipeline end-to-end. Unit tes
 | Detector test files | 13 (6 baseline, 5 Linux, 2 advanced) |
 | Integration test files | 7 (SentryAnalyzer, RealWorld, RealLog, Performance, ProfileComparison, ConfigurableThreshold, GoldenScenario) |
 | Evidence test files | 6 (Builder, CSV, HTML, JSON, Markdown, STIX) |
-| Test helper | LogScenarioBuilder (106 lines) |
+| Test helper | LogScenarioBuilder |
 | Real log fixtures | 5 (iptables-attack.log, nftables-traffic.log, large-portscan.log, iptables-mixed-prefixes.log, golden-compromise-timeline.log) |
 | Assertion framework | xUnit Assert |
 | Test runner command | `dotnet test` |
@@ -40,12 +40,12 @@ The test suite validates the VulcansTrace analysis pipeline end-to-end. Unit tes
 ## Key Evidence
 
 - [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs), [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs), [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs), and [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — parser, normalizer, and event model unit tests
-- [PortScanDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — detector boundary tests (514 lines)
-- [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests (977 lines)
-- [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests (351 lines)
-- [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence integrity tests (674 lines)
-- [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator (106 lines)
-- [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — UI ViewModel tests (210 lines)
+- [PortScanDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — detector boundary tests
+- [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests
+- [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests
+- [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence integrity tests
+- [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator
+- [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — UI ViewModel tests
 
 ---
 

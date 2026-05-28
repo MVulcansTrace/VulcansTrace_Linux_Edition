@@ -30,8 +30,8 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [PortScanDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PortScanDetector.cs) — detector implementation: grouping, truncation, windowing, and finding creation (133 lines)
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — profile record with port scan threshold properties (195 lines)
-- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity-based threshold presets (239 lines)
-- [RiskEscalator.cs](../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlates PortScan + FlagAnomaly to Critical severity (130 lines)
+- [PortScanDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PortScanDetector.cs) — detector implementation: grouping, truncation, windowing, and finding creation
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — profile record with port scan threshold properties
+- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity-based threshold presets
+- [RiskEscalator.cs](../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) — correlates PortScan + FlagAnomaly to Critical severity
 - [PortScanDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — threshold boundary, multi-source, and property validation tests

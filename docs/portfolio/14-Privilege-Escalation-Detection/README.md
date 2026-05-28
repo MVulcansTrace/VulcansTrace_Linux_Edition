@@ -30,7 +30,7 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [PrivilegeEscalationDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation: dual sub-detectors, admin port filtering, and finding creation (233 lines)
-- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — profile record with privilege escalation threshold properties (195 lines)
-- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity-based threshold presets (239 lines)
-- [PrivilegeEscalationDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — spike detection, sweep detection, disabled-mode, and below-threshold tests (679 lines)
+- [PrivilegeEscalationDetector.cs](../../../VulcansTrace.Linux.Engine/Detectors/PrivilegeEscalationDetector.cs) — detector implementation: dual sub-detectors, admin port filtering, and finding creation
+- [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — profile record with privilege escalation threshold properties
+- [AnalysisProfileProvider.cs](../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — intensity-based threshold presets
+- [PrivilegeEscalationDetectorTests.cs](../../../VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs) — spike detection, sweep detection, disabled-mode, and below-threshold tests

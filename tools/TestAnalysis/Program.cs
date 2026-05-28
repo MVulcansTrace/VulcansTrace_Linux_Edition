@@ -9,13 +9,21 @@ using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Evidence.Formatters;
 
 var exportDir = GetOptionValue(args, "--export", "-e");
+var verifyBundle = GetOptionValue(args, "--verify", "-v");
+var verifyKeyHex = GetOptionValue(args, "--key", "-k");
 var runAll = args.Any(a => a.Equals("--all", StringComparison.OrdinalIgnoreCase));
 var intensityOverride = ParseIntensity(GetOptionValue(args, "--intensity", "-i"));
+
+if (!string.IsNullOrWhiteSpace(verifyBundle))
+{
+    return await VerifyEvidenceBundleAsync(verifyBundle, verifyKeyHex);
+}
 
 var logFile = args.FirstOrDefault(a => !a.StartsWith("-", StringComparison.OrdinalIgnoreCase));
 if (string.IsNullOrWhiteSpace(logFile))
 {
     Console.WriteLine("Usage: TestAnalysis <logfile> [--intensity Low|Medium|High] [--all] [--export <dir>]");
+    Console.WriteLine("       TestAnalysis --verify <bundle.zip> --key <64-character-hex-key>");
     Console.WriteLine("Analyzing SAMPLE-LOG-MEDIUM-PROFILE.log by default...");
     logFile = "SAMPLE-LOG-MEDIUM-PROFILE.log";
 }
@@ -68,7 +76,7 @@ var advancedDetectors = new IDetector[]
 };
 
 var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, new RiskEscalator());
-var evidenceBuilder = new EvidenceBuilder(new IntegrityHasher(), new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), new JsonFormatter(), new StixFormatter());
+var evidenceBuilder = CreateEvidenceBuilder();
 
 var intensities = runAll
     ? new[] { IntensityLevel.Low, IntensityLevel.Medium, IntensityLevel.High }
@@ -136,6 +144,7 @@ foreach (var intensity in intensities)
         await File.WriteAllBytesAsync(outputPath, zipBytes);
 
         Console.WriteLine($"Evidence bundle: {outputPath}");
+        Console.WriteLine($"Evidence signing key (hex): {Convert.ToHexString(key).ToLowerInvariant()}");
         ValidateEvidenceBundle(outputPath);
     }
 
@@ -159,6 +168,48 @@ static string? GetOptionValue(string[] args, string longName, string shortName)
 
     return null;
 }
+
+static async Task<int> VerifyEvidenceBundleAsync(string bundlePath, string? signingKeyHex)
+{
+    if (string.IsNullOrWhiteSpace(signingKeyHex))
+    {
+        Console.WriteLine("Usage: TestAnalysis --verify <bundle.zip> --key <64-character-hex-key>");
+        return 1;
+    }
+
+    if (!File.Exists(bundlePath))
+    {
+        Console.WriteLine($"Error: File not found: {bundlePath}");
+        return 1;
+    }
+
+    byte[] signingKey;
+    try
+    {
+        signingKey = Convert.FromHexString(signingKeyHex.Trim());
+    }
+    catch (FormatException)
+    {
+        Console.WriteLine("Error: signing key must be hexadecimal.");
+        return 1;
+    }
+
+    var zipBytes = await File.ReadAllBytesAsync(bundlePath);
+    var verification = CreateEvidenceBuilder().Verify(zipBytes, signingKey);
+
+    Console.WriteLine($"Verification: {(verification.IsValid ? "PASS" : "FAIL")}");
+    Console.WriteLine(verification.Message);
+
+    foreach (var issue in verification.Issues)
+    {
+        Console.WriteLine($"  - {issue}");
+    }
+
+    return verification.IsValid ? 0 : 1;
+}
+
+static EvidenceBuilder CreateEvidenceBuilder() =>
+    new(new IntegrityHasher(), new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), new JsonFormatter(), new StixFormatter());
 
 static IntensityLevel? ParseIntensity(string? value)
 {

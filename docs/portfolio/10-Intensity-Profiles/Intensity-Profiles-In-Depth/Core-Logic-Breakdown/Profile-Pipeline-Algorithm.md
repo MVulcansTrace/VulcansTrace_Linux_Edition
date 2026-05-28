@@ -181,7 +181,7 @@ var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
 
 ## Implementation Evidence
 
-- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record definition (195 lines)
-- [AnalysisProfileProvider.cs](../../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory with switch expression (239 lines)
-- [SentryAnalyzer.cs](../../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution and distribution (303 lines)
-- [ProfileComparisonTests.cs](../../../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — cross-profile integration test (123 lines)
+- [AnalysisProfile.cs](../../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record definition
+- [AnalysisProfileProvider.cs](../../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory with switch expression
+- [SentryAnalyzer.cs](../../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution and distribution
+- [ProfileComparisonTests.cs](../../../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — cross-profile integration test

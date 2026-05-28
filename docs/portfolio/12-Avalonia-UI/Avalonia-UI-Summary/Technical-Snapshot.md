@@ -13,12 +13,8 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 | Metric | Value |
 |---|---|
 | ViewModel files | 10 (MainViewModel, Findings, Evidence, Timeline, FindingItem, IntensityOption, SeverityFilterOption, ViewModelBase, RelayCommand, AsyncRelayCommand) |
-| Total ViewModel lines | ~1,485 |
-| MainWindow.axaml.cs (code-behind) | 193 lines |
-| MainWindow.axaml (layout) | 408 lines |
-| Dialog abstraction | 1 interface (35 lines) + 1 Avalonia adapter (181 lines) |
+| Dialog abstraction | 1 interface + 1 Avalonia adapter |
 | Test files | 4 (MainViewModel, Findings, Evidence, AsyncRelayCommand) |
-| Total test lines | ~578 |
 | Detectors wired in composition root | 13 (6 baseline + 5 Linux + 2 advanced) |
 | Timeline severity colors | 5 (Critical=#ef4444, High=#f97316, Medium=#eab308, Low=#22c55e, Unknown=#64748b) |
 

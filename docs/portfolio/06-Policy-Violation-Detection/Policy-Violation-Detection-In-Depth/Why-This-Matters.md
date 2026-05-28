@@ -19,7 +19,7 @@ The detector operates as a stateless per-event filter on pre-normalized `Unified
 3. **Group by (SourceIP, DstPort)** — matching events are collected into a dictionary for aggregation
 4. **Emit finding** — one finding per group with connection counts, distinct destination tallies, and min/max timestamps
 
-The entire implementation is 71 lines — the most compact detector in the engine.
+The implementation is compact — the most compact detector in the engine.
 
 ---
 
@@ -49,14 +49,14 @@ The entire implementation is 71 lines — the most compact detector in the engin
 
 ## Implementation Evidence
 
-- [PolicyViolationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — filter-and-group implementation (71 lines)
-- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — internal/external classification (157 lines)
-- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration (195 lines)
-- [PolicyViolationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — test suite (138 lines)
+- [PolicyViolationDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/PolicyViolationDetector.cs) — filter-and-group implementation
+- [IpClassification.cs](../../../../VulcansTrace.Linux.Engine/Net/IpClassification.cs) — internal/external classification
+- [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — disallowed port configuration
+- [PolicyViolationDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PolicyViolationDetectorTests.cs) — test suite
 
 ---
 
-> **Elevator Pitch:** This detector is the organization's outbound policy guard — watching for any internal host that tries to send data out via FTP, Telnet, or SMB. In 71 lines, it turns every policy violation group into a documented, auditable finding that compliance teams and incident responders can act on immediately.
+> **Elevator Pitch:** This detector is the organization's outbound policy guard — watching for any internal host that tries to send data out via FTP, Telnet, or SMB. It turns every policy violation group into a documented, auditable finding that compliance teams and incident responders can act on immediately.
 
 ---
 
@@ -66,4 +66,4 @@ The entire implementation is 71 lines — the most compact detector in the engin
 - The stateless design guarantees complete coverage — no windowing or grouping means no false negatives from temporal misalignment
 - FTP, Telnet, and outbound SMB are high-confidence indicators of compromise in modern networks
 - One finding per (SourceIP, DstPort) group creates the detailed audit trail that compliance frameworks require
-- The 71-line implementation proves that effective security tooling does not require complexity
+- The implementation stays deliberately compact and auditable without adding unnecessary state

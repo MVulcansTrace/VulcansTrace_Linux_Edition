@@ -105,13 +105,13 @@
 
 ## File References
 
-| File | Path | Lines |
+| File | Path | Role |
 |---|---|---|
-| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | 195 |
-| AnalysisProfileProvider.cs | `VulcansTrace.Linux.Engine/Configuration/` | 239 |
-| IntensityLevel.cs | `VulcansTrace.Linux.Engine/` | 18 |
-| SentryAnalyzer.cs | `VulcansTrace.Linux.Engine/` | 303 |
-| ProfileComparisonTests.cs | `VulcansTrace.Linux.Tests/Integration/` | 123 |
+| AnalysisProfile.cs | `VulcansTrace.Linux.Engine/` | Immutable profile model |
+| AnalysisProfileProvider.cs | `VulcansTrace.Linux.Engine/Configuration/` | Low/Medium/High preset factory |
+| IntensityLevel.cs | `VulcansTrace.Linux.Engine/` | User-facing profile enum |
+| SentryAnalyzer.cs | `VulcansTrace.Linux.Engine/` | Profile resolution and visibility filtering |
+| ProfileComparisonTests.cs | `VulcansTrace.Linux.Tests/Integration/` | Cross-profile behavior tests |
 
 ---
 

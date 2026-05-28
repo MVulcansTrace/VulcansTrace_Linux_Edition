@@ -13,10 +13,8 @@ The log normalization subsystem is the entry point for all analysis in VulcansTr
 | Metric | Value |
 |---|---|
 | Core source files | 4 (LogNormalizer, LinuxIptablesParser, LinuxNftablesParser, UnifiedEvent) |
-| Total lines of implementation | 862 |
 | Per-format regex coverage | 34 iptables / 36 nftables patterns (33 shared + parser-specific fields) |
 | Test files | 4 |
-| Total test lines | 2,412 |
 | Maximum input size | 100,000,000 characters |
 | Supported log formats | iptables, nftables |
 | Event fields extracted per line | Up to 35+ (IPs, ports, protocol, action, interfaces, MAC, flags, TTL, TOS, ID, Window, Length, HOPLIMIT, TC, FLOWLBL, PREC, RES, URGP, DF, UID, GID, MARK, PHYSIN, PHYSOUT, VPROTO, VID, SPI, FRAG, MTU) |

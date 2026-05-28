@@ -10,13 +10,13 @@ Novelty detection must process the entire event dataset to build a complete freq
 
 | Pattern | Location | Purpose |
 |---|---|---|
-| Guard clause | Lines 10-11 | Early return when disabled or empty |
-| Early exit on empty filter | Lines 13-15 | Skip frequency building if no external events |
-| LINQ GroupBy + ToDictionary | Lines 17-19 | Frequency table in one expression |
-| Tuple composite key | Lines 18, 29 | (DestIP, DestPort) grouping |
-| Dictionary lookup | Line 28 | O(1) singleton check |
-| Source grouping | Lines 21, 31-36 | Group singletons by source IP |
-| Per-source finding | Lines 41-79 | Aggregated finding per source with comma-separated targets |
+| Guard clause | Detector implementation | Early return when disabled or empty |
+| Early exit on empty filter | Detector implementation | Skip frequency building if no external events |
+| LINQ GroupBy + ToDictionary | Detector implementation | Frequency table in one expression |
+| Tuple composite key | Detector implementation | (DestIP, DestPort) grouping |
+| Dictionary lookup | Detector implementation | O(1) singleton check |
+| Source grouping | Detector implementation | Group singletons by source IP |
+| Per-source finding | Detector implementation | Aggregated finding per source with comma-separated targets |
 
 ---
 
@@ -113,8 +113,8 @@ Singletons are grouped by source IP — each source produces one finding. The `T
 
 ## Implementation Evidence
 
-- [NoveltyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — all patterns in context (83 lines)
-- [NoveltyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — validates two-pass behavior (74 lines)
+- [NoveltyDetector.cs](../../../../VulcansTrace.Linux.Engine/Detectors/NoveltyDetector.cs) — all patterns in context
+- [NoveltyDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/NoveltyDetectorTests.cs) — validates two-pass behavior
 
 ---
 

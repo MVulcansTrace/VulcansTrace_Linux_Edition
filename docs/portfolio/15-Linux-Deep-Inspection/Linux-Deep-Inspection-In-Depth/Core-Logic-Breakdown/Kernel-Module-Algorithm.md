@@ -143,8 +143,8 @@ One Info-severity finding is emitted per detected module. The `SourceHost` is se
 
 ## Implementation Evidence
 
-- [KernelModuleDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — detector implementation (96 lines)
-- [KernelModuleDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite (630 lines)
+- [KernelModuleDetector.cs](../../../../../VulcansTrace.Linux.Engine/Detectors/KernelModuleDetector.cs) — detector implementation
+- [KernelModuleDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Linux/KernelModuleDetectorTests.cs) — test suite
 
 ---
 
