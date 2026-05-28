@@ -3,7 +3,7 @@
 [![CI](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
-![Avalonia 11.3.11](https://img.shields.io/badge/Avalonia-11.3.11-8B44AC)
+![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
 ![Tests: xUnit](https://img.shields.io/badge/Tests-xUnit-512BD4)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
@@ -220,7 +220,6 @@ To add a detector, implement `IDetector`, register it with the analyzer composit
 - Log input is capped at 100,000,000 characters.
 - Retained parse errors are capped to keep analysis output bounded.
 - Evidence files are protected by SHA-256 hashes and an HMAC-SHA256 manifest signature.
-- `scripts/internal-security-scan.sh` is an optional build-pipeline script and only runs when explicitly invoked with `VULCANSTRACE_INTERNAL_VULN_API` and `VULCANSTRACE_INTERNAL_VULN_TOKEN`.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the full security model.
 

@@ -4,7 +4,7 @@
 
 Prerequisites:
 - .NET 9.0 SDK
-- Standard NuGet restore (packages come from nuget.org; no internal feed required for build)
+- Standard NuGet restore from the public nuget.org feed
 
 Build the solution:
 ```bash
@@ -52,4 +52,4 @@ for the step-by-step HMAC signing key flow.
 
 ## Build Policies
 
-`Directory.Build.props` enforces warnings as errors and suppresses `NU1900` (internal feed audit API unavailable). Real vulnerability audit warnings (NU1901–NU1903) remain enabled.
+`Directory.Build.props` enforces warnings as errors so restore, build, and vulnerability-audit warnings are treated as release blockers.
