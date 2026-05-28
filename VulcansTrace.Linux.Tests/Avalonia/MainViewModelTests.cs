@@ -55,6 +55,7 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    [Trait("Category", "Timing")]
     public async Task CancelCommand_CancelsActiveAnalysis()
     {
         _vm.LogText = new string('k', 100_000);
