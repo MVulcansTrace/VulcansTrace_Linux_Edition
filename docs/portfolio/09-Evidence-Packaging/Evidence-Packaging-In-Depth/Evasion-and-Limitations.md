@@ -60,9 +60,9 @@ The `HtmlFormatter` encodes all user-provided content via `System.Net.WebUtility
 The `StixFormatter` validates IP addresses with `IPAddress.TryParse` before creating `ipv4-addr` objects. However:
 
 - Non-IP target values (e.g., `"multiple hosts/ports"`) are correctly skipped by the `ExtractTargetIp` + `IsValidIpAddress` chain
-- IPv6 addresses are placed in `ipv6-addr` SDOs (not `ipv4-addr`), but TIP compatibility for IPv6 indicators varies by platform
+- IPv6 addresses are placed in `ipv6-addr` observable objects (not `ipv4-addr`), but TIP compatibility for IPv6 observables varies by platform
 
-**Remaining risk:** Some strict TIP implementations may not fully support `ipv6-addr` SDOs, or may apply different validation rules for IPv6 indicators compared to IPv4.
+**Remaining risk:** Some strict TIP implementations may not fully support `ipv6-addr` objects, or may apply different validation rules for IPv6 observables compared to IPv4.
 
 ### Archive Timestamp Manipulation
 
@@ -81,7 +81,7 @@ ZIP entry timestamps are set to the normalized analysis timestamp, not the actua
 | Streaming ZIP output | Low | Write to a `Stream` instead of `byte[]` to reduce memory footprint for large logs |
 | Encrypted archive option | Low | AES-256 ZIP encryption for confidentiality-at-rest |
 | Formatter encoding enforcement | Medium | Add a base class or analyzer that verifies `HtmlEncode` is called for all user content |
-| Archive reproducibility test | Medium | Add a test that builds the same `AnalysisResult` twice and asserts byte-identical output |
+| Archive reproducibility coverage | Medium | `EvidenceBuilderTests.Build_SameInputsAndTimestamp_ProducesByteIdenticalArchive` asserts byte-identical output for repeated builds |
 
 ---
 
@@ -89,6 +89,6 @@ ZIP entry timestamps are set to the normalized analysis timestamp, not the actua
 
 - HMAC provides integrity verification but not non-repudiation — a compromised signing key allows archive forgery
 - CSV formula injection and HTML XSS are the primary output attack surfaces, both mitigated by per-formatter encoding conventions
-- TIP compatibility for `ipv6-addr` SDOs varies by platform and should be verified for the target threat intelligence platform
+- TIP compatibility for `ipv6-addr` objects varies by platform and should be verified for the target threat intelligence platform
 - The in-memory build approach limits scalability for very large logs but is safe within the 100M-character input cap
 - Adding an asymmetric signature option would close the non-repudiation gap for legal-grade evidence workflows

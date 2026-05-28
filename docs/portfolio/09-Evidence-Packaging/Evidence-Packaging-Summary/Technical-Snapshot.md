@@ -19,7 +19,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 | Test files | 6 (EvidenceBuilder, Csv, Html, Json, Markdown, Stix) |
 | Total test lines | ~1,718 |
 | ZIP archive entries | 8 (6 content files + manifest.json + manifest.hmac) |
-| STIX 2.1 SDO types produced | 6 (identity, observed-data, note, ipv4-addr, ipv6-addr, malware) |
+| STIX 2.1 object types produced | 6 (identity, observed-data, note, ipv4-addr, ipv6-addr, malware) |
 
 ---
 
@@ -29,7 +29,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 - **Tamper evidence is essential for incident response handoff** — the HMAC-SHA256 manifest signature lets the recipient verify that no file in the archive was modified after creation
 - **Multi-format output maximizes downstream compatibility** — CSV for spreadsheets, HTML for browser review, Markdown for Git-based workflows, JSON for SIEM ingestion, STIX 2.1 for threat intelligence platforms
 - **Formula injection and XSS defense protect the recipient** — the CSV formatter neutralizes spreadsheet macro attacks, and the HTML formatter encodes all user content
-- **STIX 2.1 export enables automated threat intelligence sharing** — findings map to observed-data with IPv4 indicators and optional malware SDOs for C2 activity
+- **STIX 2.1 export enables automated threat intelligence sharing** — findings map to observed-data with IP observables and optional malware SDOs for C2 activity
 
 ---
 
@@ -49,7 +49,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 ## Key Design Choices
 
 - **Builder pattern with dependency injection** — `EvidenceBuilder` accepts an `IntegrityHasher` and all formatters via constructor injection, enabling test-time substitution and single-responsibility separation
-- **Deterministic file ordering** — manifest entries and ZIP entries are sorted alphabetically by filename (`OrderBy` with `StringComparer.OrdinalIgnoreCase`), ensuring bitwise-reproducible archives for the same input
+- **Deterministic file ordering** — manifest entries and ZIP entries are sorted alphabetically by filename (`OrderBy` with `StringComparer.OrdinalIgnoreCase`), supporting bitwise-reproducible archives for the same input and normalized timestamp
 - **HMAC over SHA-256 hashes, not raw files** — signing the manifest JSON (which already contains per-file SHA-256 hashes) creates a two-layer integrity chain without requiring the verifier to re-hash every file independently
 - **Timestamp clamping to ZIP spec range** — `NormalizeTimestamp` clamps `DateTimeOffset` values to the 1980-2107 range supported by the ZIP format, preventing `ArgumentOutOfRangeException` from `ZipArchiveEntry.LastWriteTime`
 - **Formula injection defense in CSV** — the `Escape` method prepends a single quote to any cell value starting with `=`, `+`, `-`, or `@`, neutralizing CSV macro injection attacks (CVE-2021-23368 class)

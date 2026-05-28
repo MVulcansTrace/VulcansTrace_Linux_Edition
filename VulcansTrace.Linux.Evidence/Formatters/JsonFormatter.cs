@@ -14,6 +14,9 @@ public class JsonFormatter : IEvidenceFormatter
     public string ContentType => "application/json";
 
     public string Format(AnalysisResult result, string originalLog)
+        => Format(result, originalLog, DateTime.UtcNow);
+
+    public string Format(AnalysisResult result, string originalLog, DateTime exportTimestampUtc)
     {
         var jsonOptions = new JsonSerializerOptions
         {
@@ -28,7 +31,7 @@ public class JsonFormatter : IEvidenceFormatter
             {
                 ToolName = "VulcansTrace Linux Edition",
                 Version = typeof(JsonFormatter).Assembly.GetName().Version?.ToString() ?? "unknown",
-                ExportTimestamp = DateTime.UtcNow,
+                ExportTimestamp = NormalizeUtc(exportTimestampUtc),
                 OriginalLogLines = result.TotalLines,
                 ParsedEvents = result.ParsedLines,
                 AnalysisTimeRange = new TimeRange
@@ -55,6 +58,14 @@ public class JsonFormatter : IEvidenceFormatter
 
         return JsonSerializer.Serialize(exportModel, jsonOptions);
     }
+
+    private static DateTime NormalizeUtc(DateTime value) =>
+        value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
 }
 
 /// <summary>

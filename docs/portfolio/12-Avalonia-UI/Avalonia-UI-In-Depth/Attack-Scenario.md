@@ -218,7 +218,9 @@ unzip incident-2024-01-19.zip -d incident/
 
 # Verify HMAC (using the key from clipboard)
 STORED_HMAC=$(cat incident/manifest.hmac)
-EXPECTED=$(openssl dgst -sha256 -hmac "A1B2C3D4E5F6..." incident/manifest.json | awk '{print $NF}')
+SIGNING_KEY_HEX="A1B2C3D4E5F6..."
+EXPECTED=$(openssl dgst -sha256 -mac HMAC -macopt "hexkey:$SIGNING_KEY_HEX" \
+    incident/manifest.json | awk '{print $NF}')
 [ "$STORED_HMAC" = "$EXPECTED" ] && echo "PASS: HMAC verified" || echo "FAIL: TAMPERED"
 
 # Verify individual file hashes

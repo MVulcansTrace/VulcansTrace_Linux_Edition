@@ -51,6 +51,19 @@ public class JsonFormatterTests
     }
 
     [Fact]
+    public void Format_WithExportTimestamp_UsesProvidedTimestamp()
+    {
+        var result = ResultWith();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var json = _formatter.Format(result, "raw log", timestamp);
+        var doc = JsonDocument.Parse(json);
+
+        var actual = doc.RootElement.GetProperty("metadata").GetProperty("exportTimestamp").GetDateTime();
+        Assert.Equal(timestamp, actual);
+    }
+
+    [Fact]
     public void Format_EmptyFindings_ProducesValidJson()
     {
         var result = new AnalysisResult

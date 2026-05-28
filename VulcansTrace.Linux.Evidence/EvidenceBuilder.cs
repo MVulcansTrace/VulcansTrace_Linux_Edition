@@ -114,8 +114,8 @@ public sealed class EvidenceBuilder
             ["log.txt"]       = Encoding.UTF8.GetBytes(rawLog ?? string.Empty),
             ["report.html"]   = Encoding.UTF8.GetBytes(_htmlFormatter.ToHtml(result)),
             ["summary.md"]    = Encoding.UTF8.GetBytes(_markdownFormatter.ToMarkdown(result)),
-            ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty)),
-            ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty))
+            ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime)),
+            ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime))
         };
         cancellationToken.ThrowIfCancellationRequested();
 

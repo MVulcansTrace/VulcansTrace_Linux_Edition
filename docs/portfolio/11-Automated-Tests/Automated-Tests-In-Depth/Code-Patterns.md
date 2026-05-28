@@ -201,9 +201,9 @@ Beyond finding count, tests assert on structural properties — category, non-em
 ## Implementation Evidence
 
 - [PortScanDetectorTests.cs](../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — boundary-value triples and property assertions (514 lines)
-- [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — constructor-per-fixture and error injection (976 lines)
+- [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — constructor-per-fixture and error injection (977 lines)
 - [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — fluent synthetic log generator (106 lines)
-- [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — UI command binding tests (209 lines)
+- [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — UI command binding tests (210 lines)
 
 ---
 

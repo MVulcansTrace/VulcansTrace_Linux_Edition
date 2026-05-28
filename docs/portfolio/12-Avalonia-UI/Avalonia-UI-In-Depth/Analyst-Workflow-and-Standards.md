@@ -154,7 +154,7 @@ The analyst clicks "Copy signing key" to copy the HMAC key to the clipboard for 
 │                                                                          │
 │  ────────────────────────────────────────────────────────────────────── │
 │  Evidence Archive: 6 formats + manifest.json + manifest.hmac            │
-│  Verification: sha256sum + openssl dgst -sha256 -hmac <key>             │
+│  Verification: sha256sum + openssl dgst -sha256 -mac HMAC -macopt hexkey│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

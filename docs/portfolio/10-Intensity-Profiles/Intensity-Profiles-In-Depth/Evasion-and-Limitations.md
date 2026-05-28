@@ -15,7 +15,7 @@
 
 ## Fixed Three-Tier Model
 
-The system provides exactly three presets: Low, Medium, and High. Operators who need intermediate sensitivity (e.g., between Medium and High port scan thresholds of 15 and 8) must use the override parameter to construct a custom profile programmatically. There is no UI or configuration file mechanism for creating custom presets.
+The system provides exactly three presets: Low, Medium, and High. Operators who need intermediate sensitivity (e.g., between Medium and High port scan thresholds of 15 and 8) can use the Advanced UI overrides for selected thresholds or pass an `overrideProfile` programmatically for full-profile customization. There is no configuration file mechanism for creating named custom presets.
 
 **Mitigation:** The `overrideProfile` parameter in `SentryAnalyzer.Analyze` accepts any `AnalysisProfile` instance. Operators can create custom profiles using `with` expressions:
 

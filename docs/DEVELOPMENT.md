@@ -38,7 +38,7 @@ Sample logs used by integration tests live in:
  
 ## Evidence Signing Key
 
-The signing key is generated during evidence export in the UI. See `docs/HMAC_EVIDENCE.md`
+The signing key is generated after each completed analysis in the UI. See `docs/HMAC_EVIDENCE.md`
 for the step-by-step HMAC signing key flow.
 
 ## Adding a Detector

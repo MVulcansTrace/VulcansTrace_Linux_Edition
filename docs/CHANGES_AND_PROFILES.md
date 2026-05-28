@@ -21,7 +21,7 @@ Last updated: 2026-01-26
 
 ### Evidence and export formats
 - STIX 2.1 export rebuilt: now emits a STIX bundle with identity,
-  observed-data, note objects, IPv4 indicators, and optional malware hints.
+  observed-data, note objects, IP observables, and optional malware hints.
   - Code: `VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs`
 - Evidence bundle validation added to the CLI utility.
   - Code: `tools/TestAnalysis/Program.cs`
@@ -46,7 +46,10 @@ Last updated: 2026-01-26
   - Code: `VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs`
-- Expanded `iptables-attack.log` to reliably trigger PortScan at all intensities.
+- Expanded `iptables-attack.log` to reliably trigger visible PortScan findings
+  at Medium and High intensity. Low still evaluates the scan, but standalone
+  PortScan findings are hidden by the High/Critical visibility filter unless
+  correlation escalates them.
   - Fixture: `VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log`
 
 ### Documentation
@@ -187,7 +190,8 @@ HIGH (Aggressive)
 For iptables/nftables logs pasted into the app, the profiles can find:
 
 LOW
-- High-severity port scans (large distinct port count in a short window)
+- Correlated port scans that are escalated to Critical; standalone PortScan
+  findings are Medium severity and hidden by Low's visibility filter
 - Extreme floods (very high event bursts)
 - Broad lateral movement (many internal hosts)
 - High-confidence beaconing

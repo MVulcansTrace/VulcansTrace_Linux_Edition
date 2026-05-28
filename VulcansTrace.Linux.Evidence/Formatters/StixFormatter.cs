@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Core;
@@ -15,6 +17,9 @@ public sealed class StixFormatter : IEvidenceFormatter
     public string ContentType => "application/json";
 
     public string Format(AnalysisResult result, string originalLog)
+        => Format(result, originalLog, DateTime.UtcNow);
+
+    public string Format(AnalysisResult result, string originalLog, DateTime exportTimestampUtc)
     {
         var jsonOptions = new JsonSerializerOptions
         {
@@ -24,14 +29,14 @@ public sealed class StixFormatter : IEvidenceFormatter
 
         var bundle = new StixBundle
         {
-            Id = $"bundle--{Guid.NewGuid()}",
+            Id = StableStixId("bundle", BuildBundleSeed(result, originalLog, exportTimestampUtc)),
             Objects = new List<object>()
         };
 
-        var now = DateTime.UtcNow;
+        var now = NormalizeTime(exportTimestampUtc, DateTime.UtcNow);
         var identity = new StixIdentity
         {
-            Id = $"identity--{Guid.NewGuid()}",
+            Id = StableStixId("identity", "VulcansTrace Linux Edition"),
             Created = now,
             Modified = now,
             Name = "VulcansTrace Linux Edition",
@@ -46,9 +51,7 @@ public sealed class StixFormatter : IEvidenceFormatter
             if (!ipObjects.TryGetValue(ip, out var id))
             {
                 var isV6 = ip.Contains(':');
-                id = isV6
-                    ? $"ipv6-addr--{Guid.NewGuid()}"
-                    : $"ipv4-addr--{Guid.NewGuid()}";
+                id = StableStixId(isV6 ? "ipv6-addr" : "ipv4-addr", ip);
                 ipObjects[ip] = id;
 
                 if (isV6)
@@ -72,8 +75,9 @@ public sealed class StixFormatter : IEvidenceFormatter
             return id;
         }
 
-        foreach (var finding in result.Findings)
+        foreach (var item in result.Findings.Select((Finding, Index) => new { Finding, Index }))
         {
+            var finding = item.Finding;
             var objectRefs = new List<string>();
 
             if (IsValidIpAddress(finding.SourceHost))
@@ -93,7 +97,7 @@ public sealed class StixFormatter : IEvidenceFormatter
                 // so they are not silently dropped from the STIX export.
                 var standaloneNote = new StixNote
                 {
-                    Id = $"note--{Guid.NewGuid()}",
+                    Id = StableStixId("note", finding.Id.ToString(), item.Index.ToString(), BuildNoteContent(finding)),
                     Created = now,
                     Modified = now,
                     Content = BuildNoteContent(finding),
@@ -108,7 +112,7 @@ public sealed class StixFormatter : IEvidenceFormatter
 
             var observed = new StixObservedData
             {
-                Id = $"observed-data--{Guid.NewGuid()}",
+                Id = StableStixId("observed-data", finding.Id.ToString(), item.Index.ToString(), string.Join("|", objectRefs)),
                 Created = now,
                 Modified = now,
                 FirstObserved = firstObserved,
@@ -121,7 +125,7 @@ public sealed class StixFormatter : IEvidenceFormatter
 
             var note = new StixNote
             {
-                Id = $"note--{Guid.NewGuid()}",
+                Id = StableStixId("note", finding.Id.ToString(), item.Index.ToString(), BuildNoteContent(finding)),
                 Created = now,
                 Modified = now,
                 Content = BuildNoteContent(finding),
@@ -134,7 +138,7 @@ public sealed class StixFormatter : IEvidenceFormatter
         {
             var malware = new StixMalware
             {
-                Id = $"malware--{Guid.NewGuid()}",
+                Id = StableStixId("malware", "Potential Malware C2 Activity"),
                 Created = now,
                 Modified = now,
                 Name = "Potential Malware C2 Activity",
@@ -145,6 +149,26 @@ public sealed class StixFormatter : IEvidenceFormatter
         }
 
         return JsonSerializer.Serialize(bundle, jsonOptions);
+    }
+
+    private static string BuildBundleSeed(AnalysisResult result, string originalLog, DateTime exportTimestampUtc)
+    {
+        var findingSeed = string.Join("|", result.Findings.Select(f =>
+            $"{f.Id}:{f.Category}:{f.Severity}:{f.SourceHost}:{f.Target}:{f.TimeRangeStart:O}:{f.TimeRangeEnd:O}:{f.ShortDescription}:{f.Details}"));
+        var logHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(originalLog ?? string.Empty))).ToLowerInvariant();
+        return $"{exportTimestampUtc:O}|{result.TotalLines}|{result.ParsedLines}|{result.SkippedLineCount}|{findingSeed}|{logHash}";
+    }
+
+    private static string StableStixId(string type, params string[] parts)
+    {
+        var seed = $"{type}:{string.Join('\u001f', parts)}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(seed));
+        var bytes = hash[..16];
+
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+
+        return $"{type}--{new Guid(bytes, bigEndian: true):D}";
     }
 
     private static string? ExtractTargetIp(string target)

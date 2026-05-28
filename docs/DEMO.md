@@ -56,7 +56,7 @@ Click **Export Evidence** to generate a signed ZIP bundle containing:
 
 ## Sample Attack Scenarios
 
-The sample log (`iptables-attack.log`) demonstrates a **port scan** — one source host probing 39 distinct destination ports in rapid succession. It is a minimal, clean example designed to reliably trigger PortScan findings at all intensities.
+The sample log (`iptables-attack.log`) demonstrates a **port scan** — one source host probing 39 distinct destination ports in rapid succession. It reliably surfaces PortScan findings at Medium and High intensity. At Low intensity, the detector still evaluates the traffic, but standalone PortScan findings are emitted at Medium severity and are hidden by Low's High/Critical visibility filter unless they are escalated by correlation.
 
 For logs that trigger other detectors, use the integration test fixtures or craft logs with:
 - **TCP flags** (`FLAGS=FIN`, `FLAGS=FIN,PSH,URG`) for FlagAnomaly

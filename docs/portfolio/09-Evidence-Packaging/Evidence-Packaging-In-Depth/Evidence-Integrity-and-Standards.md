@@ -10,7 +10,7 @@
 | Package-level integrity (HMAC-SHA256) | Manifest signed with caller-supplied key | [EvidenceBuilder.cs:153](../../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) |
 | CSV formula injection defense | Single-quote prefix on `=+-@` cells | [CsvFormatter.cs:67-74](../../../../VulcansTrace.Linux.Evidence/Formatters/CsvFormatter.cs) |
 | HTML XSS prevention | `HtmlEncode` on all user content | [HtmlFormatter.cs:61,73-76,79](../../../../VulcansTrace.Linux.Evidence/Formatters/HtmlFormatter.cs) |
-| STIX 2.1 compliance | Bundle with identity, observed-data, indicators | [StixFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) |
+| STIX 2.1 compliance | Bundle with identity, observed-data, notes, IP observables, and optional malware context | [StixFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) |
 | SIEM-compatible JSON export | camelCase, metadata + findings + errors + warnings | [JsonFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) |
 | Deterministic archive | Alphabetical file ordering, fixed serialization | [EvidenceBuilder.cs:124](../../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) |
 | Timestamp normalization | UTC enforcement + ZIP range clamping | [EvidenceBuilder.cs:287-308](../../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) |
@@ -38,7 +38,7 @@
 |---|---|---|
 | FRE 901(a) (Authentication) | Sufficient evidence to support a finding that the item is what it claims | SHA-256 hashes in the manifest provide cryptographic authentication of each file; the HMAC signature authenticates the manifest as a whole |
 | FRE 901(b)(9) (Process or System) | Evidence describing a process and producing an accurate result | The build algorithm is deterministic: identical inputs produce identical manifest hashes and HMAC signatures. The source code is the process description |
-| FRE 902 (Self-Authentication) | Evidence that requires no extrinsic evidence of authenticity | The HMAC can be verified independently using standard tools (`openssl dgst -sha256 -hmac`) without requiring VulcansTrace software |
+| FRE 902 (Self-Authentication) | Evidence that requires no extrinsic evidence of authenticity | The HMAC can be verified independently using standard tools (`openssl dgst -sha256 -mac HMAC -macopt hexkey:...`) without requiring VulcansTrace software |
 | FRE 1001-1004 (Best Evidence) | Original writings, recordings, or photographs | `log.txt` contains the complete original raw log; `manifest.json` records byte lengths and hashes to confirm completeness |
 | FRE 1006 (Summaries) | Charts, summaries, or calculations that cannot be conveniently examined in court | `summary.md`, `report.html`, and `findings.csv` are summaries of the analysis; they are derived from the same `AnalysisResult` and their integrity is verified through the same manifest |
 | FRE 702 (Expert Testimony) | Expert's opinion based on sufficient facts or data | The multi-format evidence package provides the factual basis (raw log + findings + integrity chain) for an expert to reference |
@@ -85,10 +85,11 @@
 # Extract the archive
 unzip evidence-package.zip -d evidence/
 
-# Step 1: Verify manifest HMAC
+# Step 1: Verify manifest HMAC with the hex signing key copied from the UI
 STORED_HMAC=$(cat evidence/manifest.hmac)
-COMPUTED_HMAC=$(openssl dgst -sha256 -hmac "$SIGNING_KEY" \
-    -hex evidence/manifest.json | awk '{print $NF}')
+SIGNING_KEY_HEX="<64-character hex signing key>"
+COMPUTED_HMAC=$(openssl dgst -sha256 -mac HMAC -macopt "hexkey:$SIGNING_KEY_HEX" \
+    evidence/manifest.json | awk '{print $NF}')
 [ "$STORED_HMAC" = "$COMPUTED_HMAC" ] && echo "PASS: HMAC verified" || echo "FAIL: HMAC mismatch"
 
 # Step 2: Verify individual file hashes

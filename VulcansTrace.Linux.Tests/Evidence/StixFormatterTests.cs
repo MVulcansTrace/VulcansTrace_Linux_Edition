@@ -47,6 +47,28 @@ public class StixFormatterTests
     }
 
     [Fact]
+    public void Format_WithSameTimestamp_ProducesStableOutput()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "PortScan",
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "10.0.0.5:80",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(5),
+            ShortDescription = "Port scan detected",
+            Details = "20 distinct destinations"
+        });
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var first = _formatter.Format(result, "raw log", timestamp);
+        var second = _formatter.Format(result, "raw log", timestamp);
+
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
     public void Format_KernelModuleFinding_IncludedAsStandaloneNote()
     {
         var result = ResultWith(new Finding

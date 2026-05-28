@@ -151,8 +151,8 @@ internal static string SanitizeLineForError(string line)
 - [LinuxIptablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxIptablesParser.cs) — iptables multi-regex extraction
 - [LinuxNftablesParser.cs](../../../../VulcansTrace.Linux.Core/LinuxNftablesParser.cs) — nftables multi-regex extraction
 - [UnifiedEvent.cs](../../../../VulcansTrace.Linux.Core/UnifiedEvent.cs) — immutable validated model
-- [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — 61 test cases
-- [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — 64 test cases
+- [LinuxIptablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs) — 58 test cases
+- [LinuxNftablesParserTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs) — 61 test cases
 - [UnifiedEventTests.cs](../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — 25 test cases
 - [LogNormalizerTests.cs](../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs) — 22 test cases
 

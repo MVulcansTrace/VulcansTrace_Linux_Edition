@@ -10,7 +10,7 @@
 | `report.html` | `HtmlFormatter` | Self-contained dark-themed HTML report with XSS-safe encoding |
 | `summary.md` | `MarkdownFormatter` | GitHub-Flavored Markdown with severity grouping and table escaping |
 | `findings.json` | `JsonFormatter` | SIEM-compatible JSON: metadata + findings + errors + warnings |
-| `findings.stix.json` | `StixFormatter` | STIX 2.1 bundle with identity, observed-data, notes, IPv4 indicators, malware SDO |
+| `findings.stix.json` | `StixFormatter` | STIX 2.1 bundle with identity, observed-data, notes, IP observables, malware SDO |
 | `log.txt` | (passthrough) | Original raw log file content |
 | `manifest.json` | (generated) | Per-file SHA-256 hashes, byte lengths, warnings, and creation timestamp |
 | `manifest.hmac` | (generated) | HMAC-SHA256 hex signature of `manifest.json` |
@@ -95,8 +95,8 @@ AnalysisResult + rawLog
 | `identity` | Always | Identifies VulcansTrace as the producing tool |
 | `observed-data` | Per finding with valid IPs | Captures source/target IPs with time range |
 | `note` | Per `observed-data` | Attaches category, severity, description, and details |
-| `ipv4-addr` | Per unique IPv4 address | Reusable IPv4 indicator objects, deduplicated |
-| `ipv6-addr` | Per unique IPv6 address | Reusable IPv6 indicator objects, deduplicated |
+| `ipv4-addr` | Per unique IPv4 address | Reusable IPv4 observable objects, deduplicated |
+| `ipv6-addr` | Per unique IPv6 address | Reusable IPv6 observable objects, deduplicated |
 | `malware` | When any finding has category `C2Channel` | Flags potential malware C2 activity |
 
 ---

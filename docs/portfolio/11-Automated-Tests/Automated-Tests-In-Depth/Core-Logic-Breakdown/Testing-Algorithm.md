@@ -201,9 +201,9 @@ Side-effect assertions verify things beyond the primary return value — ZIP fil
 
 - [LinuxIptablesParserTests.cs](../../../../../VulcansTrace.Linux.Tests/Core/LinuxIptablesParserTests.cs), [LinuxNftablesParserTests.cs](../../../../../VulcansTrace.Linux.Tests/Core/LinuxNftablesParserTests.cs), [LogNormalizerTests.cs](../../../../../VulcansTrace.Linux.Tests/Core/LogNormalizerTests.cs), and [UnifiedEventTests.cs](../../../../../VulcansTrace.Linux.Tests/Core/UnifiedEventTests.cs) — parser, normalizer, and event model unit tests
 - [PortScanDetectorTests.cs](../../../../../VulcansTrace.Linux.Tests/Detectors/Baseline/PortScanDetectorTests.cs) — detector boundary tests (514 lines)
-- [SentryAnalyzerTests.cs](../../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests (976 lines)
+- [SentryAnalyzerTests.cs](../../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests (977 lines)
 - [RealWorldAttackScenarioTests.cs](../../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests (351 lines)
-- [EvidenceBuilderTests.cs](../../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence integrity tests (591 lines)
+- [EvidenceBuilderTests.cs](../../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence integrity tests (674 lines)
 
 ---
 

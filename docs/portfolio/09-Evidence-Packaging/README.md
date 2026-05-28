@@ -26,7 +26,7 @@ Documentation is organized for two audiences:
 - **RFC 4180 CSV with formula injection defense** — cells starting with `=`, `+`, `-`, or `@` are prefixed with a single quote to prevent spreadsheet macro injection
 - **XSS-safe HTML reports** — all user-provided content passes through `HtmlEncode` before rendering; self-contained dark-themed document
 - **SIEM-compatible JSON** — camelCase output with metadata, findings, parse errors, and warnings sections
-- **STIX 2.1 threat intelligence** — bundle with identity, observed-data, notes, IPv4 indicators, and optional malware SDO for C2 findings
+- **STIX 2.1 threat intelligence** — bundle with identity, observed-data, notes, IP observables, and optional malware SDO for C2 findings
 - **Timestamp normalization** — ZIP entry timestamps are clamped to the ZIP spec range (1980-01-01 to 2107-12-31) to avoid archive corruption
 
 ## Implementation Evidence
@@ -34,8 +34,8 @@ Documentation is organized for two audiences:
 - [EvidenceBuilder.cs](../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) — builder pattern: renders 6 files, hashes, manifest, HMAC, ZIP archive (310 lines)
 - [CsvFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/CsvFormatter.cs) — RFC 4180 CSV with formula injection defense (90 lines)
 - [HtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/HtmlFormatter.cs) — dark-themed HTML report with XSS prevention (93 lines)
-- [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata (97 lines)
+- [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata (109 lines)
 - [MarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/MarkdownFormatter.cs) — GFM tables with severity grouping and escaping (102 lines)
-- [StixFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) — STIX 2.1 bundle with identity, observed-data, indicators (361 lines)
+- [StixFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) — STIX 2.1 bundle with identity, observed-data, IP observables, and deterministic IDs
 - [IntegrityHasher.cs](../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 wrapper (34 lines)
-- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, and HMAC verification tests (660 lines)
+- [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, reproducibility, and HMAC verification tests (674 lines)

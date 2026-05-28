@@ -34,5 +34,5 @@ Documentation is organized for two audiences:
 - [AnalysisProfile.cs](../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — `MinSeverityToShow` and detector enable flags that gate escalation output (195 lines)
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — immutable record that supports the `with` expression used during escalation (122 lines)
 - [Severity.cs](../../../VulcansTrace.Linux.Core/Severity.cs) — five-level enum: Info, Low, Medium, High, Critical (22 lines)
-- [SentryAnalyzerTests.cs](../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — integration tests covering the full pipeline including escalation (976 lines)
+- [SentryAnalyzerTests.cs](../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — integration tests covering the full pipeline including escalation (977 lines)
 - [RealWorldAttackScenarioTests.cs](../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — real-world attack scenario tests validating end-to-end detection and escalation (351 lines)

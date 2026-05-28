@@ -109,6 +109,20 @@ public class EvidenceBuilderTests
     }
 
     [Fact]
+    public void Build_SameInputsAndTimestamp_ProducesByteIdenticalArchive()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult();
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var first = builder.Build(result, logText, DefaultKey, timestamp);
+        var second = builder.Build(result, logText, DefaultKey, timestamp);
+
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
     public async Task BuildAsync_ProducesValidZip()
     {
         var builder = CreateBuilder();

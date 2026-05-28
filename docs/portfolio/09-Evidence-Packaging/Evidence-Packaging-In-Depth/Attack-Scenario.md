@@ -232,8 +232,10 @@ unzip evidence.zip -d evidence/
 # 2. Read the HMAC
 HMAC=$(cat evidence/manifest.hmac)
 
-# 3. Recompute the HMAC (requires the shared key)
-EXPECTED=$(openssl dgst -sha256 -hmac "0123456789abcdef0123456789abcdef" evidence/manifest.json | awk '{print $NF}')
+# 3. Recompute the HMAC (requires the hex signing key copied from the UI)
+SIGNING_KEY_HEX="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+EXPECTED=$(openssl dgst -sha256 -mac HMAC -macopt "hexkey:$SIGNING_KEY_HEX" \
+    evidence/manifest.json | awk '{print $NF}')
 
 # 4. Compare
 [ "$HMAC" = "$EXPECTED" ] && echo "HMAC verified" || echo "TAMPERED"
