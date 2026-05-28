@@ -856,6 +856,7 @@ Another invalid line";
     }
 
     [Fact]
+    [Trait("Category", "Timing")]
     public void Analyze_CancellationToken_MidPipeline_RespectsCancellation()
     {
         // Arrange — large log that takes longer than 1ms to normalize + detect
