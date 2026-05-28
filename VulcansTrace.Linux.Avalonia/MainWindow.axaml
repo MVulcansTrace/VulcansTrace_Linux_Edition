@@ -1,0 +1,408 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+        xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+        x:Class="VulcansTrace.Linux.Avalonia.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/VulcansTraceAvatar.png"
+        Title="VulcansTrace"
+        Width="1200"
+        Height="720"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Window.Resources>
+        <conv:SeverityToBrushConverter x:Key="SeverityToBrushConverter" />
+        <conv:SeverityToForegroundBrushConverter x:Key="SeverityToForegroundBrushConverter" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="5*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Summary and warnings -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Vertical" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Left">
+                <Border Background="#1e293b" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#334155" BorderThickness="1">
+                    <TextBlock>
+                        <Run Text="Findings: " Foreground="#94a3b8"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                    </TextBlock>
+                </Border>
+                <Border Background="#3f1515" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#7f1d1d" BorderThickness="1">
+                    <TextBlock>
+                        <Run Text="High/Critical: " Foreground="#fca5a5"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
+                    </TextBlock>
+                </Border>
+                <Border Background="#3f2e14" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#854d0e" BorderThickness="1">
+                    <TextBlock>
+                        <Run Text="Warnings: " Foreground="#fcd34d"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fde047"/>
+                    </TextBlock>
+                </Border>
+                <Border Background="#3f1515" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#7f1d1d" BorderThickness="1">
+                    <TextBlock>
+                        <Run Text="Parse Errors: " Foreground="#fca5a5"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
+                    </TextBlock>
+                </Border>
+                <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                    <TextBlock>
+                        <Run Text="Skipped Lines: " Foreground="#94a3b8"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+            <Border Background="#3f2e14"
+                    BorderBrush="#854d0e"
+                    BorderThickness="1"
+                    Padding="8"
+                    CornerRadius="6"
+                    IsVisible="{Binding Findings.HasWarnings}">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="#fcd34d" />
+                    <ItemsControl ItemsSource="{Binding Findings.Warnings}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock>
+                                    <Run Text="* " Foreground="#fbbf24"/>
+                                    <Run Text="{Binding}" Foreground="#fde68a"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Background="#3f1515"
+                    BorderBrush="#991b1b"
+                    BorderThickness="1"
+                    Padding="8"
+                    CornerRadius="6"
+                    IsVisible="{Binding Findings.HasParseErrors}">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="#fca5a5" />
+                    <ItemsControl ItemsSource="{Binding Findings.ParseErrors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock TextWrapping="Wrap">
+                                    <Run Text="* " Foreground="#f87171"/>
+                                    <Run Text="{Binding}" Foreground="#fecaca"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Left: bot + controls -->
+        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,16,0">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <!-- Bot avatar -->
+                <Ellipse Width="48" Height="48" Margin="0,0,12,0">
+                    <Ellipse.Fill>
+                        <ImageBrush Source="/Assets/VulcansTraceAvatar.png"/>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <TextBlock Text="{Binding BotIntroText}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Width="260"
+                           Foreground="#cbd5e1"/>
+            </StackPanel>
+            <Grid Margin="12,0,0,12" IsVisible="{Binding HasAdvisorMessage}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Background="#1e293b"
+                        BorderBrush="#475569"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="8"
+                        Width="280"
+                        HorizontalAlignment="Left">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="#60a5fa"/>
+                        <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="#cbd5e1"/>
+                    </Grid>
+                </Border>
+
+                <Polygon Points="0,0 0,12 12,6"
+                         Fill="#1e293b"
+                         Stroke="#475569"
+                         StrokeThickness="1"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Top"
+                         Margin="12,60,0,0"/>
+            </Grid>
+
+            <TextBlock Text="Scan intensity:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <ComboBox ItemsSource="{Binding Intensities}"
+                      SelectedItem="{Binding SelectedIntensity}"
+                      AutomationProperties.AutomationId="IntensityComboBox"
+                      Margin="0,4,0,4"/>
+
+            <Expander Header="Advanced" Margin="0,0,0,12">
+                <ScrollViewer MaxHeight="260">
+                    <StackPanel>
+                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Min distinct ports:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Min events:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Window (seconds):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Min spike attempts:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Spike window (minutes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Min group size:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Interval tolerance (seconds):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Large threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Small threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Window (minutes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Leave any field at 0 to use the profile default for the selected intensity."
+                                   FontSize="10" Foreground="#64748b" Margin="0,8,0,4" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Expander>
+
+            <TextBlock Text="Paste Linux firewall log:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <Grid Margin="0,4,0,8">
+                <TextBox Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
+                         Watermark="Paste or type firewall log lines here..."
+                         AcceptsReturn="True"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         Height="260"
+                         FontFamily="Consolas,Monospace"
+                         FontSize="14"
+                         AutomationProperties.AutomationId="LogTextBox"
+                         AutomationProperties.Name="Firewall Log Input"/>
+
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+                <Button Content="Analyze"
+                        Width="100"
+                        Margin="0,0,8,0"
+                        AutomationProperties.AutomationId="AnalyzeButton"
+                        Command="{Binding AnalyzeCommand}"/>
+
+                <Button Content="Cancel"
+                        Width="100"
+                        Margin="0,0,8,0"
+                        AutomationProperties.AutomationId="CancelButton"
+                        Command="{Binding CancelCommand}"/>
+
+                <Button Content="Export Evidence"
+                        Width="130"
+                        Margin="0,0,8,0"
+                        AutomationProperties.AutomationId="ExportEvidenceButton"
+                        Command="{Binding Evidence.ExportEvidenceCommand}"/>
+
+                <Button Content="Cancel Export"
+                        Width="110"
+                        IsVisible="{Binding Evidence.IsBusy}"
+                        AutomationProperties.AutomationId="CancelExportButton"
+                        Command="{Binding Evidence.CancelExportCommand}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,4,0,4"
+                        IsVisible="{Binding IsBusy}">
+                <ProgressBar Height="6"
+                             Width="140"
+                             IsIndeterminate="True"
+                             VerticalAlignment="Center"/>
+                <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#94a3b8"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Vertical" Margin="0,0,0,8">
+                <TextBlock Text="Session HMAC Key (masked; copy to view):" FontWeight="Bold" FontSize="10" Foreground="#64748b"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="10" Foreground="#64748b" Margin="0,0,8,0"/>
+                    <Button Content="Copy signing key" Command="{Binding Evidence.CopySigningKeyCommand}" FontSize="10" Padding="6,2" ToolTip.Tip="Copies full signing key to clipboard"/>
+                </StackPanel>
+            </StackPanel>
+
+            <TextBlock Text="{Binding SummaryText}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0"
+                       Foreground="#cbd5e1"/>
+        </StackPanel>
+
+        <!-- Right: findings and errors tabs -->
+        <TabControl Grid.Row="1" Grid.Column="1" Margin="0">
+            <TabItem Header="Findings"
+                     AutomationProperties.AutomationId="FindingsTab">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#cbd5e1"/>
+                        <TextBox Text="{Binding Findings.SearchText}"
+                                 Width="200"
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.AutomationId="SearchTextBox"/>
+                        <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="#cbd5e1"/>
+                        <ComboBox ItemsSource="{Binding Findings.SeverityFilters}"
+                                  SelectedItem="{Binding Findings.SelectedSeverityFilter}"
+                                  Width="170"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.AutomationId="SeverityFilterComboBox"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Findings.FilteredItems}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal"
+                              CanUserResizeColumns="True"
+                              AutomationProperties.AutomationId="FindingsDataGrid"
+                              AutomationProperties.Name="Findings Table">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Severity" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Margin="2">
+                                            <TextBlock Text="{Binding Severity}"
+                                                       Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
+                            <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="130" />
+                            <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />
+                            <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Timeline"
+                     AutomationProperties.AutomationId="TimelineTab">
+                <ScrollViewer>
+                    <Grid RowDefinitions="Auto,*" ColumnDefinitions="150,*">
+                        <!-- Category labels column -->
+                        <Border Grid.Row="0" Grid.Column="0" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,1,1">
+                            <TextBlock Text="Categories" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="#e2e8f0"/>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="0" BorderBrush="#333333" BorderThickness="0,0,1,0">
+                            <ItemsControl ItemsSource="{Binding Timeline.Categories}" Margin="4,6,4,6">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   Margin="4,0"
+                                                   Height="22"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="#cbd5e1"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- Timeline visualization area -->
+                        <Border Grid.Row="0" Grid.Column="1" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,0,1">
+                            <TextBlock Text="{Binding Timeline.TimeRangeLabel}"
+                                       Margin="8,4"
+                                       FontSize="12"
+                                       Foreground="#94a3b8"/>
+                        </Border>
+                        <Border Grid.Row="1" Grid.Column="1" Background="#1a1a1a" BorderBrush="#333333" BorderThickness="0">
+                            <Canvas x:Name="TimelineCanvas"
+                                    Background="#1a1a1a"
+                                    Height="{Binding Timeline.CanvasHeight}">
+                                <!-- Timeline bars will be drawn here -->
+                            </Canvas>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Parse Errors"
+                     AutomationProperties.AutomationId="ParseErrorsTab">
+                <ListBox ItemsSource="{Binding Findings.ParseErrors}"
+                         BorderThickness="0"
+                         Foreground="#f87171"
+                         FontFamily="Consolas,Monospace"/>
+            </TabItem>
+            <TabItem Header="Warnings"
+                     AutomationProperties.AutomationId="WarningsTab">
+                <ListBox ItemsSource="{Binding Findings.Warnings}"
+                         BorderThickness="0"
+                         Foreground="#fbbf24"
+                         FontFamily="Consolas,Monospace"/>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
