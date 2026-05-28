@@ -1,0 +1,93 @@
+using System.Text;
+using VulcansTrace.Linux.Core;
+
+namespace VulcansTrace.Linux.Evidence.Formatters;
+
+/// <summary>
+/// Formats analysis results as a styled HTML report.
+/// </summary>
+/// <remarks>
+/// Generates a dark-themed HTML document with findings table and summary statistics.
+/// All user-provided content is HTML-encoded to prevent XSS.
+/// </remarks>
+public sealed class HtmlFormatter : IEvidenceFormatter
+{
+    /// <summary>
+    /// Converts analysis results to a complete HTML document.
+    /// </summary>
+    /// <param name="result">The analysis result to format.</param>
+    /// <returns>A string containing the complete HTML document.</returns>
+    public string ToHtml(AnalysisResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html><head><meta charset=\"utf-8\" />");
+        sb.AppendLine("<title>VulcansTrace Report</title>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("body { background:#111; color:#eee; font-family:Segoe UI,Arial,sans-serif; }");
+        sb.AppendLine("table { border-collapse:collapse; width:100%; }");
+        sb.AppendLine("th,td { border:1px solid #444; padding:4px 6px; }");
+        sb.AppendLine("th { background:#222; }");
+        sb.AppendLine("</style></head><body>");
+        sb.AppendLine("<h1>VulcansTrace Analysis Report</h1>");
+
+        sb.AppendLine("<ul>");
+        sb.AppendLine($"<li>Total lines: {result.TotalLines}</li>");
+        sb.AppendLine($"<li>Parsed lines: {result.ParsedLines}</li>");
+        if (result.ParseErrorCount > 0)
+        {
+            sb.AppendLine($"<li>Parse errors: {result.ParseErrorCount}</li>");
+        }
+        if (result.TimeRangeStart != DateTime.MinValue && result.TimeRangeEnd != DateTime.MinValue)
+        {
+            sb.AppendLine($"<li>Time range: {result.TimeRangeStart:O} – {result.TimeRangeEnd:O}</li>");
+        }
+        if (result.Warnings.Count > 0)
+        {
+            sb.AppendLine($"<li>Warnings: {result.Warnings.Count}</li>");
+        }
+        sb.AppendLine("</ul>");
+
+        sb.AppendLine("<h2>Warnings</h2>");
+        if (result.Warnings.Count == 0)
+        {
+            sb.AppendLine("<p>None</p>");
+        }
+        else
+        {
+            sb.AppendLine("<ul>");
+            foreach (var warning in result.Warnings)
+            {
+                sb.AppendLine($"<li>{System.Net.WebUtility.HtmlEncode(warning)}</li>");
+            }
+            sb.AppendLine("</ul>");
+        }
+
+        sb.AppendLine("<h2>Findings</h2>");
+        sb.AppendLine("<table>");
+        sb.AppendLine("<tr><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th></tr>");
+
+        foreach (var f in result.Findings)
+        {
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Category)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Severity.ToString())}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.SourceHost)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Target)}</td>");
+            sb.AppendLine($"<td>{f.TimeRangeStart:O}</td>");
+            sb.AppendLine($"<td>{f.TimeRangeEnd:O}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.ShortDescription)}</td>");
+            sb.AppendLine("</tr>");
+        }
+
+        sb.AppendLine("</table>");
+        sb.AppendLine("</body></html>");
+        return sb.ToString();
+    }
+
+    string IEvidenceFormatter.Format(AnalysisResult result, string originalLog) => ToHtml(result);
+
+    string IEvidenceFormatter.FileExtension => ".html";
+
+    string IEvidenceFormatter.ContentType => "text/html";
+}

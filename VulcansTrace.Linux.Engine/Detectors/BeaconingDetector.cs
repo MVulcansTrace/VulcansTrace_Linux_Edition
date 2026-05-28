@@ -1,0 +1,101 @@
+using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Net;
+
+namespace VulcansTrace.Linux.Engine.Detectors;
+
+/// <summary>
+/// Detects beaconing behavior indicating command-and-control (C2) communication.
+/// </summary>
+/// <remarks>
+/// Beaconing is identified by regular, periodic connections from a host to the same
+/// external destination. The detector analyzes connection intervals for low variance,
+/// which is characteristic of automated malware callbacks to C2 servers.
+/// </remarks>
+public sealed class BeaconingDetector : IDetector
+{
+    public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
+    {
+        if (!profile.EnableBeaconing || events.Count == 0)
+            return DetectionResult.Empty;
+
+        var findings = new List<Core.Finding>();
+
+        var byTuple = events
+            .Where(e => IpClassification.IsExternal(e.DestinationIP))
+            .GroupBy(e => (e.SourceIP, e.DestinationIP, e.DestinationPort));
+
+        foreach (var group in byTuple)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var ordered = group.OrderBy(e => e.Timestamp).ToList();
+            if (profile.BeaconMaxSamplesPerTuple > 0 && ordered.Count > profile.BeaconMaxSamplesPerTuple)
+            {
+                ordered = ordered.Skip(ordered.Count - profile.BeaconMaxSamplesPerTuple).ToList();
+            }
+
+            if (ordered.Count < profile.BeaconMinEvents)
+                continue;
+
+            var durationSeconds = (ordered[^1].Timestamp - ordered[0].Timestamp).TotalSeconds;
+            if (durationSeconds < profile.BeaconMinDurationSeconds)
+                continue;
+
+            var intervals = new List<double>();
+            for (int i = 1; i < ordered.Count; i++)
+            {
+                intervals.Add((ordered[i].Timestamp - ordered[i - 1].Timestamp).TotalSeconds);
+            }
+
+            if (intervals.Count == 0)
+                continue;
+
+            intervals.Sort();
+            var trimmed = TrimIntervals(intervals, profile.BeaconTrimPercent);
+
+            var mean = trimmed.Average();
+            var variance = trimmed.Select(v => (v - mean) * (v - mean)).Average();
+            var stdDev = Math.Sqrt(variance);
+
+            if (mean < profile.BeaconMinIntervalSeconds || mean > profile.BeaconMaxIntervalSeconds)
+                continue;
+
+            if (stdDev > profile.BeaconStdDevThreshold)
+                continue;
+
+            var first = ordered.First();
+            var last = ordered.Last();
+
+            findings.Add(new Core.Finding
+            {
+                Category = FindingCategories.Beaconing,
+                Severity = Core.Severity.Medium,
+                SourceHost = group.Key.SourceIP,
+                Target = $"{group.Key.DestinationIP}:{group.Key.DestinationPort}",
+                TimeRangeStart = first.Timestamp,
+                TimeRangeEnd = last.Timestamp,
+                ShortDescription = $"Regular beaconing from {group.Key.SourceIP}",
+                Details = $"Average interval ~{mean:F1}s, std dev ~{stdDev:F1}s over {ordered.Count} events."
+            });
+        }
+
+        return new DetectionResult(findings);
+    }
+
+    private static IReadOnlyList<double> TrimIntervals(IReadOnlyList<double> sortedIntervals, double trimPercent)
+    {
+        if (sortedIntervals.Count <= 2 || trimPercent <= 0)
+            return sortedIntervals;
+
+        var trimCount = (int)Math.Ceiling(sortedIntervals.Count * trimPercent);
+        if (trimCount == 0)
+            return sortedIntervals;
+
+        var start = trimCount;
+        var length = sortedIntervals.Count - (2 * trimCount);
+        if (length < 2)
+            return sortedIntervals;
+
+        return sortedIntervals.Skip(start).Take(length).ToList();
+    }
+}
