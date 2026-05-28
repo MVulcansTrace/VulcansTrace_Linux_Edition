@@ -6,8 +6,13 @@ VulcansTrace Linux Edition is an offline desktop forensic analyzer for Linux fir
 
 OFFLINE POLICY: the application does not send logs, telemetry, analytics, or findings anywhere. Logs are processed locally in memory, and evidence bundles are written only to user-selected files.
 
+## Demo Preview
+
+![VulcansTrace Linux Edition desktop analyzer preview](VulcansTrace-gif.gif)
+
 ## Contents
 
+- [Demo Preview](#demo-preview)
 - [What It Does](#what-it-does)
 - [Detection Coverage](#detection-coverage)
 - [Quick Start](#quick-start)
