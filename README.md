@@ -1,6 +1,13 @@
 # VulcansTrace Linux Edition
 
 [![CI](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml/badge.svg)](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
+![Avalonia 11.3.11](https://img.shields.io/badge/Avalonia-11.3.11-8B44AC)
+![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
+![Tests: xUnit](https://img.shields.io/badge/Tests-xUnit-512BD4)
+![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
+![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
 VulcansTrace Linux Edition is an offline desktop forensic analyzer for Linux firewall logs. It parses iptables and nftables log text, normalizes it into a shared event schema, runs layered threat detectors, correlates related findings, and exports signed evidence bundles for investigation and handoff.
 
