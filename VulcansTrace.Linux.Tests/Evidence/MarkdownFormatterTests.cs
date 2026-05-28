@@ -1,0 +1,161 @@
+using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Evidence.Formatters;
+
+namespace VulcansTrace.Linux.Tests.Evidence;
+
+public class MarkdownFormatterTests
+{
+    private readonly MarkdownFormatter _formatter = new();
+
+    private static AnalysisResult ResultWith(params Finding[] findings) => new()
+    {
+        TotalLines = findings.Length,
+        ParsedLines = findings.Length,
+        Findings = findings
+    };
+
+    [Fact]
+    public void ToMarkdown_ContainsHeaderAndColumns()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "PortScan",
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "10.0.0.5:80",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan detected",
+            Details = "20 distinct destinations"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("# VulcansTrace Analysis Summary", md);
+        Assert.Contains("| Category |", md);
+        Assert.Contains("PortScan", md);
+        Assert.Contains("192.168.1.10", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_EscapesPipeCharacters()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Test",
+            Severity = Severity.Info,
+            SourceHost = "10.0.0.1",
+            Target = "target|with|pipes",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "desc",
+            Details = "details"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        // Pipes in values should be escaped, not breaking the table
+        Assert.Contains(@"\|", md);
+        Assert.DoesNotContain("target|with|pipes", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_EscapesNewlines()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Test",
+            Severity = Severity.Info,
+            SourceHost = "10.0.0.1",
+            Target = "target",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "line1\nline2",
+            Details = "details"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("line1 / line2", md);
+        Assert.DoesNotContain("<br>", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_EmptyFindings_ShowsTableHeader()
+    {
+        var result = new AnalysisResult
+        {
+            TotalLines = 0,
+            ParsedLines = 0,
+            Findings = Array.Empty<Finding>()
+        };
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("# VulcansTrace Analysis Summary", md);
+        Assert.Contains("| Category |", md);
+        Assert.Contains("None", md); // Warnings section shows "None"
+    }
+
+    [Fact]
+    public void ToMarkdown_WarningsAreListed()
+    {
+        var result = new AnalysisResult
+        {
+            TotalLines = 2,
+            ParsedLines = 2,
+            Findings = Array.Empty<Finding>(),
+            Warnings = new[] { "Warning one", "Warning two" }
+        };
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("Warning one", md);
+        Assert.Contains("Warning two", md);
+        Assert.Contains("Warnings: 2", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_EscapesSpecialMarkdownCharacters()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Test",
+            Severity = Severity.Info,
+            SourceHost = "10.0.0.1",
+            Target = "target",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "has *bold* and `code`",
+            Details = "details"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains(@"\*", md);
+        Assert.Contains(@"\`", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_EscapesRawHtml()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Test",
+            Severity = Severity.Info,
+            SourceHost = "10.0.0.1",
+            Target = "<script>alert(1)</script>",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "has <b>html</b> & entity",
+            Details = "details"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", md);
+        Assert.Contains("&lt;b&gt;html&lt;/b&gt; &amp; entity", md);
+        Assert.DoesNotContain("<script>", md);
+        Assert.DoesNotContain("<b>", md);
+    }
+}
