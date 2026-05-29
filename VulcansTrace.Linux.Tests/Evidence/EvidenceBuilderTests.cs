@@ -631,6 +631,57 @@ public class EvidenceBuilderTests
         Assert.Contains("Failed to read evidence bundle", verification.Issues[0]);
     }
 
+    [Fact]
+    public void Build_Includes_RemediationPlan_When_Provided()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult();
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var remediationMarkdown = "# Remediation Plan\n\nTest content.";
+
+        var zipBytes = builder.Build(result, logText, DefaultKey, timestamp, remediationPlanMarkdown: remediationMarkdown);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("remediation.md", names);
+
+        var remediationEntry = zip.GetEntry("remediation.md");
+        Assert.NotNull(remediationEntry);
+        using var stream = remediationEntry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        Assert.Equal(remediationMarkdown, reader.ReadToEnd());
+
+        var manifestEntry = zip.GetEntry("manifest.json");
+        Assert.NotNull(manifestEntry);
+        using var manifestStream = manifestEntry!.Open();
+        using var manifestReader = new StreamReader(manifestStream, Encoding.UTF8);
+        var manifestJson = manifestReader.ReadToEnd();
+        var doc = JsonDocument.Parse(manifestJson);
+        var files = doc.RootElement.GetProperty("files");
+        var fileNames = files.EnumerateArray().Select(e => e.GetProperty("file").GetString()).ToArray();
+        Assert.Contains("remediation.md", fileNames);
+    }
+
+    [Fact]
+    public void Build_Omits_RemediationPlan_When_Null()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult();
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var zipBytes = builder.Build(result, logText, DefaultKey, timestamp, remediationPlanMarkdown: null);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.DoesNotContain("remediation.md", names);
+    }
+
     private static byte[] TamperFileInZip(byte[] zipBytes, string targetEntry, Func<byte[], byte[]> tamper)
     {
         // Read all entries from the original ZIP

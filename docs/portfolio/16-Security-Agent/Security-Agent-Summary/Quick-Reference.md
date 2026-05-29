@@ -77,7 +77,7 @@ User query
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
 | Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with a deterministic narrative summary |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
-| Export Remediation | Writes a markdown remediation preview with safety notes, structural command warnings, rollback hints, and verification commands |
+| Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
 
 ---
 

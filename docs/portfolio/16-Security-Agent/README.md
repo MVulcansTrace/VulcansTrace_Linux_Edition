@@ -19,12 +19,12 @@ Documentation is organized for two audiences:
 - **Live host scanning** — collects firewall, port, service, interface, route, and connection state through local Linux commands
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
-- **Structured explanation sections** — separates what was found, why it matters, how to verify, suggested next action, confidence, and caveats
+- **Structured explanation sections** — separates what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, and includes active suppression notes in evidence exports
 - **Timed suppressions** — supports 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
-- **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, suppression review actions, cancellation, audit export, and remediation preview export
+- **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, suppression review actions, cancellation, audit export, and guarded remediation preview export
 - **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration
 
 ## Implementation Evidence

@@ -8,10 +8,21 @@
 1. Check the current policy: `sudo iptables -L INPUT | head -n 1`
 2. Look for the line "Chain INPUT (policy ...)" — it should say DROP.
 
+**Preconditions:**
+- Root or sudo access
+- Alternative access method (console/IPMI) in case SSH is dropped
+
+**Backup commands:**
+1. Save current rules: `sudo sh -c 'iptables-save > /root/vulcanstrace-fw-001.rules'`
+
 **Suggested next action:**
 1. Consider changing the default policy: `sudo iptables -P INPUT DROP`
 2. Ensure you have rules to allow necessary traffic (SSH, HTTP, etc.) before applying the policy.
 3. Save the rules so they persist after reboot: `sudo iptables-save > /etc/iptables/rules.v4`
+
+**Rollback commands:**
+1. Restore default ACCEPT policy: `sudo iptables -P INPUT ACCEPT`
+2. Restore saved rules: `sudo sh -c 'iptables-restore < /root/vulcanstrace-fw-001.rules'`
 
 **Risk level:** HIGH
 
@@ -29,10 +40,21 @@
 1. Check current SSH listening address: `sudo ss -tulnp | grep :22`
 2. Review iptables rules for port 22: `sudo iptables -L INPUT -n | grep 22`
 
+**Preconditions:**
+- Know your current IP address before restricting access
+- Console or out-of-band access available
+
+**Backup commands:**
+1. Save current rules: `sudo sh -c 'iptables-save > /root/vulcanstrace-fw-002.rules'`
+
 **Suggested next action:**
 1. Consider restricting SSH to specific IPs: `sudo iptables -A INPUT -p tcp --dport 22 -s YOUR_IP -j ACCEPT`
 2. Review key-based authentication in `/etc/ssh/sshd_config`
 3. You may install fail2ban: `sudo apt install fail2ban`
+
+**Rollback commands:**
+1. Find and delete the SSH rule: `sudo iptables -D INPUT -p tcp --dport 22 -s YOUR_IP -j ACCEPT`
+2. Or restore saved rules: `sudo sh -c 'iptables-restore < /root/vulcanstrace-fw-002.rules'`
 
 **Risk level:** HIGH
 
@@ -50,9 +72,21 @@
 1. List rules and grep for conntrack: `sudo iptables -L -v -n | grep -i conntrack`
 2. Alternatively look for `--state ESTABLISHED,RELATED` in the rule set.
 
+**Preconditions:**
+- Root or sudo access
+- Understanding of your INPUT chain order
+
+**Backup commands:**
+1. Save current rules: `sudo sh -c 'iptables-save > /root/vulcanstrace-fw-003.rules'`
+
 **Suggested next action:**
 1. Consider adding a state tracking rule: `sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT`
 2. Place this rule early in your INPUT chain (before any DROP rules).
+
+**Rollback commands:**
+1. List rules with line numbers: `sudo iptables -L INPUT --line-numbers`
+2. Delete the state tracking rule by line number: `sudo iptables -D INPUT <line_number>`
+3. Or restore saved rules: `sudo sh -c 'iptables-restore < /root/vulcanstrace-fw-003.rules'`
 
 **Risk level:** MEDIUM
 

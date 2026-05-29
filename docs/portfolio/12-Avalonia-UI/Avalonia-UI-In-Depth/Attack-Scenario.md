@@ -173,7 +173,7 @@ The analyst clicks "Export Evidence".
    SigningKey = "A1B2C3D4E5F6..."; MaskedSigningKey = "****************"
 
 2. EvidenceBuilder.BuildAsync(result, logSnapshot, keyBytes, timestamp, token)
-   → Renders 6 files (CSV, HTML, Markdown, JSON, STIX, raw log)
+   → Renders core files (CSV, HTML, Markdown, JSON, STIX, raw log) and optional appendices
    → Computes SHA-256 per file
    → Assembles manifest.json
    → Signs manifest with HMAC-SHA256

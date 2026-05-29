@@ -843,6 +843,17 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             var builder = new RemediationPlanBuilder(new ExplanationProvider());
             var plan = builder.Build(_lastResult.AgentFindings);
+            var validation = RemediationPlanValidator.Validate(plan);
+            if (!validation.IsValid)
+            {
+                AddAgentMessage("Remediation plan export blocked: missing rollback guidance for risky or unclassified commands.", true);
+                foreach (var err in validation.Errors)
+                {
+                    AddAgentMessage($"  • {err}", true);
+                }
+                return;
+            }
+
             var formatter = new RemediationMarkdownFormatter();
             var markdown = formatter.Format(plan);
             RequestExportRemediation?.Invoke(markdown);

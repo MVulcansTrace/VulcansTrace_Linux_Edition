@@ -28,11 +28,12 @@ Documentation is organized for two audiences:
 - **XSS-safe HTML reports** — all user-provided content passes through `HtmlEncode` before rendering; self-contained dark-themed document
 - **SIEM-compatible JSON** — camelCase output with metadata, findings, parse errors, and warnings sections
 - **STIX 2.1 threat intelligence** — bundle with identity, observed-data, notes, IP observables, and optional malware SDO for C2 findings
+- **Optional remediation appendix** — includes `remediation.md` for agent audits only when the generated remediation plan passes rollback guardrails
 - **Timestamp normalization** — ZIP entry timestamps are clamped to the ZIP spec range (1980-01-01 to 2107-12-31) to avoid archive corruption
 
 ## Implementation Evidence
 
-- [EvidenceBuilder.cs](../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) — builder pattern: renders 6 files, hashes, manifest, HMAC, ZIP archive
+- [EvidenceBuilder.cs](../../../VulcansTrace.Linux.Evidence/EvidenceBuilder.cs) — builder pattern: renders core evidence files plus optional suppression/remediation appendices, hashes, manifest, HMAC, ZIP archive
 - [CsvFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/CsvFormatter.cs) — RFC 4180 CSV with formula injection defense
 - [HtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/HtmlFormatter.cs) — dark-themed HTML report with XSS prevention
 - [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata

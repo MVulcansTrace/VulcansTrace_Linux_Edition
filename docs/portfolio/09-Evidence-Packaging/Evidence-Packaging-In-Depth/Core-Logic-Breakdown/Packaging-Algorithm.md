@@ -121,7 +121,7 @@ The 32-byte HMAC result is converted to a lowercase hex string and written as UT
 
 The archive is built in-memory via `MemoryStream` + `ZipArchive`:
 
-1. Write each of the 6 content files as a separate ZIP entry, alphabetical order, `CompressionLevel.Optimal`, `LastWriteTime` set to the normalized timestamp
+1. Write each core content file as a separate ZIP entry, plus optional `suppressions.csv` and guarded `remediation.md` appendices when present, alphabetical order, `CompressionLevel.Optimal`, `LastWriteTime` set to the normalized timestamp
 2. Write `manifest.json` as a ZIP entry
 3. Write `manifest.hmac` as a ZIP entry (lowercase hex string)
 

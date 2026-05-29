@@ -89,7 +89,7 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
-Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
 
 ## UI Integration
 
@@ -108,7 +108,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
 - A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
-- Export Remediation support that writes a review-only markdown plan with safety notes, rollback hints, and verification commands.
+- Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety

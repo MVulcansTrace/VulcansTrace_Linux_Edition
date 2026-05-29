@@ -9,9 +9,10 @@
 The `EvidenceBuilder` contains no formatting logic. It orchestrates:
 
 1. Call each formatter and include the raw log passthrough
-2. Hash each content file
-3. Assemble and sign the manifest
-4. Pack into ZIP
+2. Add optional appendices such as active suppressions or guarded remediation plans
+3. Hash each content file
+4. Assemble and sign the manifest
+5. Pack into ZIP
 
 This keeps the builder auditable — the entire integrity chain is visible in one file without interleaving presentation logic.
 
@@ -22,9 +23,15 @@ var files = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
     ["log.txt"]       = Encoding.UTF8.GetBytes(rawLog ?? string.Empty),
     ["report.html"]   = Encoding.UTF8.GetBytes(_htmlFormatter.ToHtml(result)),
     ["summary.md"]    = Encoding.UTF8.GetBytes(_markdownFormatter.ToMarkdown(result)),
-    ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty)),
-    ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty))
+    ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime)),
+    ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime))
 };
+
+if (result.ActiveSuppressions.Count > 0)
+    files["suppressions.csv"] = Encoding.UTF8.GetBytes(_csvFormatter.ToSuppressionCsv(result));
+
+if (!string.IsNullOrWhiteSpace(remediationPlanMarkdown))
+    files["remediation.md"] = Encoding.UTF8.GetBytes(remediationPlanMarkdown);
 ```
 
 Every formatter implements `IEvidenceFormatter` with `Format`, `FileExtension`, and `ContentType`, ensuring a consistent contract for future formats.
@@ -170,8 +177,8 @@ This ensures:
 The end-to-end test verifies the complete integrity chain:
 
 1. Build an archive from a known `AnalysisResult` and signing key
-2. Open the ZIP and verify all 8 expected entries exist
-3. Parse `manifest.json` and verify it lists all 6 content files with correct count
+2. Open the ZIP and verify all core entries exist, plus any requested optional appendices
+3. Parse `manifest.json` and verify it lists the expected core and optional files with correct count
 4. Re-compute the HMAC from the manifest bytes and signing key
 5. Assert the recomputed HMAC matches `manifest.hmac`
 

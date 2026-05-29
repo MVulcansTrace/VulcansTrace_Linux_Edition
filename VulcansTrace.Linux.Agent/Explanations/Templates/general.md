@@ -50,10 +50,23 @@
 1. Check the database bind address in its configuration file.
 2. Test from an external host: `nmap -p {{port}} <this-host>`
 
+**Preconditions:**
+- Database configuration file can be edited
+- Service can be restarted safely
+
+**Backup commands:**
+1. Save current iptables rules: `sudo sh -c 'iptables-save > /root/vulcanstrace-port-003.rules'`
+2. Back up database config: `sudo cp /etc/DB_ENGINE/CONFIG_FILE /etc/DB_ENGINE/CONFIG_FILE.vulcanstrace.bak`
+
 **Suggested next action:**
 1. Consider binding the database to 127.0.0.1 in its configuration.
 2. If remote access is needed, use an SSH tunnel or VPN.
 3. You may add a firewall rule: `sudo iptables -A INPUT -p tcp --dport {{port}} -s 127.0.0.1 -j ACCEPT` and drop all others.
+
+**Rollback commands:**
+1. Restore database config: `sudo cp /etc/DB_ENGINE/CONFIG_FILE.vulcanstrace.bak /etc/DB_ENGINE/CONFIG_FILE`
+2. Remove the firewall rule: `sudo iptables -D INPUT -p tcp --dport {{port}} -s 127.0.0.1 -j ACCEPT`
+3. Restore saved iptables rules: `sudo sh -c 'iptables-restore < /root/vulcanstrace-port-003.rules'`
 
 **Risk level:** CRITICAL
 

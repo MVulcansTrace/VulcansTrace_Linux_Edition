@@ -29,10 +29,21 @@
 1. Investigate the process: `ss -tunap | grep :{{port}}`
 2. Check process tree and command line: `ps aux | grep {{port}}`
 
+**Preconditions:**
+- Confirm the connection is not legitimate business traffic
+- Root or sudo access
+
+**Backup commands:**
+1. Save current iptables rules: `sudo sh -c 'iptables-save > /root/vulcanstrace-net-002.rules'`
+
 **Suggested next action:**
 1. Investigate the process owning the connection.
 2. Consider blocking outbound traffic to high-risk ports if not needed: `sudo iptables -A OUTPUT -p tcp --dport {{port}} -j DROP`
 3. Run a full malware scan.
+
+**Rollback commands:**
+1. Remove the OUTPUT rule: `sudo iptables -D OUTPUT -p tcp --dport {{port}} -j DROP`
+2. Restore saved rules: `sudo sh -c 'iptables-restore < /root/vulcanstrace-net-002.rules'`
 
 **Risk level:** HIGH
 

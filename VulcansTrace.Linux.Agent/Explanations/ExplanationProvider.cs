@@ -142,6 +142,9 @@ public sealed class ExplanationProvider : IExplanationProvider
             WhyItMatters = GetSection(sections, "Why this matters"),
             HowToVerify = GetSection(sections, "How to verify", "How to check"),
             SuggestedNextAction = GetSection(sections, "Suggested next action", "How to fix it", "Next steps"),
+            Preconditions = GetSection(sections, "Preconditions"),
+            BackupCommands = GetSection(sections, "Backup commands", "Backup command"),
+            RollbackCommands = GetSection(sections, "Rollback commands", "Rollback command"),
             Confidence = confidence,
             Caveats = caveats
         };

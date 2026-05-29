@@ -17,6 +17,15 @@ public sealed record StructuredExplanation
     /// <summary>Suggested next steps or remediation commands (preview only, not auto-executed).</summary>
     public string SuggestedNextAction { get; init; } = string.Empty;
 
+    /// <summary>Preconditions that should be met before applying remediation.</summary>
+    public string Preconditions { get; init; } = string.Empty;
+
+    /// <summary>Commands to back up configuration or state before making changes.</summary>
+    public string BackupCommands { get; init; } = string.Empty;
+
+    /// <summary>Commands to roll back the remediation if something goes wrong.</summary>
+    public string RollbackCommands { get; init; } = string.Empty;
+
     /// <summary>Confidence level derived from the rule severity.</summary>
     public string Confidence { get; init; } = string.Empty;
 

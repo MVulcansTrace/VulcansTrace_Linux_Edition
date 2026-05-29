@@ -29,14 +29,29 @@ public sealed record RemediationSection
     /// <summary>Risk level/notes for this finding.</summary>
     public required string RiskNote { get; init; }
 
-    /// <summary>Remediation commands to run, with safety classifications.</summary>
-    public IReadOnlyList<RemediationCommand> RemediationCommands { get; init; } = Array.Empty<RemediationCommand>();
+    /// <summary>Preconditions that should be satisfied before applying this section.</summary>
+    public IReadOnlyList<string> Preconditions { get; init; } = Array.Empty<string>();
+
+    /// <summary>Backup commands to preserve state before making changes.</summary>
+    public IReadOnlyList<RemediationCommand> BackupCommands { get; init; } = Array.Empty<RemediationCommand>();
+
+    /// <summary>Apply commands to remediate the finding, with safety classifications.</summary>
+    public IReadOnlyList<RemediationCommand> ApplyCommands { get; init; } = Array.Empty<RemediationCommand>();
+
+    /// <summary>Concrete rollback commands to undo the remediation, with safety classifications.</summary>
+    public IReadOnlyList<RemediationCommand> RollbackCommands { get; init; } = Array.Empty<RemediationCommand>();
 
     /// <summary>Hints for rolling back the remediation.</summary>
     public IReadOnlyList<string> RollbackHints { get; init; } = Array.Empty<string>();
 
     /// <summary>Verification commands to confirm the fix, with safety classifications.</summary>
     public IReadOnlyList<RemediationCommand> VerificationCommands { get; init; } = Array.Empty<RemediationCommand>();
+
+    /// <summary>
+    /// Whether rollback guidance was explicitly provided in the explanation template.
+    /// False when only generic category-based fallback hints are available.
+    /// </summary>
+    public bool HasExplicitRollbackGuidance { get; init; }
 }
 
 /// <summary>

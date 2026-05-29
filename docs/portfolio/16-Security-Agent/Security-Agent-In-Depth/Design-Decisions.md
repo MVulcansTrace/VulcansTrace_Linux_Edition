@@ -34,9 +34,9 @@ Scanner command helpers return stdout, stderr, and success status. They read std
 
 ## Explain With Templates
 
-`ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. It also parses those templates into structured sections for what was found, why it matters, how to verify, suggested next action, confidence, and caveats. This keeps explanation language editable without changing rule code and avoids mixing detection logic with user-facing prose.
+`ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. It also parses those templates into structured sections for what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats. This keeps explanation language editable without changing rule code and avoids mixing detection logic with user-facing prose.
 
-Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and remediation preview exports, but they are not labeled as verification steps and are not executed by the application. Extracted commands receive a keyword-based safety label so analysts can quickly distinguish read-only checks from configuration changes, service restarts, package operations, destructive commands, or unclassified commands.
+Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and guarded remediation preview exports, but they are not labeled as verification steps and are not executed by the application. Extracted commands receive a keyword-based safety label so analysts can quickly distinguish read-only checks from configuration changes, service restarts, package operations, destructive commands, or unclassified commands.
 
 ## Time-Bound Suppressions
 

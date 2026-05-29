@@ -28,6 +28,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     private AnalysisResult? _lastResult;
     private string _logSnapshot = "";
     private DateTime? _analysisTimestamp;
+    private string? _remediationPlanMarkdown;
 
     /// <summary>
     /// Gets the current signing key in hex format.
@@ -114,11 +115,13 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     /// <param name="result">The analysis result to export.</param>
     /// <param name="logText">The raw log text snapshot.</param>
     /// <param name="timestamp">Optional analysis timestamp.</param>
-    public void SetEvidenceContext(AnalysisResult result, string logText, DateTime? timestamp)
+    /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include in the bundle.</param>
+    public void SetEvidenceContext(AnalysisResult result, string logText, DateTime? timestamp, string? remediationPlanMarkdown = null)
     {
         _lastResult = result;
         _logSnapshot = logText;
         _analysisTimestamp = timestamp;
+        _remediationPlanMarkdown = remediationPlanMarkdown;
         _signingKeyBytes = GenerateNewSigningKey();
         RefreshCommandStates();
     }
@@ -128,6 +131,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
         _lastResult = null;
         _logSnapshot = string.Empty;
         _analysisTimestamp = null;
+        _remediationPlanMarkdown = null;
         _signingKeyBytes = null;
         SigningKey = string.Empty;
         RefreshCommandStates();
@@ -205,7 +209,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             token.ThrowIfCancellationRequested();
             StatusChanged?.Invoke(this, "Building evidence bundle...");
             failureAction = "build evidence bundle";
-            zipBytes = await _evidenceBuilder.BuildAsync(result, log, signingKeyBytes, ts, token);
+            zipBytes = await _evidenceBuilder.BuildAsync(result, log, signingKeyBytes, ts, token, _remediationPlanMarkdown);
 
             token.ThrowIfCancellationRequested();
             failureAction = "save file";

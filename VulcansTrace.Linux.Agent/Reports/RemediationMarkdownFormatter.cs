@@ -25,6 +25,17 @@ public sealed class RemediationMarkdownFormatter
         sb.AppendLine("> **WARNING:** Some changes may impact system availability. Test in a non-production environment first.");
         sb.AppendLine();
 
+        var validation = RemediationPlanValidator.Validate(plan);
+        if (validation.IsValid)
+        {
+            sb.AppendLine("> **Guardrails:** All risky, unclassified, or config-changing commands include rollback guidance.");
+        }
+        else
+        {
+            sb.AppendLine("> **Guardrails:** Some sections lack explicit rollback guidance. Export may be blocked.");
+        }
+        sb.AppendLine();
+
         for (int i = 0; i < plan.Sections.Count; i++)
         {
             var section = plan.Sections[i];
@@ -34,17 +45,58 @@ public sealed class RemediationMarkdownFormatter
             sb.AppendLine($"**Risk:** {section.RiskNote}");
             sb.AppendLine();
 
-            if (section.RemediationCommands.Count > 0)
+            if (section.Preconditions.Count > 0)
             {
-                sb.AppendLine("### Remediation Commands");
+                sb.AppendLine("### Preconditions");
                 sb.AppendLine();
-                foreach (var cmd in section.RemediationCommands)
+                foreach (var pre in section.Preconditions)
+                {
+                    sb.AppendLine($"- [ ] {pre}");
+                }
+                sb.AppendLine();
+            }
+
+            if (section.BackupCommands.Count > 0)
+            {
+                sb.AppendLine("### Backup Commands");
+                sb.AppendLine();
+                foreach (var cmd in section.BackupCommands)
                 {
                     sb.AppendLine($"> **Safety:** {cmd.Safety}");
                     AppendCommandWarnings(sb, cmd);
-                    sb.AppendLine($"```bash");
+                    sb.AppendLine("```bash");
                     sb.AppendLine(cmd.Command);
-                    sb.AppendLine($"```");
+                    sb.AppendLine("```");
+                }
+                sb.AppendLine();
+            }
+
+            if (section.ApplyCommands.Count > 0)
+            {
+                sb.AppendLine("### Apply Commands");
+                sb.AppendLine();
+                foreach (var cmd in section.ApplyCommands)
+                {
+                    sb.AppendLine($"> **Safety:** {cmd.Safety}");
+                    AppendCommandWarnings(sb, cmd);
+                    sb.AppendLine("```bash");
+                    sb.AppendLine(cmd.Command);
+                    sb.AppendLine("```");
+                }
+                sb.AppendLine();
+            }
+
+            if (section.RollbackCommands.Count > 0)
+            {
+                sb.AppendLine("### Rollback Commands");
+                sb.AppendLine();
+                foreach (var cmd in section.RollbackCommands)
+                {
+                    sb.AppendLine($"> **Safety:** {cmd.Safety}");
+                    AppendCommandWarnings(sb, cmd);
+                    sb.AppendLine("```bash");
+                    sb.AppendLine(cmd.Command);
+                    sb.AppendLine("```");
                 }
                 sb.AppendLine();
             }
@@ -68,9 +120,9 @@ public sealed class RemediationMarkdownFormatter
                 {
                     sb.AppendLine($"> **Safety:** {cmd.Safety}");
                     AppendCommandWarnings(sb, cmd);
-                    sb.AppendLine($"```bash");
+                    sb.AppendLine("```bash");
                     sb.AppendLine(cmd.Command);
-                    sb.AppendLine($"```");
+                    sb.AppendLine("```");
                 }
                 sb.AppendLine();
             }

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
@@ -461,7 +462,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         var generator = new AgentReportGenerator(_suppressionStore);
         var analysisResult = generator.ToAnalysisResult(agentResult);
-        Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp);
+
+        string? remediationMarkdown = null;
+        if (agentResult.AgentFindings.Count > 0)
+        {
+            var planBuilder = new RemediationPlanBuilder(new ExplanationProvider());
+            var plan = planBuilder.Build(agentResult.AgentFindings);
+            var validation = RemediationPlanValidator.Validate(plan);
+            if (validation.IsValid)
+            {
+                var formatter = new RemediationMarkdownFormatter();
+                remediationMarkdown = formatter.Format(plan);
+            }
+            else
+            {
+                var warning = "Remediation plan omitted from evidence bundle: " + string.Join("; ", validation.Errors);
+                AdvisorMessage = warning;
+            }
+        }
+
+        Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(null);
         Suppressions.Refresh();

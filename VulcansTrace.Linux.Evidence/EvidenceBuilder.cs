@@ -68,12 +68,13 @@ public sealed class EvidenceBuilder
     /// <param name="rawLog">The original raw log content.</param>
     /// <param name="signingKey">The secret key for HMAC signing.</param>
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
+    /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
-    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null)
+    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, string? remediationPlanMarkdown = null)
     {
         ArgumentNullException.ThrowIfNull(signingKey);
         var timestamp = analysisTimestampUtc ?? DateTime.UtcNow;
-        return Build(result, rawLog, signingKey, timestamp, CancellationToken.None);
+        return Build(result, rawLog, signingKey, timestamp, CancellationToken.None, remediationPlanMarkdown);
     }
 
     /// <summary>
@@ -84,12 +85,13 @@ public sealed class EvidenceBuilder
     /// <param name="signingKey">The secret key for HMAC signing.</param>
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
+    /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
     /// <returns>A task representing the async operation, containing the ZIP file bytes.</returns>
-    public Task<byte[]> BuildAsync(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, CancellationToken cancellationToken = default)
+    public Task<byte[]> BuildAsync(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, CancellationToken cancellationToken = default, string? remediationPlanMarkdown = null)
     {
         ArgumentNullException.ThrowIfNull(signingKey);
         var timestamp = analysisTimestampUtc ?? DateTime.UtcNow;
-        return Task.Run(() => Build(result, rawLog, signingKey, timestamp, cancellationToken), cancellationToken);
+        return Task.Run(() => Build(result, rawLog, signingKey, timestamp, cancellationToken, remediationPlanMarkdown), cancellationToken);
     }
 
     /// <summary>
@@ -100,8 +102,9 @@ public sealed class EvidenceBuilder
     /// <param name="signingKey">The secret key for HMAC signing.</param>
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
+    /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
-    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken)
+    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -122,6 +125,12 @@ public sealed class EvidenceBuilder
         {
             files["suppressions.csv"] = Encoding.UTF8.GetBytes(_csvFormatter.ToSuppressionCsv(result));
         }
+
+        if (!string.IsNullOrWhiteSpace(remediationPlanMarkdown))
+        {
+            files["remediation.md"] = Encoding.UTF8.GetBytes(remediationPlanMarkdown);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var manifestEntries = new List<object>();

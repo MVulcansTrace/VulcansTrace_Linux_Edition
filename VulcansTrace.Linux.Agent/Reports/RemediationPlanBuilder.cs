@@ -43,9 +43,15 @@ public sealed class RemediationPlanBuilder
 
     private static RemediationSection BuildSection(Finding finding, StructuredExplanation structured)
     {
-        var remediationCommands = ExtractRemediationCommands(structured.SuggestedNextAction);
+        var applyCommands = ExtractRemediationCommands(structured.SuggestedNextAction);
+        var backupCommands = ExtractRemediationCommands(structured.BackupCommands);
+        var rollbackCommands = ExtractRemediationCommands(structured.RollbackCommands);
         var verificationCommands = ExtractRemediationCommands(structured.HowToVerify);
-        var rollbackHints = ExtractRollbackHints(structured, finding);
+        var preconditions = ExtractPreconditions(structured.Preconditions);
+        var (rollbackHints, hasExplicitRollbackHints) = ExtractRollbackHints(structured, finding);
+
+        var hasExplicitRollbackCommands = rollbackCommands.Count > 0;
+        var hasExplicitRollbackGuidance = hasExplicitRollbackCommands || hasExplicitRollbackHints;
 
         var riskNote = string.IsNullOrEmpty(structured.Confidence)
             ? structured.Caveats
@@ -58,10 +64,25 @@ public sealed class RemediationPlanBuilder
             RuleId = finding.RuleId!,
             FindingSummary = $"[{finding.Severity}] {finding.ShortDescription}",
             RiskNote = string.IsNullOrWhiteSpace(riskNote) ? "Review before applying." : riskNote,
-            RemediationCommands = remediationCommands,
+            Preconditions = preconditions,
+            BackupCommands = backupCommands,
+            ApplyCommands = applyCommands,
+            RollbackCommands = rollbackCommands,
             RollbackHints = rollbackHints,
-            VerificationCommands = verificationCommands
+            VerificationCommands = verificationCommands,
+            HasExplicitRollbackGuidance = hasExplicitRollbackGuidance
         };
+    }
+
+    private static IReadOnlyList<string> ExtractPreconditions(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return Array.Empty<string>();
+
+        return markdown.Split('\n')
+            .Select(l => l.Trim().TrimStart('-', '*', ' ').Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .ToList();
     }
 
     private static IReadOnlyList<RemediationCommand> ExtractRemediationCommands(string markdown)
@@ -112,7 +133,7 @@ public sealed class RemediationPlanBuilder
         return commands;
     }
 
-    private static IReadOnlyList<string> ExtractRollbackHints(StructuredExplanation structured, Finding finding)
+    private static (IReadOnlyList<string> Hints, bool Explicit) ExtractRollbackHints(StructuredExplanation structured, Finding finding)
     {
         // Check if the details markdown contains a Rollback hints section
         if (!string.IsNullOrEmpty(finding.Details))
@@ -126,7 +147,7 @@ public sealed class RemediationPlanBuilder
                     .Where(l => !string.IsNullOrWhiteSpace(l))
                     .ToList();
                 if (lines.Count > 0)
-                    return lines;
+                    return (lines, true);
             }
         }
 
@@ -140,6 +161,6 @@ public sealed class RemediationPlanBuilder
             _ => new[] { "Document the change and keep a backup of original configuration." }
         };
 
-        return genericHints.ToList();
+        return (genericHints.ToList(), false);
     }
 }

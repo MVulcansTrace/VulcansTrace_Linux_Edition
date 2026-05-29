@@ -35,8 +35,8 @@ public class RemediationPlanBuilderTests
         var plan = builder.Build(new[] { finding });
 
         Assert.Single(plan.Sections);
-        Assert.Equal(2, plan.Sections[0].RemediationCommands.Count);
-        Assert.Contains("sudo iptables -P INPUT DROP", plan.Sections[0].RemediationCommands.Select(c => c.Command));
+        Assert.Equal(2, plan.Sections[0].ApplyCommands.Count);
+        Assert.Contains("sudo iptables -P INPUT DROP", plan.Sections[0].ApplyCommands.Select(c => c.Command));
     }
 
     [Fact]
@@ -79,6 +79,7 @@ public class RemediationPlanBuilderTests
 
         Assert.Single(plan.Sections);
         Assert.True(plan.Sections[0].RollbackHints.Count > 0);
+        Assert.False(plan.Sections[0].HasExplicitRollbackGuidance);
     }
 
     [Fact]
@@ -104,6 +105,7 @@ public class RemediationPlanBuilderTests
 
         Assert.Equal(2, plan.Sections[0].RollbackHints.Count);
         Assert.Contains("Undo the thing", plan.Sections[0].RollbackHints);
+        Assert.True(plan.Sections[0].HasExplicitRollbackGuidance);
     }
 
     [Fact]
@@ -148,7 +150,7 @@ public class RemediationPlanBuilderTests
     }
 
     [Fact]
-    public void Build_RemediationCommands_Carry_CommandAnalysis_ForRedirect()
+    public void Build_ApplyCommands_Carry_CommandAnalysis_ForRedirect()
     {
         var builder = new RemediationPlanBuilder(new ExplanationProvider());
         var finding = new Finding
@@ -165,8 +167,131 @@ public class RemediationPlanBuilderTests
         var plan = builder.Build(new[] { finding });
 
         Assert.Single(plan.Sections);
-        var cmd = plan.Sections[0].RemediationCommands[0];
+        var cmd = plan.Sections[0].ApplyCommands[0];
         Assert.True(cmd.Analysis.HasRedirect);
         Assert.True(cmd.Analysis.RequiresSudo);
+    }
+
+    [Fact]
+    public void Build_Extracts_Preconditions()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-PRE",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Preconditions test",
+            Target = "INPUT",
+            Details = @"**Preconditions:**
+- Root or sudo access
+- Alternative access method available
+
+**Suggested next action:**
+1. Do something: `echo test`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.Equal(2, plan.Sections[0].Preconditions.Count);
+        Assert.Contains("Root or sudo access", plan.Sections[0].Preconditions);
+    }
+
+    [Fact]
+    public void Build_Extracts_BackupCommands()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-BAK",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Backup test",
+            Target = "INPUT",
+            Details = @"**Backup commands:**
+1. Save rules: `sudo sh -c 'iptables-save > /root/iptables-backup.rules'`
+
+**Suggested next action:**
+1. Do something: `echo test`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.Single(plan.Sections[0].BackupCommands);
+        Assert.Contains("sudo sh -c 'iptables-save > /root/iptables-backup.rules'", plan.Sections[0].BackupCommands.Select(c => c.Command));
+    }
+
+    [Fact]
+    public void Build_Extracts_RollbackCommands()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-ROLL",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Rollback test",
+            Target = "INPUT",
+            Details = @"**Rollback commands:**
+1. Restore rules: `sudo sh -c 'iptables-restore < /root/iptables-backup.rules'`
+
+**Suggested next action:**
+1. Do something: `echo test`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.Single(plan.Sections[0].RollbackCommands);
+        Assert.Contains("sudo sh -c 'iptables-restore < /root/iptables-backup.rules'", plan.Sections[0].RollbackCommands.Select(c => c.Command));
+        Assert.True(plan.Sections[0].HasExplicitRollbackGuidance);
+    }
+
+    [Fact]
+    public void Build_HasExplicitRollbackGuidance_True_When_RollbackHints_In_Template()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-EXP",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Explicit rollback",
+            Target = "INPUT",
+            Details = @"**Suggested next action:**
+1. Change policy: `sudo iptables -P INPUT DROP`
+
+**Rollback hints:**
+- Restore ACCEPT policy manually"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.True(plan.Sections[0].HasExplicitRollbackGuidance);
+    }
+
+    [Fact]
+    public void Build_HasExplicitRollbackGuidance_False_When_Using_Generic_Fallback()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-GEN",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Generic rollback",
+            Target = "INPUT",
+            Details = @"**Suggested next action:**
+1. Change policy: `sudo iptables -P INPUT DROP`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.False(plan.Sections[0].HasExplicitRollbackGuidance);
+        Assert.NotEmpty(plan.Sections[0].RollbackHints);
     }
 }

@@ -4,7 +4,7 @@
 
 ## Implementation Overview
 
-The evidence packaging subsystem is the final stage of the VulcansTrace analysis pipeline. It takes an `AnalysisResult` and the original raw log, renders findings through five independent formatters (CSV, HTML, Markdown, JSON, and STIX 2.1), includes the raw log as `log.txt`, computes a SHA-256 hash for every archive file, assembles a JSON manifest listing each file's hash and length, signs the manifest with HMAC-SHA256, and packs everything into a single ZIP archive. The result is a self-contained, tamper-evident evidence package that an investigator can verify without any VulcansTrace-specific tooling.
+The evidence packaging subsystem is the final stage of the VulcansTrace analysis pipeline. It takes an `AnalysisResult` and the original raw log, renders findings through five independent formatters (CSV, HTML, Markdown, JSON, and STIX 2.1), includes the raw log as `log.txt`, optionally includes active suppression notes and guarded remediation plans, computes a SHA-256 hash for every archive file, assembles a JSON manifest listing each file's hash and length, signs the manifest with HMAC-SHA256, and packs everything into a single ZIP archive. The result is a self-contained, tamper-evident evidence package that an investigator can verify without any VulcansTrace-specific tooling.
 
 ---
 
@@ -13,10 +13,10 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 | Metric | Value |
 |---|---|
 | Core source files | 8 (EvidenceBuilder, 5 formatters, IntegrityHasher, IEvidenceFormatter) |
-| Output formats per archive | 6 (CSV, HTML, Markdown, JSON, STIX 2.1, raw log) |
+| Output formats per archive | 6 core formats (CSV, HTML, Markdown, JSON, STIX 2.1, raw log), plus optional suppression and guarded remediation appendices |
 | Cryptographic primitives | SHA-256 (per-file) + HMAC-SHA256 (manifest) |
 | Test files | 6 (EvidenceBuilder, Csv, Html, Json, Markdown, Stix) |
-| ZIP archive entries | 8 (6 content files + manifest.json + manifest.hmac) |
+| ZIP archive entries | 8 core entries (6 content files + manifest.json + manifest.hmac), with optional `suppressions.csv` and `remediation.md` |
 | STIX 2.1 object types produced | 6 (identity, observed-data, note, ipv4-addr, ipv6-addr, malware) |
 
 ---

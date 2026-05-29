@@ -20,7 +20,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Agent intents | 7: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, Help |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
-| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, and remediation export |
+| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, and guarded remediation export |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
 ---
@@ -56,4 +56,4 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Current Status
 
-This is a v1 local security assistant. It can scan, evaluate, explain selected or referenced findings, group and filter results in the UI, surface privilege-limited scans, preserve and expire accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with a deterministic change narrative, export safety-labeled remediation previews, and export agent audits with active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are broader distro-specific parser fixtures, richer follow-up explanation flows, and reminder surfaces for upcoming suppression reviews.
+This is a v1 local security assistant. It can scan, evaluate, explain selected or referenced findings, group and filter results in the UI, surface privilege-limited scans, preserve and expire accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with a deterministic change narrative, export guarded remediation previews with explicit rollback requirements for risky commands, and export agent audits with active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are broader distro-specific parser fixtures, richer follow-up explanation flows, and reminder surfaces for upcoming suppression reviews.

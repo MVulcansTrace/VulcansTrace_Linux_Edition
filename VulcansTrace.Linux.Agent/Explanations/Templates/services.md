@@ -8,10 +8,21 @@
 1. Check if telnet is listening: `sudo ss -tulnp | grep :23`
 2. Confirm the service unit: `systemctl status {{service}}`
 
+**Preconditions:**
+- Alternative remote access (SSH) is already configured and working
+- Root or sudo access
+
+**Backup commands:**
+1. Document current service state: `sudo sh -c 'systemctl status telnet.socket > /root/vulcanstrace-srv-001-telnet-status.txt'`
+
 **Suggested next action:**
 1. Consider stopping and disabling telnet: `sudo systemctl stop telnet.socket && sudo systemctl disable telnet.socket`
 2. Use SSH for all remote access.
 3. You may remove the telnet package: `sudo apt remove telnetd`
+
+**Rollback commands:**
+1. Re-enable telnet: `sudo systemctl enable telnet.socket && sudo systemctl start telnet.socket`
+2. Reinstall package if removed: `sudo apt install telnetd`
 
 **Risk level:** CRITICAL
 
@@ -29,11 +40,23 @@
 1. Check if FTP is listening: `sudo ss -tulnp | grep -E ':21|:20'`
 2. Confirm the service unit: `systemctl status {{service}}`
 
+**Preconditions:**
+- SSH is configured for SFTP file transfers
+- Root or sudo access
+
+**Backup commands:**
+1. Document current FTP config: `sudo sh -c 'test -f /etc/vsftpd.conf && cp /etc/vsftpd.conf /etc/vsftpd.conf.vulcanstrace.bak || true'`
+
 **Suggested next action:**
 1. Consider using SFTP (over SSH) instead.
 2. You may stop and disable FTP: `sudo systemctl stop {{service}} && sudo systemctl disable {{service}}`
 3. Ensure SSH is enabled for file transfers.
 4. Remove the FTP package if no longer needed.
+
+**Rollback commands:**
+1. Re-enable FTP service: `sudo systemctl enable {{service}} && sudo systemctl start {{service}}`
+2. Reinstall package if removed: `sudo apt install vsftpd`
+3. Restore config: `sudo cp /etc/vsftpd.conf.vulcanstrace.bak /etc/vsftpd.conf`
 
 **Risk level:** HIGH
 
