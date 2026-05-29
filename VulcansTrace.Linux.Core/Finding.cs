@@ -18,7 +18,18 @@ public sealed record Finding
     private DateTime _timeRangeEnd;
     private string _shortDescription = string.Empty;
     private string _details = string.Empty;
+    private string? _ruleId;
     private Guid? _id;
+
+    /// <summary>
+    /// Optional agent rule identifier (e.g., "FW-001", "PORT-003").
+    /// Set by the Security Agent; engine findings will have this as null.
+    /// </summary>
+    public string? RuleId
+    {
+        get => _ruleId;
+        init => _ruleId = value;
+    }
 
     /// <summary>
     /// Unique identifier for this finding, deterministically derived from content fields.

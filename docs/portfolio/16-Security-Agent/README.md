@@ -19,10 +19,11 @@ Documentation is organized for two audiences:
 - **Live host scanning** — collects firewall, port, service, interface, route, and connection state through local Linux commands
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
+- **Structured explanation sections** — separates what was found, why it matters, how to verify, suggested next action, confidence, and caveats
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
-- **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`
-- **Avalonia chat panel** — exposes agent queries and cancellation in the desktop UI
-- **Deterministic tests** — verifies intent parsing, rule behavior, explanations, reports, and agent orchestration
+- **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator` and preserves rule IDs in evidence exports
+- **Avalonia chat panel** — exposes chat, quick actions, grouped findings, selected-finding explanations, privilege warnings, cancellation, and audit export
+- **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration
 
 ## Implementation Evidence
 
@@ -41,3 +42,4 @@ Documentation is organized for two audiences:
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — chat panel ViewModel
 - [AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI
 - [Agent tests](../../../VulcansTrace.Linux.Tests/Agent) — query, rule, explanation, report, and orchestration coverage
+- [Evidence formatter tests](../../../VulcansTrace.Linux.Tests/Evidence) — rule ID preservation through CSV, JSON, Markdown, HTML, and STIX exports

@@ -31,7 +31,7 @@ public sealed class ServiceScanner : IScanner
         ParseOutput(output, builder);
     }
 
-    private static void ParseOutput(string output, ScanDataBuilder builder)
+    internal static void ParseOutput(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         foreach (var rawLine in lines)

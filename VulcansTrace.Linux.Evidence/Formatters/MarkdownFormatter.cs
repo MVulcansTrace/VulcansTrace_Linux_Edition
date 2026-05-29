@@ -60,12 +60,12 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();
-        sb.AppendLine("| Category | Severity | Source | Target | Start | End | Description |");
-        sb.AppendLine("|----------|----------|--------|--------|-------|-----|-------------|");
+        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description |");
+        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|");
 
         foreach (var f in result.Findings)
         {
-            sb.AppendLine($"| {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} |");
+            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} |");
         }
 
         return sb.ToString();

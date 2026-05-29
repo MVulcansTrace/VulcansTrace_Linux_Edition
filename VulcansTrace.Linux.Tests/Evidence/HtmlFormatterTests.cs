@@ -24,7 +24,8 @@ public class HtmlFormatterTests
                     TimeRangeStart = DateTime.UnixEpoch,
                     TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
                     ShortDescription = "<b>bold</b>",
-                    Details = "detail"
+                    Details = "detail",
+                    RuleId = "<FW-001>"
                 }
             ],
             Warnings = ["<img src=x onerror=alert(1)>"]
@@ -34,6 +35,7 @@ public class HtmlFormatterTests
 
         Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", html);
         Assert.Contains("&lt;b&gt;bold&lt;/b&gt;", html);
+        Assert.Contains("&lt;FW-001&gt;", html);
         Assert.Contains("&lt;img src=x onerror=alert(1)&gt;", html);
         Assert.DoesNotContain("<script>alert(1)</script>", html);
     }
@@ -49,6 +51,7 @@ public class HtmlFormatterTests
 
         var html = formatter.ToHtml(result);
 
+        Assert.Contains("<th>Rule ID</th>", html);
         Assert.Contains("<th>Category</th>", html);
         Assert.Contains("<th>Severity</th>", html);
         Assert.DoesNotContain("<td>", html);

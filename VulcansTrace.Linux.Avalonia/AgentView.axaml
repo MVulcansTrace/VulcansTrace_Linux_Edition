@@ -18,12 +18,25 @@
         <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,*" Margin="0">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="0">
         <Border Grid.Row="0" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="8,4">
             <TextBlock Text="Security Agent" FontWeight="Bold" Foreground="#e2e8f0" FontSize="12"/>
         </Border>
 
-        <Grid Grid.Row="1" RowDefinitions="*,Auto">
+        <!-- Privilege warning banner -->
+        <Border Grid.Row="1"
+                Background="#3f2e14"
+                BorderBrush="#854d0e"
+                BorderThickness="0,0,0,1"
+                Padding="8,4"
+                IsVisible="{Binding HasPrivilegeWarning}">
+            <TextBlock Text="{Binding PrivilegeWarningText}"
+                       TextWrapping="Wrap"
+                       FontSize="11"
+                       Foreground="#fcd34d"/>
+        </Border>
+
+        <Grid Grid.Row="2" RowDefinitions="*,Auto,Auto">
             <!-- Chat history -->
             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding Messages}" Margin="8">
@@ -63,8 +76,61 @@
                 </ItemsControl>
             </ScrollViewer>
 
+            <!-- Quick action buttons -->
+            <WrapPanel Grid.Row="1" Margin="8,4,8,0" Orientation="Horizontal">
+                <Button Content="Full Audit"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding FullAuditCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentFullAuditButton"/>
+                <Button Content="Firewall"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding FirewallCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentFirewallButton"/>
+                <Button Content="Ports"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding PortsCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentPortsButton"/>
+                <Button Content="Services"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding ServicesCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentServicesButton"/>
+                <Button Content="Network"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding NetworkCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentNetworkButton"/>
+                <Button Content="Explain Selected"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding ExplainSelectedCommand}"
+                        IsEnabled="{Binding CanExplainSelected}"
+                        AutomationProperties.AutomationId="AgentExplainSelectedButton"/>
+                <Button Content="Export Audit"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,0,4"
+                        Command="{Binding ExportAuditCommand}"
+                        IsEnabled="{Binding CanExportAudit}"
+                        AutomationProperties.AutomationId="AgentExportAuditButton"/>
+            </WrapPanel>
+
             <!-- Input area -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="8,4,8,8">
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="8,4,8,8">
                 <TextBox Grid.Column="0"
                          Text="{Binding UserQuery, UpdateSourceTrigger=PropertyChanged}"
                          Watermark="Ask the agent..."

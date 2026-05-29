@@ -27,7 +27,8 @@ public class StixFormatterTests
             TimeRangeStart = DateTime.UnixEpoch,
             TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(5),
             ShortDescription = "Port scan detected",
-            Details = "20 distinct destinations"
+            Details = "20 distinct destinations",
+            RuleId = "PORT-001"
         });
 
         var stix = _formatter.Format(result, "");
@@ -44,6 +45,11 @@ public class StixFormatterTests
         Assert.Contains("ipv4-addr", types);
         Assert.Contains("observed-data", types);
         Assert.Contains("note", types);
+
+        var note = doc.RootElement.GetProperty("objects")
+            .EnumerateArray()
+            .First(o => o.GetProperty("type").GetString() == "note");
+        Assert.Contains("Rule ID: PORT-001", note.GetProperty("content").GetString());
     }
 
     [Fact]

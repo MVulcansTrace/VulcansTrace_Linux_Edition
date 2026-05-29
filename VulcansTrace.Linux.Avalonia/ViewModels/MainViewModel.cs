@@ -1,9 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -21,6 +23,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly AnalysisProfileProvider _profileProvider;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly EventHandler<string> _evidenceStatusHandler;
+    private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
 
     private string _logText = "";
     private string _summaryText = "";
@@ -261,8 +264,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
         Agent = new AgentViewModel(agent)
         {
-            SelectedFindingProvider = () => Findings.SelectedItem?.Finding
+            SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
+            RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null)
         };
+        Agent.AuditCompleted += OnAgentAuditCompleted;
+        _findingsPropertyChangedHandler = OnFindingsPropertyChanged;
+        Findings.PropertyChanged += _findingsPropertyChangedHandler;
         _evidenceStatusHandler = (s, msg) =>
             Dispatcher.UIThread.Post(() => SummaryText = msg);
         Evidence.StatusChanged += _evidenceStatusHandler;
@@ -412,6 +419,21 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void OnAgentAuditCompleted(object? sender, AgentResult agentResult)
+    {
+        var generator = new AgentReportGenerator();
+        var analysisResult = generator.ToAnalysisResult(agentResult);
+        Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp);
+    }
+
+    private void OnFindingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FindingsViewModel.SelectedItem))
+        {
+            Agent.NotifySelectedFindingChanged();
+        }
+    }
+
     private AnalysisResult AnalyzeWithOverrides(IntensityLevel intensity, string logText, CancellationToken token)
     {
         var baseProfile = _profileProvider.GetProfile(intensity);
@@ -498,6 +520,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Evidence.Dispose();
         }
 
-        Agent?.Dispose();
+        if (Agent != null)
+        {
+            Agent.AuditCompleted -= OnAgentAuditCompleted;
+            Agent.Dispose();
+        }
+
+        if (Findings != null)
+        {
+            Findings.PropertyChanged -= _findingsPropertyChangedHandler;
+        }
     }
 }

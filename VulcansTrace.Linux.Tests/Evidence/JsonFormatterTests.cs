@@ -28,7 +28,8 @@ public class JsonFormatterTests
             TimeRangeStart = DateTime.UnixEpoch,
             TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
             ShortDescription = "Port scan detected",
-            Details = "20 distinct destinations"
+            Details = "20 distinct destinations",
+            RuleId = "PORT-001"
         });
 
         var json = _formatter.Format(result, "raw log");
@@ -48,6 +49,7 @@ public class JsonFormatterTests
         Assert.Equal("PortScan", f.GetProperty("category").GetString());
         Assert.Equal("High", f.GetProperty("severity").GetString());
         Assert.Equal("192.168.1.10", f.GetProperty("sourceHost").GetString());
+        Assert.Equal("PORT-001", f.GetProperty("ruleId").GetString());
     }
 
     [Fact]

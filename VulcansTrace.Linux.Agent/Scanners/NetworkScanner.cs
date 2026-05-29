@@ -36,7 +36,7 @@ public sealed class NetworkScanner : IScanner
             builder.AddWarning($"Connection scan skipped: 'ss' failed. {connError}");
     }
 
-    private static void ParseAddresses(string output, ScanDataBuilder builder)
+    internal static void ParseAddresses(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         NetworkInterface? current = null;
@@ -113,7 +113,7 @@ public sealed class NetworkScanner : IScanner
         }
     }
 
-    private static void ParseRoutes(string output, ScanDataBuilder builder)
+    internal static void ParseRoutes(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         foreach (var rawLine in lines)
@@ -153,7 +153,7 @@ public sealed class NetworkScanner : IScanner
         }
     }
 
-    private static void ParseConnections(string output, ScanDataBuilder builder)
+    internal static void ParseConnections(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         foreach (var rawLine in lines)
@@ -183,6 +183,16 @@ public sealed class NetworkScanner : IScanner
                 {
                     processName = procPart.Substring(procPart.IndexOf('/') + 1).TrimEnd(')');
                 }
+                else if (procPart.Contains("pid="))
+                {
+                    // ss users:(("name",pid=N,fd=M)) format — look for quoted name
+                    var quoteStart = procPart.IndexOf('"');
+                    var quoteEnd = procPart.IndexOf('"', quoteStart + 1);
+                    if (quoteStart >= 0 && quoteEnd > quoteStart)
+                    {
+                        processName = procPart.Substring(quoteStart + 1, quoteEnd - quoteStart - 1);
+                    }
+                }
             }
 
             builder.AddActiveConnection(new ActiveConnection
@@ -198,7 +208,7 @@ public sealed class NetworkScanner : IScanner
         }
     }
 
-    private static (string Address, int Port) ParseAddressPort(string input)
+    internal static (string Address, int Port) ParseAddressPort(string input)
     {
         var lastColon = input.LastIndexOf(':');
         if (lastColon < 0)

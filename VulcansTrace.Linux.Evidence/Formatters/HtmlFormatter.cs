@@ -65,11 +65,12 @@ public sealed class HtmlFormatter : IEvidenceFormatter
 
         sb.AppendLine("<h2>Findings</h2>");
         sb.AppendLine("<table>");
-        sb.AppendLine("<tr><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th></tr>");
+        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th></tr>");
 
         foreach (var f in result.Findings)
         {
             sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.RuleId ?? string.Empty)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Category)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Severity.ToString())}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.SourceHost)}</td>");

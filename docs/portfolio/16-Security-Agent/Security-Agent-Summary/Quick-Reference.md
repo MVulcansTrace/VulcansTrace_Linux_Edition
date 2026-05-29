@@ -67,13 +67,16 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Message list | Displays summaries, warnings, findings, and explanation details |
+| Quick actions | Runs full audit, firewall, ports, services, network, explain selected, and export audit without typing |
+| Message list | Displays severity summaries, category-grouped findings, warnings, and explanation details |
+| Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
+| Export Audit | Sends the latest agent audit into the shared evidence export flow |
 
 ---
 
 ## Limitations
 
-- Scanner output parsing is command-text based and should be expanded with distro-specific fixtures.
+- Scanner output parsing is command-text based and should continue expanding with distro-specific fixtures.
 - Some checks are posture findings, not compromise findings.
 - Privilege-sensitive command output may be incomplete without elevated permissions.
 - Direct selected-finding explanations summarize the existing finding details.

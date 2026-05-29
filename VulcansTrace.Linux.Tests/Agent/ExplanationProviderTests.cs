@@ -47,4 +47,65 @@ public class ExplanationProviderTests
         Assert.Contains("3306", result);
         Assert.Contains("mysqld", result);
     }
+
+    [Fact]
+    public void GetStructuredExplanation_KnownKey_ReturnsAllSections()
+    {
+        var vars = new Dictionary<string, string> { ["policy"] = "ACCEPT" };
+        var result = _provider.GetStructuredExplanation("FW-001", vars);
+
+        Assert.Contains("ACCEPT", result.WhatWasFound);
+        Assert.NotEmpty(result.WhyItMatters);
+        Assert.NotEmpty(result.SuggestedNextAction);
+        Assert.NotEmpty(result.Confidence);
+        Assert.NotEqual(result.Confidence, result.Caveats);
+    }
+
+    [Fact]
+    public void GetStructuredExplanation_UnknownKey_ReturnsFallback()
+    {
+        var result = _provider.GetStructuredExplanation("UNKNOWN-999", new Dictionary<string, string>());
+
+        Assert.Contains("UNKNOWN-999", result.WhatWasFound);
+    }
+
+    [Fact]
+    public void ParseStructuredFromText_FilledTemplate_ReturnsSections()
+    {
+        var text = """
+            **What we found:** Policy is ACCEPT.
+
+            **Why this matters:** It exposes the system.
+
+            **How to verify:** Run `iptables -L`.
+
+            **Suggested next action:** Change to DROP.
+
+            **Risk level:** HIGH
+
+            **Confidence / caveat:** High confidence.
+            """;
+
+        var result = _provider.ParseStructuredFromText(text);
+
+        Assert.Contains("ACCEPT", result.WhatWasFound);
+        Assert.Contains("exposes", result.WhyItMatters);
+        Assert.Contains("iptables", result.HowToVerify);
+        Assert.Contains("DROP", result.SuggestedNextAction);
+        Assert.Contains("HIGH", result.Confidence);
+        Assert.Contains("High confidence", result.Caveats);
+    }
+
+    [Fact]
+    public void ParseStructuredFromText_CombinedConfidenceCaveat_SplitsWithoutDuplicating()
+    {
+        var text = """
+            **Confidence / caveat:** Moderate confidence — verify cloud firewall rules too.
+            """;
+
+        var result = _provider.ParseStructuredFromText(text);
+
+        Assert.Equal("Moderate confidence", result.Confidence);
+        Assert.Equal("verify cloud firewall rules too.", result.Caveats);
+    }
 }

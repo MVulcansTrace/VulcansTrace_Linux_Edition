@@ -43,6 +43,7 @@ public class JsonFormatter : IEvidenceFormatter
             Findings = result.Findings.Select(f => new FindingExportModel
             {
                 Id = f.Id.ToString(),
+                RuleId = f.RuleId,
                 Category = f.Category,
                 Severity = f.Severity.ToString(),
                 SourceHost = f.SourceHost,
@@ -98,6 +99,7 @@ public class TimeRange
 public class FindingExportModel
 {
     public string Id { get; set; } = string.Empty;
+    public string? RuleId { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Severity { get; set; } = string.Empty;
     public string SourceHost { get; set; } = string.Empty;

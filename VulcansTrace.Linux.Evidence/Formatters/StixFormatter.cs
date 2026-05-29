@@ -236,7 +236,12 @@ public sealed class StixFormatter : IEvidenceFormatter
 
     private static string BuildNoteContent(Finding finding)
     {
-        return $"Category: {finding.Category}\n" +
+        var ruleId = string.IsNullOrWhiteSpace(finding.RuleId)
+            ? string.Empty
+            : $"Rule ID: {finding.RuleId}\n";
+
+        return ruleId +
+               $"Category: {finding.Category}\n" +
                $"Severity: {finding.Severity}\n" +
                $"Source: {finding.SourceHost}\n" +
                $"Target: {finding.Target}\n" +

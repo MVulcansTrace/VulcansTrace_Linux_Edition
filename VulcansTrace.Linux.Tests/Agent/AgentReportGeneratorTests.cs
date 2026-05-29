@@ -102,6 +102,33 @@ public class AgentReportGeneratorTests
     }
 
     [Fact]
+    public void ToAnalysisResult_RuleId_IsPreserved()
+    {
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = new[]
+            {
+                new Finding
+                {
+                    Category = "Firewall",
+                    Severity = Severity.High,
+                    SourceHost = "localhost",
+                    Target = "INPUT",
+                    ShortDescription = "Default policy is ACCEPT",
+                    Details = "Change to DROP",
+                    RuleId = "FW-001"
+                }
+            }
+        };
+
+        var analysisResult = _generator.ToAnalysisResult(agentResult);
+
+        Assert.Single(analysisResult.Findings);
+        Assert.Equal("FW-001", analysisResult.Findings[0].RuleId);
+    }
+
+    [Fact]
     public void ToAnalysisResult_DeduplicatesById()
     {
         var finding = new Finding

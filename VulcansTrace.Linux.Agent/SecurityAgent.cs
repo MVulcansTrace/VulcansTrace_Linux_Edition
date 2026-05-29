@@ -128,7 +128,8 @@ public sealed class SecurityAgent : IAgent
                 ShortDescription = result.Description,
                 Details = explanation,
                 TimeRangeStart = DateTime.UtcNow,
-                TimeRangeEnd = DateTime.UtcNow
+                TimeRangeEnd = DateTime.UtcNow,
+                RuleId = result.RuleId
             };
             agentFindings.Add(finding);
             historyEntries.Add((result.RuleId, finding));
@@ -172,7 +173,8 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        var summary = $"Explanation for [{finding.Severity}] {finding.ShortDescription}\n\n{finding.Details}";
+        var structured = _explanationProvider.ParseStructuredFromText(finding.Details);
+        var summary = BuildStructuredSummary(finding, structured);
 
         return Task.FromResult(new AgentResult
         {
@@ -182,6 +184,47 @@ public sealed class SecurityAgent : IAgent
             UtcTimestamp = DateTime.UtcNow,
             Summary = summary
         });
+    }
+
+    private static string BuildStructuredSummary(Finding finding, Explanations.StructuredExplanation structured)
+    {
+        var parts = new List<string>
+        {
+            $"**[{finding.RuleId ?? "finding"}] {finding.ShortDescription}**",
+            "",
+            "**What was found**",
+            string.IsNullOrEmpty(structured.WhatWasFound) ? finding.ShortDescription : structured.WhatWasFound,
+            "",
+            "**Why it matters**",
+            string.IsNullOrEmpty(structured.WhyItMatters) ? "See details." : structured.WhyItMatters,
+        };
+
+        if (!string.IsNullOrEmpty(structured.HowToVerify))
+        {
+            parts.Add("");
+            parts.Add("**How to verify**");
+            parts.Add(structured.HowToVerify);
+        }
+
+        if (!string.IsNullOrEmpty(structured.SuggestedNextAction))
+        {
+            parts.Add("");
+            parts.Add("**Suggested next action**");
+            parts.Add(structured.SuggestedNextAction);
+        }
+
+        if (!string.IsNullOrEmpty(structured.Confidence))
+        {
+            parts.Add("");
+            parts.Add($"**Confidence:** {structured.Confidence}");
+        }
+
+        if (!string.IsNullOrEmpty(structured.Caveats))
+        {
+            parts.Add($"**Caveats:** {structured.Caveats}");
+        }
+
+        return string.Join("\n", parts);
     }
 
     private async Task<AgentResult> HandleExplainFindingAsync(AgentQuery agentQuery, CancellationToken ct)
@@ -314,7 +357,8 @@ public sealed class SecurityAgent : IAgent
                 ShortDescription = result.Description,
                 Details = explanation,
                 TimeRangeStart = DateTime.UtcNow,
-                TimeRangeEnd = DateTime.UtcNow
+                TimeRangeEnd = DateTime.UtcNow,
+                RuleId = result.RuleId
             };
             agentFindings.Add(finding);
             ReplaceLastFindings(new[] { (result.RuleId, finding) });

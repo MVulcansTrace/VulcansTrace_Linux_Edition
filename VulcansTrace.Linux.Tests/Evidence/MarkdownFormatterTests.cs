@@ -26,14 +26,16 @@ public class MarkdownFormatterTests
             TimeRangeStart = DateTime.UnixEpoch,
             TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
             ShortDescription = "Port scan detected",
-            Details = "20 distinct destinations"
+            Details = "20 distinct destinations",
+            RuleId = "PORT-001"
         });
 
         var md = _formatter.ToMarkdown(result);
 
         Assert.Contains("# VulcansTrace Analysis Summary", md);
-        Assert.Contains("| Category |", md);
+        Assert.Contains("| Rule ID | Category |", md);
         Assert.Contains("PortScan", md);
+        Assert.Contains("PORT-001", md);
         Assert.Contains("192.168.1.10", md);
     }
 
@@ -93,7 +95,7 @@ public class MarkdownFormatterTests
         var md = _formatter.ToMarkdown(result);
 
         Assert.Contains("# VulcansTrace Analysis Summary", md);
-        Assert.Contains("| Category |", md);
+        Assert.Contains("| Rule ID | Category |", md);
         Assert.Contains("None", md); // Warnings section shows "None"
     }
 

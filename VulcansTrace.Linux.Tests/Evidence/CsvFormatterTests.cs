@@ -24,7 +24,8 @@ public class CsvFormatterTests
                     TimeRangeStart = DateTime.UnixEpoch,
                     TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
                     ShortDescription = "desc \"quoted\" value",
-                    Details = "detail"
+                    Details = "detail",
+                    RuleId = "FW-001"
                 }
             ],
             Warnings = ["=cmd|bad"]
@@ -32,7 +33,8 @@ public class CsvFormatterTests
 
         var csv = formatter.ToCsv(result);
 
-        Assert.Contains("Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription", csv);
+        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription", csv);
+        Assert.Contains("FW-001", csv);
         Assert.Contains("\"Cat,1\"", csv);
         Assert.Contains("\"desc \"\"quoted\"\" value\"", csv);
         Assert.Contains("Warnings", csv);

@@ -25,8 +25,9 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `What ports are open?`
 - `What services are running?`
 - `Who am I talking to?`
+- `Explain FW-001`
 
-The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
+The panel also includes quick-action buttons for common audits, selected-finding explanation, and exporting the latest agent audit through the shared evidence ZIP workflow. The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 
 For the full capability list and limitations, see [Security Agent](SECURITY_AGENT.md).
 

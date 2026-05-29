@@ -49,7 +49,7 @@ public sealed class FirewallScanner : IScanner
         }
     }
 
-    private static void ParseIptables(string output, ScanDataBuilder builder)
+    internal static void ParseIptables(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         string? currentChain = null;
@@ -81,7 +81,7 @@ public sealed class FirewallScanner : IScanner
         }
     }
 
-    private static FirewallRule? ParseIptablesRuleLine(string line, string chain)
+    internal static FirewallRule? ParseIptablesRuleLine(string line, string chain)
     {
         var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 3)
@@ -98,7 +98,7 @@ public sealed class FirewallScanner : IScanner
         string? destPort = null;
         string? stateMatch = null;
 
-        for (var i = 9; i < parts.Length - 1; i++)
+        for (var i = 9; i < parts.Length; i++)
         {
             if (parts[i] == "dpt:" && i + 1 < parts.Length)
             {
@@ -111,6 +111,14 @@ public sealed class FirewallScanner : IScanner
             else if ((parts[i] == "--dport" || parts[i] == "dpt") && i + 1 < parts.Length)
             {
                 destPort = parts[i + 1];
+            }
+            else if (parts[i].StartsWith("dpt:", StringComparison.OrdinalIgnoreCase))
+            {
+                destPort = parts[i].Substring(4);
+            }
+            else if (parts[i].StartsWith("dpts:", StringComparison.OrdinalIgnoreCase))
+            {
+                destPort = parts[i].Substring(5);
             }
             else if ((parts[i] == "--state" || parts[i] == "state") && i + 1 < parts.Length)
             {
@@ -133,7 +141,7 @@ public sealed class FirewallScanner : IScanner
         };
     }
 
-    private static void ParseNftables(string output, ScanDataBuilder builder)
+    internal static void ParseNftables(string output, ScanDataBuilder builder)
     {
         // Basic nftables parsing — extract rule lines with chain context
         var lines = output.Split('\n');

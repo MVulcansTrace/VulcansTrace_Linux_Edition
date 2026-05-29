@@ -73,10 +73,10 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 3. `ScanDataBuilder` collects scanner output into a thread-safe snapshot.
 4. Rules matching the requested intent evaluate the snapshot.
 5. Failed rules become `Finding` records.
-6. `ExplanationProvider` fills markdown templates for each finding.
+6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
 7. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 8. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-9. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`.
+9. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present.
 
 ## Explanation Behavior
 
@@ -88,14 +88,19 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. Suggested commands are presented as reviewable guidance only; the agent does not apply remediation automatically.
+
 ## UI Integration
 
 The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
 
 - Chat-style natural-language questions.
+- Quick-action buttons for full audit, firewall, ports, services, network, selected-finding explanation, and audit export.
 - In-flight query cancellation.
-- Agent findings displayed with severity and explanatory details.
-- Two-way selection tracking from the findings grid for selected-finding explanations.
+- Agent findings grouped by category with compact severity summaries.
+- Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
+- An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
+- Export Audit support that reuses the shared evidence export flow for the latest agent audit.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety
@@ -116,11 +121,10 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 
 ## Roadmap
 
-- Add parser unit tests for representative `ss`, `ip addr`, `iptables`, `nft`, and `systemctl` output.
-- Add explicit UI buttons for common commands such as full audit, firewall check, and ports check.
-- Group agent findings by severity and category in the UI.
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
-- Add optional remediation guidance with clear "review before applying" language.
+- Expand scanner fixtures across more distributions and command variants.
+- Add optional remediation preview exports with clear "review before applying" language.
+- Add UI affordances for copying verification commands from explanations.
 
 ## Implementation Evidence
 
@@ -134,3 +138,4 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)
+- [ScannerParserFixtureTests.cs](../VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs)

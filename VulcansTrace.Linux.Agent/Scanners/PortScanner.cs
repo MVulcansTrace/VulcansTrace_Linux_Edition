@@ -36,7 +36,7 @@ public sealed class PortScanner : IScanner
         ParseOutput(output, builder);
     }
 
-    private static void ParseOutput(string output, ScanDataBuilder builder)
+    internal static void ParseOutput(string output, ScanDataBuilder builder)
     {
         var lines = output.Split('\n');
         foreach (var rawLine in lines)
@@ -55,11 +55,13 @@ public sealed class PortScanner : IScanner
 
             // ss format: Netid  State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port  Process
             // netstat format: Proto  Recv-Q  Send-Q  Local Address  Foreign Address  State  PID/Program
-            var isSsFormat = parts[0] is "tcp" or "udp" or "tcp6" or "udp6";
-            var proto = isSsFormat ? parts[0] : parts[0];
+            // Heuristic: in ss format parts[1] is a state string; in netstat it's a number (Recv-Q).
+            var isSsFormat = parts[0] is "tcp" or "udp" or "tcp6" or "udp6"
+                && !int.TryParse(parts[1], out _);
+            var proto = parts[0];
             var stateIndex = isSsFormat ? 1 : 5;
             var localAddrIndex = isSsFormat ? 4 : 3;
-            var processIndex = isSsFormat ? 6 : 6;
+            var processIndex = 6;
 
             if (parts.Length <= localAddrIndex)
                 continue;
@@ -88,7 +90,7 @@ public sealed class PortScanner : IScanner
         }
     }
 
-    private static (string Address, int Port) ParseAddressPort(string input)
+    internal static (string Address, int Port) ParseAddressPort(string input)
     {
         // Handle IPv6 [::]:22 and IPv4 0.0.0.0:22
         var lastColon = input.LastIndexOf(':');
@@ -103,7 +105,7 @@ public sealed class PortScanner : IScanner
         return (input, 0);
     }
 
-    private static (string? Name, int? Pid) ParseProcess(string input)
+    internal static (string? Name, int? Pid) ParseProcess(string input)
     {
         // Format: "users:(("sshd",pid=1234,fd=3))" or "1234/sshd"
         if (input.Contains("pid="))

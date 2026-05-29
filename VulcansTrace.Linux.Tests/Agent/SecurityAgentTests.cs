@@ -79,7 +79,8 @@ public class SecurityAgentTests
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
         Assert.Single(result.AgentFindings);
         Assert.Contains("Test finding", result.Summary);
-        Assert.Contains("detailed explanation", result.Summary);
+        Assert.Contains("What was found", result.Summary);
+        Assert.Contains("Why it matters", result.Summary);
     }
 
     [Fact]
@@ -164,6 +165,20 @@ public class SecurityAgentTests
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
         Assert.Single(result.AgentFindings);
         Assert.Equal("Test finding should be explained", result.AgentFindings[0].ShortDescription);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_FindingIncludesRuleId()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+
+        Assert.Single(result.AgentFindings);
+        Assert.Equal("TEST-001", result.AgentFindings[0].RuleId);
     }
 
     private static SecurityAgent CreateAgent()

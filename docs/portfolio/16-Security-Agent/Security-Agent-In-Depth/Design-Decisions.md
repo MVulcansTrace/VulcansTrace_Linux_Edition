@@ -22,7 +22,7 @@ That means rules can be tested with synthetic `ScanData` without depending on th
 
 ## Cache Rule IDs With Findings
 
-`Finding` is a shared core type and does not contain an agent rule ID. The agent therefore keeps a private history of `(RuleId, Finding)` pairs after audits. This makes follow-up prompts such as `explain FW-001` stable without depending on the rule ID appearing in rendered markdown details.
+`Finding` now carries an optional `RuleId` for agent-generated findings while remaining compatible with engine findings that do not have rule IDs. The agent also keeps a private history of `(RuleId, Finding)` pairs after audits. This makes follow-up prompts such as `explain FW-001` stable and lets evidence exports preserve the rule identifier without forcing the log-analysis engine to invent one.
 
 ## Thread-Safe Aggregation
 
@@ -34,19 +34,19 @@ Scanner command helpers return stdout, stderr, and success status. They read std
 
 ## Explain With Templates
 
-`ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. This keeps explanation language editable without changing rule code. It also avoids mixing detection logic with user-facing prose.
+`ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. It also parses those templates into structured sections for what was found, why it matters, how to verify, suggested next action, confidence, and caveats. This keeps explanation language editable without changing rule code and avoids mixing detection logic with user-facing prose.
 
 ## Preserve Existing Analysis Contracts
 
-`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow.
+`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs preserved when present.
 
-## UI As A Thin Chat Shell
+## UI As A Thin Control Shell
 
-The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
+The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, quick actions, privilege warnings, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
 
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.
-- Command-output parsers are practical for v1 but need fixture coverage across distributions.
+- Command-output parsers are practical for v1 and now have realistic fixture coverage, but more distro variants should be added over time.
 - Direct selected-finding explanations summarize existing finding details rather than performing deeper multi-turn reasoning.
 - Rules favor actionable posture checks, which can create findings that need analyst judgment rather than direct incident conclusions.

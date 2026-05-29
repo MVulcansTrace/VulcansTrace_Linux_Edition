@@ -20,12 +20,13 @@ public sealed class CsvFormatter : IEvidenceFormatter
     public string ToCsv(AnalysisResult result)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription");
+        sb.AppendLine("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription");
 
         foreach (var f in result.Findings)
         {
             var fields = new[]
             {
+                f.RuleId ?? string.Empty,
                 f.Category,
                 f.Severity.ToString(),
                 f.SourceHost,
