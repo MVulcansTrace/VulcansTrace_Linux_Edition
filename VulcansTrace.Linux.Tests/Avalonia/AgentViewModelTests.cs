@@ -13,7 +13,7 @@ public class AgentViewModelTests
     {
         var selected = CreateFinding();
         var hasSelection = false;
-        var vm = new AgentViewModel(new StubAgent())
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore())
         {
             SelectedFindingProvider = () => hasSelection ? selected : null
         };
@@ -37,7 +37,7 @@ public class AgentViewModelTests
     [Fact]
     public void SelectedChatCategoryFilter_AllCategories_KeepsFindingMessagesVisible()
     {
-        var vm = new AgentViewModel(new StubAgent());
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore());
         var firewallMessage = new AgentMessageViewModel
         {
             Text = "Firewall finding",

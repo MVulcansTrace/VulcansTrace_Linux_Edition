@@ -16,7 +16,8 @@ public class AgentViewModelHistoryTests
     public async Task History_Accumulates_On_Audit()
     {
         var agent = new MockHistoryAgent();
-        var vm = new AgentViewModel(agent);
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var vm = new AgentViewModel(agent, store);
 
         Assert.Empty(vm.History);
 
@@ -29,10 +30,11 @@ public class AgentViewModelHistoryTests
     }
 
     [Fact]
-    public async Task History_Caps_At_20()
+    public async Task History_Caps_At_Store_Max()
     {
         var agent = new MockHistoryAgent();
-        var vm = new AgentViewModel(agent);
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var vm = new AgentViewModel(agent, store);
 
         for (int i = 0; i < 25; i++)
         {
@@ -46,7 +48,8 @@ public class AgentViewModelHistoryTests
     public async Task History_Entry_Has_Correct_Counts()
     {
         var agent = new MockHistoryAgent();
-        var vm = new AgentViewModel(agent);
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var vm = new AgentViewModel(agent, store);
 
         vm.LogText = "";
         await RunFullAuditAsync(vm);
@@ -64,7 +67,8 @@ public class AgentViewModelHistoryTests
     public async Task CompareAuditsCommand_Requires_Two_HistoryEntries()
     {
         var agent = new MockHistoryAgent();
-        var vm = new AgentViewModel(agent);
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var vm = new AgentViewModel(agent, store);
 
         Assert.False(vm.CanCompareAudits);
         Assert.False(vm.CompareAuditsCommand.CanExecute(null));
@@ -84,7 +88,8 @@ public class AgentViewModelHistoryTests
     public async Task MarkLatestAuditExported_Updates_MostRecentHistoryEntry()
     {
         var agent = new MockHistoryAgent();
-        var vm = new AgentViewModel(agent);
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var vm = new AgentViewModel(agent, store);
 
         await RunFullAuditAsync(vm);
 
@@ -93,6 +98,43 @@ public class AgentViewModelHistoryTests
         vm.MarkLatestAuditExported();
 
         Assert.True(vm.History[0].Exported);
+    }
+
+    [Fact]
+    public void Constructor_Loads_Existing_History_From_Store()
+    {
+        var agent = new MockHistoryAgent();
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        store.Append(CreateHistoryEntry("snap-1"));
+        store.Append(CreateHistoryEntry("snap-2"));
+
+        var vm = new AgentViewModel(agent, store);
+
+        Assert.Equal(2, vm.History.Count);
+        Assert.Equal("snap-2", vm.History[0].SnapshotId);
+        Assert.Equal("snap-1", vm.History[1].SnapshotId);
+    }
+
+    [Fact]
+    public void Constructor_Shows_HistoryPersistenceWarning()
+    {
+        var agent = new MockHistoryAgent();
+        var store = new InMemoryAuditHistoryStore("Audit history persistence is unavailable.", maxEntries: 20);
+
+        var vm = new AgentViewModel(agent, store);
+
+        Assert.Contains(vm.Messages, message => message.Text == "Audit history persistence is unavailable." && message.IsInfo);
+    }
+
+    private static AuditHistoryEntry CreateHistoryEntry(string snapshotId)
+    {
+        return new AuditHistoryEntry
+        {
+            SnapshotId = snapshotId,
+            Intent = AgentIntent.FullAudit,
+            TotalFindings = 1,
+            SnapshotFindings = Array.Empty<AuditSnapshotFinding>()
+        };
     }
 
     private static async Task RunFullAuditAsync(AgentViewModel vm)

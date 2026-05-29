@@ -74,7 +74,7 @@ User query
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
-| Audit history | Keeps the latest 20 audits, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots |
+| Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a markdown remediation preview with safety notes, rollback hints, and verification commands |
 

@@ -24,7 +24,7 @@ Documentation is organized for two audiences:
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, and includes active suppression notes in evidence exports
 - **Timed suppressions** — supports 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
-- **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, selectable audit history diff, suppression review actions, cancellation, audit export, and remediation preview export
+- **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, persistent selectable audit history diff, suppression review actions, cancellation, audit export, and remediation preview export
 - **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration
 
 ## Implementation Evidence

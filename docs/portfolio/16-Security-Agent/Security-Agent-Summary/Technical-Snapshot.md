@@ -20,7 +20,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Agent intents | 7: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, Help |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
-| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, selection-aware explanations, safety-labeled verification commands, timed suppressions, selectable audit history diff, privilege warnings, audit export, and remediation export |
+| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, selection-aware explanations, safety-labeled verification commands, timed suppressions, persistent selectable audit history diff, privilege warnings, audit export, and remediation export |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
 ---

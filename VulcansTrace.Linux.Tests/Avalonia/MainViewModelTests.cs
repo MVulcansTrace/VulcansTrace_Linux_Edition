@@ -221,7 +221,8 @@ also not a firewall line";
             new TestDialogService(),
             profileProvider,
             agent ?? new MockAgent(),
-            suppressionStore ?? new InMemorySuppressionStore());
+            suppressionStore ?? new InMemorySuppressionStore(),
+            new InMemoryAuditHistoryStore());
     }
 
     private sealed class MockAgent : IAgent

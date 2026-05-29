@@ -104,7 +104,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
-- Audit history capped at 20 entries, with compare-last-two, selectable before/after comparison, and exported-state tracking after successful evidence export.
+- Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
 - A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.

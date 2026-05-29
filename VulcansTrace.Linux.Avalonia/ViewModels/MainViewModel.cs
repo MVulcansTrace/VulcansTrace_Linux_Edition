@@ -256,7 +256,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         AnalysisProfileProvider profileProvider,
         IAgent agent,
-        ISuppressionStore suppressionStore)
+        ISuppressionStore suppressionStore,
+        IAuditHistoryStore auditHistoryStore)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -279,7 +280,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent)
+        Agent = new AgentViewModel(agent, auditHistoryStore)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),

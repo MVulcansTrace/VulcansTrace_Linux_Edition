@@ -7,6 +7,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scanners;
@@ -120,11 +121,22 @@ public partial class MainWindow : Window
         {
             suppressionStore = new InMemorySuppressionStore("Suppression persistence is unavailable. Accepted risks will last only for this session.");
         }
+
+        IAuditHistoryStore auditHistoryStore;
+        try
+        {
+            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault();
+        }
+        catch
+        {
+            auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
+        }
+
         var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore);
         var ruleCatalog = new RuleCatalog(rules);
 
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, suppressionStore);
+        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, suppressionStore, auditHistoryStore);
         viewModel.RuleCatalog.LoadCatalog(ruleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {

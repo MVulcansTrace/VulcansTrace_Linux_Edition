@@ -24,6 +24,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private const string AllCategoriesFilter = "All categories";
 
     private readonly IAgent _agent;
+    private readonly IAuditHistoryStore _historyStore;
     private CancellationTokenSource? _cts;
 
     private string _userQuery = "";
@@ -243,9 +244,17 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// Initializes a new instance of the <see cref="AgentViewModel"/> class.
     /// </summary>
     /// <param name="agent">The agent instance to use for queries.</param>
-    public AgentViewModel(IAgent agent)
+    /// <param name="historyStore">The store for persisting audit history.</param>
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+        _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
+
+        // Load persisted history
+        foreach (var entry in _historyStore.GetAll())
+        {
+            History.Add(entry);
+        }
 
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
@@ -314,6 +323,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
+        AddHistoryPersistenceWarningIfAny();
     }
 
     /// <summary>Gets the command to compare the last two audits.</summary>
@@ -740,7 +750,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void AppendHistoryEntry(AgentResult result)
     {
-        const int maxHistory = 20;
         var findings = result.AgentFindings;
         var snapshotFindings = findings.Select(f => new AuditSnapshotFinding
         {
@@ -769,10 +778,17 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             SnapshotFindings = snapshotFindings
         };
 
-        History.Insert(0, entry);
-        while (History.Count > maxHistory)
+        _historyStore.Append(entry);
+        RefreshHistoryFromStore();
+        Dispatcher.UIThread.Post(AddHistoryPersistenceWarningIfAny);
+    }
+
+    private void RefreshHistoryFromStore()
+    {
+        History.Clear();
+        foreach (var entry in _historyStore.GetAll())
         {
-            History.RemoveAt(History.Count - 1);
+            History.Add(entry);
         }
 
         OnPropertyChanged(nameof(CanCompareAudits));
@@ -788,7 +804,19 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         if (History.Count == 0)
             return;
 
-        History[0] = History[0] with { Exported = true };
+        var updated = History[0] with { Exported = true };
+        History[0] = updated;
+        _historyStore.Update(updated);
+        Dispatcher.UIThread.Post(AddHistoryPersistenceWarningIfAny);
+    }
+
+    private void AddHistoryPersistenceWarningIfAny()
+    {
+        var warning = _historyStore.PersistenceWarning;
+        if (string.IsNullOrWhiteSpace(warning) || Messages.Any(message => message.Text == warning))
+            return;
+
+        AddAgentMessage(warning, true);
     }
 
     private static bool IsAuditIntent(AgentIntent intent) =>
