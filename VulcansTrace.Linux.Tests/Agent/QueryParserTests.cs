@@ -32,34 +32,68 @@ public class QueryParserTests
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);
-        Assert.Equal(expected, result);
+        Assert.Equal(expected, result.Intent);
     }
 
     [Fact]
     public void Parse_UnknownQuery_ReturnsHelp()
     {
         var result = _parser.Parse("tell me a joke");
-        Assert.Equal(AgentIntent.Help, result);
+        Assert.Equal(AgentIntent.Help, result.Intent);
     }
 
     [Fact]
     public void Parse_EmptyString_ReturnsHelp()
     {
         var result = _parser.Parse("");
-        Assert.Equal(AgentIntent.Help, result);
+        Assert.Equal(AgentIntent.Help, result.Intent);
     }
 
     [Fact]
     public void Parse_Whitespace_ReturnsHelp()
     {
         var result = _parser.Parse("   ");
-        Assert.Equal(AgentIntent.Help, result);
+        Assert.Equal(AgentIntent.Help, result.Intent);
     }
 
     [Fact]
     public void Parse_CaseInsensitive_MatchesCorrectly()
     {
         var result = _parser.Parse("CHECK MY FIREWALL");
-        Assert.Equal(AgentIntent.FirewallCheck, result);
+        Assert.Equal(AgentIntent.FirewallCheck, result.Intent);
+    }
+
+    [Theory]
+    [InlineData("explain FW-001", "FW-001")]
+    [InlineData("what does PORT-002 mean", "PORT-002")]
+    [InlineData("explain fw-001", "fw-001")]
+    [InlineData("explain the ssh rule", "ssh")]
+    [InlineData("why is firewall flagged", "firewall")]
+    [InlineData("explain finding FW-003", "FW-003")]
+    public void Parse_ExplainFinding_WithReference_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("explain this finding")]
+    [InlineData("what does this mean")]
+    [InlineData("why is this flagged")]
+    public void Parse_ExplainFinding_WithoutReference_ReturnsNullTargetReference(string query)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Null(result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("check my firewall")]
+    [InlineData("what ports are open?")]
+    public void Parse_NonExplainFinding_NeverReturnsTargetReference(string query)
+    {
+        var result = _parser.Parse(query);
+        Assert.Null(result.TargetReference);
     }
 }

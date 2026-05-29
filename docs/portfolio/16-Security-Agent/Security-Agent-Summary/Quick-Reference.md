@@ -4,14 +4,15 @@
 
 ## Intent Catalog
 
-| Intent | Example query | Rule scope |
+| Intent | Example query | Behavior |
 | --- | --- | --- |
 | `FullAudit` | `Is my system secure?` | All rules |
 | `FirewallCheck` | `Check my firewall` | Firewall rules |
 | `NetworkCheck` | `Who am I talking to?` | Network rules |
 | `ServiceCheck` | `What services are running?` | Service rules |
 | `PortCheck` | `What ports are open?` | Port rules |
-| `ExplainFinding` | `Explain this finding` | Explanation-oriented all-rules path |
+| `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
+| `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `Help` | `What can you do?` | Help text only |
 
 ---
@@ -43,7 +44,7 @@
 ```
 User query
   -> QueryParser
-  -> AgentIntent
+  -> AgentQuery (Intent + optional TargetReference)
   -> SecurityAgent
   -> Scanners
   -> ScanDataBuilder / ScanData
@@ -65,6 +66,7 @@ User query
 | Send command | Runs `IAgent.AskAsync` with cancellation support |
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
+| Findings selection | Tracks selected finding and uses it for `explain this finding` |
 | Message list | Displays summaries, warnings, findings, and explanation details |
 
 ---
@@ -74,5 +76,5 @@ User query
 - Scanner output parsing is command-text based and should be expanded with distro-specific fixtures.
 - Some checks are posture findings, not compromise findings.
 - Privilege-sensitive command output may be incomplete without elevated permissions.
-- `ExplainFinding` does not yet target a selected UI finding.
+- Direct selected-finding explanations summarize the existing finding details.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.

@@ -4,7 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -61,6 +63,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the last agent result.</summary>
     public AgentResult? LastResult => _lastResult;
 
+    /// <summary>
+    /// Optional provider that returns the currently selected finding from the UI.
+    /// When set, ExplainFinding queries will target this finding if no explicit reference is given.
+    /// </summary>
+    public Func<Finding?>? SelectedFindingProvider { get; set; }
+
     /// <summary>Gets the command to send a query to the agent.</summary>
     public AsyncRelayCommand SendQueryCommand { get; }
 
@@ -116,7 +124,27 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var result = await _agent.AskAsync(query, LogText, token);
+            AgentResult result;
+
+            // Quick-parse to see if this is an ExplainFinding intent with a UI-selected finding
+            var parsed = new QueryParser().Parse(query);
+            if (parsed.Intent == AgentIntent.ExplainFinding && string.IsNullOrWhiteSpace(parsed.TargetReference))
+            {
+                var selected = SelectedFindingProvider?.Invoke();
+                if (selected != null)
+                {
+                    result = await _agent.ExplainFindingAsync(selected, token);
+                }
+                else
+                {
+                    result = await _agent.AskAsync(query, LogText, token);
+                }
+            }
+            else
+            {
+                result = await _agent.AskAsync(query, LogText, token);
+            }
+
             _lastResult = result;
 
             Dispatcher.UIThread.Post(() =>
@@ -171,7 +199,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void AddAgentFinding(VulcansTrace.Linux.Core.Finding finding)
+    private void AddAgentFinding(Finding finding)
     {
         Messages.Add(new AgentMessageViewModel
         {
@@ -202,7 +230,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private string _details = "";
     private bool _isUser;
     private bool _isInfo;
-    private VulcansTrace.Linux.Core.Severity _severity;
+    private Severity _severity;
     private DateTime _timestamp;
 
     public string Text
@@ -229,7 +257,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
         set => SetField(ref _isInfo, value);
     }
 
-    public VulcansTrace.Linux.Core.Severity Severity
+    public Severity Severity
     {
         get => _severity;
         set => SetField(ref _severity, value);

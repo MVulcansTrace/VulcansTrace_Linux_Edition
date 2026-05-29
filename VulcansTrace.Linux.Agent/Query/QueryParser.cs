@@ -1,8 +1,11 @@
+using System.Text.RegularExpressions;
+
 namespace VulcansTrace.Linux.Agent.Query;
 
 /// <summary>
-/// Keyword-based query parser that maps user input to <see cref="AgentIntent"/>.
+/// Keyword-based query parser that maps user input to <see cref="AgentQuery"/>.
 /// Uses simple scoring — good enough for v1 without external NLP dependencies.
+/// Also extracts finding references (rule IDs, category keywords) from the query.
 /// </summary>
 public sealed class QueryParser : IQueryParser
 {
@@ -13,15 +16,22 @@ public sealed class QueryParser : IQueryParser
         (new[] { "network", "connection", "talking", "who", "route", "interface", "ip addr", "traffic" }, AgentIntent.NetworkCheck, 2),
         (new[] { "service", "running", "daemon", "systemctl", "unit" }, AgentIntent.ServiceCheck, 2),
         (new[] { "port", "open", "listening", "ss", "netstat" }, AgentIntent.PortCheck, 2),
-        (new[] { "explain", "what does", "mean", "help me understand", "why" }, AgentIntent.ExplainFinding, 1),
+        (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
         (new[] { "help", "what can you do", "capabilities", "commands" }, AgentIntent.Help, 2),
     };
 
+    private static readonly Regex RuleIdPattern = new(@"[A-Za-z]{2,}-\d{3,}", RegexOptions.Compiled);
+
+    private static readonly string[] CategoryKeywords =
+    {
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables"
+    };
+
     /// <inheritdoc />
-    public AgentIntent Parse(string query)
+    public AgentQuery Parse(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return AgentIntent.Help;
+            return new AgentQuery(AgentIntent.Help);
 
         var normalized = query.ToLowerInvariant().Trim();
         var bestIntent = AgentIntent.Help;
@@ -38,13 +48,39 @@ public sealed class QueryParser : IQueryParser
                 }
             }
 
-            if (score > bestScore)
+            if (score >= bestScore)
             {
                 bestScore = score;
                 bestIntent = intent;
             }
         }
 
-        return bestIntent;
+        var targetReference = ExtractTargetReference(query, bestIntent);
+        return new AgentQuery(bestIntent, targetReference);
+    }
+
+    private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
+    {
+        if (intent != AgentIntent.ExplainFinding)
+            return null;
+
+        // Look for rule IDs like FW-001, PORT-002, etc.
+        var ruleMatch = RuleIdPattern.Match(rawQuery);
+        if (ruleMatch.Success)
+        {
+            return ruleMatch.Value;
+        }
+
+        // Look for category keywords
+        var normalized = rawQuery.ToLowerInvariant();
+        foreach (var keyword in CategoryKeywords)
+        {
+            if (normalized.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return keyword;
+            }
+        }
+
+        return null;
     }
 }

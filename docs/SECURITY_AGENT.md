@@ -17,7 +17,8 @@ The query parser maps natural-language prompts to structured intents:
 | `What ports are open?` | `PortCheck` | Reviews listening ports and exposure |
 | `What services are running?` | `ServiceCheck` | Reviews running services |
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
-| `Explain this finding` | `ExplainFinding` | Runs the explanation-oriented audit path |
+| `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
+| `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `Help` | `Help` | Returns supported agent capabilities |
 
 ## Data Sources
@@ -67,14 +68,25 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 ## How The Pipeline Works
 
-1. `QueryParser` converts the user query into an `AgentIntent`.
+1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
 2. `SecurityAgent` runs the required scanners with cancellation support.
 3. `ScanDataBuilder` collects scanner output into a thread-safe snapshot.
 4. Rules matching the requested intent evaluate the snapshot.
 5. Failed rules become `Finding` records.
 6. `ExplanationProvider` fills markdown templates for each finding.
-7. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-8. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`.
+7. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
+8. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
+9. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`.
+
+## Explanation Behavior
+
+The agent supports three explanation paths:
+
+- **Selected finding:** if the user selects a finding in the UI and asks `explain this finding`, `AgentViewModel` calls `ExplainFindingAsync` directly without re-scanning.
+- **Previous agent finding:** after an audit, references such as `explain FW-001`, `explain firewall`, or `explain SSH` are resolved against cached agent findings.
+- **Known rule ID with no cached finding:** if a rule ID is recognized but no previous finding is available, the agent runs that single rule and explains the result if it fails.
+
+When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
 ## UI Integration
 
@@ -83,6 +95,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Chat-style natural-language questions.
 - In-flight query cancellation.
 - Agent findings displayed with severity and explanatory details.
+- Two-way selection tracking from the findings grid for selected-finding explanations.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety
@@ -96,17 +109,17 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 ## Current Limitations
 
 - It is a deterministic rule-based assistant, not an LLM-backed conversational system.
-- `ExplainFinding` currently runs the explanation-oriented all-rules path; it does not yet target a selected UI finding.
 - Scanner parsers are pragmatic and command-output based, so unusual distro output may need parser tests and adjustments.
 - Some findings are posture checks rather than proof of compromise.
 - Process names and firewall details may require elevated privileges depending on the host.
+- Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.
 
 ## Roadmap
 
-- Add a true selected-finding explanation flow.
 - Add parser unit tests for representative `ss`, `ip addr`, `iptables`, `nft`, and `systemctl` output.
 - Add explicit UI buttons for common commands such as full audit, firewall check, and ports check.
 - Group agent findings by severity and category in the UI.
+- Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
 - Add optional remediation guidance with clear "review before applying" language.
 
 ## Implementation Evidence

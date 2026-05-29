@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent;
 
@@ -25,4 +26,12 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent audit result.</returns>
     Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct);
+
+    /// <summary>
+    /// Returns a focused explanation for the provided finding without re-running scans or rules.
+    /// </summary>
+    /// <param name="finding">The finding to explain.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>An agent result containing only the explained finding.</returns>
+    Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct);
 }

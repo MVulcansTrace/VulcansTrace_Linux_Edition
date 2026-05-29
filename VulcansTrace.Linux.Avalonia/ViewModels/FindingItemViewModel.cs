@@ -29,12 +29,16 @@ public sealed class FindingItemViewModel
     /// <summary>Gets the short description for the finding.</summary>
     public string ShortDescription { get; }
 
+    /// <summary>Gets the underlying finding.</summary>
+    public Finding Finding { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="FindingItemViewModel"/> class.
     /// </summary>
     /// <param name="finding">The finding to display.</param>
     public FindingItemViewModel(Finding finding)
     {
+        Finding = finding;
         Category = finding.Category;
         Severity = finding.Severity.ToString();
         SourceHost = finding.SourceHost;

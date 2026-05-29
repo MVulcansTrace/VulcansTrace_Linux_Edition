@@ -259,7 +259,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent);
+        Agent = new AgentViewModel(agent)
+        {
+            SelectedFindingProvider = () => Findings.SelectedItem?.Finding
+        };
         _evidenceStatusHandler = (s, msg) =>
             Dispatcher.UIThread.Post(() => SummaryText = msg);
         Evidence.StatusChanged += _evidenceStatusHandler;

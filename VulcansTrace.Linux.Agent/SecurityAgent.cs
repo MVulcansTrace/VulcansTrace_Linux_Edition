@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -21,6 +20,8 @@ public sealed class SecurityAgent : IAgent
     private readonly IExplanationProvider _explanationProvider;
     private readonly SentryAnalyzer? _sentryAnalyzer;
     private readonly AnalysisProfileProvider? _profileProvider;
+    private readonly object _historyLock = new();
+    private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -48,9 +49,9 @@ public sealed class SecurityAgent : IAgent
     public async Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
     {
         var parser = new QueryParser();
-        var intent = parser.Parse(query);
+        var agentQuery = parser.Parse(query);
 
-        if (intent == AgentIntent.Help)
+        if (agentQuery.Intent == AgentIntent.Help)
         {
             return new AgentResult
             {
@@ -61,7 +62,12 @@ public sealed class SecurityAgent : IAgent
             };
         }
 
-        return await RunAuditAsync(intent, rawLog, ct);
+        if (agentQuery.Intent == AgentIntent.ExplainFinding)
+        {
+            return await HandleExplainFindingAsync(agentQuery, ct);
+        }
+
+        return await RunAuditAsync(agentQuery.Intent, rawLog, ct);
     }
 
     /// <inheritdoc />
@@ -109,10 +115,11 @@ public sealed class SecurityAgent : IAgent
 
         // Phase 3: Convert rule failures to Findings
         var agentFindings = new List<Finding>();
+        var historyEntries = new List<(string RuleId, Finding Finding)>();
         foreach (var result in ruleResults.Where(r => !r.Passed))
         {
             var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
-            agentFindings.Add(new Finding
+            var finding = new Finding
             {
                 Category = result.Category,
                 Severity = result.Severity,
@@ -122,7 +129,9 @@ public sealed class SecurityAgent : IAgent
                 Details = explanation,
                 TimeRangeStart = DateTime.UtcNow,
                 TimeRangeEnd = DateTime.UtcNow
-            });
+            };
+            agentFindings.Add(finding);
+            historyEntries.Add((result.RuleId, finding));
         }
 
         // Phase 4: Optional log analysis
@@ -145,11 +154,180 @@ public sealed class SecurityAgent : IAgent
         // Phase 5: Build summary
         var summary = BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults);
 
+        ReplaceLastFindings(historyEntries);
+
         return new AgentResult
         {
             Intent = intent,
             AgentFindings = agentFindings,
             LogAnalysisResult = logAnalysisResult,
+            Warnings = warnings,
+            UtcTimestamp = DateTime.UtcNow,
+            Summary = summary
+        };
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var summary = $"Explanation for [{finding.Severity}] {finding.ShortDescription}\n\n{finding.Details}";
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ExplainFinding,
+            AgentFindings = new List<Finding> { finding },
+            Warnings = Array.Empty<string>(),
+            UtcTimestamp = DateTime.UtcNow,
+            Summary = summary
+        });
+    }
+
+    private async Task<AgentResult> HandleExplainFindingAsync(AgentQuery agentQuery, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (!string.IsNullOrWhiteSpace(agentQuery.TargetReference))
+        {
+            var reference = agentQuery.TargetReference;
+            var matched = FindPreviousFinding(reference);
+
+            if (matched != null)
+            {
+                return await ExplainFindingAsync(matched, ct);
+            }
+
+            // Try to find a matching rule and run it specifically
+            var matchingRule = _rules.FirstOrDefault(r =>
+                r.Id.Equals(reference, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingRule != null)
+            {
+                return await RunSingleRuleAsync(matchingRule, ct);
+            }
+
+            return new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                Summary = $"I don't have a finding matching '{reference}'. Run an audit first, then ask me to explain a specific finding (e.g., 'explain FW-001').",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.ExplainFinding,
+            Summary = "Please specify a finding to explain (e.g., 'explain FW-001') or select one from the findings list.",
+            AgentFindings = Array.Empty<Finding>(),
+            Warnings = Array.Empty<string>()
+        };
+    }
+
+    private Finding? FindPreviousFinding(string reference)
+    {
+        lock (_historyLock)
+        {
+            foreach (var entry in _lastFindings)
+            {
+                if (entry.RuleId.Equals(reference, StringComparison.OrdinalIgnoreCase))
+                    return entry.Finding;
+            }
+
+            return _lastFindings
+                .Select(entry => entry.Finding)
+                .FirstOrDefault(finding => MatchesReference(finding, reference));
+        }
+    }
+
+    private void ReplaceLastFindings(IEnumerable<(string RuleId, Finding Finding)> findings)
+    {
+        lock (_historyLock)
+        {
+            _lastFindings.Clear();
+            _lastFindings.AddRange(findings);
+        }
+    }
+
+    private static bool MatchesReference(Finding finding, string reference)
+    {
+        if (finding.ShortDescription.Contains(reference, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (finding.Category.Contains(reference, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (finding.Details.Contains(reference, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (finding.Target.Contains(reference, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private async Task<AgentResult> RunSingleRuleAsync(IRule rule, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var builder = new ScanDataBuilder();
+        var warnings = new List<string>();
+
+        var scanTasks = _scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
+        await Task.WhenAll(scanTasks);
+
+        foreach (var task in scanTasks)
+        {
+            if (task.Result is { Length: > 0 } scannerWarnings)
+            {
+                warnings.AddRange(scannerWarnings);
+            }
+        }
+
+        var scanData = builder.Build();
+        warnings.AddRange(scanData.Warnings);
+
+        RuleResult result;
+        try
+        {
+            result = rule.Evaluate(scanData);
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
+            return new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                Summary = $"Rule {rule.Id} could not be evaluated: {ex.Message}",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = warnings
+            };
+        }
+
+        var agentFindings = new List<Finding>();
+        if (!result.Passed)
+        {
+            var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
+            var finding = new Finding
+            {
+                Category = result.Category,
+                Severity = result.Severity,
+                SourceHost = "localhost",
+                Target = result.Target,
+                ShortDescription = result.Description,
+                Details = explanation,
+                TimeRangeStart = DateTime.UtcNow,
+                TimeRangeEnd = DateTime.UtcNow
+            };
+            agentFindings.Add(finding);
+            ReplaceLastFindings(new[] { (result.RuleId, finding) });
+        }
+
+        var summary = agentFindings.Count > 0
+            ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
+            : $"Rule {rule.Id} passed — no issue to explain.";
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.ExplainFinding,
+            AgentFindings = agentFindings,
             Warnings = warnings,
             UtcTimestamp = DateTime.UtcNow,
             Summary = summary
@@ -177,7 +355,7 @@ public sealed class SecurityAgent : IAgent
     {
         return intent switch
         {
-            AgentIntent.FullAudit or AgentIntent.ExplainFinding => _rules,
+            AgentIntent.FullAudit => _rules,
             AgentIntent.FirewallCheck => _rules.Where(r => r.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.NetworkCheck => _rules.Where(r => r.Category.Equals("Network", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.ServiceCheck => _rules.Where(r => r.Category.Equals("Service", StringComparison.OrdinalIgnoreCase)),
@@ -200,7 +378,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.NetworkCheck => "Network check",
             AgentIntent.ServiceCheck => "Service check",
             AgentIntent.PortCheck => "Port check",
-            AgentIntent.ExplainFinding => "Finding explanation audit",
+            AgentIntent.ExplainFinding => "Finding explanation",
             _ => "Audit"
         };
 
@@ -234,5 +412,6 @@ public sealed class SecurityAgent : IAgent
         "• \"What ports are open?\"\n" +
         "• \"What services are running?\"\n" +
         "• \"Who am I talking to?\" (network connections)\n" +
-        "You can also paste a firewall log and ask for analysis.";
+        "You can also paste a firewall log and ask for analysis.\n" +
+        "To explain a specific finding: \"explain FW-001\" or select a finding from the list.";
 }

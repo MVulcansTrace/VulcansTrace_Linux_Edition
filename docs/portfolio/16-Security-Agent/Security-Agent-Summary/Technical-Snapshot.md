@@ -4,7 +4,7 @@
 
 ## Implementation Overview
 
-The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. The main orchestrator, `SecurityAgent`, parses the user's query into an `AgentIntent`, runs local scanners, evaluates rules, converts failed checks into `Finding` records, fills human-readable markdown explanations, and optionally includes firewall-log analysis through `SentryAnalyzer`.
+The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. The main orchestrator, `SecurityAgent`, parses the user's query into an `AgentQuery`, runs local scanners, evaluates rules, converts failed checks into `Finding` records, fills human-readable markdown explanations, caches findings by originating rule ID for follow-up questions, and optionally includes firewall-log analysis through `SentryAnalyzer`.
 
 The subsystem is deliberately deterministic and explainable. Each result can be traced to a scanner, a rule, and an explanation template rather than to opaque model output.
 
@@ -18,6 +18,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Scanner types | 4: Firewall, Port, Service, Network |
 | Rule categories | 4: Firewall, Port, Service, Network |
 | Agent intents | 7: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, Help |
+| Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel |
 | Test files | 5 agent-focused test files |
@@ -54,4 +55,4 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Current Status
 
-This is a v1 local security assistant. It can scan, evaluate, explain, and report, but it is not an LLM-backed conversational agent. The next high-value improvements are selected-finding explanations, parser fixture tests for scanner command output, and richer UI grouping by severity/category.
+This is a v1 local security assistant. It can scan, evaluate, explain selected or referenced findings, and report, but it is not an LLM-backed conversational agent. The next high-value improvements are parser fixture tests for scanner command output, explicit quick-action controls, and richer UI grouping by severity/category.

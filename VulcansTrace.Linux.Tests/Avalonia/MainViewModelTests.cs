@@ -219,6 +219,17 @@ also not a firewall line";
                 Warnings = Array.Empty<string>()
             });
         }
+
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                Summary = "Mock explanation",
+                AgentFindings = new List<Finding> { finding },
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 
     private sealed class TestDialogService : IDialogService

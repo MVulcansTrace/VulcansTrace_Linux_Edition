@@ -324,6 +324,7 @@
 
                     <DataGrid Grid.Row="1"
                               ItemsSource="{Binding Findings.FilteredItems}"
+                              SelectedItem="{Binding Findings.SelectedItem, Mode=TwoWay}"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               BorderThickness="0"

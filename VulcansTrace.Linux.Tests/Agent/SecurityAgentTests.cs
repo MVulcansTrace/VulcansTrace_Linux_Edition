@@ -59,7 +59,31 @@ public class SecurityAgentTests
     }
 
     [Fact]
-    public async Task AskAsync_ExplainFinding_PreservesIntentAndRunsRuleExplanations()
+    public async Task ExplainFindingAsync_ReturnsSingleFindingWithRichSummary()
+    {
+        var agent = CreateAgent();
+        var finding = new Finding
+        {
+            Category = "Test",
+            Severity = Severity.Low,
+            SourceHost = "localhost",
+            Target = "test-target",
+            ShortDescription = "Test finding",
+            Details = "This is a detailed explanation.",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow
+        };
+
+        var result = await agent.ExplainFindingAsync(finding, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Single(result.AgentFindings);
+        Assert.Contains("Test finding", result.Summary);
+        Assert.Contains("detailed explanation", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainFinding_WithoutReference_ReturnsGuidance()
     {
         var agent = new SecurityAgent(
             new IScanner[] { new NoopScanner() },
@@ -69,8 +93,77 @@ public class SecurityAgentTests
         var result = await agent.AskAsync("explain this finding", null, CancellationToken.None);
 
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("specify a finding", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainFinding_WithUnknownReference_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("explain UNKNOWN-999", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("don't have a finding matching", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainFinding_AfterAudit_ResolvesByReference()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // First run an audit to populate _lastFindings
+        var auditResult = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Single(auditResult.AgentFindings);
+
+        // Then ask to explain the finding by its rule ID
+        var explainResult = await agent.AskAsync("explain TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, explainResult.Intent);
+        Assert.Single(explainResult.AgentFindings);
+        Assert.Contains("Test finding should be explained", explainResult.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainFinding_AfterAudit_ResolvesByCategory()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // First run an audit
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+
+        // Then ask to explain by category keyword
+        var explainResult = await agent.AskAsync("explain the firewall finding", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, explainResult.Intent);
+        Assert.Single(explainResult.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainFinding_ByRuleId_RunsSingleRule()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // Ask to explain a specific rule ID without prior audit
+        var result = await agent.AskAsync("explain TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
         Assert.Single(result.AgentFindings);
-        Assert.Contains("Finding explanation audit", result.Summary);
+        Assert.Equal("Test finding should be explained", result.AgentFindings[0].ShortDescription);
     }
 
     private static SecurityAgent CreateAgent()
@@ -109,7 +202,7 @@ public class SecurityAgentTests
     private sealed class AlwaysFailRule : IRule
     {
         public string Id => "TEST-001";
-        public string Category => "Test";
+        public string Category => "Firewall";
         public string Description => "Test finding should be explained";
 
         public RuleResult Evaluate(ScanData data)

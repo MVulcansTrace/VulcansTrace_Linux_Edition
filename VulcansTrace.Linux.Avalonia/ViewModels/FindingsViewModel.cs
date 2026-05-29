@@ -21,6 +21,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private int _skippedLineCount;
     private bool _hasWarnings;
     private bool _hasParseErrors;
+    private FindingItemViewModel? _selectedItem;
 
     /// <summary>Gets the collection of findings to display.</summary>
     public ObservableCollection<FindingItemViewModel> Items { get; } = new();
@@ -124,6 +125,13 @@ public sealed class FindingsViewModel : ViewModelBase
         private set => SetField(ref _hasParseErrors, value);
     }
 
+    /// <summary>Gets or sets the selected finding item.</summary>
+    public FindingItemViewModel? SelectedItem
+    {
+        get => _selectedItem;
+        set => SetField(ref _selectedItem, value);
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="FindingsViewModel"/> class.
     /// </summary>
@@ -143,6 +151,7 @@ public sealed class FindingsViewModel : ViewModelBase
     public void LoadResults(AnalysisResult result)
     {
         // Clear previous data
+        SelectedItem = null;
         Items.Clear();
         FilteredItems.Clear();
         ParseErrors.Clear();
@@ -192,6 +201,7 @@ public sealed class FindingsViewModel : ViewModelBase
     /// </summary>
     public void Clear()
     {
+        SelectedItem = null;
         Items.Clear();
         FilteredItems.Clear();
         ParseErrors.Clear();
