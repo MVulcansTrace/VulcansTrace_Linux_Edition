@@ -38,7 +38,8 @@ public static class VerificationCommandExtractor
                 commands.Add(new CopyableCommand
                 {
                     DisplayText = command,
-                    FullCommand = command
+                    FullCommand = command,
+                    Safety = CommandSafetyClassifier.Classify(command)
                 });
             }
         }
@@ -55,7 +56,8 @@ public static class VerificationCommandExtractor
                     commands.Add(new CopyableCommand
                     {
                         DisplayText = command,
-                        FullCommand = command
+                        FullCommand = command,
+                        Safety = CommandSafetyClassifier.Classify(command)
                     });
                 }
             }

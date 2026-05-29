@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Reports;
@@ -8,6 +9,17 @@ namespace VulcansTrace.Linux.Agent.Reports;
 /// </summary>
 public sealed class AgentReportGenerator
 {
+    private readonly ISuppressionStore? _suppressionStore;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AgentReportGenerator"/> class.
+    /// </summary>
+    /// <param name="suppressionStore">Optional suppression store to include active suppressions in exports.</param>
+    public AgentReportGenerator(ISuppressionStore? suppressionStore = null)
+    {
+        _suppressionStore = suppressionStore;
+    }
+
     /// <summary>
     /// Merges agent findings and optional log analysis findings into a single <see cref="AnalysisResult"/>.
     /// </summary>
@@ -35,6 +47,17 @@ public sealed class AgentReportGenerator
         // Deduplicate by deterministic Id
         var deduped = allFindings.GroupBy(f => f.Id).Select(g => g.First()).ToList();
 
+        var activeSuppressions = _suppressionStore?.GetAll()
+            .Select(e => new SuppressionSummary
+            {
+                RuleId = e.RuleId,
+                Target = e.Target,
+                Reason = e.Reason,
+                CreatedAt = e.CreatedAt,
+                ExpiresAt = e.ExpiresAt,
+                ReviewDate = e.ReviewDate
+            }).ToList() ?? new List<SuppressionSummary>();
+
         return new AnalysisResult
         {
             TotalLines = totalLines,
@@ -46,7 +69,9 @@ public sealed class AgentReportGenerator
             Findings = deduped,
             Warnings = allWarnings,
             TimeRangeStart = agentResult.UtcTimestamp,
-            TimeRangeEnd = agentResult.UtcTimestamp
+            TimeRangeEnd = agentResult.UtcTimestamp,
+            SuppressedCount = agentResult.SuppressedCount,
+            ActiveSuppressions = activeSuppressions
         };
     }
 }

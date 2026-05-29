@@ -40,8 +40,9 @@ public sealed class RemediationMarkdownFormatter
                 sb.AppendLine();
                 foreach (var cmd in section.RemediationCommands)
                 {
+                    sb.AppendLine($"> **Safety:** {cmd.Safety}");
                     sb.AppendLine($"```bash");
-                    sb.AppendLine(cmd);
+                    sb.AppendLine(cmd.Command);
                     sb.AppendLine($"```");
                 }
                 sb.AppendLine();
@@ -64,8 +65,9 @@ public sealed class RemediationMarkdownFormatter
                 sb.AppendLine();
                 foreach (var cmd in section.VerificationCommands)
                 {
+                    sb.AppendLine($"> **Safety:** {cmd.Safety}");
                     sb.AppendLine($"```bash");
-                    sb.AppendLine(cmd);
+                    sb.AppendLine(cmd.Command);
                     sb.AppendLine($"```");
                 }
                 sb.AppendLine();

@@ -52,6 +52,31 @@ public sealed class CsvFormatter : IEvidenceFormatter
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Formats active suppressions as a CSV string.
+    /// </summary>
+    public string ToSuppressionCsv(AnalysisResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("RuleId,Target,Reason,CreatedAt,ExpiresAt,ReviewDate");
+
+        foreach (var s in result.ActiveSuppressions)
+        {
+            var fields = new[]
+            {
+                s.RuleId,
+                s.Target,
+                s.Reason,
+                s.CreatedAt.ToString("o", CultureInfo.InvariantCulture),
+                s.ExpiresAt?.ToString("o", CultureInfo.InvariantCulture) ?? "",
+                s.ReviewDate?.ToString("o", CultureInfo.InvariantCulture) ?? ""
+            };
+            sb.AppendLine(string.Join(",", fields.Select(Escape)));
+        }
+
+        return sb.ToString();
+    }
+
     string IEvidenceFormatter.Format(AnalysisResult result, string originalLog) => ToCsv(result);
 
     string IEvidenceFormatter.FileExtension => ".csv";

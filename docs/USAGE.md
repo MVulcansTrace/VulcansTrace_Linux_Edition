@@ -27,7 +27,9 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Who am I talking to?`
 - `Explain FW-001`
 
-The panel also includes quick-action buttons for common audits, selected-finding explanation, exporting the latest agent audit through the shared evidence ZIP workflow, exporting a review-only remediation plan, and comparing the last two audits. Agent audit findings are loaded into the main findings grid, where they can be selected for explanation or marked as accepted risk. Accepted-risk suppressions are persisted when possible; if persistence is unavailable, the UI reports that suppressions are session-only.
+The panel also includes quick-action buttons for common audits, selected-finding explanation, exporting the latest agent audit through the shared evidence ZIP workflow, exporting a review-only remediation plan, and comparing either the latest two audits or two selected history entries. Agent audit findings are loaded into the main findings grid, where they can be selected for explanation or marked as accepted risk. Accepted-risk suppressions can be set for 7, 30, or 90 days, or permanently; expired suppressions are pruned before audits. Suppressions are persisted when possible; if persistence is unavailable, the UI reports that suppressions are session-only.
+
+Agent chat findings can be filtered by severity and category without changing the underlying audit result. Copyable verification commands include safety badges such as ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, or Unknown.
 
 The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 
@@ -42,6 +44,7 @@ Exporting evidence produces a ZIP archive with:
 - `report.html`
 - `summary.md`
 - `log.txt`
+- `suppressions.csv` when active accepted-risk suppressions exist
 - `manifest.json` — file hashes, skipped line count, and parse error details
 - `manifest.hmac` — HMAC-SHA256 signature for integrity verification
 

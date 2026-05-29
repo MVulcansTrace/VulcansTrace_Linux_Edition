@@ -12,6 +12,7 @@
 | `findings.json` | `JsonFormatter` | SIEM-compatible JSON: metadata + findings + errors + warnings |
 | `findings.stix.json` | `StixFormatter` | STIX 2.1 bundle with identity, observed-data, notes, IP observables, malware SDO |
 | `log.txt` | (passthrough) | Original raw log file content |
+| `suppressions.csv` | `CsvFormatter` | Active accepted-risk suppressions, included only when present |
 | `manifest.json` | (generated) | Per-file SHA-256 hashes, byte lengths, warnings, and creation timestamp |
 | `manifest.hmac` | (generated) | HMAC-SHA256 hex signature of `manifest.json` |
 
@@ -32,7 +33,7 @@ AnalysisResult + rawLog
                         HMAC-SHA256  -->  manifest.hmac
         |
         v
-   ZIP archive (8 entries)
+   ZIP archive (standard entries + optional suppressions.csv)
 ```
 
 **Verification steps (recipient-side):**

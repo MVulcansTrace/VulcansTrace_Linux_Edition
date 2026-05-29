@@ -117,6 +117,11 @@ public sealed class EvidenceBuilder
             ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime)),
             ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime))
         };
+
+        if (result.ActiveSuppressions.Count > 0)
+        {
+            files["suppressions.csv"] = Encoding.UTF8.GetBytes(_csvFormatter.ToSuppressionCsv(result));
+        }
         cancellationToken.ThrowIfCancellationRequested();
 
         var manifestEntries = new List<object>();

@@ -200,6 +200,60 @@ public class SecurityAgentTests
         Assert.Contains(result.Warnings, w => w.Contains("suppressed", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task RunAuditAsync_ExpiredSuppression_IsResurfacedAsFinding()
+    {
+        var suppressionStore = new InMemorySuppressionStore();
+        suppressionStore.Add(new SuppressionEntry
+        {
+            RuleId = "TEST-001",
+            Target = "test-target",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            suppressionStore: suppressionStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Single(result.AgentFindings);
+        Assert.Equal(0, result.SuppressedCount);
+        Assert.Equal(1, result.FailedCount);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_PopulatesCounts()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysPassRule(), new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(2, result.RuleResults.Count);
+        Assert.Single(result.AgentFindings);
+    }
+
+    private sealed class AlwaysPassRule : IRule
+    {
+        public string Id => "TEST-002";
+        public string Category => "Network";
+        public string Description => "Test rule that always passes";
+        public string WhatItChecks => "Test pass";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.Info;
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Pass(Id, Category, Id, "All good");
+        }
+    }
+
     private static SecurityAgent CreateAgent()
     {
         var scanners = new IScanner[]

@@ -21,6 +21,8 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// </summary>
 public sealed class AgentViewModel : ViewModelBase, IDisposable
 {
+    private const string AllCategoriesFilter = "All categories";
+
     private readonly IAgent _agent;
     private CancellationTokenSource? _cts;
 
@@ -31,12 +33,85 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _privilegeWarningText = "";
     private AgentResult? _lastResult;
     private bool _lastResultIsExportableAudit;
+    private SeverityFilterOption? _selectedChatSeverityFilter;
+    private string? _selectedChatCategoryFilter;
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
 
     /// <summary>Gets the collection of recent audit history entries.</summary>
     public ObservableCollection<AuditHistoryEntry> History { get; } = new();
+
+    /// <summary>Gets available severity filters for the chat.</summary>
+    public ObservableCollection<SeverityFilterOption> ChatSeverityFilters { get; } = new()
+    {
+        new SeverityFilterOption("All", Severity.Info),
+        new SeverityFilterOption("High & Critical only", Severity.High),
+        new SeverityFilterOption("Critical only", Severity.Critical)
+    };
+
+    /// <summary>Gets or sets the selected severity filter for chat findings.</summary>
+    public SeverityFilterOption? SelectedChatSeverityFilter
+    {
+        get => _selectedChatSeverityFilter;
+        set
+        {
+            if (SetField(ref _selectedChatSeverityFilter, value))
+            {
+                ApplyChatFilters();
+            }
+        }
+    }
+
+    /// <summary>Gets available category filters from the current audit.</summary>
+    public ObservableCollection<string> ChatCategoryFilters { get; } = new();
+
+    /// <summary>Gets or sets the selected category filter for chat findings.</summary>
+    public string? SelectedChatCategoryFilter
+    {
+        get => _selectedChatCategoryFilter;
+        set
+        {
+            if (SetField(ref _selectedChatCategoryFilter, value))
+            {
+                ApplyChatFilters();
+            }
+        }
+    }
+
+    private AuditHistoryEntry? _selectedBeforeEntry;
+    private AuditHistoryEntry? _selectedAfterEntry;
+
+    /// <summary>Gets or sets the selected "before" history entry for diff.</summary>
+    public AuditHistoryEntry? SelectedBeforeEntry
+    {
+        get => _selectedBeforeEntry;
+        set
+        {
+            if (SetField(ref _selectedBeforeEntry, value))
+            {
+                CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(CanCompareSelectedAudits));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the selected "after" history entry for diff.</summary>
+    public AuditHistoryEntry? SelectedAfterEntry
+    {
+        get => _selectedAfterEntry;
+        set
+        {
+            if (SetField(ref _selectedAfterEntry, value))
+            {
+                CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(CanCompareSelectedAudits));
+            }
+        }
+    }
+
+    /// <summary>Gets whether two specific history entries are selected for comparison.</summary>
+    public bool CanCompareSelectedAudits => SelectedBeforeEntry != null && SelectedAfterEntry != null;
 
     /// <summary>Gets or sets the user's current query text.</summary>
     public string UserQuery
@@ -227,12 +302,28 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => CompareLastTwoAudits(),
             _ => CanCompareAudits);
 
+        CompareSelectedAuditsCommand = new RelayCommand(
+            _ => CompareSelectedAudits(),
+            _ => CanCompareSelectedAudits);
+
+        ClearChatFiltersCommand = new RelayCommand(
+            _ => ClearChatFilters(),
+            _ => true);
+
+        _selectedChatSeverityFilter = ChatSeverityFilters[0];
+
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
     }
 
     /// <summary>Gets the command to compare the last two audits.</summary>
     public RelayCommand CompareAuditsCommand { get; }
+
+    /// <summary>Gets the command to compare two selected audits.</summary>
+    public RelayCommand CompareSelectedAuditsCommand { get; }
+
+    /// <summary>Gets the command to clear chat filters.</summary>
+    public RelayCommand ClearChatFiltersCommand { get; }
 
     /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
     public RelayCommand ExportRemediationCommand { get; }
@@ -298,9 +389,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
 
+                if (result.PassedCount > 0)
+                {
+                    AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
+                }
+
                 if (result.AgentFindings.Count > 0)
                 {
                     AddAgentFindingGroupSummary(result.AgentFindings);
+
+                    // Populate category filters from current findings
+                    ChatCategoryFilters.Clear();
+                    ChatCategoryFilters.Add(AllCategoriesFilter);
+                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    {
+                        ChatCategoryFilters.Add(cat);
+                    }
 
                     var grouped = result.AgentFindings
                         .GroupBy(f => f.Category)
@@ -319,6 +423,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
                     DetectPrivilegeWarning(result.Warnings);
                 }
+
+                ApplyChatFilters();
             });
 
             // Raise audit completion for audit intents so MainViewModel can sync evidence
@@ -430,8 +536,43 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             IsUser = false,
             IsInfo = false,
             Severity = findings.Max(f => f.Severity),
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            Category = category
         });
+    }
+
+    private void ApplyChatFilters()
+    {
+        foreach (var msg in Messages)
+        {
+            if (msg.IsUser || msg.IsInfo || string.IsNullOrEmpty(msg.Category))
+            {
+                msg.IsVisible = true;
+                continue;
+            }
+
+            var severityOk = true;
+            var categoryOk = true;
+
+            if (_selectedChatSeverityFilter != null)
+            {
+                if (_selectedChatSeverityFilter.MinSeverity == Severity.High && msg.Severity < Severity.High)
+                    severityOk = false;
+                if (_selectedChatSeverityFilter.MinSeverity == Severity.Critical && msg.Severity < Severity.Critical)
+                    severityOk = false;
+            }
+
+            if (!IsAllCategoryFilter(_selectedChatCategoryFilter) && !msg.Category.Equals(_selectedChatCategoryFilter, StringComparison.OrdinalIgnoreCase))
+                categoryOk = false;
+
+            msg.IsVisible = severityOk && categoryOk;
+        }
+    }
+
+    private void ClearChatFilters()
+    {
+        SelectedChatSeverityFilter = ChatSeverityFilters[0];
+        SelectedChatCategoryFilter = null;
     }
 
     private async Task RunQuickAuditAsync(AgentIntent intent, string displayQuery)
@@ -453,9 +594,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
 
+                if (result.PassedCount > 0)
+                {
+                    AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
+                }
+
                 if (result.AgentFindings.Count > 0)
                 {
                     AddAgentFindingGroupSummary(result.AgentFindings);
+
+                    // Populate category filters from current findings
+                    ChatCategoryFilters.Clear();
+                    ChatCategoryFilters.Add(AllCategoriesFilter);
+                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    {
+                        ChatCategoryFilters.Add(cat);
+                    }
 
                     var grouped = result.AgentFindings
                         .GroupBy(f => f.Category)
@@ -474,6 +628,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
                     DetectPrivilegeWarning(result.Warnings);
                 }
+
+                ApplyChatFilters();
             });
 
             PublishAuditCompleted(result);
@@ -607,6 +763,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             InfoCount = findings.Count(f => f.Severity == Severity.Info),
             WarningCount = result.Warnings.Count,
             Exported = false,
+            PassedCount = result.PassedCount,
+            FailedCount = result.FailedCount,
+            SuppressedCount = result.SuppressedCount,
             SnapshotFindings = snapshotFindings
         };
 
@@ -618,6 +777,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         OnPropertyChanged(nameof(CanCompareAudits));
         CompareAuditsCommand.RaiseCanExecuteChanged();
+        CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>
@@ -637,6 +797,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             or AgentIntent.PortCheck
             or AgentIntent.ServiceCheck
             or AgentIntent.NetworkCheck;
+
+    private static bool IsAllCategoryFilter(string? categoryFilter) =>
+        string.IsNullOrWhiteSpace(categoryFilter)
+            || categoryFilter.Equals(AllCategoriesFilter, StringComparison.OrdinalIgnoreCase);
 
     private void ExportRemediationPlan()
     {
@@ -674,6 +838,18 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         ShowAuditDiffAction?.Invoke(diff);
     }
 
+    private void CompareSelectedAudits()
+    {
+        if (SelectedBeforeEntry == null || SelectedAfterEntry == null)
+        {
+            AddAgentMessage("Select both a 'Before' and an 'After' audit from history.", true);
+            return;
+        }
+
+        var diff = AuditDiffCalculator.Calculate(SelectedBeforeEntry, SelectedAfterEntry);
+        ShowAuditDiffAction?.Invoke(diff);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -692,8 +868,10 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private string _details = "";
     private bool _isUser;
     private bool _isInfo;
+    private bool _isVisible = true;
     private Severity _severity;
     private DateTime _timestamp;
+    private string _category = "";
     private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
 
     public string Text
@@ -718,6 +896,18 @@ public sealed class AgentMessageViewModel : ViewModelBase
     {
         get => _isInfo;
         set => SetField(ref _isInfo, value);
+    }
+
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set => SetField(ref _isVisible, value);
+    }
+
+    public string Category
+    {
+        get => _category;
+        set => SetField(ref _category, value);
     }
 
     public Severity Severity

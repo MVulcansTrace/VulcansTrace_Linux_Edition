@@ -141,6 +141,84 @@ public sealed class AvaloniaDialogService : IDialogService
     }
 
     /// <summary>
+    /// Shows a modal selection dialog with a dropdown of predefined options.
+    /// </summary>
+    public async Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
+    {
+        return await RunOnUiThreadAsync(async () =>
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 420,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false
+            };
+
+            var messageBlock = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var comboBox = new ComboBox
+            {
+                ItemsSource = options,
+                SelectedIndex = defaultIndex >= 0 && defaultIndex < options.Length ? defaultIndex : 0
+            };
+
+            int? result = null;
+
+            var okButton = new Button
+            {
+                Content = "OK",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 80,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            okButton.Click += (_, _) =>
+            {
+                result = comboBox.SelectedIndex;
+                dialog.Close(true);
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "Cancel",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 80
+            };
+            cancelButton.Click += (_, _) => dialog.Close(false);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 12, 0, 0),
+                Spacing = 8
+            };
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+
+            var panel = new StackPanel
+            {
+                Spacing = 4,
+                Margin = new Thickness(16)
+            };
+            panel.Children.Add(messageBlock);
+            panel.Children.Add(comboBox);
+            panel.Children.Add(buttonPanel);
+
+            dialog.Content = panel;
+
+            await dialog.ShowDialog<bool?>(_owner);
+            return result;
+        });
+    }
+
+    /// <summary>
     /// Shows a modal input dialog with a text box.
     /// </summary>
     public async Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")

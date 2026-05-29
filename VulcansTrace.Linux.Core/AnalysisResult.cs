@@ -17,6 +17,7 @@ public sealed record AnalysisResult
     private IReadOnlyList<UnifiedEvent> _entries = Array.Empty<UnifiedEvent>();
     private IReadOnlyList<Finding> _findings = Array.Empty<Finding>();
     private IReadOnlyList<string> _warnings = Array.Empty<string>();
+    private IReadOnlyList<SuppressionSummary> _activeSuppressions = Array.Empty<SuppressionSummary>();
     private DateTime _timeRangeStart;
     private DateTime _timeRangeEnd;
 
@@ -74,6 +75,16 @@ public sealed record AnalysisResult
     {
         get => _warnings;
         init => _warnings = value ?? throw new ArgumentNullException(nameof(Warnings));
+    }
+
+    /// <summary>Gets the number of findings suppressed by user configuration.</summary>
+    public int SuppressedCount { get; init; }
+
+    /// <summary>Gets active suppressions at the time of export.</summary>
+    public IReadOnlyList<SuppressionSummary> ActiveSuppressions
+    {
+        get => _activeSuppressions;
+        init => _activeSuppressions = value ?? throw new ArgumentNullException(nameof(ActiveSuppressions));
     }
 
     /// <summary>

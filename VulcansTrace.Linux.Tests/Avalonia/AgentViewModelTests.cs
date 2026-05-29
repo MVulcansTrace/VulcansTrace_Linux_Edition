@@ -34,6 +34,39 @@ public class AgentViewModelTests
         Assert.False(vm.ExplainSelectedCommand.CanExecute(null));
     }
 
+    [Fact]
+    public void SelectedChatCategoryFilter_AllCategories_KeepsFindingMessagesVisible()
+    {
+        var vm = new AgentViewModel(new StubAgent());
+        var firewallMessage = new AgentMessageViewModel
+        {
+            Text = "Firewall finding",
+            Category = "Firewall",
+            Severity = Severity.High
+        };
+        var networkMessage = new AgentMessageViewModel
+        {
+            Text = "Network finding",
+            Category = "Network",
+            Severity = Severity.Medium
+        };
+        vm.Messages.Add(firewallMessage);
+        vm.Messages.Add(networkMessage);
+        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.ChatCategoryFilters.Add("Network");
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+
+        Assert.True(firewallMessage.IsVisible);
+        Assert.False(networkMessage.IsVisible);
+
+        vm.SelectedChatCategoryFilter = "All categories";
+
+        Assert.True(firewallMessage.IsVisible);
+        Assert.True(networkMessage.IsVisible);
+    }
+
     private static Finding CreateFinding() => new()
     {
         Category = "Firewall",

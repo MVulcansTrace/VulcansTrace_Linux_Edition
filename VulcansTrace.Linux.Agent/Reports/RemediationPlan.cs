@@ -29,12 +29,24 @@ public sealed record RemediationSection
     /// <summary>Risk level/notes for this finding.</summary>
     public required string RiskNote { get; init; }
 
-    /// <summary>Remediation commands to run.</summary>
-    public IReadOnlyList<string> RemediationCommands { get; init; } = Array.Empty<string>();
+    /// <summary>Remediation commands to run, with safety classifications.</summary>
+    public IReadOnlyList<RemediationCommand> RemediationCommands { get; init; } = Array.Empty<RemediationCommand>();
 
     /// <summary>Hints for rolling back the remediation.</summary>
     public IReadOnlyList<string> RollbackHints { get; init; } = Array.Empty<string>();
 
-    /// <summary>Verification commands to confirm the fix.</summary>
-    public IReadOnlyList<string> VerificationCommands { get; init; } = Array.Empty<string>();
+    /// <summary>Verification commands to confirm the fix, with safety classifications.</summary>
+    public IReadOnlyList<RemediationCommand> VerificationCommands { get; init; } = Array.Empty<RemediationCommand>();
+}
+
+/// <summary>
+/// A single command in a remediation plan with its safety classification.
+/// </summary>
+public sealed record RemediationCommand
+{
+    /// <summary>The command text.</summary>
+    public required string Command { get; init; }
+
+    /// <summary>Safety classification of the command.</summary>
+    public Explanations.CommandSafety Safety { get; init; } = Explanations.CommandSafety.Unknown;
 }

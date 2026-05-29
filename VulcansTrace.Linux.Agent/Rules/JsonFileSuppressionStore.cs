@@ -75,7 +75,13 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         _lock.EnterReadLock();
         try
         {
-            return _entries.ContainsKey($"{ruleId}|{target}");
+            if (!_entries.TryGetValue($"{ruleId}|{target}", out var entry))
+                return false;
+
+            if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value <= DateTime.UtcNow)
+                return false;
+
+            return true;
         }
         finally
         {
@@ -89,11 +95,43 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         _lock.EnterReadLock();
         try
         {
-            return _entries.Values.OrderByDescending(e => e.CreatedAt).ToList();
+            return _entries.Values
+                .Where(e => !e.ExpiresAt.HasValue || e.ExpiresAt.Value > DateTime.UtcNow)
+                .OrderByDescending(e => e.CreatedAt)
+                .ToList();
         }
         finally
         {
             _lock.ExitReadLock();
+        }
+    }
+
+    /// <inheritdoc />
+    public int PruneExpired()
+    {
+        _lock.EnterWriteLock();
+        try
+        {
+            var expiredKeys = _entries
+                .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= DateTime.UtcNow)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in expiredKeys)
+            {
+                _entries.Remove(key);
+            }
+
+            if (expiredKeys.Count > 0)
+            {
+                SaveToDisk();
+            }
+
+            return expiredKeys.Count;
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
         }
     }
 

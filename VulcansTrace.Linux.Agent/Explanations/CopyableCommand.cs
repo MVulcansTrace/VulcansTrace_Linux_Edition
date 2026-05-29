@@ -10,4 +10,7 @@ public sealed record CopyableCommand
 
     /// <summary>The full command text to copy to the clipboard.</summary>
     public required string FullCommand { get; init; }
+
+    /// <summary>Safety classification of this command.</summary>
+    public CommandSafety Safety { get; init; } = CommandSafety.Unknown;
 }

@@ -43,8 +43,8 @@ public sealed class RemediationPlanBuilder
 
     private static RemediationSection BuildSection(Finding finding, StructuredExplanation structured)
     {
-        var remediationCommands = ExtractCommands(structured.SuggestedNextAction);
-        var verificationCommands = ExtractCommands(structured.HowToVerify);
+        var remediationCommands = ExtractRemediationCommands(structured.SuggestedNextAction);
+        var verificationCommands = ExtractRemediationCommands(structured.HowToVerify);
         var rollbackHints = ExtractRollbackHints(structured, finding);
 
         var riskNote = string.IsNullOrEmpty(structured.Confidence)
@@ -64,12 +64,12 @@ public sealed class RemediationPlanBuilder
         };
     }
 
-    private static IReadOnlyList<string> ExtractCommands(string markdown)
+    private static IReadOnlyList<RemediationCommand> ExtractRemediationCommands(string markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown))
-            return Array.Empty<string>();
+            return Array.Empty<RemediationCommand>();
 
-        var commands = new List<string>();
+        var commands = new List<RemediationCommand>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         // Extract numbered list items with backticks
@@ -78,7 +78,13 @@ public sealed class RemediationPlanBuilder
         {
             var cmd = match.Groups[1].Value.Trim();
             if (!string.IsNullOrWhiteSpace(cmd) && seen.Add(cmd))
-                commands.Add(cmd);
+            {
+                commands.Add(new RemediationCommand
+                {
+                    Command = cmd,
+                    Safety = CommandSafetyClassifier.Classify(cmd)
+                });
+            }
         }
 
         // Fallback: all backtick commands
@@ -89,7 +95,13 @@ public sealed class RemediationPlanBuilder
             {
                 var cmd = match.Groups[1].Value.Trim();
                 if (!string.IsNullOrWhiteSpace(cmd) && seen.Add(cmd))
-                    commands.Add(cmd);
+                {
+                    commands.Add(new RemediationCommand
+                    {
+                        Command = cmd,
+                        Safety = CommandSafetyClassifier.Classify(cmd)
+                    });
+                }
             }
         }
 

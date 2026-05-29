@@ -123,6 +123,7 @@ The UI can export a signed ZIP evidence package containing:
 | `report.html` | Human-readable HTML report |
 | `summary.md` | Markdown investigation summary |
 | `log.txt` | Original raw log text |
+| `suppressions.csv` | Active accepted-risk suppressions, when present |
 | `manifest.json` | File hashes, parse metadata, skipped lines, and bundle metadata |
 | `manifest.hmac` | HMAC-SHA256 signature over the manifest |
 

@@ -37,12 +37,37 @@ public sealed class InMemorySuppressionStore : ISuppressionStore
     /// <inheritdoc />
     public bool IsSuppressed(string ruleId, string target)
     {
-        return _entries.ContainsKey($"{ruleId}|{target}");
+        if (!_entries.TryGetValue($"{ruleId}|{target}", out var entry))
+            return false;
+
+        if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value <= DateTime.UtcNow)
+            return false;
+
+        return true;
     }
 
     /// <inheritdoc />
     public IReadOnlyList<SuppressionEntry> GetAll()
     {
-        return _entries.Values.OrderByDescending(e => e.CreatedAt).ToList();
+        return _entries.Values
+            .Where(e => !e.ExpiresAt.HasValue || e.ExpiresAt.Value > DateTime.UtcNow)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public int PruneExpired()
+    {
+        var expiredKeys = _entries
+            .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= DateTime.UtcNow)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in expiredKeys)
+        {
+            _entries.TryRemove(key, out _);
+        }
+
+        return expiredKeys.Count;
     }
 }

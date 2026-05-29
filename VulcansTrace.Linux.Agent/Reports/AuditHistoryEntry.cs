@@ -40,6 +40,15 @@ public sealed record AuditHistoryEntry
     /// <summary>Whether the audit was exported.</summary>
     public bool Exported { get; init; }
 
+    /// <summary>Number of rules that passed.</summary>
+    public int PassedCount { get; init; }
+
+    /// <summary>Number of rules that failed.</summary>
+    public int FailedCount { get; init; }
+
+    /// <summary>Number of findings suppressed by user configuration.</summary>
+    public int SuppressedCount { get; init; }
+
     /// <summary>Lightweight snapshot of findings for diff comparisons.</summary>
     public IReadOnlyList<AuditSnapshotFinding> SnapshotFindings { get; init; } = Array.Empty<AuditSnapshotFinding>();
 }

@@ -181,5 +181,10 @@ public class EvidenceViewModelTests
         {
             return Task.FromResult<string?>(null);
         }
+
+        public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
+        {
+            return Task.FromResult<int?>(null);
+        }
     }
 }

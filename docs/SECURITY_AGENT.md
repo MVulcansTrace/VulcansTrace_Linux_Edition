@@ -76,7 +76,8 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
 7. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 8. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-9. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present.
+9. Expired accepted-risk suppressions are pruned, active exact-match suppressions are applied, and rule pass/fail/suppressed counts are added to `AgentResult`.
+10. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present and can include active suppression notes.
 
 ## Explanation Behavior
 
@@ -88,7 +89,7 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
-Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section. Suggested action commands are kept in the explanation/remediation preview path and are never applied automatically.
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans, and never applied automatically.
 
 ## UI Integration
 
@@ -98,12 +99,14 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Quick-action buttons for full audit, firewall, ports, services, network, selected-finding explanation, and audit export.
 - In-flight query cancellation.
 - Agent findings grouped by category with compact severity summaries.
+- Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
+- Rule coverage counts after audits, including passed, failed, and suppressed checks.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
-- Audit history capped at 20 entries, with compare-last-two support and exported-state tracking after successful evidence export.
-- Accept Risk suppressions by rule ID and target, persisted to the user config directory when available. If persistence fails, the UI reports that suppressions are session-only.
-- Export Audit support that reuses the shared evidence export flow for the latest agent audit.
+- Audit history capped at 20 entries, with compare-last-two, selectable before/after comparison, and exported-state tracking after successful evidence export.
+- Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
+- Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
 - Export Remediation support that writes a review-only markdown plan with safety notes, rollback hints, and verification commands.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
@@ -123,13 +126,13 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Process names and firewall details may require elevated privileges depending on the host.
 - Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.
 - Suppressions are exact rule-ID/target matches, so intentional target text changes can require accepting the risk again.
+- Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
 
 ## Roadmap
 
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
 - Expand scanner fixtures across more distributions and command variants.
-- Add expiry dates or review reminders for accepted-risk suppressions.
-- Add selectable audit-history comparison instead of only comparing the latest two audits.
+- Add reminder surfaces for upcoming suppression review dates.
 
 ## Implementation Evidence
 

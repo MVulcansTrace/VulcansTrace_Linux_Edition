@@ -49,6 +49,18 @@ Run `sudo ss -tulnp | grep :22` and then `sudo iptables -L INPUT -n | grep 22`";
     }
 
     [Fact]
+    public void Extract_Fallback_Classifies_CommandSafety()
+    {
+        var markdown = @"**How to verify:**
+Run `sudo ss -tulnp | grep :22` before changing anything.";
+
+        var result = VerificationCommandExtractor.Extract(markdown);
+
+        Assert.Single(result);
+        Assert.Equal(CommandSafety.ReadOnly, result[0].Safety);
+    }
+
+    [Fact]
     public void Extract_Deduplicates_Commands()
     {
         var markdown = @"Run `sudo ss -tulnp` and then `sudo ss -tulnp` again.";

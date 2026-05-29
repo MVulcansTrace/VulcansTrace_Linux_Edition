@@ -115,4 +115,99 @@ public class SuppressionStoreTests
             File.Delete(blockingFile);
         }
     }
+
+    [Fact]
+    public void InMemoryStore_ExpiredEntry_IsNotSuppressed()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry
+        {
+            RuleId = "FW-001",
+            Target = "INPUT",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+
+        Assert.False(store.IsSuppressed("FW-001", "INPUT"));
+    }
+
+    [Fact]
+    public void InMemoryStore_PruneExpired_RemovesExpiredEntries()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B", ExpiresAt = DateTime.UtcNow.AddDays(7) });
+        store.Add(new SuppressionEntry { RuleId = "FW-003", Target = "C" });
+
+        var pruned = store.PruneExpired();
+
+        Assert.Equal(1, pruned);
+        Assert.Equal(2, store.GetAll().Count);
+        Assert.False(store.IsSuppressed("FW-001", "A"));
+        Assert.True(store.IsSuppressed("FW-002", "B"));
+        Assert.True(store.IsSuppressed("FW-003", "C"));
+    }
+
+    [Fact]
+    public void InMemoryStore_GetAll_ExcludesExpiredEntries()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B" });
+
+        var all = store.GetAll();
+
+        Assert.Single(all);
+        Assert.Equal("FW-002", all[0].RuleId);
+    }
+
+    [Fact]
+    public void JsonFileStore_Persists_ExpiryDates()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var expiresAt = DateTime.UtcNow.AddDays(30);
+            var reviewDate = DateTime.UtcNow.AddDays(7);
+            var store1 = new JsonFileSuppressionStore(path);
+            store1.Add(new SuppressionEntry
+            {
+                RuleId = "FW-001",
+                Target = "INPUT",
+                ExpiresAt = expiresAt,
+                ReviewDate = reviewDate
+            });
+
+            var store2 = new JsonFileSuppressionStore(path);
+            var entry = store2.GetAll()[0];
+
+            Assert.Equal(expiresAt.Date, entry.ExpiresAt!.Value.Date);
+            Assert.Equal(reviewDate.Date, entry.ReviewDate!.Value.Date);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void JsonFileStore_PruneExpired_PersistsChanges()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var store1 = new JsonFileSuppressionStore(path);
+            store1.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+            store1.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B" });
+
+            var pruned = store1.PruneExpired();
+            Assert.Equal(1, pruned);
+
+            var store2 = new JsonFileSuppressionStore(path);
+            Assert.Single(store2.GetAll());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

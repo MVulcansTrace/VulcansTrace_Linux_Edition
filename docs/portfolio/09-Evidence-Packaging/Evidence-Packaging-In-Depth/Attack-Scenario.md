@@ -207,7 +207,7 @@ manifest.hmac = HMAC-SHA256(manifestJson, signingKey) → <64-char lowercase hex
 ## Phase 6 — ZIP Archive
 
 ```
-Archive contents (8 entries):
+Archive contents (8 entries in this scenario):
   findings.csv           (compressed)
   findings.json          (compressed)
   findings.stix.json     (compressed)
@@ -220,6 +220,8 @@ Archive contents (8 entries):
 LastWriteTime for all entries: 2024-01-02T03:04:05Z
 CompressionLevel: Optimal
 ```
+
+Agent audit exports with active accepted-risk suppressions add a `suppressions.csv` entry to the same signed archive.
 
 ---
 

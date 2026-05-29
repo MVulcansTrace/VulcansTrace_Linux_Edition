@@ -36,7 +36,7 @@ public class RemediationPlanBuilderTests
 
         Assert.Single(plan.Sections);
         Assert.Equal(2, plan.Sections[0].RemediationCommands.Count);
-        Assert.Contains("sudo iptables -P INPUT DROP", plan.Sections[0].RemediationCommands);
+        Assert.Contains("sudo iptables -P INPUT DROP", plan.Sections[0].RemediationCommands.Select(c => c.Command));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class RemediationPlanBuilderTests
 
         Assert.Single(plan.Sections);
         Assert.Single(plan.Sections[0].VerificationCommands);
-        Assert.Contains("sudo ss -tulnp | grep :22", plan.Sections[0].VerificationCommands);
+        Assert.Contains("sudo ss -tulnp | grep :22", plan.Sections[0].VerificationCommands.Select(c => c.Command));
     }
 
     [Fact]

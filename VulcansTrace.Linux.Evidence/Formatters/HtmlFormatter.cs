@@ -63,6 +63,32 @@ public sealed class HtmlFormatter : IEvidenceFormatter
             sb.AppendLine("</ul>");
         }
 
+        if (result.SuppressedCount > 0 || result.ActiveSuppressions.Count > 0)
+        {
+            sb.AppendLine("<h2>Suppression Notes</h2>");
+            sb.AppendLine("<ul>");
+            sb.AppendLine($"<li>Suppressed findings: {result.SuppressedCount}</li>");
+            sb.AppendLine($"<li>Active suppressions: {result.ActiveSuppressions.Count}</li>");
+            sb.AppendLine("</ul>");
+            if (result.ActiveSuppressions.Count > 0)
+            {
+                sb.AppendLine("<table>");
+                sb.AppendLine("<tr><th>Rule ID</th><th>Target</th><th>Reason</th><th>Created</th><th>Expires</th><th>Review</th></tr>");
+                foreach (var s in result.ActiveSuppressions)
+                {
+                    sb.AppendLine("<tr>");
+                    sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.RuleId)}</td>");
+                    sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.Target)}</td>");
+                    sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.Reason)}</td>");
+                    sb.AppendLine($"<td>{s.CreatedAt:yyyy-MM-dd}</td>");
+                    sb.AppendLine($"<td>{(s.ExpiresAt.HasValue ? s.ExpiresAt.Value.ToString("yyyy-MM-dd") : "Never")}</td>");
+                    sb.AppendLine($"<td>{(s.ReviewDate.HasValue ? s.ReviewDate.Value.ToString("yyyy-MM-dd") : "Never")}</td>");
+                    sb.AppendLine("</tr>");
+                }
+                sb.AppendLine("</table>");
+            }
+        }
+
         sb.AppendLine("<h2>Findings</h2>");
         sb.AppendLine("<table>");
         sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th></tr>");

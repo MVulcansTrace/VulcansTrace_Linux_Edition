@@ -36,17 +36,21 @@ Scanner command helpers return stdout, stderr, and success status. They read std
 
 `ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. It also parses those templates into structured sections for what was found, why it matters, how to verify, suggested next action, confidence, and caveats. This keeps explanation language editable without changing rule code and avoids mixing detection logic with user-facing prose.
 
-Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and remediation preview exports, but they are not labeled as verification steps and are not executed by the application.
+Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and remediation preview exports, but they are not labeled as verification steps and are not executed by the application. Extracted commands receive a keyword-based safety label so analysts can quickly distinguish read-only checks from configuration changes, service restarts, package operations, destructive commands, or unclassified commands.
+
+## Time-Bound Suppressions
+
+Accepted-risk suppressions are exact rule-ID/target matches with explicit durations: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup and pruned at the start of audits. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent.
 
 ## Preserve Existing Analysis Contracts
 
-`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs preserved when present.
+`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
 
 Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 
 ## UI As A Thin Control Shell
 
-The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, quick actions, privilege warnings, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
+The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, filtering, quick actions, privilege warnings, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
 
 ## Current Tradeoffs
 

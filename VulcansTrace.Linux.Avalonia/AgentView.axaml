@@ -37,9 +37,28 @@
                        Foreground="#fcd34d"/>
         </Border>
 
-        <Grid Grid.Row="2" RowDefinitions="*,Auto,Auto">
+        <Grid Grid.Row="2" RowDefinitions="Auto,*,Auto,Auto,Auto">
+            <!-- Chat filters -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="8,4,8,0">
+                <ComboBox ItemsSource="{Binding ChatSeverityFilters}"
+                          SelectedItem="{Binding SelectedChatSeverityFilter}"
+                          FontSize="11"
+                          Padding="4,2"
+                          MaxDropDownHeight="120"/>
+                <ComboBox ItemsSource="{Binding ChatCategoryFilters}"
+                          SelectedItem="{Binding SelectedChatCategoryFilter}"
+                          FontSize="11"
+                          Padding="4,2"
+                          MaxDropDownHeight="120"
+                          PlaceholderText="All categories"/>
+                <Button Content="Clear"
+                        FontSize="11"
+                        Padding="4,2"
+                        Command="{Binding ClearChatFiltersCommand}"/>
+            </StackPanel>
+
             <!-- Chat history -->
-            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding Messages}" Margin="8">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -48,7 +67,8 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="vm:AgentMessageViewModel">
-                            <Grid ColumnDefinitions="Auto,*">
+                            <Grid ColumnDefinitions="Auto,*"
+                                  IsVisible="{Binding IsVisible}">
                                 <!-- User messages align right -->
                                 <Border Grid.Column="{Binding IsUser, Converter={StaticResource BoolToColumnConverter}}"
                                         Grid.ColumnSpan="{Binding IsUser, Converter={StaticResource BoolToSpanConverter}}"
@@ -69,7 +89,7 @@
                                                    FontSize="11"
                                                    Margin="0,4,0,0"
                                                    IsVisible="{Binding Details, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                        <!-- Verification commands with copy buttons -->
+                                        <!-- Verification commands with copy buttons and safety badges -->
                                         <StackPanel Orientation="Vertical"
                                                     Margin="0,6,0,0"
                                                     IsVisible="{Binding HasVerificationCommands}"
@@ -96,6 +116,15 @@
                                                                            Foreground="#e2e8f0"
                                                                            TextWrapping="Wrap"/>
                                                             </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="{Binding Safety, Converter={x:Static conv:CommandSafetyToBrushConverter.Instance}}">
+                                                                <TextBlock Text="{Binding Safety}"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{Binding Safety, Converter={x:Static conv:CommandSafetyToForegroundConverter.Instance}}"/>
+                                                            </Border>
                                                             <Button Content="Copy"
                                                                     FontSize="10"
                                                                     Padding="4,2"
@@ -116,7 +145,7 @@
             </ScrollViewer>
 
             <!-- Quick action buttons -->
-            <WrapPanel Grid.Row="1" Margin="8,4,8,0" Orientation="Horizontal">
+            <WrapPanel Grid.Row="2" Margin="8,4,8,0" Orientation="Horizontal">
                 <Button Content="Full Audit"
                         FontSize="11"
                         Padding="6,2"
@@ -176,14 +205,21 @@
                 <Button Content="Compare Last Two"
                         FontSize="11"
                         Padding="6,2"
-                        Margin="0,0,0,4"
+                        Margin="0,0,6,4"
                         Command="{Binding CompareAuditsCommand}"
                         IsEnabled="{Binding CanCompareAudits}"
                         AutomationProperties.AutomationId="AgentCompareAuditsButton"/>
+                <Button Content="Compare Selected"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,0,4"
+                        Command="{Binding CompareSelectedAuditsCommand}"
+                        IsEnabled="{Binding CanCompareSelectedAudits}"
+                        AutomationProperties.AutomationId="AgentCompareSelectedButton"/>
             </WrapPanel>
 
             <!-- Input area -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="8,4,8,8">
+            <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="8,4,8,8">
                 <TextBox Grid.Column="0"
                          Text="{Binding UserQuery, UpdateSourceTrigger=PropertyChanged}"
                          Watermark="Ask the agent..."
@@ -204,7 +240,7 @@
             </Grid>
 
             <!-- Audit history -->
-            <Expander Grid.Row="3"
+            <Expander Grid.Row="4"
                       Header="Audit History"
                       Margin="8,0,8,4"
                       IsExpanded="False"
@@ -212,7 +248,23 @@
                       BorderBrush="#334155"
                       BorderThickness="1"
                       CornerRadius="6">
-                <StackPanel Orientation="Vertical" Margin="4">
+                <StackPanel Orientation="Vertical" Margin="4" Spacing="6">
+                    <!-- Selectable diff controls -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox ItemsSource="{Binding History}"
+                                  SelectedItem="{Binding SelectedBeforeEntry}"
+                                  FontSize="11"
+                                  Padding="4,2"
+                                  Width="140"
+                                  PlaceholderText="Before"/>
+                        <TextBlock Text="→" VerticalAlignment="Center" Foreground="#94a3b8"/>
+                        <ComboBox ItemsSource="{Binding History}"
+                                  SelectedItem="{Binding SelectedAfterEntry}"
+                                  FontSize="11"
+                                  Padding="4,2"
+                                  Width="140"
+                                  PlaceholderText="After"/>
+                    </StackPanel>
                     <ItemsControl ItemsSource="{Binding History}" MaxHeight="160">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -226,7 +278,7 @@
                                         BorderThickness="1"
                                         CornerRadius="4"
                                         Padding="6,4">
-	                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
                                         <TextBlock Grid.Column="0"
                                                    Text="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}"
                                                    Foreground="#94a3b8"
@@ -244,19 +296,31 @@
                                                    FontSize="10"
                                                    Margin="8,0,8,0"
                                                    VerticalAlignment="Center"/>
-	                                        <TextBlock Grid.Column="3"
-	                                                   Text="{Binding WarningCount, StringFormat='{}warn: {0}'}"
-	                                                   Foreground="#fcd34d"
-	                                                   FontSize="10"
-	                                                   VerticalAlignment="Center"/>
-	                                        <TextBlock Grid.Column="4"
-	                                                   Text="exported"
-	                                                   Foreground="#22c55e"
-	                                                   FontSize="10"
-	                                                   Margin="8,0,0,0"
-	                                                   VerticalAlignment="Center"
-	                                                   IsVisible="{Binding Exported}"/>
-	                                    </Grid>
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding PassedCount, StringFormat='{}passed: {0}'}"
+                                                   Foreground="#22c55e"
+                                                   FontSize="10"
+                                                   Margin="0,0,8,0"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4"
+                                                   Text="{Binding SuppressedCount, StringFormat='{}supp: {0}'}"
+                                                   Foreground="#64748b"
+                                                   FontSize="10"
+                                                   Margin="0,0,8,0"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5"
+                                                   Text="{Binding WarningCount, StringFormat='{}warn: {0}'}"
+                                                   Foreground="#fcd34d"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="6"
+                                                   Text="exported"
+                                                   Foreground="#22c55e"
+                                                   FontSize="10"
+                                                   Margin="8,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding Exported}"/>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

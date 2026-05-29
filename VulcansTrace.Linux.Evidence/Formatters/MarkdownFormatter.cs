@@ -57,6 +57,26 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
             sb.AppendLine($"* {g.Key}: {g.Count()}");
         }
 
+        if (result.SuppressedCount > 0 || result.ActiveSuppressions.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Suppression Notes");
+            sb.AppendLine($"* Suppressed findings: {result.SuppressedCount}");
+            sb.AppendLine($"* Active suppressions: {result.ActiveSuppressions.Count}");
+            if (result.ActiveSuppressions.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("| Rule ID | Target | Reason | Created | Expires | Review |");
+                sb.AppendLine("|---------|--------|--------|---------|---------|--------|");
+                foreach (var s in result.ActiveSuppressions)
+                {
+                    var expires = s.ExpiresAt.HasValue ? s.ExpiresAt.Value.ToString("yyyy-MM-dd") : "Never";
+                    var review = s.ReviewDate.HasValue ? s.ReviewDate.Value.ToString("yyyy-MM-dd") : "Never";
+                    sb.AppendLine($"| {Escape(s.RuleId)} | {Escape(s.Target)} | {Escape(s.Reason)} | {s.CreatedAt:yyyy-MM-dd} | {expires} | {review} |");
+                }
+            }
+        }
+
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();

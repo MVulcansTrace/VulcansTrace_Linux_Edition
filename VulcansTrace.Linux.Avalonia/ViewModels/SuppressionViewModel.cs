@@ -46,19 +46,40 @@ public sealed class SuppressionViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Adds a suppression for the specified rule and target.
+    /// Adds a suppression for the specified rule and target with an optional expiry duration.
     /// </summary>
-    public void AddSuppression(string ruleId, string target, string reason)
+    public void AddSuppression(string ruleId, string target, string reason, SuppressionDuration duration = SuppressionDuration.Permanent)
     {
+        var now = DateTime.UtcNow;
+        var expiresAt = duration switch
+        {
+            SuppressionDuration.Days7 => now.AddDays(7),
+            SuppressionDuration.Days30 => now.AddDays(30),
+            SuppressionDuration.Days90 => now.AddDays(90),
+            _ => (DateTime?)null
+        };
+
+        var reviewDate = duration switch
+        {
+            SuppressionDuration.Days7 => now.AddDays(7),
+            SuppressionDuration.Days30 => now.AddDays(30),
+            SuppressionDuration.Days90 => now.AddDays(90),
+            _ => (DateTime?)null
+        };
+
         _store.Add(new SuppressionEntry
         {
             RuleId = ruleId,
             Target = target,
             Reason = string.IsNullOrWhiteSpace(reason) ? "Accepted by user" : reason,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            ExpiresAt = expiresAt,
+            ReviewDate = reviewDate
         });
         Refresh();
-        StatusMessage = _store.PersistenceWarning ?? $"Accepted risk: {ruleId} ({target}).";
+
+        var expiryText = expiresAt.HasValue ? $" (expires {expiresAt.Value:yyyy-MM-dd})" : " (permanent)";
+        StatusMessage = _store.PersistenceWarning ?? $"Accepted risk: {ruleId} ({target}){expiryText}.";
     }
 
     /// <summary>

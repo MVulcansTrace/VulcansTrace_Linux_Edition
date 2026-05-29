@@ -25,4 +25,16 @@ public sealed record AgentResult
 
     /// <summary>The intent that triggered this audit.</summary>
     public Query.AgentIntent Intent { get; init; }
+
+    /// <summary>All rule results from the audit, including passes and failures.</summary>
+    public IReadOnlyList<Rules.RuleResult> RuleResults { get; init; } = Array.Empty<Rules.RuleResult>();
+
+    /// <summary>Number of rules that passed.</summary>
+    public int PassedCount { get; init; }
+
+    /// <summary>Number of rules that failed (findings before suppression).</summary>
+    public int FailedCount { get; init; }
+
+    /// <summary>Number of findings suppressed by user configuration.</summary>
+    public int SuppressedCount { get; init; }
 }

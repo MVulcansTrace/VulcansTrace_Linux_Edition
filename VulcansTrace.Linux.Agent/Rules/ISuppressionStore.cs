@@ -32,6 +32,11 @@ public interface ISuppressionStore
     IReadOnlyList<SuppressionEntry> GetAll();
 
     /// <summary>
+    /// Removes expired suppression entries and returns the count removed.
+    /// </summary>
+    int PruneExpired();
+
+    /// <summary>
     /// Gets the latest persistence warning, if suppressions could not be stored durably.
     /// </summary>
     string? PersistenceWarning { get; }

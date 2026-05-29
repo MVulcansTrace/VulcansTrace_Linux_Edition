@@ -454,7 +454,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void OnAgentAuditCompleted(object? sender, AgentResult agentResult)
     {
-        var generator = new AgentReportGenerator();
+        var generator = new AgentReportGenerator(_suppressionStore);
         var analysisResult = generator.ToAnalysisResult(agentResult);
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp);
         Findings.LoadResults(analysisResult);
@@ -501,9 +501,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var durationOptions = new[]
+        {
+            "7 days",
+            "30 days",
+            "90 days",
+            "Permanent"
+        };
+
+        var durationIndex = await _dialogService.ShowSelectionDialogAsync(
+            "Accept Risk",
+            $"Accept risk for {selected.RuleId} on {selected.Target}?\n\nSelect suppression duration:",
+            durationOptions,
+            defaultIndex: 1); // Default to 30 days
+
+        if (durationIndex == null)
+        {
+            return; // Cancelled
+        }
+
+        var duration = durationIndex.Value switch
+        {
+            0 => SuppressionDuration.Days7,
+            1 => SuppressionDuration.Days30,
+            2 => SuppressionDuration.Days90,
+            _ => SuppressionDuration.Permanent
+        };
+
         var reason = await _dialogService.ShowInputDialogAsync(
             "Accept Risk",
-            $"Accept risk for {selected.RuleId} on {selected.Target}?\n\nOptional reason:",
+            $"Accept risk for {selected.RuleId} on {selected.Target} ({durationOptions[durationIndex.Value]}).\n\nOptional reason:",
             "");
 
         if (reason == null)
@@ -511,7 +538,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return; // Cancelled
         }
 
-        Suppressions.AddSuppression(selected.RuleId, selected.Target, reason);
+        Suppressions.AddSuppression(selected.RuleId, selected.Target, reason, duration);
         SummaryText = $"Accepted risk: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
     }
 

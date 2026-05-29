@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 using Xunit;
 
@@ -154,5 +155,58 @@ public class AgentReportGeneratorTests
         var analysisResult = _generator.ToAnalysisResult(agentResult);
 
         Assert.Single(analysisResult.Findings);
+    }
+
+    [Fact]
+    public void ToAnalysisResult_WithSuppressionStore_IncludesActiveSuppressions()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry
+        {
+            RuleId = "FW-001",
+            Target = "INPUT",
+            Reason = "Lab environment",
+            ExpiresAt = DateTime.UtcNow.AddDays(7)
+        });
+
+        var generator = new AgentReportGenerator(store);
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>(),
+            SuppressedCount = 1
+        };
+
+        var analysisResult = generator.ToAnalysisResult(agentResult);
+
+        Assert.Equal(1, analysisResult.SuppressedCount);
+        Assert.Single(analysisResult.ActiveSuppressions);
+        Assert.Equal("FW-001", analysisResult.ActiveSuppressions[0].RuleId);
+        Assert.Equal("INPUT", analysisResult.ActiveSuppressions[0].Target);
+    }
+
+    [Fact]
+    public void ToAnalysisResult_WithSuppressionStore_ExpiredSuppressionsExcluded()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry
+        {
+            RuleId = "FW-001",
+            Target = "INPUT",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "OUTPUT" });
+
+        var generator = new AgentReportGenerator(store);
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>()
+        };
+
+        var analysisResult = generator.ToAnalysisResult(agentResult);
+
+        Assert.Single(analysisResult.ActiveSuppressions);
+        Assert.Equal("FW-002", analysisResult.ActiveSuppressions[0].RuleId);
     }
 }

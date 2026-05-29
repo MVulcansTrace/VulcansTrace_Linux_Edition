@@ -67,13 +67,14 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, explain selected, export audit, export remediation, and compare last two audits without typing |
-| Message list | Displays severity summaries, category-grouped findings, warnings, and explanation details |
-| Verification commands | Shows copy buttons only for commands from the `How to verify` explanation section |
+| Quick actions | Runs full audit, firewall, ports, services, network, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
+| Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
+| Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
+| Verification commands | Shows copy buttons and safety badges only for commands from the `How to verify` explanation section |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
-| Accept Risk | Suppresses selected rule-ID/target findings and warns if persistence is unavailable |
-| Audit history | Keeps the latest 20 audits, tracks successful exports, and compares the latest two snapshots |
-| Export Audit | Sends the latest agent audit into the shared evidence export flow |
+| Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |
+| Audit history | Keeps the latest 20 audits, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots |
+| Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a markdown remediation preview with safety notes, rollback hints, and verification commands |
 
 ---
@@ -85,4 +86,5 @@ User query
 - Privilege-sensitive command output may be incomplete without elevated permissions.
 - Direct selected-finding explanations summarize the existing finding details.
 - Suppressions match exact rule IDs and targets.
+- Command safety labels are keyword-based classifications and should be reviewed before use.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.

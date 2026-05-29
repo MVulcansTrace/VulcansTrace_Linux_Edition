@@ -121,8 +121,14 @@ public sealed class SecurityAgent : IAgent
         var agentFindings = new List<Finding>();
         var historyEntries = new List<(string RuleId, Finding Finding)>();
         var suppressedCount = 0;
+        var failedCount = 0;
+
+        // Prune expired suppressions before checking
+        _suppressionStore?.PruneExpired();
+
         foreach (var result in ruleResults.Where(r => !r.Passed))
         {
+            failedCount++;
             var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
             var finding = new Finding
             {
@@ -150,6 +156,8 @@ public sealed class SecurityAgent : IAgent
             agentFindings.Add(finding);
             historyEntries.Add((result.RuleId, finding));
         }
+
+        var passedCount = ruleResults.Count(r => r.Passed);
 
         if (suppressedCount > 0)
         {
@@ -185,7 +193,11 @@ public sealed class SecurityAgent : IAgent
             LogAnalysisResult = logAnalysisResult,
             Warnings = warnings,
             UtcTimestamp = DateTime.UtcNow,
-            Summary = summary
+            Summary = summary,
+            RuleResults = ruleResults,
+            PassedCount = passedCount,
+            FailedCount = failedCount,
+            SuppressedCount = suppressedCount
         };
     }
 

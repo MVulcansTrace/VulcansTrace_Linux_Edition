@@ -41,4 +41,14 @@ public interface IDialogService
     /// <param name="defaultText">The default text in the input box.</param>
     /// <returns>The entered text, or null if cancelled.</returns>
     Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "");
+
+    /// <summary>
+    /// Shows a modal selection dialog with a dropdown of predefined options.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="message">The message to display above the dropdown.</param>
+    /// <param name="options">The options to display.</param>
+    /// <param name="defaultIndex">The index of the default selection.</param>
+    /// <returns>The index of the selected option, or null if cancelled.</returns>
+    Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0);
 }
