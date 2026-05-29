@@ -84,6 +84,160 @@ public class AuditDiffCalculatorTests
         Assert.Equal("1 new, 0 resolved, 1 worsened, 0 improved.", diff.Summary);
     }
 
+    [Fact]
+    public void Calculate_Narrative_OnlyResolved_ReturnsResolvedSentence()
+    {
+        var before = CreateEntry(new[] { ("FW-001", "A", "High"), ("FW-002", "B", "Medium") });
+        var after = CreateEntry(new[] { ("FW-001", "A", "High") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding resolved.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_NewCritical_CalloutCritical()
+    {
+        var before = CreateEntry(new[] { ("RULE-001", "A", "High") });
+        var after = CreateEntry(new[] { ("RULE-001", "A", "High"), ("PORT-003", "B", "Critical") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 new Critical finding.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_MixedSeverities_IncludesBreakdown()
+    {
+        var before = CreateEntry(new[] { ("RULE-001", "A", "High") });
+        var after = CreateEntry(new[]
+        {
+            ("RULE-001", "A", "High"),
+            ("PORT-003", "B", "Critical"),
+            ("PORT-002", "C", "High"),
+            ("PORT-004", "D", "Low")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("3 new findings (1 Critical, 1 High).", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_SSHUnchanged_MentionsSSHExposure()
+    {
+        var before = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("FW-001", "A", "High")
+        });
+        var after = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("FW-001", "A", "Medium")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding improved, SSH exposure unchanged.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_NoChanges_ReturnsNoChanges()
+    {
+        var before = CreateEntry(new[] { ("RULE-001", "A", "High") });
+        var after = CreateEntry(new[] { ("RULE-001", "A", "High") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("No changes between audits.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_NoChangesWithStableSsh_ReturnsNoChanges()
+    {
+        var before = CreateEntry(new[] { ("FW-002", "SSH/22", "High") });
+        var after = CreateEntry(new[] { ("FW-002", "SSH/22", "High") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("No changes between audits.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_StableSsh_DoesNotAlsoReportFirewall()
+    {
+        var before = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("RULE-001", "A", "High")
+        });
+        var after = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("RULE-001", "A", "Medium")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding improved, SSH exposure unchanged.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_WorsenedAndImproved_BothMentioned()
+    {
+        var before = CreateEntry(new[]
+        {
+            ("FW-001", "A", "Medium"),
+            ("FW-002", "B", "High")
+        });
+        var after = CreateEntry(new[]
+        {
+            ("FW-001", "A", "High"),
+            ("FW-002", "B", "Low")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding worsened, 1 finding improved.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_ResolvedAndNewCritical_WithUnchangedSSH()
+    {
+        var before = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("FW-003", "B", "Medium")
+        });
+        var after = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High"),
+            ("PORT-003", "C", "Critical")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding resolved, 1 new Critical finding, SSH exposure unchanged.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_Narrative_ExposureChanged_DoesNotMentionUnchanged()
+    {
+        var before = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "High")
+        });
+        var after = CreateEntry(new[]
+        {
+            ("FW-002", "SSH/22", "Critical")
+        });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Equal("1 finding worsened.", diff.Narrative);
+    }
+
     private static AuditHistoryEntry CreateEntry((string RuleId, string Target, string Severity)[] findings)
     {
         return new AuditHistoryEntry

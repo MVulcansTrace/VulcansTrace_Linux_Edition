@@ -9,6 +9,7 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 public sealed class AuditDiffViewModel : ViewModelBase
 {
     private string _summary = "";
+    private string _narrative = "";
     private int _newCount;
     private int _resolvedCount;
     private int _worsenedCount;
@@ -31,6 +32,13 @@ public sealed class AuditDiffViewModel : ViewModelBase
     {
         get => _summary;
         private set => SetField(ref _summary, value);
+    }
+
+    /// <summary>Gets the deterministic diff narrative.</summary>
+    public string Narrative
+    {
+        get => _narrative;
+        private set => SetField(ref _narrative, value);
     }
 
     /// <summary>Gets the count of new findings.</summary>
@@ -78,6 +86,7 @@ public sealed class AuditDiffViewModel : ViewModelBase
         foreach (var f in diff.ImprovedFindings) ImprovedFindings.Add(f);
 
         Summary = diff.Summary;
+        Narrative = diff.Narrative;
         NewCount = diff.NewFindings.Count;
         ResolvedCount = diff.ResolvedFindings.Count;
         WorsenedCount = diff.WorsenedFindings.Count;

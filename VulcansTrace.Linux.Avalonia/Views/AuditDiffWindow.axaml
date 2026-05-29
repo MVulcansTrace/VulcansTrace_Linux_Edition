@@ -18,7 +18,7 @@
         <vm:AuditDiffViewModel/>
     </Design.DataContext>
 
-    <Grid Margin="16" RowDefinitions="Auto,Auto,*">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="Audit Comparison"
@@ -27,8 +27,16 @@
                    Foreground="#e2e8f0"
                    Margin="0,0,0,8"/>
 
+        <!-- Narrative -->
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Narrative}"
+                   FontSize="13"
+                   Foreground="#e2e8f0"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"/>
+
         <!-- Summary badges -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
                 <TextBlock>
                     <Run Text="New: " Foreground="#94a3b8"/><Run Text="{Binding NewCount}" FontWeight="Bold" Foreground="#22c55e"/>
@@ -52,7 +60,7 @@
         </StackPanel>
 
         <!-- Diff sections -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12">
                 <!-- New findings -->
                 <Border Background="#0f172a" BorderBrush="#166534" BorderThickness="1" CornerRadius="6" Padding="10"
