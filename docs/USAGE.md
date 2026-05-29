@@ -31,7 +31,7 @@ The panel also includes quick-action buttons for common audits, selected-finding
 
 The right-side Suppressions tab shows entries needing review, including items expiring soon, recently expired suppressions, permanent suppressions, and stale permanent suppressions. From that queue you can renew, convert duration, edit the reason, or remove the suppression.
 
-Agent chat findings can be filtered by severity and category without changing the underlying audit result. Copyable verification commands include safety badges such as ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, or Unknown.
+Agent chat findings can be filtered by severity and category without changing the underlying audit result. Copyable verification commands include safety badges such as ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, or Unknown, plus inline SUDO, CHAIN, PIPE, REDIR, and DL-EXEC badges when those command structures are detected.
 
 The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 

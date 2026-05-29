@@ -71,13 +71,13 @@ User query
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
 | Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, and crashed check totals |
-| Verification commands | Shows copy buttons and safety badges only for commands from the `How to verify` explanation section |
+| Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
 | Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with a deterministic narrative summary |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
-| Export Remediation | Writes a markdown remediation preview with safety notes, rollback hints, and verification commands |
+| Export Remediation | Writes a markdown remediation preview with safety notes, structural command warnings, rollback hints, and verification commands |
 
 ---
 

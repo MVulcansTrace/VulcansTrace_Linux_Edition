@@ -122,4 +122,51 @@ public class RemediationPlanBuilderTests
 
         Assert.Empty(plan.Sections);
     }
+
+    [Fact]
+    public void Build_VerificationCommands_Carry_CommandAnalysis_ForPipe()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-002",
+            Category = "Firewall",
+            Severity = Severity.Medium,
+            ShortDescription = "SSH exposed",
+            Target = "SSH/22",
+            Details = @"**How to verify:**
+1. Check: `sudo ss -tulnp | grep :22`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var cmd = plan.Sections[0].VerificationCommands[0];
+        Assert.True(cmd.Analysis.HasPipe);
+        Assert.True(cmd.Analysis.RequiresSudo);
+        Assert.Equal(CommandSafety.ReadOnly, cmd.Analysis.Safety);
+    }
+
+    [Fact]
+    public void Build_RemediationCommands_Carry_CommandAnalysis_ForRedirect()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-005",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Save rules",
+            Target = "INPUT",
+            Details = @"**Suggested next action:**
+1. Save: `sudo iptables-save > /etc/iptables/rules.v4`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var cmd = plan.Sections[0].RemediationCommands[0];
+        Assert.True(cmd.Analysis.HasRedirect);
+        Assert.True(cmd.Analysis.RequiresSudo);
+    }
 }

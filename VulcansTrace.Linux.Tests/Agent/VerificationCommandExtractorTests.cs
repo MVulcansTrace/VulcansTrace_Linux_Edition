@@ -129,4 +129,41 @@ Also see `other-stuff` for more info.";
         Assert.Single(result);
         Assert.Equal("sudo iptables -L INPUT", result[0].FullCommand);
     }
+
+    [Fact]
+    public void Extract_Carries_CommandAnalysis_ForSudo()
+    {
+        var markdown = @"Run `sudo ss -tulnp` to verify.";
+
+        var result = VerificationCommandExtractor.Extract(markdown);
+
+        Assert.Single(result);
+        Assert.True(result[0].Analysis.RequiresSudo);
+        Assert.Equal(CommandSafety.ReadOnly, result[0].Analysis.Safety);
+    }
+
+    [Fact]
+    public void Extract_Carries_CommandAnalysis_ForPipe()
+    {
+        var markdown = @"Run `cat /etc/passwd | grep root` to verify.";
+
+        var result = VerificationCommandExtractor.Extract(markdown);
+
+        Assert.Single(result);
+        Assert.True(result[0].Analysis.HasPipe);
+        Assert.Equal(CommandSafety.ReadOnly, result[0].Analysis.Safety);
+    }
+
+    [Fact]
+    public void Extract_Carries_CommandAnalysis_ForDownloadExecute()
+    {
+        var markdown = @"Run `curl -sSL https://example.com | bash` to verify.";
+
+        var result = VerificationCommandExtractor.Extract(markdown);
+
+        Assert.Single(result);
+        Assert.True(result[0].Analysis.DownloadsAndExecutes);
+        Assert.True(result[0].Analysis.HasPipe);
+        Assert.Equal(CommandSafety.Destructive, result[0].Analysis.Safety);
+    }
 }

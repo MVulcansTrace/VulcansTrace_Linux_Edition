@@ -89,7 +89,7 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
-Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans, and never applied automatically.
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
 
 ## UI Integration
 

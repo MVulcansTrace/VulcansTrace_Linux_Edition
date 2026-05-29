@@ -13,4 +13,7 @@ public sealed record CopyableCommand
 
     /// <summary>Safety classification of this command.</summary>
     public CommandSafety Safety { get; init; } = CommandSafety.Unknown;
+
+    /// <summary>Detailed structural analysis of this command.</summary>
+    public CommandAnalysis Analysis { get; init; } = new();
 }

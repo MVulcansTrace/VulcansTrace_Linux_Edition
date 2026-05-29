@@ -20,7 +20,7 @@ Documentation is organized for two audiences:
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, suggested next action, confidence, and caveats
-- **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with a command safety classification
+- **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, and includes active suppression notes in evidence exports
 - **Timed suppressions** — supports 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning

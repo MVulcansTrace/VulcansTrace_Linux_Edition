@@ -125,6 +125,56 @@
                                                                            FontWeight="SemiBold"
                                                                            Foreground="{Binding Safety, Converter={x:Static conv:CommandSafetyToForegroundConverter.Instance}}"/>
                                                             </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#3f2e14"
+                                                                    IsVisible="{Binding Analysis.RequiresSudo}">
+                                                                <TextBlock Text="SUDO"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#fcd34d"/>
+                                                            </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#2e1065"
+                                                                    IsVisible="{Binding Analysis.HasChain}">
+                                                                <TextBlock Text="CHAIN"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#c084fc"/>
+                                                            </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#1e3a5f"
+                                                                    IsVisible="{Binding Analysis.HasPipe}">
+                                                                <TextBlock Text="PIPE"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#60a5fa"/>
+                                                            </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#3f2e14"
+                                                                    IsVisible="{Binding Analysis.HasRedirect}">
+                                                                <TextBlock Text="REDIR"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#fcd34d"/>
+                                                            </Border>
+                                                            <Border CornerRadius="4"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Background="#450a0a"
+                                                                    IsVisible="{Binding Analysis.DownloadsAndExecutes}">
+                                                                <TextBlock Text="DL-EXEC"
+                                                                           FontSize="9"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#f87171"/>
+                                                            </Border>
                                                             <Button Content="Copy"
                                                                     FontSize="10"
                                                                     Padding="4,2"

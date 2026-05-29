@@ -41,6 +41,7 @@ public sealed class RemediationMarkdownFormatter
                 foreach (var cmd in section.RemediationCommands)
                 {
                     sb.AppendLine($"> **Safety:** {cmd.Safety}");
+                    AppendCommandWarnings(sb, cmd);
                     sb.AppendLine($"```bash");
                     sb.AppendLine(cmd.Command);
                     sb.AppendLine($"```");
@@ -66,6 +67,7 @@ public sealed class RemediationMarkdownFormatter
                 foreach (var cmd in section.VerificationCommands)
                 {
                     sb.AppendLine($"> **Safety:** {cmd.Safety}");
+                    AppendCommandWarnings(sb, cmd);
                     sb.AppendLine($"```bash");
                     sb.AppendLine(cmd.Command);
                     sb.AppendLine($"```");
@@ -87,5 +89,23 @@ public sealed class RemediationMarkdownFormatter
         sb.AppendLine();
 
         return sb.ToString();
+    }
+
+    private static void AppendCommandWarnings(StringBuilder sb, RemediationCommand cmd)
+    {
+        if (cmd.Analysis.RequiresSudo)
+            sb.AppendLine("> ⚠️ Requires sudo");
+
+        if (cmd.Analysis.HasChain)
+            sb.AppendLine("> ⚠️ Contains chain operators");
+
+        if (cmd.Analysis.HasPipe)
+            sb.AppendLine("> ⚠️ Contains pipe");
+
+        if (cmd.Analysis.HasRedirect)
+            sb.AppendLine("> ⚠️ Contains redirects");
+
+        if (cmd.Analysis.DownloadsAndExecutes)
+            sb.AppendLine("> ⚠️ Downloads and executes remote code");
     }
 }

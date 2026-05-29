@@ -35,11 +35,13 @@ public static class VerificationCommandExtractor
             var command = match.Groups[1].Value.Trim();
             if (!string.IsNullOrWhiteSpace(command) && seen.Add(command))
             {
+                var analysis = CommandSafetyClassifier.Analyze(command);
                 commands.Add(new CopyableCommand
                 {
                     DisplayText = command,
                     FullCommand = command,
-                    Safety = CommandSafetyClassifier.Classify(command)
+                    Safety = analysis.Safety,
+                    Analysis = analysis
                 });
             }
         }
@@ -53,11 +55,13 @@ public static class VerificationCommandExtractor
                 var command = match.Groups[1].Value.Trim();
                 if (!string.IsNullOrWhiteSpace(command) && seen.Add(command))
                 {
+                    var analysis = CommandSafetyClassifier.Analyze(command);
                     commands.Add(new CopyableCommand
                     {
                         DisplayText = command,
                         FullCommand = command,
-                        Safety = CommandSafetyClassifier.Classify(command)
+                        Safety = analysis.Safety,
+                        Analysis = analysis
                     });
                 }
             }

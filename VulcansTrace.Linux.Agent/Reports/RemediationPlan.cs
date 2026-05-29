@@ -49,4 +49,7 @@ public sealed record RemediationCommand
 
     /// <summary>Safety classification of the command.</summary>
     public Explanations.CommandSafety Safety { get; init; } = Explanations.CommandSafety.Unknown;
+
+    /// <summary>Detailed structural analysis of the command.</summary>
+    public Explanations.CommandAnalysis Analysis { get; init; } = new();
 }

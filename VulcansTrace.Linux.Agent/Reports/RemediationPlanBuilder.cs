@@ -79,10 +79,12 @@ public sealed class RemediationPlanBuilder
             var cmd = match.Groups[1].Value.Trim();
             if (!string.IsNullOrWhiteSpace(cmd) && seen.Add(cmd))
             {
+                var analysis = CommandSafetyClassifier.Analyze(cmd);
                 commands.Add(new RemediationCommand
                 {
                     Command = cmd,
-                    Safety = CommandSafetyClassifier.Classify(cmd)
+                    Safety = analysis.Safety,
+                    Analysis = analysis
                 });
             }
         }
@@ -96,10 +98,12 @@ public sealed class RemediationPlanBuilder
                 var cmd = match.Groups[1].Value.Trim();
                 if (!string.IsNullOrWhiteSpace(cmd) && seen.Add(cmd))
                 {
+                    var analysis = CommandSafetyClassifier.Analyze(cmd);
                     commands.Add(new RemediationCommand
                     {
                         Command = cmd,
-                        Safety = CommandSafetyClassifier.Classify(cmd)
+                        Safety = analysis.Safety,
+                        Analysis = analysis
                     });
                 }
             }
