@@ -20,6 +20,7 @@ public sealed class SecurityAgent : IAgent
     private readonly IExplanationProvider _explanationProvider;
     private readonly SentryAnalyzer? _sentryAnalyzer;
     private readonly AnalysisProfileProvider? _profileProvider;
+    private readonly ISuppressionStore? _suppressionStore;
     private readonly object _historyLock = new();
     private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
 
@@ -31,18 +32,21 @@ public sealed class SecurityAgent : IAgent
     /// <param name="explanationProvider">Provider for human-readable explanations.</param>
     /// <param name="sentryAnalyzer">Optional SentryAnalyzer for log-based analysis.</param>
     /// <param name="profileProvider">Optional profile provider for SentryAnalyzer intensity profiles.</param>
+    /// <param name="suppressionStore">Optional store for rule suppressions.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
         IExplanationProvider explanationProvider,
         SentryAnalyzer? sentryAnalyzer = null,
-        AnalysisProfileProvider? profileProvider = null)
+        AnalysisProfileProvider? profileProvider = null,
+        ISuppressionStore? suppressionStore = null)
     {
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
         _sentryAnalyzer = sentryAnalyzer;
         _profileProvider = profileProvider;
+        _suppressionStore = suppressionStore;
     }
 
     /// <inheritdoc />
@@ -116,6 +120,7 @@ public sealed class SecurityAgent : IAgent
         // Phase 3: Convert rule failures to Findings
         var agentFindings = new List<Finding>();
         var historyEntries = new List<(string RuleId, Finding Finding)>();
+        var suppressedCount = 0;
         foreach (var result in ruleResults.Where(r => !r.Passed))
         {
             var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
@@ -131,8 +136,24 @@ public sealed class SecurityAgent : IAgent
                 TimeRangeEnd = DateTime.UtcNow,
                 RuleId = result.RuleId
             };
+
+            // Check suppression
+            if (_suppressionStore != null && !string.IsNullOrEmpty(result.RuleId))
+            {
+                if (_suppressionStore.IsSuppressed(result.RuleId, result.Target))
+                {
+                    suppressedCount++;
+                    continue;
+                }
+            }
+
             agentFindings.Add(finding);
             historyEntries.Add((result.RuleId, finding));
+        }
+
+        if (suppressedCount > 0)
+        {
+            warnings.Add($"{suppressedCount} finding(s) suppressed by user configuration.");
         }
 
         // Phase 4: Optional log analysis
@@ -153,7 +174,7 @@ public sealed class SecurityAgent : IAgent
         }
 
         // Phase 5: Build summary
-        var summary = BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults);
+        var summary = BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount);
 
         ReplaceLastFindings(historyEntries);
 
@@ -408,7 +429,7 @@ public sealed class SecurityAgent : IAgent
         };
     }
 
-    private static string BuildSummary(AgentIntent intent, List<Finding> findings, AnalysisResult? logResult, List<RuleResult> allResults)
+    private static string BuildSummary(AgentIntent intent, List<Finding> findings, AnalysisResult? logResult, List<RuleResult> allResults, int suppressedCount = 0)
     {
         var passedCount = allResults.Count(r => r.Passed);
         var failedCount = findings.Count;
@@ -428,9 +449,17 @@ public sealed class SecurityAgent : IAgent
 
         var parts = new List<string> { $"{intentLabel} complete." };
 
-        if (failedCount == 0)
+        if (failedCount == 0 && suppressedCount == 0)
         {
             parts.Add($"All {passedCount} checks passed.");
+        }
+        else if (failedCount == 0)
+        {
+            parts.Add($"0 active issue(s), {suppressedCount} suppressed.");
+            if (passedCount > 0)
+            {
+                parts.Add($"{passedCount} check(s) passed.");
+            }
         }
         else
         {
@@ -439,6 +468,11 @@ public sealed class SecurityAgent : IAgent
             {
                 parts.Add($"{passedCount} check(s) passed.");
             }
+        }
+
+        if (failedCount > 0 && suppressedCount > 0)
+        {
+            parts.Add($"{suppressedCount} suppressed.");
         }
 
         if (logFindingsCount > 0)

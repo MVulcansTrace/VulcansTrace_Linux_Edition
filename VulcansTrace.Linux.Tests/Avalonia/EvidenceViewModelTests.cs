@@ -176,5 +176,10 @@ public class EvidenceViewModelTests
             SaveDialogTcs.TrySetResult(null);
             return Task.FromResult<string?>(null);
         }
+
+        public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
+        {
+            return Task.FromResult<string?>(null);
+        }
     }
 }

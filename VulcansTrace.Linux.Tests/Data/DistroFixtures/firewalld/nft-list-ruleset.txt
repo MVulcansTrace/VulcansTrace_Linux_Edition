@@ -1,0 +1,24 @@
+table inet firewalld {
+	chain filter_INPUT {
+		type filter hook input priority filter + 10; policy accept;
+		ct state established,related accept
+		ct state invalid drop
+		iifname "lo" accept
+		jump filter_INPUT_zones
+	}
+	chain filter_INPUT_zones {
+		iifname "eth0" goto filter_IN_public
+		goto filter_IN_public
+	}
+	chain filter_IN_public {
+		jump filter_IN_public_pre
+		jump filter_IN_public_log
+		jump filter_IN_public_deny
+		jump filter_IN_public_allow
+		meta l4proto { icmp, ipv6-icmp } accept
+	}
+	chain filter_IN_public_allow {
+		tcp dport 22 ct state new,untracked accept
+		tcp dport 8080 ct state new,untracked accept
+	}
+}

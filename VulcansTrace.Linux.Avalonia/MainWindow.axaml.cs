@@ -111,10 +111,27 @@ public partial class MainWindow : Window
         };
 
         var explanationProvider = new ExplanationProvider();
-        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider);
+        ISuppressionStore suppressionStore;
+        try
+        {
+            suppressionStore = JsonFileSuppressionStore.CreateDefault();
+        }
+        catch
+        {
+            suppressionStore = new InMemorySuppressionStore("Suppression persistence is unavailable. Accepted risks will last only for this session.");
+        }
+        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore);
+        var ruleCatalog = new RuleCatalog(rules);
 
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent);
+        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, suppressionStore);
+        viewModel.RuleCatalog.LoadCatalog(ruleCatalog);
+        viewModel.Agent.ShowAuditDiffAction = diff =>
+        {
+            var window = new Views.AuditDiffWindow();
+            window.ViewModel.LoadDiff(diff);
+            window.ShowDialog(this);
+        };
         DataContext = viewModel;
 
         DataContextChanged += (_, _) => HookTimelineViewModel();

@@ -11,6 +11,9 @@ public sealed class FirewallDefaultDropRule : IRule
     public string Id => "FW-001";
     public string Category => "Firewall";
     public string Description => "Default INPUT policy should be DROP";
+    public string WhatItChecks => "Checks whether the iptables/nftables INPUT chain has a default DROP policy";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
+    public Severity Severity => Severity.High;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -53,6 +56,9 @@ public sealed class FirewallSshExposureRule : IRule
     public string Id => "FW-002";
     public string Category => "Firewall";
     public string Description => "SSH should be restricted, not open to any IP";
+    public string WhatItChecks => "Checks whether SSH (port 22) is restricted to specific IPs or open to any IP";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
+    public Severity Severity => Severity.High;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -91,6 +97,9 @@ public sealed class FirewallStateTrackingRule : IRule
     public string Id => "FW-003";
     public string Category => "Firewall";
     public string Description => "Connection state tracking (ESTABLISHED,RELATED) should be enabled";
+    public string WhatItChecks => "Checks for ESTABLISHED,RELATED connection state tracking rules in the firewall";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
+    public Severity Severity => Severity.Medium;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -119,6 +128,9 @@ public sealed class FirewallActiveRule : IRule
     public string Id => "FW-004";
     public string Category => "Firewall";
     public string Description => "A firewall (iptables or nftables) should be active";
+    public string WhatItChecks => "Checks whether iptables or nftables is active and has rules configured";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
+    public Severity Severity => Severity.Critical;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -138,6 +150,9 @@ public sealed class FirewallIcmpRule : IRule
     public string Id => "FW-005";
     public string Category => "Firewall";
     public string Description => "ICMP should be restricted or rate-limited";
+    public string WhatItChecks => "Checks whether ICMP is blanket-accepted without rate limiting";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
+    public Severity Severity => Severity.Low;
 
     public RuleResult Evaluate(ScanData data)
     {

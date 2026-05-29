@@ -1,0 +1,2 @@
+default via 192.168.122.1 dev ens160 proto dhcp metric 100
+192.168.122.0/24 dev ens160 proto kernel scope link src 192.168.122.45 metric 100

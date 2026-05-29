@@ -1,0 +1,151 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+        xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+        x:Class="VulcansTrace.Linux.Avalonia.Views.AuditDiffWindow"
+        x:DataType="vm:AuditDiffViewModel"
+        Title="Audit Diff"
+        Width="700"
+        Height="520"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
+
+    <Window.Resources>
+        <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
+    </Window.Resources>
+
+
+    <Design.DataContext>
+        <vm:AuditDiffViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*">
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="Audit Comparison"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="#e2e8f0"
+                   Margin="0,0,0,8"/>
+
+        <!-- Summary badges -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="New: " Foreground="#94a3b8"/><Run Text="{Binding NewCount}" FontWeight="Bold" Foreground="#22c55e"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Resolved: " Foreground="#94a3b8"/><Run Text="{Binding ResolvedCount}" FontWeight="Bold" Foreground="#64748b"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Worsened: " Foreground="#94a3b8"/><Run Text="{Binding WorsenedCount}" FontWeight="Bold" Foreground="#ef4444"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Improved: " Foreground="#94a3b8"/><Run Text="{Binding ImprovedCount}" FontWeight="Bold" Foreground="#3b82f6"/>
+                </TextBlock>
+            </Border>
+        </StackPanel>
+
+        <!-- Diff sections -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+                <!-- New findings -->
+                <Border Background="#0f172a" BorderBrush="#166534" BorderThickness="1" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding NewCount, Converter={StaticResource IntToBoolConverter}}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="New Findings" FontWeight="Bold" Foreground="#22c55e" FontSize="13"/>
+                        <ItemsControl ItemsSource="{Binding NewFindings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
+                                        <Run Text="+" Foreground="#22c55e" FontWeight="Bold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ShortDescription}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Resolved findings -->
+                <Border Background="#0f172a" BorderBrush="#64748b" BorderThickness="1" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding ResolvedCount, Converter={StaticResource IntToBoolConverter}}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Resolved Findings" FontWeight="Bold" Foreground="#94a3b8" FontSize="13"/>
+                        <ItemsControl ItemsSource="{Binding ResolvedFindings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
+                                        <Run Text="✓" Foreground="#94a3b8"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ShortDescription}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Worsened findings -->
+                <Border Background="#0f172a" BorderBrush="#991b1b" BorderThickness="1" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding WorsenedCount, Converter={StaticResource IntToBoolConverter}}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Worsened Severity" FontWeight="Bold" Foreground="#ef4444" FontSize="13"/>
+                        <ItemsControl ItemsSource="{Binding WorsenedFindings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
+                                        <Run Text="↑" Foreground="#ef4444" FontWeight="Bold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
+                                        <Run Text=" → "/>
+                                        <Run Text="{Binding NewSeverity}" Foreground="#ef4444" FontWeight="Bold"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ShortDescription}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Improved findings -->
+                <Border Background="#0f172a" BorderBrush="#1e40af" BorderThickness="1" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding ImprovedCount, Converter={StaticResource IntToBoolConverter}}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Improved Severity" FontWeight="Bold" Foreground="#3b82f6" FontSize="13"/>
+                        <ItemsControl ItemsSource="{Binding ImprovedFindings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
+                                        <Run Text="↓" Foreground="#3b82f6" FontWeight="Bold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
+                                        <Run Text=" → "/>
+                                        <Run Text="{Binding NewSeverity}" Foreground="#3b82f6" FontWeight="Bold"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ShortDescription}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

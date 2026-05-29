@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -193,7 +194,8 @@ also not a firewall line";
         var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter());
 
         var agent = new MockAgent();
-        return new MainViewModel(analyzer, evidenceBuilder, new TestDialogService(), profileProvider, agent);
+        var suppressionStore = new InMemorySuppressionStore();
+        return new MainViewModel(analyzer, evidenceBuilder, new TestDialogService(), profileProvider, agent, suppressionStore);
     }
 
     private sealed class MockAgent : IAgent
@@ -243,6 +245,11 @@ also not a firewall line";
         }
 
         public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName)
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
         {
             return Task.FromResult<string?>(null);
         }

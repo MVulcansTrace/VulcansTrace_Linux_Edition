@@ -1,0 +1,6 @@
+ssh.service                   loaded active running OpenBSD server daemon
+nginx.service                 loaded active running A high performance web server
+chronyd.service               loaded active running chrony, an NTP client/server
+cups.service                  loaded active running CUPS Printing Service
+systemd-networkd.service      loaded active running Network Configuration
+systemd-resolved.service      loaded active running Network Name Resolution

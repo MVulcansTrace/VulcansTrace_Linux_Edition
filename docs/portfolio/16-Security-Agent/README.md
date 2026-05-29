@@ -20,9 +20,10 @@ Documentation is organized for two audiences:
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, suggested next action, confidence, and caveats
+- **Copyable verification commands** — exposes only verification-section commands for clipboard copy, keeping remediation commands in the preview path
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator` and preserves rule IDs in evidence exports
-- **Avalonia chat panel** — exposes chat, quick actions, grouped findings, selected-finding explanations, privilege warnings, cancellation, and audit export
+- **Avalonia chat panel** — exposes chat, quick actions, grouped findings, selected-finding explanations, privilege warnings, audit history/diff, suppressions, cancellation, audit export, and remediation preview export
 - **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration
 
 ## Implementation Evidence

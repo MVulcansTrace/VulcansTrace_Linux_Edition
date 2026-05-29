@@ -36,9 +36,13 @@ Scanner command helpers return stdout, stderr, and success status. They read std
 
 `ExplanationProvider` loads embedded markdown templates and replaces variables such as port, service, source, process, or policy. It also parses those templates into structured sections for what was found, why it matters, how to verify, suggested next action, confidence, and caveats. This keeps explanation language editable without changing rule code and avoids mixing detection logic with user-facing prose.
 
+Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and remediation preview exports, but they are not labeled as verification steps and are not executed by the application.
+
 ## Preserve Existing Analysis Contracts
 
 `AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs preserved when present.
+
+Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 
 ## UI As A Thin Control Shell
 

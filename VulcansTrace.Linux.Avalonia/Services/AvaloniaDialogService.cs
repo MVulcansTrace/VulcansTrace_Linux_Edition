@@ -140,6 +140,84 @@ public sealed class AvaloniaDialogService : IDialogService
         return Dispatcher.UIThread.InvokeAsync(action);
     }
 
+    /// <summary>
+    /// Shows a modal input dialog with a text box.
+    /// </summary>
+    public async Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
+    {
+        return await RunOnUiThreadAsync(async () =>
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 420,
+                Height = 200,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false
+            };
+
+            var messageBlock = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var textBox = new TextBox
+            {
+                Text = defaultText,
+                Watermark = "Optional reason..."
+            };
+
+            string? result = null;
+
+            var okButton = new Button
+            {
+                Content = "OK",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 80,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            okButton.Click += (_, _) =>
+            {
+                result = textBox.Text;
+                dialog.Close(true);
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "Cancel",
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 80
+            };
+            cancelButton.Click += (_, _) => dialog.Close(false);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 12, 0, 0),
+                Spacing = 8
+            };
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+
+            var panel = new StackPanel
+            {
+                Spacing = 4,
+                Margin = new Thickness(16)
+            };
+            panel.Children.Add(messageBlock);
+            panel.Children.Add(textBox);
+            panel.Children.Add(buttonPanel);
+
+            dialog.Content = panel;
+
+            await dialog.ShowDialog<bool?>(_owner);
+            return result;
+        });
+    }
+
     private static FilePickerFileType[] ParseFilter(string filter)
     {
         if (string.IsNullOrEmpty(filter))

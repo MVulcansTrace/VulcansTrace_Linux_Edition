@@ -11,6 +11,9 @@ public sealed class DefaultRouteRule : IRule
     public string Id => "NET-001";
     public string Category => "Network";
     public string Description => "A default gateway should be configured";
+    public string WhatItChecks => "Checks whether a default gateway/route is configured";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ip route" };
+    public Severity Severity => Severity.Medium;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -35,6 +38,9 @@ public sealed class SuspiciousConnectionsRule : IRule
     public string Id => "NET-002";
     public string Category => "Network";
     public string Description => "Suspicious outbound connections to high-risk ports";
+    public string WhatItChecks => "Checks for suspicious outbound connections to high-risk ports (telnet, SMB, RDP)";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tunap" };
+    public Severity Severity => Severity.High;
 
     private static readonly int[] SuspiciousPorts = { 23, 445, 3389, 135, 139 };
 
@@ -69,6 +75,9 @@ public sealed class NetworkInterfaceUpRule : IRule
     public string Id => "NET-003";
     public string Category => "Network";
     public string Description => "At least one network interface should be up";
+    public string WhatItChecks => "Checks whether at least one network interface is up";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ip addr" };
+    public Severity Severity => Severity.High;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -90,6 +99,9 @@ public sealed class LoopbackExposureRule : IRule
     public string Id => "NET-004";
     public string Category => "Network";
     public string Description => "Loopback-only services should not listen on all interfaces";
+    public string WhatItChecks => "Checks whether loopback-only services are exposed on external interfaces";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    public Severity Severity => Severity.Medium;
 
     public RuleResult Evaluate(ScanData data)
     {

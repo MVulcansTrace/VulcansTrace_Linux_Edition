@@ -181,6 +181,25 @@ public class SecurityAgentTests
         Assert.Equal("TEST-001", result.AgentFindings[0].RuleId);
     }
 
+    [Fact]
+    public async Task RunAuditAsync_AllFailuresSuppressed_SummaryShowsNoActiveIssues()
+    {
+        var suppressionStore = new InMemorySuppressionStore();
+        suppressionStore.Add(new SuppressionEntry { RuleId = "TEST-001", Target = "test-target" });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            suppressionStore: suppressionStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("0 active issue", result.Summary);
+        Assert.Contains("1 suppressed", result.Summary);
+        Assert.Contains(result.Warnings, w => w.Contains("suppressed", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static SecurityAgent CreateAgent()
     {
         var scanners = new IScanner[]
@@ -219,6 +238,9 @@ public class SecurityAgentTests
         public string Id => "TEST-001";
         public string Category => "Firewall";
         public string Description => "Test finding should be explained";
+        public string WhatItChecks => "Test rule that always fails";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.Low;
 
         public RuleResult Evaluate(ScanData data)
         {

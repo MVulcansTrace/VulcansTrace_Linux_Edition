@@ -1,0 +1,8 @@
+Netid  State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port  Process
+tcp    LISTEN  0       128     0.0.0.0:22          0.0.0.0:*          users:(("sshd",pid=1234,fd=3))
+tcp    LISTEN  0       128     127.0.0.1:631       0.0.0.0:*          users:(("cupsd",pid=567,fd=7))
+tcp    LISTEN  0       128     0.0.0.0:80          0.0.0.0:*          users:(("nginx",pid=890,fd=6))
+tcp    LISTEN  0       128     [::]:22             [::]:*             users:(("sshd",pid=1234,fd=4))
+tcp    LISTEN  0       128     [::1]:631           [::]:*             users:(("cupsd",pid=567,fd=8))
+udp    UNCONN  0       0       127.0.0.1:323       0.0.0.0:*          users:(("chronyd",pid=321,fd=5))
+udp    UNCONN  0       0       0.0.0.0:68          0.0.0.0:*          users:(("systemd-network",pid=456,fd=19))

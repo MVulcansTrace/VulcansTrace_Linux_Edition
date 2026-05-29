@@ -27,10 +27,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Copy test log files to output directory for integration tests -->
+    <!-- Copy test log files and distro fixtures to output directory -->
     <Content Include="Data\**\*.log">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Data/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+    <Content Include="Data\DistroFixtures\**\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Data/DistroFixtures/%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
 

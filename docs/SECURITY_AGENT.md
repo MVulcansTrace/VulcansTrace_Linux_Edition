@@ -88,7 +88,7 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
-Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. Suggested commands are presented as reviewable guidance only; the agent does not apply remediation automatically.
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, suggested next action, confidence, and caveats. The UI extracts copyable commands only from the verification section. Suggested action commands are kept in the explanation/remediation preview path and are never applied automatically.
 
 ## UI Integration
 
@@ -99,8 +99,12 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - In-flight query cancellation.
 - Agent findings grouped by category with compact severity summaries.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
+- Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
+- Audit history capped at 20 entries, with compare-last-two support and exported-state tracking after successful evidence export.
+- Accept Risk suppressions by rule ID and target, persisted to the user config directory when available. If persistence fails, the UI reports that suppressions are session-only.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit.
+- Export Remediation support that writes a review-only markdown plan with safety notes, rollback hints, and verification commands.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety
@@ -118,13 +122,14 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Some findings are posture checks rather than proof of compromise.
 - Process names and firewall details may require elevated privileges depending on the host.
 - Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.
+- Suppressions are exact rule-ID/target matches, so intentional target text changes can require accepting the risk again.
 
 ## Roadmap
 
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
 - Expand scanner fixtures across more distributions and command variants.
-- Add optional remediation preview exports with clear "review before applying" language.
-- Add UI affordances for copying verification commands from explanations.
+- Add expiry dates or review reminders for accepted-risk suppressions.
+- Add selectable audit-history comparison instead of only comparing the latest two audits.
 
 ## Implementation Evidence
 

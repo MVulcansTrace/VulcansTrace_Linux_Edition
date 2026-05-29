@@ -274,6 +274,61 @@
                         AutomationProperties.AutomationId="CancelExportButton"
                         Command="{Binding Evidence.CancelExportCommand}"/>
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <Button Content="Accept Risk"
+                        Width="110"
+                        Margin="0,0,8,0"
+                        ToolTip.Tip="Mark selected finding as accepted/expected"
+                        Command="{Binding AcceptRiskCommand}"/>
+                <TextBlock Text="{Binding Suppressions.StatusMessage}"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Foreground="#94a3b8"
+                           FontSize="11"/>
+            </StackPanel>
+            <Expander Header="Active Suppressions"
+                      Margin="0,0,0,12"
+                      IsExpanded="False">
+                <StackPanel Orientation="Vertical">
+                    <ItemsControl ItemsSource="{Binding Suppressions.Entries}" MaxHeight="120">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding RuleId}"
+                                               Foreground="#e2e8f0"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Target}"
+                                               Foreground="#94a3b8"
+                                               FontSize="11"
+                                               Margin="8,0,8,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Reason}"
+                                               Foreground="#64748b"
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="120"
+                                               VerticalAlignment="Center"/>
+                                    <Button Grid.Column="3"
+                                            Content="Remove"
+                                            FontSize="10"
+                                            Padding="4,2"
+                                            Command="{Binding $parent[ItemsControl].DataContext.Suppressions.RemoveSuppressionCommand}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
             <StackPanel Orientation="Horizontal" Margin="0,4,0,4"
                         IsVisible="{Binding IsBusy}">
                 <ProgressBar Height="6"
@@ -418,6 +473,60 @@
                          BorderThickness="0"
                          Foreground="#fbbf24"
                          FontFamily="Consolas,Monospace"/>
+            </TabItem>
+            <TabItem Header="Rules"
+                     AutomationProperties.AutomationId="RulesTab">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#cbd5e1"/>
+                        <TextBox Text="{Binding RuleCatalog.SearchText}"
+                                 Width="300"
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.AutomationId="RulesSearchTextBox"/>
+                        <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="#94a3b8"/>
+                        <TextBlock Text="{Binding RuleCatalog.TotalRules}" VerticalAlignment="Center" Foreground="#e2e8f0" FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding RuleCatalog.FilteredItems}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal"
+                              CanUserResizeColumns="True"
+                              AutomationProperties.AutomationId="RulesDataGrid"
+                              AutomationProperties.Name="Rules Catalog Table">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Severity" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Margin="2">
+                                            <TextBlock Text="{Binding Severity}"
+                                                       Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="220" />
+                            <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="*" />
+                            <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="280" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
             </TabItem>
         </TabControl>
 

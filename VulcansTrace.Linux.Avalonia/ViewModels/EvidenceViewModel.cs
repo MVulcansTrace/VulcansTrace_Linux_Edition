@@ -77,6 +77,9 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     /// <summary>Raised when status text should be updated in the parent view model.</summary>
     public event EventHandler<string>? StatusChanged;
 
+    /// <summary>Raised after an evidence bundle is successfully saved.</summary>
+    public event EventHandler? ExportCompleted;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="EvidenceViewModel"/> class.
     /// </summary>
@@ -211,6 +214,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             {
                 _dialogService.ShowMessage("Evidence bundle saved.", "VulcansTrace");
                 StatusChanged?.Invoke(this, "Evidence bundle saved.");
+                ExportCompleted?.Invoke(this, EventArgs.Empty);
             }
         }
         catch (Exception ex)

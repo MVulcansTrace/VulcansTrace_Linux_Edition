@@ -17,6 +17,15 @@ public interface IRule
     /// <summary>Brief description of what this rule checks.</summary>
     string Description { get; }
 
+    /// <summary>Human-readable description of what this rule checks in detail.</summary>
+    string WhatItChecks { get; }
+
+    /// <summary>Data sources / commands this rule relies on.</summary>
+    IReadOnlyList<string> SupportedDataSources { get; }
+
+    /// <summary>Maximum severity this rule can produce when it fails.</summary>
+    Severity Severity { get; }
+
     /// <summary>
     /// Evaluates the provided scan data.
     /// </summary>

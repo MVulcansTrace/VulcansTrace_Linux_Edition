@@ -16,9 +16,10 @@
         <conv:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
         <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
         <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
+        <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="0">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="0">
         <Border Grid.Row="0" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="8,4">
             <TextBlock Text="Security Agent" FontWeight="Bold" Foreground="#e2e8f0" FontSize="12"/>
         </Border>
@@ -56,7 +57,7 @@
                                         Background="{Binding IsUser, Converter={StaticResource BoolToBackgroundConverter}}"
                                         BorderBrush="{Binding IsUser, Converter={StaticResource BoolToBorderBrushConverter}}"
                                         BorderThickness="1"
-                                        MaxWidth="480"
+                                        MaxWidth="520"
                                         HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignmentConverter}}">
                                     <StackPanel Orientation="Vertical">
                                         <TextBlock Text="{Binding Text}"
@@ -68,6 +69,44 @@
                                                    FontSize="11"
                                                    Margin="0,4,0,0"
                                                    IsVisible="{Binding Details, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        <!-- Verification commands with copy buttons -->
+                                        <StackPanel Orientation="Vertical"
+                                                    Margin="0,6,0,0"
+                                                    IsVisible="{Binding HasVerificationCommands}"
+                                                    Spacing="4">
+                                            <TextBlock Text="How to verify:" FontSize="10" Foreground="#64748b" FontWeight="SemiBold"/>
+                                            <ItemsControl ItemsSource="{Binding VerificationCommands}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Spacing="4"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border Background="#1e293b"
+                                                                    BorderBrush="#334155"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="4"
+                                                                    Padding="6,2"
+                                                                    MaxWidth="380">
+                                                                <TextBlock Text="{Binding DisplayText}"
+                                                                           FontFamily="Consolas,Monospace"
+                                                                           FontSize="11"
+                                                                           Foreground="#e2e8f0"
+                                                                           TextWrapping="Wrap"/>
+                                                            </Border>
+                                                            <Button Content="Copy"
+                                                                    FontSize="10"
+                                                                    Padding="4,2"
+                                                                    VerticalAlignment="Center"
+                                                                    Click="OnCopyCommandClick"
+                                                                    Tag="{Binding FullCommand}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -123,10 +162,24 @@
                 <Button Content="Export Audit"
                         FontSize="11"
                         Padding="6,2"
-                        Margin="0,0,0,4"
+                        Margin="0,0,6,4"
                         Command="{Binding ExportAuditCommand}"
                         IsEnabled="{Binding CanExportAudit}"
                         AutomationProperties.AutomationId="AgentExportAuditButton"/>
+                <Button Content="Export Remediation"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding ExportRemediationCommand}"
+                        IsEnabled="{Binding CanExportAudit}"
+                        AutomationProperties.AutomationId="AgentExportRemediationButton"/>
+                <Button Content="Compare Last Two"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,0,4"
+                        Command="{Binding CompareAuditsCommand}"
+                        IsEnabled="{Binding CanCompareAudits}"
+                        AutomationProperties.AutomationId="AgentCompareAuditsButton"/>
             </WrapPanel>
 
             <!-- Input area -->
@@ -149,6 +202,67 @@
                         IsVisible="{Binding IsBusy}"
                         AutomationProperties.AutomationId="AgentCancelButton"/>
             </Grid>
+
+            <!-- Audit history -->
+            <Expander Grid.Row="3"
+                      Header="Audit History"
+                      Margin="8,0,8,4"
+                      IsExpanded="False"
+                      Background="#0f172a"
+                      BorderBrush="#334155"
+                      BorderThickness="1"
+                      CornerRadius="6">
+                <StackPanel Orientation="Vertical" Margin="4">
+                    <ItemsControl ItemsSource="{Binding History}" MaxHeight="160">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1e293b"
+                                        BorderBrush="#334155"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="6,4">
+	                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}"
+                                                   Foreground="#94a3b8"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Intent}"
+                                                   Foreground="#e2e8f0"
+                                                   FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding TotalFindings, StringFormat='{}findings: {0}'}"
+                                                   Foreground="#94a3b8"
+                                                   FontSize="10"
+                                                   Margin="8,0,8,0"
+                                                   VerticalAlignment="Center"/>
+	                                        <TextBlock Grid.Column="3"
+	                                                   Text="{Binding WarningCount, StringFormat='{}warn: {0}'}"
+	                                                   Foreground="#fcd34d"
+	                                                   FontSize="10"
+	                                                   VerticalAlignment="Center"/>
+	                                        <TextBlock Grid.Column="4"
+	                                                   Text="exported"
+	                                                   Foreground="#22c55e"
+	                                                   FontSize="10"
+	                                                   Margin="8,0,0,0"
+	                                                   VerticalAlignment="Center"
+	                                                   IsVisible="{Binding Exported}"/>
+	                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Expander>
         </Grid>
     </Grid>
 </UserControl>

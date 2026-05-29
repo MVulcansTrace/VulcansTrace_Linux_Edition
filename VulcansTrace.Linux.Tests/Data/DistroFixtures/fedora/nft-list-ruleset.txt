@@ -1,0 +1,17 @@
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iif "lo" accept
+		ct state established,related accept
+		tcp dport 22 accept
+		tcp dport 9090 accept
+		icmp type echo-request accept
+		drop
+	}
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}

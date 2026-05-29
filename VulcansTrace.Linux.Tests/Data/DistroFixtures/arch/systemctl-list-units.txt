@@ -1,0 +1,5 @@
+sshd.service                  loaded active running OpenSSH server daemon
+mysqld.service                loaded active running MariaDB database server
+nginx.service                 loaded active running A high performance web server
+dhcpcd.service                loaded active running DHCP Client Daemon
+systemd-networkd.service      loaded active running Network Configuration

@@ -11,6 +11,9 @@ public sealed class TelnetServiceRule : IRule
     public string Id => "SRV-001";
     public string Category => "Service";
     public string Description => "Telnet should not be running";
+    public string WhatItChecks => "Checks whether the Telnet service is running";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
+    public Severity Severity => Severity.Critical;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -35,6 +38,9 @@ public sealed class FtpServiceRule : IRule
     public string Id => "SRV-002";
     public string Category => "Service";
     public string Description => "FTP should not be running (use SFTP instead)";
+    public string WhatItChecks => "Checks whether the FTP service is running";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
+    public Severity Severity => Severity.High;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -60,6 +66,9 @@ public sealed class SshServiceRule : IRule
     public string Id => "SRV-003";
     public string Category => "Service";
     public string Description => "SSH should be running";
+    public string WhatItChecks => "Checks whether the SSH service is running";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
+    public Severity Severity => Severity.Medium;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -84,6 +93,9 @@ public sealed class LegacyRservicesRule : IRule
     public string Id => "SRV-004";
     public string Category => "Service";
     public string Description => "Legacy r-services should not be running";
+    public string WhatItChecks => "Checks whether legacy r-services (rsh, rexec, rlogin) are running";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
+    public Severity Severity => Severity.Critical;
 
     private static readonly string[] LegacyServices = { "rsh", "rexec", "rlogin", "shell", "login", "exec" };
 
@@ -110,6 +122,9 @@ public sealed class UnnecessaryServicesRule : IRule
     public string Id => "SRV-005";
     public string Category => "Service";
     public string Description => "Unnecessary services should be disabled";
+    public string WhatItChecks => "Checks whether unnecessary services (CUPS, Avahi, Bluetooth, NFS, RPC, SMB) are running";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
+    public Severity Severity => Severity.Low;
 
     private static readonly string[] UnnecessaryServices =
     {

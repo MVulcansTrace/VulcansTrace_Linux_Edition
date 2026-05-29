@@ -4,8 +4,12 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -30,6 +34,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
+
+    /// <summary>Gets the collection of recent audit history entries.</summary>
+    public ObservableCollection<AuditHistoryEntry> History { get; } = new();
 
     /// <summary>Gets or sets the user's current query text.</summary>
     public string UserQuery
@@ -68,8 +75,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 NetworkCommand.RaiseCanExecuteChanged();
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
                 ExportAuditCommand.RaiseCanExecuteChanged();
+                ExportRemediationCommand.RaiseCanExecuteChanged();
+                CompareAuditsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanExplainSelected));
                 OnPropertyChanged(nameof(CanExportAudit));
+                OnPropertyChanged(nameof(CanCompareAudits));
             }
         }
     }
@@ -82,6 +92,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets whether the latest agent result is an audit that can be exported.</summary>
     public bool CanExportAudit => !_isBusy && _lastResultIsExportableAudit;
+
+    /// <summary>Gets whether two audit snapshots are available for comparison.</summary>
+    public bool CanCompareAudits => History.Count >= 2;
 
     /// <summary>Gets whether a privilege warning is active.</summary>
     public bool HasPrivilegeWarning
@@ -140,6 +153,18 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public Action? RequestExportAudit { get; set; }
 
     /// <summary>
+    /// Callback invoked when the user requests a remediation plan export.
+    /// Set by the parent ViewModel to handle the save dialog.
+    /// </summary>
+    public Action<string>? RequestExportRemediation { get; set; }
+
+    /// <summary>
+    /// Callback invoked when the user requests to show an audit diff.
+    /// Set by the parent ViewModel to open the diff window.
+    /// </summary>
+    public Action<AuditDiff>? ShowAuditDiffAction { get; set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AgentViewModel"/> class.
     /// </summary>
     /// <param name="agent">The agent instance to use for queries.</param>
@@ -194,9 +219,23 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => RequestExportAudit?.Invoke(),
             _ => CanExportAudit);
 
+        ExportRemediationCommand = new RelayCommand(
+            _ => ExportRemediationPlan(),
+            _ => CanExportAudit);
+
+        CompareAuditsCommand = new RelayCommand(
+            _ => CompareLastTwoAudits(),
+            _ => CanCompareAudits);
+
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
     }
+
+    /// <summary>Gets the command to compare the last two audits.</summary>
+    public RelayCommand CompareAuditsCommand { get; }
+
+    /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
+    public RelayCommand ExportRemediationCommand { get; }
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _cts != null && !_cts.IsCancellationRequested;
@@ -329,6 +368,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void AddAgentFinding(Finding finding)
     {
         var ruleIdPrefix = string.IsNullOrEmpty(finding.RuleId) ? "" : $"[{finding.RuleId}] ";
+
+        // Parse verification commands from the finding details markdown
+        var verificationCommands = VerificationCommandExtractor.ExtractHowToVerify(finding.Details);
+
         Messages.Add(new AgentMessageViewModel
         {
             Text = $"{ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}",
@@ -336,7 +379,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             IsUser = false,
             IsInfo = false,
             Severity = finding.Severity,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            VerificationCommands = verificationCommands
         });
     }
 
@@ -525,6 +569,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(LastResult));
         OnPropertyChanged(nameof(CanExportAudit));
         ExportAuditCommand.RaiseCanExecuteChanged();
+        ExportRemediationCommand.RaiseCanExecuteChanged();
     }
 
     private void PublishAuditCompleted(AgentResult result)
@@ -533,6 +578,57 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _lastResultIsExportableAudit = true;
         OnPropertyChanged(nameof(CanExportAudit));
         ExportAuditCommand.RaiseCanExecuteChanged();
+        ExportRemediationCommand.RaiseCanExecuteChanged();
+        AppendHistoryEntry(result);
+    }
+
+    private void AppendHistoryEntry(AgentResult result)
+    {
+        const int maxHistory = 20;
+        var findings = result.AgentFindings;
+        var snapshotFindings = findings.Select(f => new AuditSnapshotFinding
+        {
+            RuleId = f.RuleId ?? "",
+            Target = f.Target,
+            Severity = f.Severity.ToString(),
+            ShortDescription = f.ShortDescription
+        }).ToList();
+
+        var entry = new AuditHistoryEntry
+        {
+            SnapshotId = Guid.NewGuid().ToString("N")[..8],
+            TimestampUtc = result.UtcTimestamp,
+            Intent = result.Intent,
+            TotalFindings = findings.Count,
+            CriticalCount = findings.Count(f => f.Severity == Severity.Critical),
+            HighCount = findings.Count(f => f.Severity == Severity.High),
+            MediumCount = findings.Count(f => f.Severity == Severity.Medium),
+            LowCount = findings.Count(f => f.Severity == Severity.Low),
+            InfoCount = findings.Count(f => f.Severity == Severity.Info),
+            WarningCount = result.Warnings.Count,
+            Exported = false,
+            SnapshotFindings = snapshotFindings
+        };
+
+        History.Insert(0, entry);
+        while (History.Count > maxHistory)
+        {
+            History.RemoveAt(History.Count - 1);
+        }
+
+        OnPropertyChanged(nameof(CanCompareAudits));
+        CompareAuditsCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Marks the latest audit history entry as exported.
+    /// </summary>
+    public void MarkLatestAuditExported()
+    {
+        if (History.Count == 0)
+            return;
+
+        History[0] = History[0] with { Exported = true };
     }
 
     private static bool IsAuditIntent(AgentIntent intent) =>
@@ -541,6 +637,42 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             or AgentIntent.PortCheck
             or AgentIntent.ServiceCheck
             or AgentIntent.NetworkCheck;
+
+    private void ExportRemediationPlan()
+    {
+        if (_lastResult == null || _lastResult.AgentFindings.Count == 0)
+        {
+            AddAgentMessage("No findings available to generate a remediation plan. Run an audit first.", true);
+            return;
+        }
+
+        try
+        {
+            var builder = new RemediationPlanBuilder(new ExplanationProvider());
+            var plan = builder.Build(_lastResult.AgentFindings);
+            var formatter = new RemediationMarkdownFormatter();
+            var markdown = formatter.Format(plan);
+            RequestExportRemediation?.Invoke(markdown);
+        }
+        catch (Exception ex)
+        {
+            AddAgentMessage($"Failed to generate remediation plan: {ex.Message}", true);
+        }
+    }
+
+    private void CompareLastTwoAudits()
+    {
+        if (History.Count < 2)
+        {
+            AddAgentMessage("Need at least 2 audits in history to compare. Run more audits first.", true);
+            return;
+        }
+
+        var newer = History[0];
+        var older = History[1];
+        var diff = AuditDiffCalculator.Calculate(older, newer);
+        ShowAuditDiffAction?.Invoke(diff);
+    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -562,6 +694,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private bool _isInfo;
     private Severity _severity;
     private DateTime _timestamp;
+    private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
 
     public string Text
     {
@@ -597,5 +730,26 @@ public sealed class AgentMessageViewModel : ViewModelBase
     {
         get => _timestamp;
         set => SetField(ref _timestamp, value);
+    }
+
+    /// <summary>Gets or sets the verification commands that can be copied from this message.</summary>
+    public IReadOnlyList<CopyableCommand> VerificationCommands
+    {
+        get => _verificationCommands;
+        set => SetField(ref _verificationCommands, value);
+    }
+
+    /// <summary>Gets whether this message has verification commands to display.</summary>
+    public bool HasVerificationCommands => _verificationCommands.Count > 0;
+
+    /// <summary>
+    /// Copies the specified command text to the system clipboard.
+    /// </summary>
+    public void CopyCommandToClipboard(string commandText)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
+        }
     }
 }

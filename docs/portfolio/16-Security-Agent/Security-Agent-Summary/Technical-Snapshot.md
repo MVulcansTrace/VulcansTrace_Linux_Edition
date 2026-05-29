@@ -20,7 +20,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Agent intents | 7: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, Help |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
-| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped findings, selection-aware explanations, privilege warnings, and audit export |
+| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped findings, selection-aware explanations, copyable verification commands, suppressions, audit history/diff, privilege warnings, audit export, and remediation export |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
 ---
@@ -56,4 +56,4 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Current Status
 
-This is a v1 local security assistant. It can scan, evaluate, explain selected or referenced findings, group results in the UI, surface privilege-limited scans, and export agent audits through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are broader distro-specific parser fixtures, richer follow-up explanation flows, and optional remediation preview artifacts.
+This is a v1 local security assistant. It can scan, evaluate, explain selected or referenced findings, group results in the UI, surface privilege-limited scans, preserve accepted-risk suppressions, compare recent audits, export remediation previews, and export agent audits through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are broader distro-specific parser fixtures, richer follow-up explanation flows, suppression expiry/review workflows, and selectable audit-history comparison.

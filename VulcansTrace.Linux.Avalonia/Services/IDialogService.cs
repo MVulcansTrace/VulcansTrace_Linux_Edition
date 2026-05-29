@@ -32,4 +32,13 @@ public interface IDialogService
     /// <param name="defaultFileName">The default file name.</param>
     /// <returns>The selected file path, or null if the dialog was cancelled.</returns>
     Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName);
+
+    /// <summary>
+    /// Shows a modal input dialog with a text box.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="message">The message to display above the input.</param>
+    /// <param name="defaultText">The default text in the input box.</param>
+    /// <returns>The entered text, or null if cancelled.</returns>
+    Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "");
 }

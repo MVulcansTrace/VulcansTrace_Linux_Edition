@@ -1,0 +1,6 @@
+sshd.service                  loaded active running OpenSSH server daemon
+cockpit.service               loaded active running Cockpit Web Service
+cups.service                  loaded active running CUPS Printing Service
+chronyd.service               loaded active running NTP client/server
+NetworkManager.service        loaded active running Network Manager
+firewalld.service             loaded active running firewalld - dynamic firewall daemon

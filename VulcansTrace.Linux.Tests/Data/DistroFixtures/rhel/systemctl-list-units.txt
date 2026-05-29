@@ -1,0 +1,5 @@
+sshd.service                  loaded active running OpenSSH server daemon
+postgresql.service            loaded active running PostgreSQL database server
+httpd.service                 loaded active running The Apache HTTP Server
+chronyd.service               loaded active running NTP client/server
+firewalld.service             loaded active running firewalld - dynamic firewall daemon

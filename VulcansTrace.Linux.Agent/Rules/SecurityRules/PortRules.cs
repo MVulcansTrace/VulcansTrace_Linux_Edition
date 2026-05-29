@@ -11,6 +11,9 @@ public sealed class SshNonDefaultPortRule : IRule
     public string Id => "PORT-001";
     public string Category => "Port";
     public string Description => "SSH on non-default port (informational)";
+    public string WhatItChecks => "Checks whether SSH is running on the default port 22";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    public Severity Severity => Severity.Info;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -33,6 +36,9 @@ public sealed class WideOpenServicesRule : IRule
     public string Id => "PORT-002";
     public string Category => "Port";
     public string Description => "Services listening on all interfaces should be reviewed";
+    public string WhatItChecks => "Checks for services listening on all interfaces that should be reviewed";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    public Severity Severity => Severity.Medium;
 
     private static readonly int[] ExpectedPublicPorts = { 22, 80, 443 };
 
@@ -69,6 +75,9 @@ public sealed class DatabasePortExposureRule : IRule
     public string Id => "PORT-003";
     public string Category => "Port";
     public string Description => "Database ports should not be exposed to all interfaces";
+    public string WhatItChecks => "Checks whether database ports are exposed to all interfaces";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    public Severity Severity => Severity.Critical;
 
     private static readonly int[] DatabasePorts = { 3306, 5432, 27017, 1433, 1521, 6379 };
 
@@ -102,6 +111,9 @@ public sealed class HighPortListeningRule : IRule
     public string Id => "PORT-004";
     public string Category => "Port";
     public string Description => "High ports listening without clear process (informational)";
+    public string WhatItChecks => "Checks for high ports listening without an associated process name";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    public Severity Severity => Severity.Info;
 
     public RuleResult Evaluate(ScanData data)
     {

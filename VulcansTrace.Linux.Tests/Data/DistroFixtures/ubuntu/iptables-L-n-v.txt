@@ -1,0 +1,14 @@
+Chain INPUT (policy DROP 0 packets, 0 bytes)
+pkts bytes target     prot opt in     out     source               destination
+   0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0
+ 120  8400 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate ESTABLISHED,RELATED
+  10   600 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22
+   5   300 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:80
+   2   120 ACCEPT     icmp --  *      *       0.0.0.0/0            0.0.0.0/0
+
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+pkts bytes target     prot opt in     out     source               destination
+   0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
+Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+pkts bytes target     prot opt in     out     source               destination

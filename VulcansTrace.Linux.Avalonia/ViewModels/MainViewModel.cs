@@ -1,11 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -21,8 +23,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly SentryAnalyzer _analyzer;
     private readonly AnalysisProfileProvider _profileProvider;
+    private readonly IDialogService _dialogService;
+    private readonly ISuppressionStore _suppressionStore;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly EventHandler<string> _evidenceStatusHandler;
+    private readonly EventHandler _evidenceExportCompletedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
 
     private string _logText = "";
@@ -61,6 +66,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for the security agent chat panel.</summary>
     public AgentViewModel Agent { get; }
+
+    /// <summary>Gets the child ViewModel for the rule catalog.</summary>
+    public RuleCatalogViewModel RuleCatalog { get; }
+
+    /// <summary>Gets the child ViewModel for suppression management.</summary>
+    public SuppressionViewModel Suppressions { get; }
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -233,6 +244,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the cancel command.</summary>
     public RelayCommand CancelCommand { get; }
 
+    /// <summary>Gets the accept risk command.</summary>
+    public AsyncRelayCommand AcceptRiskCommand { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
@@ -241,10 +255,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         EvidenceBuilder evidenceBuilder,
         IDialogService dialogService,
         AnalysisProfileProvider profileProvider,
-        IAgent agent)
+        IAgent agent,
+        ISuppressionStore suppressionStore)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
+        _dialogService = dialogService;
+        _suppressionStore = suppressionStore;
 
         // Initialize commands first (before setting properties that trigger RaiseCanExecuteChanged)
         AnalyzeCommand = new AsyncRelayCommand(
@@ -265,7 +282,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Agent = new AgentViewModel(agent)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
-            RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null)
+            RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),
+            RequestExportRemediation = async markdown => await ExportRemediationPlanAsync(markdown)
         };
         Agent.AuditCompleted += OnAgentAuditCompleted;
         _findingsPropertyChangedHandler = OnFindingsPropertyChanged;
@@ -273,6 +291,21 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _evidenceStatusHandler = (s, msg) =>
             Dispatcher.UIThread.Post(() => SummaryText = msg);
         Evidence.StatusChanged += _evidenceStatusHandler;
+        _evidenceExportCompletedHandler = (_, _) =>
+            Dispatcher.UIThread.Post(() => Agent.MarkLatestAuditExported());
+        Evidence.ExportCompleted += _evidenceExportCompletedHandler;
+
+        RuleCatalog = new RuleCatalogViewModel();
+        Suppressions = new SuppressionViewModel(suppressionStore);
+        Suppressions.Refresh();
+
+        AcceptRiskCommand = new AsyncRelayCommand(
+            async _ => await AcceptRiskAsync(),
+            _ => Findings.SelectedItem != null,
+            ex =>
+            {
+                SummaryText = $"Accept risk failed: {ex.Message}";
+            });
 
         BotIntroText = "Hi, I'm VulcansTrace. Paste a Linux firewall log, choose scan intensity, and I'll flag port scans, floods, lateral movement, beaconing, policy violations, novelty destinations, plus advanced signals like C2 channels and admin access spikes at higher intensities.";
         SummaryText = "Paste a Linux firewall log and choose an intensity to begin.";
@@ -424,6 +457,30 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var generator = new AgentReportGenerator();
         var analysisResult = generator.ToAnalysisResult(agentResult);
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp);
+        Findings.LoadResults(analysisResult);
+        Timeline.LoadAnalysisResult(null);
+        SummaryText = agentResult.Summary;
+    }
+
+    private async Task ExportRemediationPlanAsync(string markdown)
+    {
+        var path = await _dialogService.ShowSaveFileDialogAsync(
+            "Export Remediation Plan",
+            "Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            $"remediation-plan-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
+
+        if (path == null)
+            return;
+
+        try
+        {
+            await File.WriteAllTextAsync(path, markdown);
+            SummaryText = $"Remediation plan exported to {path}";
+        }
+        catch (Exception ex)
+        {
+            SummaryText = $"Failed to export remediation plan: {ex.Message}";
+        }
     }
 
     private void OnFindingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -431,7 +488,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(FindingsViewModel.SelectedItem))
         {
             Agent.NotifySelectedFindingChanged();
+            AcceptRiskCommand.RaiseCanExecuteChanged();
         }
+    }
+
+    private async Task AcceptRiskAsync()
+    {
+        var selected = Findings.SelectedItem?.Finding;
+        if (selected == null || string.IsNullOrEmpty(selected.RuleId))
+        {
+            SummaryText = "Select a finding with a rule ID to accept risk.";
+            return;
+        }
+
+        var reason = await _dialogService.ShowInputDialogAsync(
+            "Accept Risk",
+            $"Accept risk for {selected.RuleId} on {selected.Target}?\n\nOptional reason:",
+            "");
+
+        if (reason == null)
+        {
+            return; // Cancelled
+        }
+
+        Suppressions.AddSuppression(selected.RuleId, selected.Target, reason);
+        SummaryText = $"Accepted risk: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
     }
 
     private AnalysisResult AnalyzeWithOverrides(IntensityLevel intensity, string logText, CancellationToken token)
@@ -517,6 +598,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (Evidence != null)
         {
             Evidence.StatusChanged -= _evidenceStatusHandler;
+            Evidence.ExportCompleted -= _evidenceExportCompletedHandler;
             Evidence.Dispose();
         }
 

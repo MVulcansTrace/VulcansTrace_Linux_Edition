@@ -1,0 +1,3 @@
+ssh.service                   loaded active running OpenBSD server daemon
+apache2.service               loaded active running The Apache HTTP Server
+ufw.service                   loaded active running Uncomplicated Firewall

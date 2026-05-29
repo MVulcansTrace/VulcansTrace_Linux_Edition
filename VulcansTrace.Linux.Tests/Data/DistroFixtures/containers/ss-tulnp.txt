@@ -1,0 +1,4 @@
+Netid  State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port  Process
+tcp    LISTEN  0       128     0.0.0.0:8080        0.0.0.0:*          users:(("java",pid=1,fd=25))
+tcp    LISTEN  0       128     127.0.0.1:9000      0.0.0.0:*          users:(("python3",pid=7,fd=3))
+udp    UNCONN  0       0       0.0.0.0:5353        0.0.0.0:*          users:(("avahi-daemon",pid=15,fd=12))

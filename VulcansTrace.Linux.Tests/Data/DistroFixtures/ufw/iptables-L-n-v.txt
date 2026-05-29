@@ -1,0 +1,15 @@
+Chain INPUT (policy DROP 0 packets, 0 bytes)
+pkts bytes target     prot opt in     out     source               destination
+   0     0 ufw-before-logging-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+   0     0 ufw-before-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+   0     0 ufw-after-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+   0     0 ufw-after-logging-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+   0     0 ufw-reject-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+   0     0 ufw-track-input  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
+Chain ufw-before-input (1 references)
+pkts bytes target     prot opt in     out     source               destination
+   0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0
+   0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+   0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22
+   0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:443
