@@ -49,6 +49,9 @@ public sealed record AuditHistoryEntry
     /// <summary>Number of findings suppressed by user configuration.</summary>
     public int SuppressedCount { get; init; }
 
+    /// <summary>Number of rules that crashed during evaluation.</summary>
+    public int CrashedCount { get; init; }
+
     /// <summary>Lightweight snapshot of findings for diff comparisons.</summary>
     public IReadOnlyList<AuditSnapshotFinding> SnapshotFindings { get; init; } = Array.Empty<AuditSnapshotFinding>();
 }

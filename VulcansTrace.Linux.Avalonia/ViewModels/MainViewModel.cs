@@ -73,6 +73,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for suppression management.</summary>
     public SuppressionViewModel Suppressions { get; }
 
+    /// <summary>Gets the child ViewModel for rule coverage display.</summary>
+    public RuleCoverageViewModel RuleCoverage { get; }
+
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
 
@@ -299,6 +302,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RuleCatalog = new RuleCatalogViewModel();
         Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
+        RuleCoverage = new RuleCoverageViewModel();
 
         AcceptRiskCommand = new AsyncRelayCommand(
             async _ => await AcceptRiskAsync(),
@@ -461,6 +465,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(null);
         Suppressions.Refresh();
+        RuleCoverage.LoadResults(agentResult);
         SummaryText = agentResult.Summary;
     }
 

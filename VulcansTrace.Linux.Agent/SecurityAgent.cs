@@ -114,21 +114,33 @@ public sealed class SecurityAgent : IAgent
             catch (Exception ex)
             {
                 warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
+                ruleResults.Add(RuleResult.Crash(rule.Id, rule.Category, rule.Description));
             }
         }
 
-        // Phase 3: Convert rule failures to Findings
+        // Phase 3: Mark suppression status and convert rule failures to Findings
         var agentFindings = new List<Finding>();
         var historyEntries = new List<(string RuleId, Finding Finding)>();
         var suppressedCount = 0;
-        var failedCount = 0;
 
         // Prune expired suppressions beyond the review retention window before checking.
         _suppressionStore?.PruneExpired();
 
-        foreach (var result in ruleResults.Where(r => !r.Passed))
+        var processedResults = new List<RuleResult>(ruleResults.Count);
+        foreach (var result in ruleResults)
         {
-            failedCount++;
+            if (result.Passed)
+            {
+                processedResults.Add(result);
+                continue;
+            }
+
+            if (result.Status == RuleStatus.Crashed)
+            {
+                processedResults.Add(result);
+                continue;
+            }
+
             var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
             var finding = new Finding
             {
@@ -149,15 +161,20 @@ public sealed class SecurityAgent : IAgent
                 if (_suppressionStore.IsSuppressed(result.RuleId, result.Target))
                 {
                     suppressedCount++;
+                    processedResults.Add(result with { Status = RuleStatus.Suppressed });
                     continue;
                 }
             }
 
             agentFindings.Add(finding);
             historyEntries.Add((result.RuleId, finding));
+            processedResults.Add(result);
         }
 
-        var passedCount = ruleResults.Count(r => r.Passed);
+        ruleResults = processedResults;
+        var passedCount = ruleResults.Count(r => r.Status == RuleStatus.Passed);
+        var failedCount = ruleResults.Count(r => r.Status == RuleStatus.Failed);
+        var crashedCount = ruleResults.Count(r => r.Status == RuleStatus.Crashed);
 
         if (suppressedCount > 0)
         {
@@ -182,7 +199,7 @@ public sealed class SecurityAgent : IAgent
         }
 
         // Phase 5: Build summary
-        var summary = BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount);
+        var summary = BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount, crashedCount);
 
         ReplaceLastFindings(historyEntries);
 
@@ -197,7 +214,8 @@ public sealed class SecurityAgent : IAgent
             RuleResults = ruleResults,
             PassedCount = passedCount,
             FailedCount = failedCount,
-            SuppressedCount = suppressedCount
+            SuppressedCount = suppressedCount,
+            CrashedCount = crashedCount
         };
     }
 
@@ -368,17 +386,11 @@ public sealed class SecurityAgent : IAgent
         catch (Exception ex)
         {
             warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-            return new AgentResult
-            {
-                Intent = AgentIntent.ExplainFinding,
-                Summary = $"Rule {rule.Id} could not be evaluated: {ex.Message}",
-                AgentFindings = Array.Empty<Finding>(),
-                Warnings = warnings
-            };
+            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description);
         }
 
         var agentFindings = new List<Finding>();
-        if (!result.Passed)
+        if (!result.Passed && result.Status != RuleStatus.Crashed)
         {
             var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
             var finding = new Finding
@@ -397,9 +409,11 @@ public sealed class SecurityAgent : IAgent
             ReplaceLastFindings(new[] { (result.RuleId, finding) });
         }
 
-        var summary = agentFindings.Count > 0
-            ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
-            : $"Rule {rule.Id} passed — no issue to explain.";
+        var summary = result.Status == RuleStatus.Crashed
+            ? $"Rule {rule.Id} could not be evaluated."
+            : agentFindings.Count > 0
+                ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
+                : $"Rule {rule.Id} passed — no issue to explain.";
 
         return new AgentResult
         {
@@ -407,7 +421,11 @@ public sealed class SecurityAgent : IAgent
             AgentFindings = agentFindings,
             Warnings = warnings,
             UtcTimestamp = DateTime.UtcNow,
-            Summary = summary
+            Summary = summary,
+            RuleResults = new[] { result },
+            PassedCount = result.Status == RuleStatus.Passed ? 1 : 0,
+            FailedCount = result.Status == RuleStatus.Failed ? 1 : 0,
+            CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0
         };
     }
 
@@ -441,9 +459,9 @@ public sealed class SecurityAgent : IAgent
         };
     }
 
-    private static string BuildSummary(AgentIntent intent, List<Finding> findings, AnalysisResult? logResult, List<RuleResult> allResults, int suppressedCount = 0)
+    private static string BuildSummary(AgentIntent intent, List<Finding> findings, AnalysisResult? logResult, List<RuleResult> allResults, int suppressedCount = 0, int crashedCount = 0)
     {
-        var passedCount = allResults.Count(r => r.Passed);
+        var passedCount = allResults.Count(r => r.Status == RuleStatus.Passed);
         var failedCount = findings.Count;
         var highCritical = findings.Count(f => f.Severity >= Severity.High);
         var logFindingsCount = logResult?.Findings.Count ?? 0;
@@ -461,13 +479,15 @@ public sealed class SecurityAgent : IAgent
 
         var parts = new List<string> { $"{intentLabel} complete." };
 
-        if (failedCount == 0 && suppressedCount == 0)
+        if (failedCount == 0 && suppressedCount == 0 && crashedCount == 0)
         {
             parts.Add($"All {passedCount} checks passed.");
         }
         else if (failedCount == 0)
         {
-            parts.Add($"0 active issue(s), {suppressedCount} suppressed.");
+            parts.Add(suppressedCount > 0
+                ? $"0 active issue(s), {suppressedCount} suppressed."
+                : "0 active issue(s).");
             if (passedCount > 0)
             {
                 parts.Add($"{passedCount} check(s) passed.");
@@ -485,6 +505,11 @@ public sealed class SecurityAgent : IAgent
         if (failedCount > 0 && suppressedCount > 0)
         {
             parts.Add($"{suppressedCount} suppressed.");
+        }
+
+        if (crashedCount > 0)
+        {
+            parts.Add($"{crashedCount} rule(s) crashed.");
         }
 
         if (logFindingsCount > 0)

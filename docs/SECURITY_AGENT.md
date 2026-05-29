@@ -100,7 +100,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - In-flight query cancellation.
 - Agent findings grouped by category with compact severity summaries.
 - Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
-- Rule coverage counts after audits, including passed, failed, and suppressed checks.
+- A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.

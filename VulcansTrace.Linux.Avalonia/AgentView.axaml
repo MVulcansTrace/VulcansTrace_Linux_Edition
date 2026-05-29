@@ -314,6 +314,12 @@
                                                    FontSize="10"
                                                    VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="6"
+                                                   Text="{Binding CrashedCount, StringFormat='{}crashed: {0}'}"
+                                                   Foreground="#f97316"
+                                                   FontSize="10"
+                                                   Margin="0,0,8,0"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="7"
                                                    Text="exported"
                                                    Foreground="#22c55e"
                                                    FontSize="10"

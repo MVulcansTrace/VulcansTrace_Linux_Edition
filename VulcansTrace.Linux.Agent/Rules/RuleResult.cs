@@ -16,6 +16,15 @@ public sealed record RuleResult
     /// <summary>Whether the rule passed (true) or failed (false).</summary>
     public required bool Passed { get; init; }
 
+    /// <summary>Detailed status of the rule evaluation (defaults from <see cref="Passed"/>).</summary>
+    public RuleStatus Status
+    {
+        get => _status ?? (Passed ? RuleStatus.Passed : RuleStatus.Failed);
+        init => _status = value;
+    }
+
+    private RuleStatus? _status;
+
     /// <summary>Severity if the rule failed; ignored when <see cref="Passed"/> is true.</summary>
     public Severity Severity { get; init; } = Severity.Info;
 
@@ -54,5 +63,17 @@ public sealed record RuleResult
             Description = description,
             Target = target,
             Variables = variables ?? new Dictionary<string, string>()
+        };
+
+    /// <summary>Creates a crashed result.</summary>
+    public static RuleResult Crash(string ruleId, string category, string description) =>
+        new()
+        {
+            RuleId = ruleId,
+            Category = category,
+            Passed = false,
+            Status = RuleStatus.Crashed,
+            ExplanationKey = ruleId,
+            Description = description
         };
 }

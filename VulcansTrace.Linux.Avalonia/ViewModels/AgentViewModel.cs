@@ -775,6 +775,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             PassedCount = result.PassedCount,
             FailedCount = result.FailedCount,
             SuppressedCount = result.SuppressedCount,
+            CrashedCount = result.CrashedCount,
             SnapshotFindings = snapshotFindings
         };
 

@@ -307,4 +307,94 @@ public class SecurityAgentTests
                 "test-target");
         }
     }
+
+    private sealed class AlwaysCrashRule : IRule
+    {
+        public string Id => "TEST-003";
+        public string Category => "Port";
+        public string Description => "Test rule that always crashes";
+        public string WhatItChecks => "Test crash";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.Info;
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            throw new InvalidOperationException("Simulated crash");
+        }
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_CrashedRule_AddsCrashResultAndCount()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysPassRule(), new AlwaysCrashRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.Equal(1, result.CrashedCount);
+        Assert.Equal(2, result.RuleResults.Count);
+
+        var crashResult = result.RuleResults.First(r => r.RuleId == "TEST-003");
+        Assert.Equal(RuleStatus.Crashed, crashResult.Status);
+        Assert.False(crashResult.Passed);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_CrashOnlySummary_DoesNotMentionZeroSuppressions()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysCrashRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Contains("0 active issue", result.Summary);
+        Assert.Contains("1 rule(s) crashed", result.Summary);
+        Assert.DoesNotContain("0 suppressed", result.Summary);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_SuppressedRule_HasSuppressedStatus()
+    {
+        var suppressionStore = new InMemorySuppressionStore();
+        suppressionStore.Add(new SuppressionEntry { RuleId = "TEST-001", Target = "test-target" });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysPassRule(), new AlwaysFailRule() },
+            new ExplanationProvider(),
+            suppressionStore: suppressionStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.Equal(1, result.SuppressedCount);
+        Assert.Equal(0, result.CrashedCount);
+        Assert.Empty(result.AgentFindings);
+        Assert.Equal(2, result.RuleResults.Count);
+
+        var suppressedResult = result.RuleResults.First(r => r.RuleId == "TEST-001");
+        Assert.Equal(RuleStatus.Suppressed, suppressedResult.Status);
+        Assert.False(suppressedResult.Passed);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_StatusDefaultsFromPassed_WhenNotExplicitlySet()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysPassRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var passResult = result.RuleResults.First(r => r.RuleId == "TEST-002");
+        Assert.Equal(RuleStatus.Passed, passResult.Status);
+        Assert.True(passResult.Passed);
+    }
 }

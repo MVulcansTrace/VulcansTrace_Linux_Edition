@@ -70,6 +70,7 @@ User query
 | Quick actions | Runs full audit, firewall, ports, services, network, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
+| Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, and crashed check totals |
 | Verification commands | Shows copy buttons and safety badges only for commands from the `How to verify` explanation section |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |

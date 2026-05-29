@@ -622,6 +622,74 @@
                     </DataGrid>
                 </Grid>
             </TabItem>
+            <TabItem Header="Coverage"
+                     AutomationProperties.AutomationId="CoverageTab">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Summary badges -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
+                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                            <TextBlock>
+                                <Run Text="Total: " Foreground="#94a3b8"/><Run Text="{Binding RuleCoverage.TotalRules, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                            </TextBlock>
+                        </Border>
+                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                            <TextBlock>
+                                <Run Text="Passed: " Foreground="#22c55e"/><Run Text="{Binding RuleCoverage.TotalPassed, Mode=OneWay}" FontWeight="Bold" Foreground="#4ade80"/>
+                            </TextBlock>
+                        </Border>
+                        <Border Background="#3f1515" Padding="8,4" CornerRadius="6" BorderBrush="#7f1d1d" BorderThickness="1">
+                            <TextBlock>
+                                <Run Text="Failed: " Foreground="#fca5a5"/><Run Text="{Binding RuleCoverage.TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
+                            </TextBlock>
+                        </Border>
+                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                            <TextBlock>
+                                <Run Text="Suppressed: " Foreground="#94a3b8"/><Run Text="{Binding RuleCoverage.TotalSuppressed, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                            </TextBlock>
+                        </Border>
+                        <Border Background="#3f2e14" Padding="8,4" CornerRadius="6" BorderBrush="#854d0e" BorderThickness="1">
+                            <TextBlock>
+                                <Run Text="Crashed: " Foreground="#fcd34d"/><Run Text="{Binding RuleCoverage.TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="#fde047"/>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Empty state -->
+                    <TextBlock Grid.Row="1"
+                               Text="Run an agent audit to see rule coverage."
+                               Foreground="#64748b"
+                               FontSize="12"
+                               Margin="0,4,0,8"
+                               IsVisible="{Binding !RuleCoverage.HasData}"/>
+
+                    <!-- Category breakdown grid -->
+                    <DataGrid Grid.Row="2"
+                              ItemsSource="{Binding RuleCoverage.Categories}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal"
+                              CanUserResizeColumns="True"
+                              IsVisible="{Binding RuleCoverage.HasData}"
+                              AutomationProperties.AutomationId="CoverageDataGrid"
+                              AutomationProperties.Name="Rule Coverage Table">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
+                            <DataGridTextColumn Header="Passed" Binding="{Binding Passed}" Width="90" />
+                            <DataGridTextColumn Header="Failed" Binding="{Binding Failed}" Width="90" />
+                            <DataGridTextColumn Header="Suppressed" Binding="{Binding Suppressed}" Width="100" />
+                            <DataGridTextColumn Header="Crashed" Binding="{Binding Crashed}" Width="90" />
+                            <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="90" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
         </TabControl>
 
         <!-- Bottom: Agent chat panel -->

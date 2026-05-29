@@ -37,4 +37,7 @@ public sealed record AgentResult
 
     /// <summary>Number of findings suppressed by user configuration.</summary>
     public int SuppressedCount { get; init; }
+
+    /// <summary>Number of rules that crashed during evaluation.</summary>
+    public int CrashedCount { get; init; }
 }
