@@ -33,6 +33,7 @@ If you want the full end-to-end story, read in this order:
 13. [13 - C2 Channel Detection](./13-C2-Channel-Detection/README.md)
 14. [14 - Privilege Escalation Detection](./14-Privilege-Escalation-Detection/README.md)
 15. [15 - Linux Deep Inspection](./15-Linux-Deep-Inspection/README.md)
+16. [16 - Security Agent](./16-Security-Agent/README.md)
 
 ## What These Docs Cover
 
@@ -44,6 +45,7 @@ If you want the full end-to-end story, read in this order:
 - How intensity profiles change cost, noise, and completeness trade-offs
 - How results are packaged into signed evidence artifacts for reporting and handoff
 - How the Avalonia application exposes the workflow to an analyst
+- How the local Security Agent answers plain-English posture questions from live host state
 - How the automated test suite supports confidence in the implementation
 
 ## How The Case Studies Are Organized
@@ -62,6 +64,7 @@ Each numbered folder uses a consistent entry-point pattern, while individual dee
 - Threat correlation: [8 - Risk Escalation](./08-Risk-Escalation/README.md)
 - Evidence and reporting: [9 - Evidence Packaging](./09-Evidence-Packaging/README.md)
 - Product and UI engineering: [12 - Avalonia UI](./12-Avalonia-UI/README.md)
+- Local assistant workflow: [16 - Security Agent](./16-Security-Agent/README.md)
 - Quality and verification: [11 - Automated Tests](./11-Automated-Tests/README.md)
 - C2 and advanced threats: [13 - C2 Channel Detection](./13-C2-Channel-Detection/README.md)
 - Linux-specific signals: [15 - Linux Deep Inspection](./15-Linux-Deep-Inspection/README.md)

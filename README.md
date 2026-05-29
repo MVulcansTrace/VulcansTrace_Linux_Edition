@@ -42,6 +42,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners and deterministic rules.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 
@@ -146,6 +147,7 @@ Evidence documentation:
 | `VulcansTrace.Linux.Core` | Domain models, `UnifiedEvent`, log normalization, iptables/nftables parsers, and logging abstractions |
 | `VulcansTrace.Linux.Engine` | Detector implementations, intensity profiles, `SentryAnalyzer`, and risk escalation |
 | `VulcansTrace.Linux.Evidence` | Evidence bundle generation and CSV, JSON, STIX, HTML, and Markdown formatters |
+| `VulcansTrace.Linux.Agent` | Local Security Agent, scanners, posture rules, explanations, and agent report adapter |
 | `VulcansTrace.Linux.Avalonia` | Desktop UI, ViewModels, commands, and dialog services |
 | `VulcansTrace.Linux.Tests` | xUnit unit, integration, detector, evidence, UI, and performance tests |
 | `VulcansTrace.Linux.Performance` | Benchmark and profiling helpers |
@@ -165,6 +167,7 @@ Start here depending on what you need:
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System layers, data flow, detector groups, and domain types |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build/test workflow, project layout, detector extension steps, and build policies |
 | [docs/SECURITY.md](docs/SECURITY.md) | Offline policy, local data handling, evidence integrity, and defensive parsing |
+| [docs/SECURITY_AGENT.md](docs/SECURITY_AGENT.md) | Local Security Agent capabilities, scanner pipeline, rules, limitations, and roadmap |
 | [docs/HMAC_EVIDENCE.md](docs/HMAC_EVIDENCE.md) | How session signing keys are generated, copied, and used for verification |
 | [docs/CHANGES_AND_PROFILES.md](docs/CHANGES_AND_PROFILES.md) | Implementation change summary and Low/Medium/High profile capabilities |
 | [docs/portfolio/README.md](docs/portfolio/README.md) | GitHub-facing index for the complete technical portfolio |
@@ -175,11 +178,12 @@ Recommended review paths:
 - For architecture: [Architecture](docs/ARCHITECTURE.md) -> [Log Normalization](docs/portfolio/01-Log-Normalization/README.md) -> [Intensity Profiles](docs/portfolio/10-Intensity-Profiles/README.md)
 - For detection engineering: [Port Scan Detection](docs/portfolio/02-Port-Scan-Detection/README.md) -> [Beaconing Detection](docs/portfolio/03-Beaconing-Detection/README.md) -> [C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md)
 - For investigation workflow: [Risk Escalation](docs/portfolio/08-Risk-Escalation/README.md) -> [Evidence Packaging](docs/portfolio/09-Evidence-Packaging/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
+- For local assistant workflow: [Security Agent](docs/SECURITY_AGENT.md) -> [Security Agent portfolio](docs/portfolio/16-Security-Agent/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For verification: [Automated Tests](docs/portfolio/11-Automated-Tests/README.md) -> [Development](docs/DEVELOPMENT.md) -> [Security](docs/SECURITY.md)
 
 ## Portfolio Deep Dives
 
-The `docs/portfolio` folder contains 15 implementation-focused case studies. Each topic includes a `README.md`, concise summary material, and deeper technical notes such as algorithms, design decisions, evasion limits, MITRE ATT&CK mapping where relevant, and code-pattern walkthroughs.
+The `docs/portfolio` folder contains 16 implementation-focused case studies. Each topic includes a `README.md`, concise summary material, and deeper technical notes such as algorithms, design decisions, evasion limits, MITRE ATT&CK mapping where relevant, and code-pattern walkthroughs.
 
 | Topic | Description |
 | --- | --- |
@@ -198,6 +202,7 @@ The `docs/portfolio` folder contains 15 implementation-focused case studies. Eac
 | [13 - C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md) | Periodic command-and-control channel detection and grouping behavior |
 | [14 - Privilege Escalation Detection](docs/portfolio/14-Privilege-Escalation-Detection/README.md) | Admin-port spikes and sweeps as privilege-escalation indicators |
 | [15 - Linux Deep Inspection](docs/portfolio/15-Linux-Deep-Inspection/README.md) | Linux-specific signals including flags, MACs, kernel modules, interfaces, and packet sizes |
+| [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, scanner orchestration, and explanations |
 
 ## Development
 

@@ -5,6 +5,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.Rules.SecurityRules;
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Logging;
 using VulcansTrace.Linux.Engine;
@@ -74,8 +79,42 @@ public partial class MainWindow : Window
         var stixFormatter = new StixFormatter();
         var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter);
 
+        // Wire up the security agent
+        var scanners = new IScanner[]
+        {
+            new FirewallScanner(),
+            new PortScanner(),
+            new ServiceScanner(),
+            new NetworkScanner()
+        };
+
+        var rules = new IRule[]
+        {
+            new FirewallActiveRule(),
+            new FirewallDefaultDropRule(),
+            new FirewallSshExposureRule(),
+            new FirewallStateTrackingRule(),
+            new FirewallIcmpRule(),
+            new DefaultRouteRule(),
+            new SuspiciousConnectionsRule(),
+            new NetworkInterfaceUpRule(),
+            new LoopbackExposureRule(),
+            new TelnetServiceRule(),
+            new FtpServiceRule(),
+            new SshServiceRule(),
+            new LegacyRservicesRule(),
+            new UnnecessaryServicesRule(),
+            new SshNonDefaultPortRule(),
+            new WideOpenServicesRule(),
+            new DatabasePortExposureRule(),
+            new HighPortListeningRule()
+        };
+
+        var explanationProvider = new ExplanationProvider();
+        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider);
+
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider);
+        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent);
         DataContext = viewModel;
 
         DataContextChanged += (_, _) => HookTimelineViewModel();

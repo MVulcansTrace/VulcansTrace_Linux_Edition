@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\VulcansTrace.Linux.Engine\VulcansTrace.Linux.Engine.csproj" />
     <ProjectReference Include="..\VulcansTrace.Linux.Evidence\VulcansTrace.Linux.Evidence.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Agent\VulcansTrace.Linux.Agent.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
+using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -189,7 +192,33 @@ also not a firewall line";
         var hasher = new IntegrityHasher();
         var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter());
 
-        return new MainViewModel(analyzer, evidenceBuilder, new TestDialogService(), profileProvider);
+        var agent = new MockAgent();
+        return new MainViewModel(analyzer, evidenceBuilder, new TestDialogService(), profileProvider, agent);
+    }
+
+    private sealed class MockAgent : IAgent
+    {
+        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.Help,
+                Summary = "Mock agent response",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = intent,
+                Summary = "Mock audit complete",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 
     private sealed class TestDialogService : IDialogService

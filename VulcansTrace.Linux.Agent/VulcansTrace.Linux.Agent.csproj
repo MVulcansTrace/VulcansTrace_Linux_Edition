@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VulcansTrace.Linux.Core\VulcansTrace.Linux.Core.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Engine\VulcansTrace.Linux.Engine.csproj" />
+    <ProjectReference Include="..\VulcansTrace.Linux.Evidence\VulcansTrace.Linux.Evidence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Explanations\Templates\*.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VulcansTrace.Linux.Tests" />
+  </ItemGroup>
+
+</Project>

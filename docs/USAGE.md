@@ -16,6 +16,20 @@
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
 6. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
 
+### Security Agent Panel
+
+The Avalonia UI also includes a collapsible **Security Agent** panel. It can answer local posture questions such as:
+
+- `Is my system secure?`
+- `Check my firewall`
+- `What ports are open?`
+- `What services are running?`
+- `Who am I talking to?`
+
+The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
+
+For the full capability list and limitations, see [Security Agent](SECURITY_AGENT.md).
+
 ## Evidence Export
 
 Exporting evidence produces a ZIP archive with:

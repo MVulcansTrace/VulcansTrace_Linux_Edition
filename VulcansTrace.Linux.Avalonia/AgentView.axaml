@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+             x:Class="VulcansTrace.Linux.Avalonia.AgentView"
+             x:DataType="vm:AgentViewModel">
+
+    <Design.DataContext>
+        <vm:AgentViewModel/>
+    </Design.DataContext>
+
+    <UserControl.Resources>
+        <conv:BoolToColumnConverter x:Key="BoolToColumnConverter" />
+        <conv:BoolToSpanConverter x:Key="BoolToSpanConverter" />
+        <conv:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter" />
+        <conv:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
+        <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
+        <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,*" Margin="0">
+        <Border Grid.Row="0" Background="#1e293b" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="8,4">
+            <TextBlock Text="Security Agent" FontWeight="Bold" Foreground="#e2e8f0" FontSize="12"/>
+        </Border>
+
+        <Grid Grid.Row="1" RowDefinitions="*,Auto">
+            <!-- Chat history -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Messages}" Margin="8">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="6"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:AgentMessageViewModel">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <!-- User messages align right -->
+                                <Border Grid.Column="{Binding IsUser, Converter={StaticResource BoolToColumnConverter}}"
+                                        Grid.ColumnSpan="{Binding IsUser, Converter={StaticResource BoolToSpanConverter}}"
+                                        CornerRadius="8"
+                                        Padding="8,6"
+                                        Background="{Binding IsUser, Converter={StaticResource BoolToBackgroundConverter}}"
+                                        BorderBrush="{Binding IsUser, Converter={StaticResource BoolToBorderBrushConverter}}"
+                                        BorderThickness="1"
+                                        MaxWidth="480"
+                                        HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignmentConverter}}">
+                                    <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding Text}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{Binding IsUser, Converter={StaticResource BoolToForegroundConverter}}"/>
+                                        <TextBlock Text="{Binding Details}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="#94a3b8"
+                                                   FontSize="11"
+                                                   Margin="0,4,0,0"
+                                                   IsVisible="{Binding Details, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Input area -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="8,4,8,8">
+                <TextBox Grid.Column="0"
+                         Text="{Binding UserQuery, UpdateSourceTrigger=PropertyChanged}"
+                         Watermark="Ask the agent..."
+                         AcceptsReturn="False"
+                         VerticalContentAlignment="Center"
+                         AutomationProperties.AutomationId="AgentQueryTextBox"/>
+                <Button Grid.Column="1"
+                        Content="Send"
+                        Margin="8,0,0,0"
+                        Command="{Binding SendQueryCommand}"
+                        AutomationProperties.AutomationId="AgentSendButton"/>
+                <Button Grid.Column="2"
+                        Content="Cancel"
+                        Margin="8,0,0,0"
+                        Command="{Binding CancelQueryCommand}"
+                        IsVisible="{Binding IsBusy}"
+                        AutomationProperties.AutomationId="AgentCancelButton"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

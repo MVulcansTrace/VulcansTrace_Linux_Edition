@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -16,6 +16,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.Performance", "VulcansTrace.Linux.Performance\VulcansTrace.Linux.Performance.csproj", "{1EE20E16-AEFF-4648-9025-A531B8BC4BDF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.PerformanceConsole", "VulcansTrace.Linux.PerformanceConsole\VulcansTrace.Linux.PerformanceConsole.csproj", "{A9DE7DC7-C845-433E-9EA7-F5DBF19651BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.Agent", "VulcansTrace.Linux.Agent\VulcansTrace.Linux.Agent.csproj", "{88AA0B97-90B4-4287-B8A2-6F9689399125}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -54,5 +56,9 @@ Global
 		{A9DE7DC7-C845-433E-9EA7-F5DBF19651BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A9DE7DC7-C845-433E-9EA7-F5DBF19651BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A9DE7DC7-C845-433E-9EA7-F5DBF19651BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

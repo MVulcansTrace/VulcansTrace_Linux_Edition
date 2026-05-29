@@ -1,0 +1,26 @@
+using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Core;
+
+namespace VulcansTrace.Linux.Agent.Rules;
+
+/// <summary>
+/// A single security check rule that evaluates live system scan data.
+/// </summary>
+public interface IRule
+{
+    /// <summary>Unique rule identifier (e.g., "FW-001").</summary>
+    string Id { get; }
+
+    /// <summary>Human-readable rule category (e.g., "Firewall").</summary>
+    string Category { get; }
+
+    /// <summary>Brief description of what this rule checks.</summary>
+    string Description { get; }
+
+    /// <summary>
+    /// Evaluates the provided scan data.
+    /// </summary>
+    /// <param name="data">The aggregated system scan data.</param>
+    /// <returns>The result of the evaluation, including pass/fail status and severity.</returns>
+    RuleResult Evaluate(ScanData data);
+}

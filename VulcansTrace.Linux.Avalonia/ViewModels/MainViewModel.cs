@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -55,6 +56,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for timeline visualization.</summary>
     public TimelineViewModel Timeline { get; }
 
+    /// <summary>Gets the child ViewModel for the security agent chat panel.</summary>
+    public AgentViewModel Agent { get; }
+
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
 
@@ -66,6 +70,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (SetField(ref _logText, value))
             {
+                Agent.LogText = value;
+
                 if (!IsBusy && _lastResult != null)
                 {
                     InvalidateAnalysisContext("Log changed. Re-run analysis to refresh findings and exports.");
@@ -231,7 +237,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SentryAnalyzer analyzer,
         EvidenceBuilder evidenceBuilder,
         IDialogService dialogService,
-        AnalysisProfileProvider profileProvider)
+        AnalysisProfileProvider profileProvider,
+        IAgent agent)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -252,6 +259,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
+        Agent = new AgentViewModel(agent);
         _evidenceStatusHandler = (s, msg) =>
             Dispatcher.UIThread.Post(() => SummaryText = msg);
         Evidence.StatusChanged += _evidenceStatusHandler;
@@ -486,5 +494,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Evidence.StatusChanged -= _evidenceStatusHandler;
             Evidence.Dispose();
         }
+
+        Agent?.Dispose();
     }
 }
