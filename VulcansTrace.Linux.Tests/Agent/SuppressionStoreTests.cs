@@ -131,7 +131,7 @@ public class SuppressionStoreTests
     }
 
     [Fact]
-    public void InMemoryStore_PruneExpired_RemovesExpiredEntries()
+    public void InMemoryStore_PruneExpired_KeepsRecentlyExpired()
     {
         var store = new InMemorySuppressionStore();
         store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
@@ -140,10 +140,28 @@ public class SuppressionStoreTests
 
         var pruned = store.PruneExpired();
 
-        Assert.Equal(1, pruned);
+        Assert.Equal(0, pruned);
         Assert.Equal(2, store.GetAll().Count);
-        Assert.False(store.IsSuppressed("FW-001", "A"));
+        Assert.Single(store.GetAllRaw(), e => e.RuleId == "FW-001");
         Assert.True(store.IsSuppressed("FW-002", "B"));
+        Assert.True(store.IsSuppressed("FW-003", "C"));
+    }
+
+    [Fact]
+    public void InMemoryStore_PruneExpired_RemovesVeryOldExpired()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddDays(-31) });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B", ExpiresAt = DateTime.UtcNow.AddDays(-7) });
+        store.Add(new SuppressionEntry { RuleId = "FW-003", Target = "C" });
+
+        var pruned = store.PruneExpired();
+
+        Assert.Equal(1, pruned);
+        Assert.Single(store.GetAll()); // FW-002 is expired, so excluded from GetAll
+        Assert.Equal(2, store.GetAllRaw().Count); // FW-002 still in raw store
+        Assert.DoesNotContain(store.GetAllRaw(), e => e.RuleId == "FW-001");
+        Assert.False(store.IsSuppressed("FW-002", "B")); // expired
         Assert.True(store.IsSuppressed("FW-003", "C"));
     }
 
@@ -158,6 +176,31 @@ public class SuppressionStoreTests
 
         Assert.Single(all);
         Assert.Equal("FW-002", all[0].RuleId);
+    }
+
+    [Fact]
+    public void InMemoryStore_GetAllRaw_IncludesExpiredEntries()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B" });
+
+        var raw = store.GetAllRaw();
+
+        Assert.Equal(2, raw.Count);
+    }
+
+    [Fact]
+    public void InMemoryStore_GetAllRaw_ReturnsDescendingOrder()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", CreatedAt = DateTime.UtcNow.AddMinutes(-5) });
+        store.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B", CreatedAt = DateTime.UtcNow });
+
+        var raw = store.GetAllRaw();
+        Assert.Equal(2, raw.Count);
+        Assert.Equal("FW-002", raw[0].RuleId);
+        Assert.Equal("FW-001", raw[1].RuleId);
     }
 
     [Fact]
@@ -196,7 +239,7 @@ public class SuppressionStoreTests
         try
         {
             var store1 = new JsonFileSuppressionStore(path);
-            store1.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+            store1.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddDays(-31) });
             store1.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B" });
 
             var pruned = store1.PruneExpired();
@@ -204,6 +247,27 @@ public class SuppressionStoreTests
 
             var store2 = new JsonFileSuppressionStore(path);
             Assert.Single(store2.GetAll());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void JsonFileStore_GetAllRaw_IncludesExpiredEntries()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var store1 = new JsonFileSuppressionStore(path);
+            store1.Add(new SuppressionEntry { RuleId = "FW-001", Target = "A", ExpiresAt = DateTime.UtcNow.AddMinutes(-1) });
+            store1.Add(new SuppressionEntry { RuleId = "FW-002", Target = "B" });
+
+            var store2 = new JsonFileSuppressionStore(path);
+            var raw = store2.GetAllRaw();
+
+            Assert.Equal(2, raw.Count);
         }
         finally
         {

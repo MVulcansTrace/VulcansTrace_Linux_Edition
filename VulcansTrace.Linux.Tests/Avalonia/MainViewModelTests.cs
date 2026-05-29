@@ -149,6 +149,28 @@ also not a firewall line";
         Assert.Contains("Log changed", _vm.SummaryText);
     }
 
+    [Fact]
+    public async Task AgentAuditCompleted_RefreshesSuppressionReviewQueue()
+    {
+        var suppressionStore = new InMemorySuppressionStore();
+        suppressionStore.Add(new SuppressionEntry
+        {
+            RuleId = "FW-001",
+            Target = "A",
+            CreatedAt = DateTime.UtcNow.AddDays(-100)
+        });
+
+        using var vm = BuildViewModel(suppressionStore: suppressionStore);
+        Assert.Single(vm.Suppressions.ReviewQueueItems);
+
+        suppressionStore.Remove("FW-001", "A");
+
+        vm.Agent.FullAuditCommand.Execute(null);
+        await vm.Agent.FullAuditCommand.ExecutionTask!;
+
+        Assert.Empty(vm.Suppressions.ReviewQueueItems);
+    }
+
     private static async Task WaitForBusyAsync(MainViewModel vm, int timeoutMs = 10000)
     {
         var deadline = Environment.TickCount64 + timeoutMs;
@@ -158,7 +180,7 @@ also not a firewall line";
         }
     }
 
-    private static MainViewModel BuildViewModel()
+    private static MainViewModel BuildViewModel(ISuppressionStore? suppressionStore = null, IAgent? agent = null)
     {
         var logNormalizer = new LogNormalizer();
         var profileProvider = new AnalysisProfileProvider();
@@ -193,9 +215,13 @@ also not a firewall line";
         var hasher = new IntegrityHasher();
         var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter());
 
-        var agent = new MockAgent();
-        var suppressionStore = new InMemorySuppressionStore();
-        return new MainViewModel(analyzer, evidenceBuilder, new TestDialogService(), profileProvider, agent, suppressionStore);
+        return new MainViewModel(
+            analyzer,
+            evidenceBuilder,
+            new TestDialogService(),
+            profileProvider,
+            agent ?? new MockAgent(),
+            suppressionStore ?? new InMemorySuppressionStore());
     }
 
     private sealed class MockAgent : IAgent

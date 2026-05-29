@@ -56,10 +56,19 @@ public sealed class InMemorySuppressionStore : ISuppressionStore
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<SuppressionEntry> GetAllRaw()
+    {
+        return _entries.Values
+            .OrderByDescending(e => e.CreatedAt)
+            .ToList();
+    }
+
+    /// <inheritdoc />
     public int PruneExpired()
     {
+        var cutoff = DateTime.UtcNow.AddDays(-SuppressionRetentionPolicy.ExpiredRetentionDays);
         var expiredKeys = _entries
-            .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= DateTime.UtcNow)
+            .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= cutoff)
             .Select(kvp => kvp.Key)
             .ToList();
 

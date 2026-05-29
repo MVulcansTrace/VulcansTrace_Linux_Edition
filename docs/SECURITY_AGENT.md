@@ -76,7 +76,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
 7. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 8. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-9. Expired accepted-risk suppressions are pruned, active exact-match suppressions are applied, and rule pass/fail/suppressed counts are added to `AgentResult`.
+9. Suppressions expired longer than the 30-day review retention window are pruned, active exact-match suppressions are applied, and rule pass/fail/suppressed counts are added to `AgentResult`.
 10. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present and can include active suppression notes.
 
 ## Explanation Behavior
@@ -105,7 +105,8 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Audit history capped at 20 entries, with compare-last-two, selectable before/after comparison, and exported-state tracking after successful evidence export.
-- Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
+- Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
+- A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
 - Export Remediation support that writes a review-only markdown plan with safety notes, rollback hints, and verification commands.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.

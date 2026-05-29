@@ -107,13 +107,30 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<SuppressionEntry> GetAllRaw()
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            return _entries.Values
+                .OrderByDescending(e => e.CreatedAt)
+                .ToList();
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    /// <inheritdoc />
     public int PruneExpired()
     {
         _lock.EnterWriteLock();
         try
         {
+            var cutoff = DateTime.UtcNow.AddDays(-SuppressionRetentionPolicy.ExpiredRetentionDays);
             var expiredKeys = _entries
-                .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= DateTime.UtcNow)
+                .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= cutoff)
                 .Select(kvp => kvp.Key)
                 .ToList();
 

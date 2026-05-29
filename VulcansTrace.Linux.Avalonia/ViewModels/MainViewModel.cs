@@ -296,7 +296,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.ExportCompleted += _evidenceExportCompletedHandler;
 
         RuleCatalog = new RuleCatalogViewModel();
-        Suppressions = new SuppressionViewModel(suppressionStore);
+        Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
 
         AcceptRiskCommand = new AsyncRelayCommand(
@@ -459,6 +459,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(null);
+        Suppressions.Refresh();
         SummaryText = agentResult.Summary;
     }
 

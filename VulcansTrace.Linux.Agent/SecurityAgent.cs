@@ -123,7 +123,7 @@ public sealed class SecurityAgent : IAgent
         var suppressedCount = 0;
         var failedCount = 0;
 
-        // Prune expired suppressions before checking
+        // Prune expired suppressions beyond the review retention window before checking.
         _suppressionStore?.PruneExpired();
 
         foreach (var result in ruleResults.Where(r => !r.Passed))

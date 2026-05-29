@@ -40,7 +40,7 @@ Copyable commands are intentionally scoped to the `How to verify` section. Sugge
 
 ## Time-Bound Suppressions
 
-Accepted-risk suppressions are exact rule-ID/target matches with explicit durations: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup and pruned at the start of audits. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent.
+Accepted-risk suppressions are exact rule-ID/target matches with explicit durations: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup immediately, but remain visible in the review queue for 30 days before audit-time pruning removes them. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent or hiding recently expired decisions before an analyst can review them.
 
 ## Preserve Existing Analysis Contracts
 
@@ -50,7 +50,7 @@ Agent audit results are also loaded into the shared findings grid. That makes th
 
 ## UI As A Thin Control Shell
 
-The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, filtering, quick actions, privilege warnings, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
+The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, filtering, quick actions, privilege warnings, suppression review refreshes, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
 
 ## Current Tradeoffs
 
