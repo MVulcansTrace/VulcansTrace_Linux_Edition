@@ -20,10 +20,13 @@ public sealed class CsvFormatter : IEvidenceFormatter
     public string ToCsv(AnalysisResult result)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription");
+        sb.AppendLine("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters");
 
         foreach (var f in result.Findings)
         {
+            var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
+            var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
+            var cisWhy = string.Join("; ", f.CisMappings.Select(m => m.WhyItMatters));
             var fields = new[]
             {
                 f.RuleId ?? string.Empty,
@@ -33,7 +36,10 @@ public sealed class CsvFormatter : IEvidenceFormatter
                 f.Target,
                 f.TimeRangeStart.ToString("o", CultureInfo.InvariantCulture),
                 f.TimeRangeEnd.ToString("o", CultureInfo.InvariantCulture),
-                f.ShortDescription
+                f.ShortDescription,
+                cisIds,
+                cisBenchmarks,
+                cisWhy
             };
 
             sb.AppendLine(string.Join(",", fields.Select(Escape)));

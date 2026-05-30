@@ -15,16 +15,27 @@ public sealed class FirewallDefaultDropRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.5",
+            ControlName = "Implement and Manage a Firewall on Servers",
+            WhyItMatters = "A default ACCEPT policy allows any unsolicited inbound traffic. PCI-DSS 1.2, HIPAA 164.312(e), and SOC 2 all require explicit deny-by-default posture.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.3 / 3.5.2.3 — Ensure default deny firewall policy"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
             return RuleResult.Fail(Id, Category, "FW-001", Description, Severity.High, "INPUT",
-                new Dictionary<string, string> { ["issue"] = "No active firewall detected" });
+                new Dictionary<string, string> { ["issue"] = "No active firewall detected" }, CisMappings);
 
         var inputChain = data.FirewallRules.FirstOrDefault(r => r.Chain.Equals("INPUT", StringComparison.OrdinalIgnoreCase));
         if (inputChain == null)
         {
-            return RuleResult.Pass(Id, Category, "FW-001", Description);
+            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
         }
 
         // Check if any rule has target DROP for default policy (iptables -L shows policy in chain header, not as rule)
@@ -35,16 +46,16 @@ public sealed class FirewallDefaultDropRule : IRule
         if (hasAcceptPolicy)
         {
             return RuleResult.Fail(Id, Category, "FW-001", Description, Severity.High, "INPUT",
-                new Dictionary<string, string> { ["policy"] = "ACCEPT" });
+                new Dictionary<string, string> { ["policy"] = "ACCEPT" }, CisMappings);
         }
 
         if (hasDropPolicy)
         {
-            return RuleResult.Pass(Id, Category, "FW-001", Description);
+            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
         }
 
         // Unknown policy or nftables — be lenient
-        return RuleResult.Pass(Id, Category, "FW-001", Description);
+        return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
     }
 }
 
@@ -60,10 +71,21 @@ public sealed class FirewallSshExposureRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.5",
+            ControlName = "Implement and Manage a Firewall on Servers",
+            WhyItMatters = "SSH open to any IP violates least-privilege network access and exposes the asset to untargeted brute-force campaigns, a common audit failure.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-002", Description); // Can't verify without firewall
+            return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings); // Can't verify without firewall
 
         var sshRules = data.FirewallRules.Where(r =>
             r.DestinationPort == "22" || r.RawLine.Contains("dpt:22") || r.RawLine.Contains("--dport 22")).ToList();
@@ -72,7 +94,7 @@ public sealed class FirewallSshExposureRule : IRule
         {
             // No explicit SSH rule — might be covered by general ACCEPT or DROP
             return RuleResult.Fail(Id, Category, "FW-002", Description, Severity.Medium, "SSH/22",
-                new Dictionary<string, string> { ["issue"] = "No explicit SSH firewall rule found" });
+                new Dictionary<string, string> { ["issue"] = "No explicit SSH firewall rule found" }, CisMappings);
         }
 
         var openRule = sshRules.FirstOrDefault(r =>
@@ -82,10 +104,10 @@ public sealed class FirewallSshExposureRule : IRule
         if (openRule != null)
         {
             return RuleResult.Fail(Id, Category, "FW-002", Description, Severity.High, "SSH/22",
-                new Dictionary<string, string> { ["source"] = openRule.Source });
+                new Dictionary<string, string> { ["source"] = openRule.Source }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-002", Description);
+        return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings);
     }
 }
 
@@ -101,10 +123,21 @@ public sealed class FirewallStateTrackingRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
     public Severity Severity => Severity.Medium;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.5",
+            ControlName = "Implement and Manage a Firewall on Servers",
+            WhyItMatters = "State tracking prevents unsolicited inbound traffic from reaching the host while allowing return traffic for established connections, a foundational firewall requirement.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-003", Description);
+            return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings);
 
         var hasStateTracking = data.FirewallRules.Any(r =>
             r.StateMatch != null &&
@@ -113,10 +146,10 @@ public sealed class FirewallStateTrackingRule : IRule
         if (!hasStateTracking)
         {
             return RuleResult.Fail(Id, Category, "FW-003", Description, Severity.Medium, "INPUT",
-                new Dictionary<string, string>());
+                new Dictionary<string, string>(), CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-003", Description);
+        return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings);
     }
 }
 
@@ -132,13 +165,24 @@ public sealed class FirewallActiveRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.5",
+            ControlName = "Implement and Manage a Firewall on Servers",
+            WhyItMatters = "No active firewall means no network perimeter enforcement. This is an automatic critical failure in PCI-DSS, SOC 2, and CIS audits.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.1 / 3.5.2.1 — Ensure iptables/nftables is installed"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.FirewallActive && data.FirewallRules.Count > 0)
-            return RuleResult.Pass(Id, Category, "FW-004", Description);
+            return RuleResult.Pass(Id, Category, "FW-004", Description, CisMappings);
 
         return RuleResult.Fail(Id, Category, "FW-004", Description, Severity.Critical, "firewall",
-            new Dictionary<string, string>());
+            new Dictionary<string, string>(), CisMappings);
     }
 }
 
@@ -154,10 +198,21 @@ public sealed class FirewallIcmpRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "iptables -L -n -v", "nft list ruleset" };
     public Severity Severity => Severity.Low;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.5",
+            ControlName = "Implement and Manage a Firewall on Servers",
+            WhyItMatters = "Unrestricted ICMP acceptance can facilitate reconnaissance (ping sweeps) and certain denial-of-service attacks (ICMP floods). Rate limiting mitigates this risk.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.5 / 3.5.2.5 — Ensure outbound and established connections are configured"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-005", Description);
+            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
 
         var icmpRules = data.FirewallRules.Where(r =>
             r.Protocol.Equals("icmp", StringComparison.OrdinalIgnoreCase) ||
@@ -166,7 +221,7 @@ public sealed class FirewallIcmpRule : IRule
         if (!icmpRules.Any())
         {
             // No explicit ICMP rule — might be handled by default policy
-            return RuleResult.Pass(Id, Category, "FW-005", Description);
+            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
         }
 
         var blanketAccept = icmpRules.Any(r =>
@@ -176,9 +231,9 @@ public sealed class FirewallIcmpRule : IRule
         if (blanketAccept)
         {
             return RuleResult.Fail(Id, Category, "FW-005", Description, Severity.Low, "ICMP",
-                new Dictionary<string, string>());
+                new Dictionary<string, string>(), CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-005", Description);
+        return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
     }
 }

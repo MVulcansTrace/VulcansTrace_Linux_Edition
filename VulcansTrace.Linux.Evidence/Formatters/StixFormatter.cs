@@ -240,7 +240,12 @@ public sealed class StixFormatter : IEvidenceFormatter
             ? string.Empty
             : $"Rule ID: {finding.RuleId}\n";
 
+        var cis = finding.CisMappings.Count > 0
+            ? "CIS Mapping: " + string.Join("; ", finding.CisMappings.Select(m => $"{m.ControlId} ({m.ControlName})")) + "\n"
+            : string.Empty;
+
         return ruleId +
+               cis +
                $"Category: {finding.Category}\n" +
                $"Severity: {finding.Severity}\n" +
                $"Source: {finding.SourceHost}\n" +

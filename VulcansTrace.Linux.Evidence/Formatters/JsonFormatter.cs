@@ -51,7 +51,14 @@ public class JsonFormatter : IEvidenceFormatter
                 TimeRangeStart = f.TimeRangeStart,
                 TimeRangeEnd = f.TimeRangeEnd,
                 ShortDescription = f.ShortDescription,
-                Details = f.Details
+                Details = f.Details,
+                CisMappings = f.CisMappings.Select(m => new CisMappingExportModel
+                {
+                    ControlId = m.ControlId,
+                    ControlName = m.ControlName,
+                    WhyItMatters = m.WhyItMatters,
+                    BenchmarkReference = m.BenchmarkReference
+                }).ToArray()
             }).ToArray(),
             ParseErrors = result.ParseErrors.ToArray(),
             Warnings = result.Warnings.ToArray()
@@ -108,4 +115,13 @@ public class FindingExportModel
     public DateTime TimeRangeEnd { get; set; }
     public string ShortDescription { get; set; } = string.Empty;
     public string Details { get; set; } = string.Empty;
+    public CisMappingExportModel[] CisMappings { get; set; } = Array.Empty<CisMappingExportModel>();
+}
+
+public class CisMappingExportModel
+{
+    public string ControlId { get; set; } = string.Empty;
+    public string ControlName { get; set; } = string.Empty;
+    public string WhyItMatters { get; set; } = string.Empty;
+    public string? BenchmarkReference { get; set; }
 }

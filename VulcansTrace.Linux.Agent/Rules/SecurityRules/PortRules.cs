@@ -15,6 +15,16 @@ public sealed class SshNonDefaultPortRule : IRule, IContextualRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Info;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "Running SSH on the default port 22 increases visibility to automated scanners. While not a control requirement, non-default ports reduce noise in logs and frustrate untargeted attacks."
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
         => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
 
@@ -26,14 +36,14 @@ public sealed class SshNonDefaultPortRule : IRule, IContextualRule
             if (context.Policy?.Parameters.TryGetValue("treatDefaultAs", out var treatDefaultAs) == true &&
                 string.Equals(treatDefaultAs, "Pass", StringComparison.OrdinalIgnoreCase))
             {
-                return RuleResult.Pass(Id, Category, "PORT-001", Description);
+                return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings);
             }
 
             return RuleResult.Fail(Id, Category, "PORT-001", Description, Severity.Info, "22",
-                new Dictionary<string, string> { ["port"] = "22" });
+                new Dictionary<string, string> { ["port"] = "22" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-001", Description);
+        return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings);
     }
 }
 
@@ -48,6 +58,17 @@ public sealed class WideOpenServicesRule : IRule, IContextualRule
     public string WhatItChecks => "Checks for services listening on all interfaces that should be reviewed";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Medium;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "Services bound to all interfaces increase the attack surface. Each listening port should have a documented business need and be protected by host or network firewall rules.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
+        }
+    };
 
     private static readonly int[] DefaultExpectedPublicPorts = { 22, 80, 443 };
 
@@ -82,10 +103,10 @@ public sealed class WideOpenServicesRule : IRule, IContextualRule
                     ["address"] = first.LocalAddress,
                     ["process"] = first.ProcessName ?? "unknown",
                     ["count"] = wideOpen.Count.ToString()
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-002", Description);
+        return RuleResult.Pass(Id, Category, "PORT-002", Description, CisMappings);
     }
 }
 
@@ -100,6 +121,17 @@ public sealed class DatabasePortExposureRule : IRule
     public string WhatItChecks => "Checks whether database ports are exposed to all interfaces";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Critical;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "Database ports exposed to all interfaces bypass defense-in-depth and violate data-protection requirements (PCI-DSS Req 1.3, HIPAA 164.312(e)).",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
+        }
+    };
 
     private static readonly int[] DatabasePorts = { 3306, 5432, 27017, 1433, 1521, 6379 };
 
@@ -118,10 +150,10 @@ public sealed class DatabasePortExposureRule : IRule
                 {
                     ["port"] = first.LocalPort.ToString(),
                     ["process"] = first.ProcessName ?? "unknown"
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-003", Description);
+        return RuleResult.Pass(Id, Category, "PORT-003", Description, CisMappings);
     }
 }
 
@@ -136,6 +168,17 @@ public sealed class HighPortListeningRule : IRule
     public string WhatItChecks => "Checks for high ports listening without an associated process name";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Info;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 13.3",
+            ControlName = "Deploy a Network Intrusion Detection Solution",
+            WhyItMatters = "Unattributed listening high ports may indicate unauthorized services, backdoors, or misconfigured applications that evade standard port monitoring.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
+        }
+    };
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -154,9 +197,9 @@ public sealed class HighPortListeningRule : IRule
                 {
                     ["port"] = first.LocalPort.ToString(),
                     ["count"] = highPorts.Count.ToString()
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-004", Description);
+        return RuleResult.Pass(Id, Category, "PORT-004", Description, CisMappings);
     }
 }

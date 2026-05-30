@@ -155,6 +155,40 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - It reports warnings when data cannot be collected.
 - It reports data-source capability status so exported evidence shows which local commands informed the audit.
 
+## CIS Benchmark Mapping
+
+Every agent rule maps to **two compliance layers**:
+
+1. **CIS Controls v8** (organizational) — e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
+2. **CIS Ubuntu 24.04 LTS Benchmark** (technical) — e.g., `5.2.7 Ensure SSH root login is disabled`
+
+This dual-layer mapping gives auditors both the high-level organizational control and the exact Linux benchmark section the rule validates. The mapping flows through every execution path: full audits, single-rule explanations, crashes, policy-disabled results, and all evidence exports.
+
+| Rule | CIS Control | Ubuntu Benchmark |
+|------|-------------|------------------|
+| SSH-001 | CIS 5.4 — Restrict Administrator Privileges | 5.2.7 — Ensure SSH root login is disabled |
+| SSH-002 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.16 — Ensure SSH PasswordAuthentication is disabled |
+| SSH-003 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.14 — Ensure SSH MaxAuthTries is configured |
+| SSH-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 5.2.15 — Ensure SSH Protocol is set to 2 |
+| SSH-005 | CIS 5.2 — Use Unique Passwords | 5.2.9 — Ensure SSH PermitEmptyPasswords is disabled |
+| SSH-006 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.17 — Ensure SSH PubkeyAuthentication is enabled |
+| SSH-007 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 5.2.12 — Ensure SSH X11 forwarding is disabled |
+| FW-001 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.3 / 3.5.2.3 — Ensure default deny firewall policy |
+| FW-002 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
+| FW-003 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled |
+| FW-004 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.1 / 3.5.2.1 — Ensure iptables/nftables is installed |
+| FW-005 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.5 / 3.5.2.5 — Ensure outbound and established connections are configured |
+| PORT-002 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
+| PORT-003 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
+| SRV-001 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.17 — Ensure telnet server is not installed |
+| SRV-002 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.12 — Ensure FTP server is not installed |
+| SRV-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.16 — Ensure rsh server is not installed |
+| SRV-005 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.x — Ensure unnecessary services are removed or disabled |
+
+The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists.
+
+Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMappings`, and are attached to `Finding.CisMappings` in both the full audit and single-rule explain paths. Evidence exports preserve them in CSV, HTML, Markdown, JSON, and STIX formats.
+
 ## Current Limitations
 
 - It is a deterministic rule-based assistant, not an LLM-backed conversational system.

@@ -15,6 +15,16 @@ public sealed class DefaultRouteRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "ip route" };
     public Severity Severity => Severity.Medium;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "A missing default gateway may indicate an incomplete network configuration or an isolated system with unintended connectivity gaps, complicating patching and monitoring."
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         var hasDefaultRoute = data.Routes.Any(r =>
@@ -23,10 +33,10 @@ public sealed class DefaultRouteRule : IRule
         if (!hasDefaultRoute)
         {
             return RuleResult.Fail(Id, Category, "NET-001", Description, Severity.Medium, "routing",
-                new Dictionary<string, string>());
+                new Dictionary<string, string>(), CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "NET-001", Description);
+        return RuleResult.Pass(Id, Category, "NET-001", Description, CisMappings);
     }
 }
 
@@ -41,6 +51,16 @@ public sealed class SuspiciousConnectionsRule : IRule
     public string WhatItChecks => "Checks for suspicious outbound connections to high-risk ports (telnet, SMB, RDP)";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tunap" };
     public Severity Severity => Severity.High;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 13.3",
+            ControlName = "Deploy a Network Intrusion Detection Solution",
+            WhyItMatters = "Outbound connections to high-risk ports may indicate data exfiltration or C2 activity, a key concern for incident-response readiness and SOC 2 CC7.2."
+        }
+    };
 
     private static readonly int[] SuspiciousPorts = { 23, 445, 3389, 135, 139 };
 
@@ -60,10 +80,10 @@ public sealed class SuspiciousConnectionsRule : IRule
                     ["remote"] = $"{first.RemoteAddress}:{first.RemotePort}",
                     ["local"] = $"{first.LocalAddress}:{first.LocalPort}",
                     ["count"] = suspicious.Count.ToString()
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "NET-002", Description);
+        return RuleResult.Pass(Id, Category, "NET-002", Description, CisMappings);
     }
 }
 
@@ -79,15 +99,25 @@ public sealed class NetworkInterfaceUpRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "ip addr" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "No active network interface may indicate a misconfigured or disabled system, preventing remote management, monitoring, and timely security updates."
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.NetworkInterfaces.Any(i => i.IsUp))
         {
             return RuleResult.Fail(Id, Category, "NET-003", Description, Severity.High, "interfaces",
-                new Dictionary<string, string>());
+                new Dictionary<string, string>(), CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "NET-003", Description);
+        return RuleResult.Pass(Id, Category, "NET-003", Description, CisMappings);
     }
 }
 
@@ -102,6 +132,17 @@ public sealed class LoopbackExposureRule : IRule
     public string WhatItChecks => "Checks whether loopback-only services are exposed on external interfaces";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Medium;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "Services intended for loopback-only access (e.g., databases, debug ports) exposed externally bypass network segmentation and create direct attack vectors.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.4 / 3.5.2.4 — Ensure loopback traffic is configured"
+        }
+    };
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -125,9 +166,9 @@ public sealed class LoopbackExposureRule : IRule
                     ["port"] = first.LocalPort.ToString(),
                     ["address"] = first.LocalAddress,
                     ["process"] = first.ProcessName ?? "unknown"
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "NET-004", Description);
+        return RuleResult.Pass(Id, Category, "NET-004", Description, CisMappings);
     }
 }

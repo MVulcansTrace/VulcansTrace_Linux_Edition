@@ -34,7 +34,7 @@ The Security Agent provides a parallel local posture path:
 2. Agent scanners collect firewall, port, service, SSH daemon configuration, interface, route, and connection state from local Linux commands, plus data-source capability status for those commands.
 3. Role-aware rule policy resolves built-in defaults and local JSON overrides.
 4. Agent rules evaluate the collected `ScanData`, including contextual parameters when supported.
-5. Failed posture checks become `Finding` records with stable fingerprints and markdown-backed explanations.
+5. Failed posture checks become `Finding` records with stable fingerprints, markdown-backed explanations, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
 6. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
 7. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 8. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.

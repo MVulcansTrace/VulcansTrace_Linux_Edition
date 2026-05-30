@@ -26,6 +26,9 @@ public interface IRule
     /// <summary>Maximum severity this rule can produce when it fails.</summary>
     Severity Severity { get; }
 
+    /// <summary>CIS Benchmark controls this rule maps to (may be empty).</summary>
+    IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
+
     /// <summary>
     /// Evaluates the provided scan data.
     /// </summary>

@@ -27,4 +27,7 @@ public sealed record RuleCatalogItem
 
     /// <summary>The explanation template key used by this rule.</summary>
     public required string ExplanationKey { get; init; }
+
+    /// <summary>CIS Benchmark controls this rule maps to (may be empty).</summary>
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings { get; init; } = Array.Empty<CisBenchmarkMapping>();
 }

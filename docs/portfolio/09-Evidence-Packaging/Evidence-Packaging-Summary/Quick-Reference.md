@@ -50,10 +50,17 @@ AnalysisResult + rawLog
 | Formatter | Key Security Feature | Output Standard |
 |---|---|---|
 | `CsvFormatter` | Formula injection defense (prepend `'` to `=+-@`) | RFC 4180 |
-| `HtmlFormatter` | `HtmlEncode` on all user content | HTML5 |
-| `JsonFormatter` | camelCase naming, null-omission | JSON (SIEM-compatible) |
-| `MarkdownFormatter` | Pipe/backtick/bracket escaping, newline-to-`<br>` | GFM |
+| `HtmlFormatter` | `HtmlEncode` on all user content; CIS Benchmark column in findings and compliance context | HTML5 |
+| `JsonFormatter` | camelCase naming, null-omission; includes `benchmarkReference` in CIS mappings | JSON (SIEM-compatible) |
+| `MarkdownFormatter` | Pipe/backtick/bracket escaping, newline-to-`<br>`; CIS Benchmark column and compliance context bullets | GFM |
 | `StixFormatter` | IP validation via `IPAddress.TryParse`, deduplication | STIX 2.1 |
+
+Agent audit findings include CIS Benchmark mappings in all export formats:
+- **CSV**: `CisControlIds`, `CisBenchmarkReferences`, and `CisWhyItMatters` columns
+- **HTML**: CIS Control and CIS Benchmark columns in the findings table; Benchmark Reference column in the Compliance Context table
+- **Markdown**: CIS Control and CIS Benchmark columns; benchmark line in Compliance Context bullet points
+- **JSON**: `cisMappings[].benchmarkReference` alongside `controlId`, `controlName`, and `whyItMatters`
+- **STIX**: `CIS Mapping:` line in note objects includes control ID and name
 
 ---
 

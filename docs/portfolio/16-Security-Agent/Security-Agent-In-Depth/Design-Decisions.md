@@ -85,6 +85,21 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 - **Context preservation** — `RunDriftCheckAsync` saves and restores `_lastResult` around the inner `RunAuditAsync` call so drift checks do not corrupt the user's previous audit context.
 - **Audit-intent isolation** — `_lastAuditIntent` tracks only actual audit intents, separate from `_lastResult.Intent`. This prevents a `SetBaseline` after `CheckDrift` from scoping the baseline to `CheckDrift` instead of the original audit intent.
 
+## Dual-Layer CIS Benchmark Mapping
+
+**Decision:** Every rule carries both a CIS Controls v8 organizational mapping and a CIS Ubuntu 24.04 LTS Benchmark technical mapping.
+
+**Rationale:**
+
+- CIS Controls v8 (`CIS 4.5`, `CIS 5.4`, etc.) answers "what control area does this finding violate?" for executives and auditors.
+- The Ubuntu benchmark (`5.2.7 Ensure SSH root login is disabled`) answers "exactly which scored configuration item failed?" for Linux administrators and compliance reviewers.
+- A Linux security tool that only maps to organizational controls looks generic. Adding the specific benchmark section makes the mapping credible and actionable.
+- The `BenchmarkReference` field is optional on `CisBenchmarkMapping`, so rules without a clean 1:1 benchmark match can still carry the Controls v8 mapping alone.
+
+**Trade-off:** Benchmark section numbers drift across distro versions. The current references target CIS Ubuntu 24.04 LTS; future distro support may need versioned benchmark references or a mapping table per distro.
+
+**Deduplication choice:** HTML and Markdown compliance-context sections previously grouped by `ControlId` and took `First()`, which hid differing `WhyItMatters` text when multiple rules mapped to the same control (e.g., all five firewall rules map to `CIS 4.5`). The dedup was changed to `Distinct()` on the full record so every unique rationale and benchmark reference is preserved.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.

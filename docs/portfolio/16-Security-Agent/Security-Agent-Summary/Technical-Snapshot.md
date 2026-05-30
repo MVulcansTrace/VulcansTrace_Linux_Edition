@@ -23,6 +23,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
 | Agent intents | 15: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
+| CIS mapping coverage | 25 / 25 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
+| CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, and guarded remediation export |
@@ -38,7 +40,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **Reduces false positives with explicit local context** — Workstation, Server, LabBox, Router, and DevMachine profiles tune selected rules without weakening the global rule catalog
 - **Keeps trust high** — deterministic rules and markdown explanations make findings auditable
 - **Stays local-first** — no external AI call is required to answer security questions
-- **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, and active suppression notes preserved in exported evidence
+- **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, active suppression notes, and CIS Benchmark mappings preserved in exported evidence
+- **Dual-layer compliance context** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical), giving auditors precise 1:1 traceability from a finding to the exact benchmark section it validates
 
 ---
 

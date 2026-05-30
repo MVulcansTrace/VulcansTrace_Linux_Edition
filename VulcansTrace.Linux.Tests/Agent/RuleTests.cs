@@ -558,4 +558,77 @@ public class RuleTests
         Assert.True(new SshPubkeyAuthenticationRule().Evaluate(data).Passed);
         Assert.True(new SshX11ForwardingRule().Evaluate(data).Passed);
     }
+
+    // =====================================================================
+    // CIS Benchmark Mapping
+    // =====================================================================
+
+    [Theory]
+    [InlineData(typeof(FirewallDefaultDropRule), "CIS 4.5")]
+    [InlineData(typeof(FirewallSshExposureRule), "CIS 4.5")]
+    [InlineData(typeof(FirewallStateTrackingRule), "CIS 4.5")]
+    [InlineData(typeof(FirewallActiveRule), "CIS 4.5")]
+    [InlineData(typeof(FirewallIcmpRule), "CIS 4.5")]
+    [InlineData(typeof(DefaultRouteRule), "CIS 4.1")]
+    [InlineData(typeof(SuspiciousConnectionsRule), "CIS 13.3")]
+    [InlineData(typeof(NetworkInterfaceUpRule), "CIS 4.1")]
+    [InlineData(typeof(LoopbackExposureRule), "CIS 4.1")]
+    [InlineData(typeof(SshNonDefaultPortRule), "CIS 4.8")]
+    [InlineData(typeof(WideOpenServicesRule), "CIS 4.1")]
+    [InlineData(typeof(DatabasePortExposureRule), "CIS 4.1")]
+    [InlineData(typeof(HighPortListeningRule), "CIS 13.3")]
+    [InlineData(typeof(TelnetServiceRule), "CIS 4.8")]
+    [InlineData(typeof(FtpServiceRule), "CIS 4.8")]
+    [InlineData(typeof(SshServiceRule), "CIS 4.1")]
+    [InlineData(typeof(LegacyRservicesRule), "CIS 4.8")]
+    [InlineData(typeof(UnnecessaryServicesRule), "CIS 4.8")]
+    [InlineData(typeof(SshPermitRootLoginRule), "CIS 5.4")]
+    [InlineData(typeof(SshPasswordAuthenticationRule), "CIS 6.3")]
+    [InlineData(typeof(SshMaxAuthTriesRule), "CIS 6.3")]
+    [InlineData(typeof(SshProtocolRule), "CIS 4.8")]
+    [InlineData(typeof(SshEmptyPasswordsRule), "CIS 5.2")]
+    [InlineData(typeof(SshPubkeyAuthenticationRule), "CIS 6.3")]
+    [InlineData(typeof(SshX11ForwardingRule), "CIS 4.8")]
+    public void KeyRules_HaveCisMappings(Type ruleType, string expectedControlId)
+    {
+        var rule = (IRule)Activator.CreateInstance(ruleType)!;
+
+        Assert.NotEmpty(rule.CisMappings);
+        Assert.Contains(rule.CisMappings, m => m.ControlId == expectedControlId);
+        Assert.All(rule.CisMappings, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.ControlName));
+            Assert.False(string.IsNullOrWhiteSpace(m.WhyItMatters));
+        });
+    }
+
+    [Fact]
+    public void CisMappings_FlowThrough_ToFailedResult()
+    {
+        var rule = new FirewallActiveRule();
+        var data = new ScanData { FirewallActive = false, FirewallRules = Array.Empty<FirewallRule>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.NotEmpty(result.CisMappings);
+        Assert.Equal(rule.CisMappings, result.CisMappings);
+    }
+
+    [Fact]
+    public void CisMappings_FlowThrough_ToPassedResult()
+    {
+        var rule = new FirewallActiveRule();
+        var data = new ScanData
+        {
+            FirewallActive = true,
+            FirewallRules = new[] { new FirewallRule { Chain = "INPUT", Target = "DROP" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.NotEmpty(result.CisMappings);
+        Assert.Equal(rule.CisMappings, result.CisMappings);
+    }
 }

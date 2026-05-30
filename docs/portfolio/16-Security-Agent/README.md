@@ -30,7 +30,8 @@ Documentation is organized for two audiences:
 - **Configuration baseline & drift detection** — saves a "known good" baseline per intent, compares live audits against it, and reports new and worsened findings as drift with narrative summaries; preserves original finding details for lossless baseline display
 - **Timed suppressions** — supports fingerprint-scoped 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
 - **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, baseline set/drift/show actions, suppression review actions, cancellation, audit export, and guarded remediation preview export
-- **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, baseline store persistence, drift detection, and agent orchestration
+- **Dual-layer CIS Benchmark mapping** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical) for audit-ready compliance traceability
+- **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, baseline store persistence, drift detection, agent orchestration, and CIS mapping flow-through across all execution paths
 
 ## Implementation Evidence
 

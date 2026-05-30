@@ -33,7 +33,7 @@ public class CsvFormatterTests
 
         var csv = formatter.ToCsv(result);
 
-        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription", csv);
+        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters", csv);
         Assert.Contains("FW-001", csv);
         Assert.Contains("\"Cat,1\"", csv);
         Assert.Contains("\"desc \"\"quoted\"\" value\"", csv);
@@ -53,6 +53,7 @@ public class CsvFormatterTests
         var csv = formatter.ToCsv(result);
 
         Assert.Contains("Category,Severity,SourceHost", csv);
+        Assert.Contains("CisControlIds", csv);
         Assert.DoesNotContain("192.168", csv);
     }
 

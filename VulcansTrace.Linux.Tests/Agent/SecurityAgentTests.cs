@@ -378,6 +378,17 @@ public class SecurityAgentTests
         public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
         public Severity Severity => Severity.Low;
 
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+        {
+            new CisBenchmarkMapping
+            {
+                ControlId = "CIS 4.5",
+                ControlName = "Implement and Manage a Firewall on Servers",
+                WhyItMatters = "Test why it matters.",
+                BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.3 — Ensure default deny firewall policy"
+            }
+        };
+
         public RuleResult Evaluate(ScanData data)
         {
             return RuleResult.Fail(
@@ -386,7 +397,8 @@ public class SecurityAgentTests
                 Id,
                 Description,
                 Severity.Low,
-                "test-target");
+                "test-target",
+                cisMappings: CisMappings);
         }
     }
 
@@ -398,6 +410,17 @@ public class SecurityAgentTests
         public string WhatItChecks => "Test crash";
         public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
         public Severity Severity => Severity.Info;
+
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+        {
+            new CisBenchmarkMapping
+            {
+                ControlId = "CIS 4.1",
+                ControlName = "Establish and Maintain a Secure Configuration Process",
+                WhyItMatters = "Test crash mapping.",
+                BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.4 — Ensure SSH server is installed"
+            }
+        };
 
         public RuleResult Evaluate(ScanData data)
         {
@@ -1186,6 +1209,109 @@ public class SecurityAgentTests
         Assert.NotNull(result.BaselineDiff);
         Assert.True(result.BaselineDiff.HasDrift);
         Assert.Single(result.BaselineDiff.Diff.WorsenedFindings);
+    }
+
+    // =====================================================================
+    // CIS Benchmark Mapping flow-through tests
+    // =====================================================================
+
+    [Fact]
+    public async Task RunSingleRuleAsync_FindingIncludesCisMappings()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("explain TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Single(result.AgentFindings);
+        Assert.NotEmpty(result.AgentFindings[0].CisMappings);
+        Assert.Contains(result.AgentFindings[0].CisMappings, m => m.ControlId == "CIS 4.5");
+        Assert.Contains(result.AgentFindings[0].CisMappings, m => m.BenchmarkReference == "CIS Ubuntu 24.04 LTS 3.5.1.3 — Ensure default deny firewall policy");
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_CrashedRule_CisMappingsFlowThrough()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysCrashRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(1, result.CrashedCount);
+        var crashResult = result.RuleResults.First(r => r.Status == RuleStatus.Crashed);
+        Assert.NotEmpty(crashResult.CisMappings);
+        Assert.Contains(crashResult.CisMappings, m => m.ControlId == "CIS 4.1");
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_PolicyDisabledRule_CisMappingsFlowThrough()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { Enabled = false });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var disabledResult = result.RuleResults.First(r => r.Status == RuleStatus.Passed);
+        Assert.NotEmpty(disabledResult.CisMappings);
+        Assert.Contains(disabledResult.CisMappings, m => m.ControlId == "CIS 4.5");
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_ContextualRule_CisMappingsFlowThrough()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailContextualRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Single(result.RuleResults);
+        Assert.False(result.RuleResults[0].Passed);
+        Assert.NotEmpty(result.RuleResults[0].CisMappings);
+        Assert.Contains(result.RuleResults[0].CisMappings, m => m.ControlId == "CIS 4.8");
+        Assert.Contains(result.RuleResults[0].CisMappings, m => m.BenchmarkReference == "CIS Ubuntu 24.04 LTS 5.2.12 — Ensure SSH X11 forwarding is disabled");
+    }
+
+    private sealed class AlwaysFailContextualRule : IRule, IContextualRule
+    {
+        public string Id => "TEST-006";
+        public string Category => "SSH";
+        public string Description => "Test contextual rule that always fails";
+        public string WhatItChecks => "Test contextual fail";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.Medium;
+
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+        {
+            new CisBenchmarkMapping
+            {
+                ControlId = "CIS 4.8",
+                ControlName = "Uninstall or Disable Unnecessary Services",
+                WhyItMatters = "Test contextual mapping.",
+                BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.12 — Ensure SSH X11 forwarding is disabled"
+            }
+        };
+
+        public RuleResult Evaluate(ScanData data)
+            => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
+
+        public RuleResult Evaluate(ScanData data, RuleEvaluationContext context)
+        {
+            return RuleResult.Fail(Id, Category, Id, Description, Severity.Medium, "test-target", cisMappings: CisMappings);
+        }
     }
 
     private sealed class AlwaysFailCriticalRule : IRule

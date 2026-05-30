@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-01-26
+Last updated: 2026-05-30
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -52,11 +52,21 @@ Last updated: 2026-01-26
   correlation escalates them.
   - Fixture: `VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log`
 
+### Security Agent — CIS Benchmark Mapping
+- All 25 agent rules now carry dual-layer CIS compliance mappings:
+  - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
+  - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
+  - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field
+  - Mappings flow through full audits, single-rule explanations, crashes, and policy-disabled results
+  - Evidence exports preserve mappings in CSV, HTML, Markdown, JSON, and STIX formats
+  - HTML and Markdown compliance-context deduplication changed from `ControlId`-only grouping to `Distinct()` so unique rationale per rule is preserved
+  - Code: `VulcansTrace.Linux.Core/CisBenchmarkMapping.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/*.cs`, `VulcansTrace.Linux.Evidence/Formatters/*.cs`
+
 ### Documentation
 - Portfolio and technical docs aligned to actual behavior and formats.
   - Docs: `README.md`, `docs/portfolio/` (15 implementation portfolios),
     `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/USAGE.md`,
-    `docs/DEVELOPMENT.md`, `docs/HMAC_EVIDENCE.md`
+    `docs/DEVELOPMENT.md`, `docs/HMAC_EVIDENCE.md`, `docs/SECURITY_AGENT.md`
 
 ### Tooling
 - CLI test runner supports `--intensity`, `--all`, `--export`.

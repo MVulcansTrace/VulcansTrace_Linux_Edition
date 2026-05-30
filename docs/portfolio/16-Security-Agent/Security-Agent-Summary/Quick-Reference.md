@@ -40,13 +40,19 @@
 
 ## Rule Catalog
 
-| Category | Rules |
-| --- | --- |
-| Firewall | active firewall, default INPUT policy, SSH exposure, state tracking, ICMP posture |
-| Port | SSH default port, all-interface listeners, exposed database ports, unknown high ports |
-| Service | telnet, FTP, SSH presence, legacy r-services, unnecessary services |
-| Network | default route, suspicious outbound connections, interface state, loopback exposure |
-| SSH | root login, password auth, auth retries, protocol version, empty passwords, pubkey auth, X11 forwarding |
+| Category | Rules | CIS Coverage |
+| --- | --- | --- |
+| Firewall | active firewall, default INPUT policy, SSH exposure, state tracking, ICMP posture | 5/5 rules mapped to CIS 4.5 + Ubuntu 3.5.x |
+| Port | SSH default port, all-interface listeners, exposed database ports, unknown high ports | 4/4 rules mapped to CIS 4.1 / 4.8 / 13.3 + Ubuntu 3.5.x |
+| Service | telnet, FTP, SSH presence, legacy r-services, unnecessary services | 5/5 rules mapped to CIS 4.1 / 4.8 + Ubuntu 2.2.x |
+| Network | default route, suspicious outbound connections, interface state, loopback exposure | 4/4 rules mapped to CIS 4.1 / 13.3 + Ubuntu 3.5.x |
+| SSH | root login, password auth, auth retries, protocol version, empty passwords, pubkey auth, X11 forwarding | 7/7 rules mapped to CIS 5.2 / 5.4 / 6.3 / 4.8 + Ubuntu 5.2.x |
+
+All 25 rules carry dual-layer CIS mappings:
+- **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.3`, `CIS 13.3`
+- **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled`
+
+Mappings flow through full audits, single-rule explanations (`explain FW-001`), crash results, policy-disabled results, and all evidence export formats (CSV, HTML, Markdown, JSON, STIX).
 
 ---
 

@@ -15,6 +15,17 @@ public sealed class TelnetServiceRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "Telnet transmits credentials in plaintext. Its presence is a critical finding in PCI-DSS 2.3, HIPAA, and every major compliance framework.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.17 — Ensure telnet server is not installed"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         var telnet = data.RunningServices.FirstOrDefault(s =>
@@ -23,10 +34,10 @@ public sealed class TelnetServiceRule : IRule
         if (telnet != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-001", Description, Severity.Critical, telnet.Name,
-                new Dictionary<string, string> { ["service"] = telnet.Name });
+                new Dictionary<string, string> { ["service"] = telnet.Name }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-001", Description);
+        return RuleResult.Pass(Id, Category, "SRV-001", Description, CisMappings);
     }
 }
 
@@ -42,6 +53,17 @@ public sealed class FtpServiceRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "FTP lacks encryption. Replacing it with SFTP is required by PCI-DSS 4.2.1 and HIPAA data-transmission controls.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.12 — Ensure FTP server is not installed"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         var ftp = data.RunningServices.FirstOrDefault(s =>
@@ -51,10 +73,10 @@ public sealed class FtpServiceRule : IRule
         if (ftp != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-002", Description, Severity.High, ftp.Name,
-                new Dictionary<string, string> { ["service"] = ftp.Name });
+                new Dictionary<string, string> { ["service"] = ftp.Name }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-002", Description);
+        return RuleResult.Pass(Id, Category, "SRV-002", Description, CisMappings);
     }
 }
 
@@ -70,6 +92,17 @@ public sealed class SshServiceRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.Medium;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
+            WhyItMatters = "SSH is the standard secure remote-management channel for Linux servers. Its absence forces insecure alternatives (console, IPMI) or leaves the system unmanaged.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.4 — Ensure SSH server is installed and enabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         var ssh = data.RunningServices.FirstOrDefault(s =>
@@ -78,10 +111,10 @@ public sealed class SshServiceRule : IRule
         if (ssh == null)
         {
             return RuleResult.Fail(Id, Category, "SRV-003", Description, Severity.Medium, "ssh",
-                new Dictionary<string, string>());
+                new Dictionary<string, string>(), CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-003", Description);
+        return RuleResult.Pass(Id, Category, "SRV-003", Description, CisMappings);
     }
 }
 
@@ -97,6 +130,17 @@ public sealed class LegacyRservicesRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "Legacy r-services rely on weak host-based trust (rhosts) and transmit data unencrypted. They have been obsolete for decades and are an automatic critical audit failure.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.16 — Ensure rsh server is not installed"
+        }
+    };
+
     private static readonly string[] LegacyServices = { "rsh", "rexec", "rlogin", "shell", "login", "exec" };
 
     public RuleResult Evaluate(ScanData data)
@@ -107,10 +151,10 @@ public sealed class LegacyRservicesRule : IRule
         if (found != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-004", Description, Severity.Critical, found.Name,
-                new Dictionary<string, string> { ["service"] = found.Name });
+                new Dictionary<string, string> { ["service"] = found.Name }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-004", Description);
+        return RuleResult.Pass(Id, Category, "SRV-004", Description, CisMappings);
     }
 }
 
@@ -125,6 +169,17 @@ public sealed class UnnecessaryServicesRule : IRule, IContextualRule
     public string WhatItChecks => "Checks whether unnecessary services (CUPS, Avahi, Bluetooth, NFS, RPC, SMB) are running";
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.Low;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "Each running service is a potential exploitation target. Disabling unnecessary services is a core attack-surface reduction principle in CIS, PCI-DSS, and DISA STIGs.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.x — Ensure unnecessary services are removed or disabled"
+        }
+    };
 
     private static readonly string[] DefaultUnnecessaryServices =
     {
@@ -156,9 +211,9 @@ public sealed class UnnecessaryServicesRule : IRule, IContextualRule
                 {
                     ["service"] = first.Name,
                     ["count"] = found.Count.ToString()
-                });
+                }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-005", Description);
+        return RuleResult.Pass(Id, Category, "SRV-005", Description, CisMappings);
     }
 }

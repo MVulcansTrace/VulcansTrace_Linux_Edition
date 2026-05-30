@@ -87,12 +87,35 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();
-        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description |");
-        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|");
+        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description | CIS Control | CIS Benchmark |");
+        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|-------------|---------------|");
 
         foreach (var f in result.Findings)
         {
-            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} |");
+            var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
+            var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
+            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} |");
+        }
+
+        var distinctCis = result.Findings
+            .SelectMany(f => f.CisMappings)
+            .Distinct()
+            .ToList();
+
+        if (distinctCis.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Compliance Context");
+            sb.AppendLine();
+            foreach (var m in distinctCis)
+            {
+                sb.AppendLine($"- **{Escape(m.ControlId)}** — {Escape(m.ControlName)}");
+                if (!string.IsNullOrWhiteSpace(m.BenchmarkReference))
+                {
+                    sb.AppendLine($"  - Benchmark: {Escape(m.BenchmarkReference)}");
+                }
+                sb.AppendLine($"  - {Escape(m.WhyItMatters)}");
+            }
         }
 
         return sb.ToString();

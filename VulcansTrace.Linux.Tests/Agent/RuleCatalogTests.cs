@@ -25,7 +25,14 @@ public class RuleCatalogTests
         new SshNonDefaultPortRule(),
         new WideOpenServicesRule(),
         new DatabasePortExposureRule(),
-        new HighPortListeningRule()
+        new HighPortListeningRule(),
+        new SshPermitRootLoginRule(),
+        new SshPasswordAuthenticationRule(),
+        new SshMaxAuthTriesRule(),
+        new SshProtocolRule(),
+        new SshEmptyPasswordsRule(),
+        new SshPubkeyAuthenticationRule(),
+        new SshX11ForwardingRule()
     };
 
     [Fact]
@@ -33,7 +40,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(18, catalog.Items.Count);
+        Assert.Equal(25, catalog.Items.Count);
     }
 
     [Fact]
@@ -58,6 +65,7 @@ public class RuleCatalogTests
     [InlineData("NET-0", 4)]
     [InlineData("PORT-0", 4)]
     [InlineData("SRV-0", 5)]
+    [InlineData("SSH-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -82,7 +90,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(18, results.Count);
+        Assert.Equal(25, results.Count);
     }
 
     [Fact]
@@ -92,5 +100,46 @@ public class RuleCatalogTests
         var results = catalog.Search("XYZ-NONEXISTENT").ToList();
 
         Assert.Empty(results);
+    }
+
+    [Theory]
+    [InlineData("FW-001", "CIS 4.5")]
+    [InlineData("FW-002", "CIS 4.5")]
+    [InlineData("FW-003", "CIS 4.5")]
+    [InlineData("FW-004", "CIS 4.5")]
+    [InlineData("FW-005", "CIS 4.5")]
+    [InlineData("NET-001", "CIS 4.1")]
+    [InlineData("NET-002", "CIS 13.3")]
+    [InlineData("NET-003", "CIS 4.1")]
+    [InlineData("NET-004", "CIS 4.1")]
+    [InlineData("PORT-001", "CIS 4.8")]
+    [InlineData("PORT-002", "CIS 4.1")]
+    [InlineData("PORT-003", "CIS 4.1")]
+    [InlineData("PORT-004", "CIS 13.3")]
+    [InlineData("SRV-001", "CIS 4.8")]
+    [InlineData("SRV-002", "CIS 4.8")]
+    [InlineData("SRV-003", "CIS 4.1")]
+    [InlineData("SRV-004", "CIS 4.8")]
+    [InlineData("SRV-005", "CIS 4.8")]
+    [InlineData("SSH-001", "CIS 5.4")]
+    [InlineData("SSH-002", "CIS 6.3")]
+    [InlineData("SSH-003", "CIS 6.3")]
+    [InlineData("SSH-004", "CIS 4.8")]
+    [InlineData("SSH-005", "CIS 5.2")]
+    [InlineData("SSH-006", "CIS 6.3")]
+    [InlineData("SSH-007", "CIS 4.8")]
+    public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
+    {
+        var catalog = new RuleCatalog(GetAllRules());
+        var item = catalog.Items.FirstOrDefault(i => i.Id == ruleId);
+
+        Assert.NotNull(item);
+        Assert.NotEmpty(item.CisMappings);
+        Assert.Contains(item.CisMappings, m => m.ControlId == expectedControlId);
+        Assert.All(item.CisMappings, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.ControlName), $"{ruleId} missing ControlName");
+            Assert.False(string.IsNullOrWhiteSpace(m.WhyItMatters), $"{ruleId} missing WhyItMatters");
+        });
     }
 }

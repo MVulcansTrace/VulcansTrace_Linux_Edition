@@ -28,6 +28,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 - **Multi-format output maximizes downstream compatibility** — CSV for spreadsheets, HTML for browser review, Markdown for Git-based workflows, JSON for SIEM ingestion, STIX 2.1 for threat intelligence platforms
 - **Formula injection and XSS defense protect the recipient** — the CSV formatter neutralizes spreadsheet macro attacks, and the HTML formatter encodes all user content
 - **STIX 2.1 export enables automated threat intelligence sharing** — findings map to observed-data with IP observables and optional malware SDOs for C2 activity
+- **CIS Benchmark mapping preservation** — agent audit findings carry dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark references that flow through all five export formats, giving auditors precise compliance traceability
 
 ---
 

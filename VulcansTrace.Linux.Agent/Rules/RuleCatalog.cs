@@ -22,7 +22,8 @@ public sealed class RuleCatalog
             WhatItChecks = r.WhatItChecks,
             Severity = r.Severity,
             SupportedDataSources = r.SupportedDataSources,
-            ExplanationKey = r.Id
+            ExplanationKey = r.Id,
+            CisMappings = r.CisMappings
         }).ToList();
     }
 

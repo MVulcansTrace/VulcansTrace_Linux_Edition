@@ -35,10 +35,10 @@ VulcansTrace.Linux.Tests/
 │   ├── MarkdownFormatterTests.cs             — Markdown formatting tests
 │   └── StixFormatterTests.cs                 — STIX format output tests
 ├── Agent/
-│   ├── SecurityAgentTests.cs                 — agent orchestration, policy, coverage, capabilities, suppression, explanation, and follow-up question tests
+│   ├── SecurityAgentTests.cs                 — agent orchestration, policy, coverage, capabilities, suppression, explanation, follow-up question tests, and CIS mapping flow-through tests (RunSingleRuleAsync, Crash, PolicyDisabled, IContextualRule)
 │   ├── AuditDiffCalculatorTests.cs           — fingerprint-aware audit diff tests
 │   ├── SuppressionStoreTests.cs              — expiry, retention, and fingerprint matching tests
-│   ├── RuleTests.cs                          — posture rule and contextual rule behavior tests
+│   ├── RuleTests.cs                          — posture rule and contextual rule behavior tests; CIS mapping presence and metadata validation for all 25 rules
 │   ├── DefaultRulePolicyProviderTests.cs     — built-in role defaults and JSON override merge tests
 │   ├── JsonRulePolicyStoreTests.cs           — policy persistence and hand-edited JSON lookup tests
 │   └── ScannerParserFixtureTests.cs          — realistic command-output parser and capability fixtures

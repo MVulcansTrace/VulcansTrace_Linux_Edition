@@ -98,10 +98,12 @@ public sealed class HtmlFormatter : IEvidenceFormatter
 
         sb.AppendLine("<h2>Findings</h2>");
         sb.AppendLine("<table>");
-        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th></tr>");
+        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th><th>CIS Control</th><th>CIS Benchmark</th></tr>");
 
         foreach (var f in result.Findings)
         {
+            var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
+            var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
             sb.AppendLine("<tr>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.RuleId ?? string.Empty)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Category)}</td>");
@@ -111,10 +113,35 @@ public sealed class HtmlFormatter : IEvidenceFormatter
             sb.AppendLine($"<td>{f.TimeRangeStart:O}</td>");
             sb.AppendLine($"<td>{f.TimeRangeEnd:O}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.ShortDescription)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(cisIds)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(cisBenchmarks)}</td>");
             sb.AppendLine("</tr>");
         }
 
         sb.AppendLine("</table>");
+
+        var distinctCis = result.Findings
+            .SelectMany(f => f.CisMappings)
+            .Distinct()
+            .ToList();
+
+        if (distinctCis.Count > 0)
+        {
+            sb.AppendLine("<h2>Compliance Context</h2>");
+            sb.AppendLine("<table>");
+            sb.AppendLine("<tr><th>CIS Control</th><th>Name</th><th>Why It Matters</th><th>Benchmark Reference</th></tr>");
+            foreach (var m in distinctCis)
+            {
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.ControlId)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.ControlName)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.WhyItMatters)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.BenchmarkReference ?? "—")}</td>");
+                sb.AppendLine("</tr>");
+            }
+            sb.AppendLine("</table>");
+        }
+
         sb.AppendLine("</body></html>");
         return sb.ToString();
     }

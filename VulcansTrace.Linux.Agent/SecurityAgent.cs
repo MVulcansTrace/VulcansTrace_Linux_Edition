@@ -154,7 +154,7 @@ public sealed class SecurityAgent : IAgent
             catch (Exception ex)
             {
                 warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-                result = RuleResult.Crash(rule.Id, rule.Category, rule.Description);
+                result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings);
             }
 
             if (!result.Passed && policy?.AutoPass == true)
@@ -204,7 +204,8 @@ public sealed class SecurityAgent : IAgent
                 Details = explanation,
                 TimeRangeStart = DateTime.UtcNow,
                 TimeRangeEnd = DateTime.UtcNow,
-                RuleId = result.RuleId
+                RuleId = result.RuleId,
+                CisMappings = result.CisMappings
             };
 
             // Check suppression
@@ -1133,7 +1134,7 @@ public sealed class SecurityAgent : IAgent
         catch (Exception ex)
         {
             warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description);
+            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings);
         }
 
         if (!result.Passed && policy?.AutoPass == true)
@@ -1160,7 +1161,8 @@ public sealed class SecurityAgent : IAgent
                 Details = explanation,
                 TimeRangeStart = DateTime.UtcNow,
                 TimeRangeEnd = DateTime.UtcNow,
-                RuleId = result.RuleId
+                RuleId = result.RuleId,
+                CisMappings = result.CisMappings
             };
             agentFindings.Add(finding);
             ReplaceLastFindings(new[] { (result.RuleId, finding) });
@@ -1191,7 +1193,7 @@ public sealed class SecurityAgent : IAgent
 
     private static RuleResult CreatePolicyDisabledResult(IRule rule)
     {
-        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)");
+        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)", rule.CisMappings);
     }
 
     private static async Task<string[]> RunScannerSafelyAsync(IScanner scanner, ScanDataBuilder builder, CancellationToken ct)

@@ -42,7 +42,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
-- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, and role-aware local policy.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability.
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.

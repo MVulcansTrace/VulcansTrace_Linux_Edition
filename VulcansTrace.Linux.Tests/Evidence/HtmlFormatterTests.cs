@@ -54,6 +54,7 @@ public class HtmlFormatterTests
         Assert.Contains("<th>Rule ID</th>", html);
         Assert.Contains("<th>Category</th>", html);
         Assert.Contains("<th>Severity</th>", html);
+        Assert.Contains("<th>CIS Control</th>", html);
         Assert.DoesNotContain("<td>", html);
     }
 

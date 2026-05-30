@@ -15,19 +15,30 @@ public sealed class SshPermitRootLoginRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.4",
+            ControlName = "Restrict Administrator Privileges",
+            WhyItMatters = "PermitRootLogin removes individual accountability and prevents audit trails from attributing actions to a specific identity, violating PCI-DSS 8.2 and SOC 2 CC6.1.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.7 — Ensure SSH root login is disabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-001", Description);
+            return RuleResult.Pass(Id, Category, "SSH-001", Description, CisMappings);
 
         var value = data.SshConfig.PermitRootLogin;
         if (string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
         {
             return RuleResult.Fail(Id, Category, "SSH-001", Description, Severity.Critical, "PermitRootLogin yes",
-                new Dictionary<string, string> { ["value"] = value ?? "yes" });
+                new Dictionary<string, string> { ["value"] = value ?? "yes" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-001", Description);
+        return RuleResult.Pass(Id, Category, "SSH-001", Description, CisMappings);
     }
 }
 
@@ -43,19 +54,30 @@ public sealed class SshPasswordAuthenticationRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 6.3",
+            ControlName = "Require MFA for Externally-Exposed Applications",
+            WhyItMatters = "Password authentication is susceptible to brute-force and credential-stuffing. Key-based authentication is the compliance baseline for remote access under NIST 800-53 IA-2.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.16 — Ensure SSH PasswordAuthentication is disabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-002", Description);
+            return RuleResult.Pass(Id, Category, "SSH-002", Description, CisMappings);
 
         var value = data.SshConfig.PasswordAuthentication;
         if (string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
         {
             return RuleResult.Fail(Id, Category, "SSH-002", Description, Severity.High, "PasswordAuthentication yes",
-                new Dictionary<string, string> { ["value"] = value ?? "yes" });
+                new Dictionary<string, string> { ["value"] = value ?? "yes" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-002", Description);
+        return RuleResult.Pass(Id, Category, "SSH-002", Description, CisMappings);
     }
 }
 
@@ -71,20 +93,31 @@ public sealed class SshMaxAuthTriesRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.Medium;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 6.3",
+            ControlName = "Require MFA for Externally-Exposed Applications",
+            WhyItMatters = "Unlimited or high authentication attempts enable brute-force attacks. Limiting MaxAuthTries to 4 or less is a scored item in CIS Linux benchmarks and reduces credential-guessing windows.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.14 — Ensure SSH MaxAuthTries is configured"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-003", Description);
+            return RuleResult.Pass(Id, Category, "SSH-003", Description, CisMappings);
 
         var value = data.SshConfig.MaxAuthTries;
         if (value == null || value > 4 || value == 0)
         {
             return RuleResult.Fail(Id, Category, "SSH-003", Description, Severity.Medium,
                 value?.ToString() ?? "default",
-                new Dictionary<string, string> { ["value"] = value?.ToString() ?? "default (6)" });
+                new Dictionary<string, string> { ["value"] = value?.ToString() ?? "default (6)" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-003", Description);
+        return RuleResult.Pass(Id, Category, "SSH-003", Description, CisMappings);
     }
 }
 
@@ -100,10 +133,21 @@ public sealed class SshProtocolRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "SSH Protocol 1 has known cryptographic weaknesses (CRC-32 integrity, weak key exchange) and has been deprecated for over two decades. Its presence is an automatic critical audit failure.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.15 — Ensure SSH Protocol is set to 2"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-004", Description);
+            return RuleResult.Pass(Id, Category, "SSH-004", Description, CisMappings);
 
         var value = data.SshConfig.Protocol;
         if (!string.IsNullOrEmpty(value))
@@ -113,11 +157,11 @@ public sealed class SshProtocolRule : IRule
             {
                 return RuleResult.Fail(Id, Category, "SSH-004", Description, Severity.Critical,
                     $"Protocol {value}",
-                    new Dictionary<string, string> { ["value"] = value });
+                    new Dictionary<string, string> { ["value"] = value }, CisMappings);
             }
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-004", Description);
+        return RuleResult.Pass(Id, Category, "SSH-004", Description, CisMappings);
     }
 }
 
@@ -133,20 +177,31 @@ public sealed class SshEmptyPasswordsRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.Critical;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.2",
+            ControlName = "Use Unique Passwords",
+            WhyItMatters = "Empty passwords eliminate authentication entirely. This is an automatic audit failure under PCI-DSS 8.2.3, HIPAA 164.312(a), and SOC 2 CC6.1.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.9 — Ensure SSH PermitEmptyPasswords is disabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-005", Description);
+            return RuleResult.Pass(Id, Category, "SSH-005", Description, CisMappings);
 
         var value = data.SshConfig.PermitEmptyPasswords;
         if (string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
         {
             return RuleResult.Fail(Id, Category, "SSH-005", Description, Severity.Critical,
                 "PermitEmptyPasswords yes",
-                new Dictionary<string, string> { ["value"] = value ?? "yes" });
+                new Dictionary<string, string> { ["value"] = value ?? "yes" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-005", Description);
+        return RuleResult.Pass(Id, Category, "SSH-005", Description, CisMappings);
     }
 }
 
@@ -162,20 +217,31 @@ public sealed class SshPubkeyAuthenticationRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.High;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 6.3",
+            ControlName = "Require MFA for Externally-Exposed Applications",
+            WhyItMatters = "Disabling public-key authentication forces reliance on weaker password-based methods, increasing exposure to brute-force and credential-stuffing attacks.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.17 — Ensure SSH PubkeyAuthentication is enabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-006", Description);
+            return RuleResult.Pass(Id, Category, "SSH-006", Description, CisMappings);
 
         var value = data.SshConfig.PubkeyAuthentication;
         if (string.Equals(value, "no", StringComparison.OrdinalIgnoreCase))
         {
             return RuleResult.Fail(Id, Category, "SSH-006", Description, Severity.High,
                 "PubkeyAuthentication no",
-                new Dictionary<string, string> { ["value"] = value ?? "no" });
+                new Dictionary<string, string> { ["value"] = value ?? "no" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-006", Description);
+        return RuleResult.Pass(Id, Category, "SSH-006", Description, CisMappings);
     }
 }
 
@@ -191,26 +257,37 @@ public sealed class SshX11ForwardingRule : IRule, IContextualRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
     public Severity Severity => Severity.Medium;
 
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 4.8",
+            ControlName = "Uninstall or Disable Unnecessary Services",
+            WhyItMatters = "X11 forwarding over SSH tunnels graphical sessions, expanding the attack surface and potentially leaking display credentials. Servers should disable it unless explicitly required.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.12 — Ensure SSH X11 forwarding is disabled"
+        }
+    };
+
     public RuleResult Evaluate(ScanData data)
         => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
 
     public RuleResult Evaluate(ScanData data, RuleEvaluationContext context)
     {
         if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
-            return RuleResult.Pass(Id, Category, "SSH-007", Description);
+            return RuleResult.Pass(Id, Category, "SSH-007", Description, CisMappings);
 
         // Workstations may intentionally use X11 forwarding.
         if (context.Role == MachineRole.Workstation)
-            return RuleResult.Pass(Id, Category, "SSH-007", Description);
+            return RuleResult.Pass(Id, Category, "SSH-007", Description, CisMappings);
 
         var value = data.SshConfig.X11Forwarding;
         if (string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase))
         {
             return RuleResult.Fail(Id, Category, "SSH-007", Description, Severity.Medium,
                 "X11Forwarding yes",
-                new Dictionary<string, string> { ["value"] = value ?? "yes" });
+                new Dictionary<string, string> { ["value"] = value ?? "yes" }, CisMappings);
         }
 
-        return RuleResult.Pass(Id, Category, "SSH-007", Description);
+        return RuleResult.Pass(Id, Category, "SSH-007", Description, CisMappings);
     }
 }

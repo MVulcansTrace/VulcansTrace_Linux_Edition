@@ -119,6 +119,11 @@ public sealed record Finding
         init => _details = NormalizeNonEmpty(value, nameof(Details));
     }
 
+    /// <summary>
+    /// CIS Benchmark controls this finding maps to, explaining compliance context.
+    /// </summary>
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings { get; init; } = Array.Empty<CisBenchmarkMapping>();
+
     private static string NormalizeNonEmpty(string value, string name)
     {
         if (string.IsNullOrWhiteSpace(value))

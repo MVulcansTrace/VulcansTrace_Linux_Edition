@@ -34,6 +34,7 @@ public class MarkdownFormatterTests
 
         Assert.Contains("# VulcansTrace Analysis Summary", md);
         Assert.Contains("| Rule ID | Category |", md);
+        Assert.Contains("| CIS Control |", md);
         Assert.Contains("PortScan", md);
         Assert.Contains("PORT-001", md);
         Assert.Contains("192.168.1.10", md);
