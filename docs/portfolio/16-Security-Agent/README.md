@@ -20,11 +20,12 @@ Documentation is organized for two audiences:
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
 - **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
+- **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
-- **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, and includes active suppression notes in evidence exports
-- **Timed suppressions** — supports 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
+- **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs and fingerprints, and includes active suppression notes in evidence exports
+- **Timed suppressions** — supports fingerprint-scoped 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
 - **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, suppression review actions, cancellation, audit export, and guarded remediation preview export
 - **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration
 
@@ -40,6 +41,8 @@ Documentation is organized for two audiences:
 - [ServiceScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs) — systemd service collection
 - [NetworkScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs) — interface, route, and connection collection
 - [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, and port checks
+- [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
+- [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [DefaultRulePolicyProvider.cs](../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and user-policy merge behavior
 - [JsonRulePolicyStore.cs](../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — local JSON policy persistence
 - [ExplanationProvider.cs](../../../VulcansTrace.Linux.Agent/Explanations/ExplanationProvider.cs) — embedded markdown explanation loading

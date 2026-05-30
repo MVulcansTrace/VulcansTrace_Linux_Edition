@@ -73,12 +73,13 @@ public sealed class HtmlFormatter : IEvidenceFormatter
             if (result.ActiveSuppressions.Count > 0)
             {
                 sb.AppendLine("<table>");
-                sb.AppendLine("<tr><th>Rule ID</th><th>Target</th><th>Reason</th><th>Created</th><th>Expires</th><th>Review</th></tr>");
+                sb.AppendLine("<tr><th>Rule ID</th><th>Target</th><th>Fingerprint</th><th>Reason</th><th>Created</th><th>Expires</th><th>Review</th></tr>");
                 foreach (var s in result.ActiveSuppressions)
                 {
                     sb.AppendLine("<tr>");
                     sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.RuleId)}</td>");
                     sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.Target)}</td>");
+                    sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.Fingerprint ?? string.Empty)}</td>");
                     sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(s.Reason)}</td>");
                     sb.AppendLine($"<td>{s.CreatedAt:yyyy-MM-dd}</td>");
                     sb.AppendLine($"<td>{(s.ExpiresAt.HasValue ? s.ExpiresAt.Value.ToString("yyyy-MM-dd") : "Never")}</td>");

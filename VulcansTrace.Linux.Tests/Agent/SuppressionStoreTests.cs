@@ -274,4 +274,70 @@ public class SuppressionStoreTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void InMemoryStore_FingerprintBasedSuppression_MatchesByFingerprint()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "INPUT", Fingerprint = "ABC123" });
+
+        Assert.True(store.IsSuppressed("FW-001", "INPUT", "ABC123"));
+        Assert.False(store.IsSuppressed("FW-001", "INPUT"));
+        Assert.Single(store.GetAll());
+        Assert.Single(store.GetAllRaw());
+        // A different fingerprint on the same rule+target is not suppressed.
+        Assert.False(store.IsSuppressed("FW-001", "INPUT", "DIFFERENT"));
+    }
+
+    [Fact]
+    public void InMemoryStore_FingerprintBasedSuppression_FallsBackToRuleTarget()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "INPUT" });
+
+        Assert.True(store.IsSuppressed("FW-001", "INPUT", "SOMEFP"));
+        Assert.True(store.IsSuppressed("FW-001", "INPUT"));
+    }
+
+    [Fact]
+    public void InMemoryStore_FingerprintBasedSuppression_DifferentFingerprint_NotSuppressed()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "INPUT", Fingerprint = "ABC123" });
+
+        Assert.False(store.IsSuppressed("FW-001", "INPUT", "DIFFERENT"));
+    }
+
+    [Fact]
+    public void InMemoryStore_Remove_ByRuleTarget_AlsoRemovesFingerprintEntry()
+    {
+        var store = new InMemorySuppressionStore();
+        store.Add(new SuppressionEntry { RuleId = "FW-001", Target = "INPUT", Fingerprint = "ABC123" });
+        store.Remove("FW-001", "INPUT");
+
+        Assert.False(store.IsSuppressed("FW-001", "INPUT", "ABC123"));
+        Assert.False(store.IsSuppressed("FW-001", "INPUT"));
+    }
+
+    [Fact]
+    public void JsonFileStore_Fingerprint_Persists_And_Reloads()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var store1 = new JsonFileSuppressionStore(path);
+            store1.Add(new SuppressionEntry { RuleId = "FW-001", Target = "INPUT", Fingerprint = "ABC123", Reason = "Test" });
+
+            var store2 = new JsonFileSuppressionStore(path);
+            Assert.True(store2.IsSuppressed("FW-001", "INPUT", "ABC123"));
+            Assert.False(store2.IsSuppressed("FW-001", "INPUT"));
+            Assert.Single(store2.GetAll());
+            Assert.Single(store2.GetAllRaw());
+            Assert.Equal("ABC123", store2.GetAll()[0].Fingerprint);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

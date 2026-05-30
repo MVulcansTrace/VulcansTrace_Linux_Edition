@@ -579,7 +579,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return; // Cancelled
         }
 
-        Suppressions.AddSuppression(selected.RuleId, selected.Target, reason, duration);
+        Suppressions.AddSuppression(selected.RuleId, selected.Target, reason, duration, selected.Fingerprint);
         SummaryText = $"Accepted risk: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
     }
 

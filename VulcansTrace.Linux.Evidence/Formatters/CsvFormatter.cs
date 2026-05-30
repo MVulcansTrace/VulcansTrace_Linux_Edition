@@ -58,7 +58,7 @@ public sealed class CsvFormatter : IEvidenceFormatter
     public string ToSuppressionCsv(AnalysisResult result)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("RuleId,Target,Reason,CreatedAt,ExpiresAt,ReviewDate");
+        sb.AppendLine("RuleId,Target,Fingerprint,Reason,CreatedAt,ExpiresAt,ReviewDate");
 
         foreach (var s in result.ActiveSuppressions)
         {
@@ -66,6 +66,7 @@ public sealed class CsvFormatter : IEvidenceFormatter
             {
                 s.RuleId,
                 s.Target,
+                s.Fingerprint ?? "",
                 s.Reason,
                 s.CreatedAt.ToString("o", CultureInfo.InvariantCulture),
                 s.ExpiresAt?.ToString("o", CultureInfo.InvariantCulture) ?? "",

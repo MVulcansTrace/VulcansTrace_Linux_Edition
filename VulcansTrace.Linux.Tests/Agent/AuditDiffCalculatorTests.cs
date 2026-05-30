@@ -238,6 +238,71 @@ public class AuditDiffCalculatorTests
         Assert.Equal("1 finding worsened.", diff.Narrative);
     }
 
+    [Fact]
+    public void Calculate_SameRuleAndTarget_DifferentFingerprint_AppearsAsNewAndResolved()
+    {
+        var before = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp1") });
+        var after = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp2") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Single(diff.NewFindings);
+        Assert.Single(diff.ResolvedFindings);
+        Assert.Empty(diff.UnchangedFindings);
+    }
+
+    [Fact]
+    public void Calculate_DifferentDescription_SameFingerprint_AppearsAsUnchanged()
+    {
+        var before = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp1") });
+        var after = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp1") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Single(diff.UnchangedFindings);
+        Assert.Empty(diff.NewFindings);
+        Assert.Empty(diff.ResolvedFindings);
+    }
+
+    [Fact]
+    public void Calculate_FingerprintNull_FallsBackToRuleIdTarget()
+    {
+        var before = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", null) });
+        var after = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", null) });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Single(diff.UnchangedFindings);
+        Assert.Empty(diff.NewFindings);
+        Assert.Empty(diff.ResolvedFindings);
+    }
+
+    [Fact]
+    public void Calculate_BeforeWithoutFingerprint_AfterWithFingerprint_FallsBackToRuleTarget()
+    {
+        var before = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", null) });
+        var after = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp1") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Single(diff.UnchangedFindings);
+        Assert.Empty(diff.NewFindings);
+        Assert.Empty(diff.ResolvedFindings);
+    }
+
+    [Fact]
+    public void Calculate_BeforeWithoutFingerprint_AfterWithFingerprint_DetectsSeverityChange()
+    {
+        var before = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "Medium", null) });
+        var after = CreateEntry(new (string, string, string, string?)[] { ("FW-001", "A", "High", "fp1") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Single(diff.WorsenedFindings);
+        Assert.Empty(diff.NewFindings);
+        Assert.Empty(diff.ResolvedFindings);
+    }
+
     private static AuditHistoryEntry CreateEntry((string RuleId, string Target, string Severity)[] findings)
     {
         return new AuditHistoryEntry
@@ -250,6 +315,23 @@ public class AuditDiffCalculatorTests
                 Target = f.Target,
                 Severity = f.Severity,
                 ShortDescription = "Test"
+            }).ToList()
+        };
+    }
+
+    private static AuditHistoryEntry CreateEntry((string RuleId, string Target, string Severity, string? Fingerprint)[] findings)
+    {
+        return new AuditHistoryEntry
+        {
+            SnapshotId = Guid.NewGuid().ToString(),
+            Intent = VulcansTrace.Linux.Agent.Query.AgentIntent.FullAudit,
+            SnapshotFindings = findings.Select(f => new AuditSnapshotFinding
+            {
+                RuleId = f.RuleId,
+                Target = f.Target,
+                Severity = f.Severity,
+                ShortDescription = "Test",
+                Fingerprint = f.Fingerprint
             }).ToList()
         };
     }

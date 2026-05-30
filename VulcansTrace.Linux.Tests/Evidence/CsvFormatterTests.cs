@@ -175,4 +175,29 @@ public class CsvFormatterTests
 
         Assert.Contains("'" + dangerous, csv);
     }
+
+    [Fact]
+    public void ToSuppressionCsv_IncludesFingerprint()
+    {
+        var formatter = new CsvFormatter();
+        var result = new AnalysisResult
+        {
+            ActiveSuppressions =
+            [
+                new SuppressionSummary
+                {
+                    RuleId = "FW-001",
+                    Target = "INPUT",
+                    Fingerprint = "fp1",
+                    Reason = "Known exposure",
+                    CreatedAt = DateTime.UnixEpoch
+                }
+            ]
+        };
+
+        var csv = formatter.ToSuppressionCsv(result);
+
+        Assert.Contains("RuleId,Target,Fingerprint,Reason,CreatedAt,ExpiresAt,ReviewDate", csv);
+        Assert.Contains("FW-001,INPUT,fp1,Known exposure", csv);
+    }
 }

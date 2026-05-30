@@ -66,13 +66,13 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
             if (result.ActiveSuppressions.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("| Rule ID | Target | Reason | Created | Expires | Review |");
-                sb.AppendLine("|---------|--------|--------|---------|---------|--------|");
+                sb.AppendLine("| Rule ID | Target | Fingerprint | Reason | Created | Expires | Review |");
+                sb.AppendLine("|---------|--------|-------------|--------|---------|---------|--------|");
                 foreach (var s in result.ActiveSuppressions)
                 {
                     var expires = s.ExpiresAt.HasValue ? s.ExpiresAt.Value.ToString("yyyy-MM-dd") : "Never";
                     var review = s.ReviewDate.HasValue ? s.ReviewDate.Value.ToString("yyyy-MM-dd") : "Never";
-                    sb.AppendLine($"| {Escape(s.RuleId)} | {Escape(s.Target)} | {Escape(s.Reason)} | {s.CreatedAt:yyyy-MM-dd} | {expires} | {review} |");
+                    sb.AppendLine($"| {Escape(s.RuleId)} | {Escape(s.Target)} | {Escape(s.Fingerprint ?? string.Empty)} | {Escape(s.Reason)} | {s.CreatedAt:yyyy-MM-dd} | {expires} | {review} |");
                 }
             }
         }

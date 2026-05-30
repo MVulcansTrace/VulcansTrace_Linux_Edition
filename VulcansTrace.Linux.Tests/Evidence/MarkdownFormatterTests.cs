@@ -160,4 +160,29 @@ public class MarkdownFormatterTests
         Assert.DoesNotContain("<script>", md);
         Assert.DoesNotContain("<b>", md);
     }
+
+    [Fact]
+    public void ToMarkdown_SuppressionNotesIncludeFingerprint()
+    {
+        var result = new AnalysisResult
+        {
+            Findings = [],
+            ActiveSuppressions =
+            [
+                new SuppressionSummary
+                {
+                    RuleId = "FW-001",
+                    Target = "INPUT",
+                    Fingerprint = "fp1",
+                    Reason = "Known exposure",
+                    CreatedAt = DateTime.UnixEpoch
+                }
+            ]
+        };
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("| Rule ID | Target | Fingerprint |", md);
+        Assert.Contains("| FW-001 | INPUT | fp1 | Known exposure |", md);
+    }
 }

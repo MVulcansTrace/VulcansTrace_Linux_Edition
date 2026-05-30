@@ -193,7 +193,7 @@ public sealed class SecurityAgent : IAgent
             // Check suppression
             if (_suppressionStore != null && !string.IsNullOrEmpty(result.RuleId))
             {
-                if (_suppressionStore.IsSuppressed(result.RuleId, result.Target))
+                if (_suppressionStore.IsSuppressed(result.RuleId, result.Target, finding.Fingerprint))
                 {
                     suppressedCount++;
                     processedResults.Add(result with { Status = RuleStatus.Suppressed });

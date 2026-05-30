@@ -41,8 +41,22 @@ public sealed record SuppressionEntry
     /// <summary>UTC timestamp when the suppression should be reviewed, if any.</summary>
     public DateTime? ReviewDate { get; init; }
 
+    /// <summary>Optional stable fingerprint for fingerprint-based suppression.</summary>
+    public string? Fingerprint { get; init; }
+
     /// <summary>
     /// Gets a composite key for matching this suppression against a finding.
     /// </summary>
     public string MatchKey => $"{RuleId}|{Target}";
+
+    /// <summary>
+    /// Gets a composite key for fingerprint-based matching.
+    /// </summary>
+    public string? FingerprintMatchKey =>
+        !string.IsNullOrEmpty(Fingerprint) ? $"{RuleId}|{Fingerprint}" : null;
+
+    /// <summary>
+    /// Gets the key used to store this entry without duplicating fingerprint suppressions.
+    /// </summary>
+    public string StorageKey => FingerprintMatchKey ?? MatchKey;
 }

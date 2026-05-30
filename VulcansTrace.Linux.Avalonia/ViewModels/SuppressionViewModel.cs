@@ -186,7 +186,12 @@ public sealed class SuppressionViewModel : ViewModelBase
     /// <summary>
     /// Adds a suppression for the specified rule and target with an optional expiry duration.
     /// </summary>
-    public void AddSuppression(string ruleId, string target, string reason, SuppressionDuration duration = SuppressionDuration.Permanent)
+    public void AddSuppression(
+        string ruleId,
+        string target,
+        string reason,
+        SuppressionDuration duration = SuppressionDuration.Permanent,
+        string? fingerprint = null)
     {
         var now = DateTime.UtcNow;
         var expiresAt = duration switch
@@ -212,7 +217,8 @@ public sealed class SuppressionViewModel : ViewModelBase
             Reason = string.IsNullOrWhiteSpace(reason) ? "Accepted by user" : reason,
             CreatedAt = now,
             ExpiresAt = expiresAt,
-            ReviewDate = reviewDate
+            ReviewDate = reviewDate,
+            Fingerprint = fingerprint
         });
         Refresh();
 
@@ -388,7 +394,8 @@ public sealed class SuppressionViewModel : ViewModelBase
             Reason = entry.Reason,
             CreatedAt = now,
             ExpiresAt = expiresAt,
-            ReviewDate = reviewDate
+            ReviewDate = reviewDate,
+            Fingerprint = entry.Fingerprint
         });
         Refresh();
 

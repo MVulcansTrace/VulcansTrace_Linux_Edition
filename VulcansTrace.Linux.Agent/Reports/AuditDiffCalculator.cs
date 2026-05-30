@@ -13,8 +13,8 @@ public static class AuditDiffCalculator
     /// <returns>An <see cref="AuditDiff"/> describing the changes.</returns>
     public static AuditDiff Calculate(AuditHistoryEntry before, AuditHistoryEntry after)
     {
-        var beforeDict = before.SnapshotFindings.ToDictionary(f => MakeKey(f.RuleId, f.Target), f => f);
-        var afterDict = after.SnapshotFindings.ToDictionary(f => MakeKey(f.RuleId, f.Target), f => f);
+        var beforeFindings = before.SnapshotFindings.ToList();
+        var matchedBefore = new bool[beforeFindings.Count];
 
         var newFindings = new List<DiffFinding>();
         var resolvedFindings = new List<DiffFinding>();
@@ -22,14 +22,17 @@ public static class AuditDiffCalculator
         var improvedFindings = new List<SeverityChangeFinding>();
         var unchangedFindings = new List<DiffFinding>();
 
-        foreach (var (key, afterFinding) in afterDict)
+        foreach (var afterFinding in after.SnapshotFindings)
         {
-            if (!beforeDict.TryGetValue(key, out var beforeFinding))
+            var beforeIndex = FindMatchingBefore(beforeFindings, matchedBefore, afterFinding);
+            if (beforeIndex < 0)
             {
                 newFindings.Add(ToDiffFinding(afterFinding));
             }
             else
             {
+                matchedBefore[beforeIndex] = true;
+                var beforeFinding = beforeFindings[beforeIndex];
                 var beforeSev = ParseSeverity(beforeFinding.Severity);
                 var afterSev = ParseSeverity(afterFinding.Severity);
 
@@ -41,7 +44,8 @@ public static class AuditDiffCalculator
                         Target = afterFinding.Target,
                         OldSeverity = beforeFinding.Severity,
                         NewSeverity = afterFinding.Severity,
-                        ShortDescription = afterFinding.ShortDescription
+                        ShortDescription = afterFinding.ShortDescription,
+                        Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
                 else if (afterSev < beforeSev)
@@ -52,7 +56,8 @@ public static class AuditDiffCalculator
                         Target = afterFinding.Target,
                         OldSeverity = beforeFinding.Severity,
                         NewSeverity = afterFinding.Severity,
-                        ShortDescription = afterFinding.ShortDescription
+                        ShortDescription = afterFinding.ShortDescription,
+                        Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
                 else
@@ -62,11 +67,11 @@ public static class AuditDiffCalculator
             }
         }
 
-        foreach (var (key, beforeFinding) in beforeDict)
+        for (var i = 0; i < beforeFindings.Count; i++)
         {
-            if (!afterDict.ContainsKey(key))
+            if (!matchedBefore[i])
             {
-                resolvedFindings.Add(ToDiffFinding(beforeFinding));
+                resolvedFindings.Add(ToDiffFinding(beforeFindings[i]));
             }
         }
 
@@ -80,14 +85,56 @@ public static class AuditDiffCalculator
         };
     }
 
-    private static string MakeKey(string ruleId, string target) => $"{ruleId}|{target}";
+    private static int FindMatchingBefore(
+        IReadOnlyList<AuditSnapshotFinding> beforeFindings,
+        IReadOnlyList<bool> matchedBefore,
+        AuditSnapshotFinding afterFinding)
+    {
+        if (!string.IsNullOrEmpty(afterFinding.Fingerprint))
+        {
+            for (var i = 0; i < beforeFindings.Count; i++)
+            {
+                if (!matchedBefore[i] &&
+                    !string.IsNullOrEmpty(beforeFindings[i].Fingerprint) &&
+                    string.Equals(beforeFindings[i].Fingerprint, afterFinding.Fingerprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+        }
+
+        for (var i = 0; i < beforeFindings.Count; i++)
+        {
+            if (matchedBefore[i])
+                continue;
+
+            var beforeFinding = beforeFindings[i];
+            if (!string.IsNullOrEmpty(beforeFinding.Fingerprint) &&
+                !string.IsNullOrEmpty(afterFinding.Fingerprint))
+            {
+                continue;
+            }
+
+            if (IsSameLegacyFinding(beforeFinding, afterFinding))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsSameLegacyFinding(AuditSnapshotFinding beforeFinding, AuditSnapshotFinding afterFinding)
+    {
+        return string.Equals(beforeFinding.RuleId, afterFinding.RuleId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(beforeFinding.Target, afterFinding.Target, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static DiffFinding ToDiffFinding(AuditSnapshotFinding f) => new()
     {
         RuleId = f.RuleId,
         Target = f.Target,
         Severity = f.Severity,
-        ShortDescription = f.ShortDescription
+        ShortDescription = f.ShortDescription,
+        Fingerprint = f.Fingerprint
     };
 
     private static int ParseSeverity(string severity)

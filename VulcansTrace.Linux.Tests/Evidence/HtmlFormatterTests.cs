@@ -118,4 +118,31 @@ public class HtmlFormatterTests
 
         Assert.Contains("Parse errors: 3", html);
     }
+
+    [Fact]
+    public void ToHtml_SuppressionNotesIncludeEncodedFingerprint()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings = [],
+            ActiveSuppressions =
+            [
+                new SuppressionSummary
+                {
+                    RuleId = "FW-001",
+                    Target = "INPUT",
+                    Fingerprint = "<fp1>",
+                    Reason = "Known exposure",
+                    CreatedAt = DateTime.UnixEpoch
+                }
+            ]
+        };
+
+        var html = formatter.ToHtml(result);
+
+        Assert.Contains("<th>Fingerprint</th>", html);
+        Assert.Contains("&lt;fp1&gt;", html);
+        Assert.DoesNotContain("<fp1>", html);
+    }
 }

@@ -55,7 +55,8 @@ public sealed class AgentReportGenerator
                 Reason = e.Reason,
                 CreatedAt = e.CreatedAt,
                 ExpiresAt = e.ExpiresAt,
-                ReviewDate = e.ReviewDate
+                ReviewDate = e.ReviewDate,
+                Fingerprint = e.Fingerprint
             }).ToList() ?? new List<SuppressionSummary>();
 
         return new AnalysisResult

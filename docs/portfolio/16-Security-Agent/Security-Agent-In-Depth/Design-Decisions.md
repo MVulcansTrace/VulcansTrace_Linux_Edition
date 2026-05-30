@@ -24,6 +24,12 @@ That means rules can be tested with synthetic `ScanData` without depending on th
 
 `Finding` now carries an optional `RuleId` for agent-generated findings while remaining compatible with engine findings that do not have rule IDs. The agent also keeps a private history of `(RuleId, Finding)` pairs after audits. This makes follow-up prompts such as `explain FW-001` stable and lets evidence exports preserve the rule identifier without forcing the log-analysis engine to invent one.
 
+## Track Stable Finding Identity
+
+`Finding.Fingerprint` gives the agent a stable identity key for the underlying issue. It is derived from rule ID, category, source host, and target, while excluding timestamps, descriptions, details, and severity. That lets audit diffs report a finding as worsened or improved when severity changes instead of treating it as resolved plus new.
+
+Audit history stores the fingerprint with each snapshot finding. The diff calculator matches by fingerprint when both snapshots have one, and falls back to rule ID plus target when comparing against older history entries created before fingerprints existed.
+
 ## Thread-Safe Aggregation
 
 The agent runs scanners concurrently, so `ScanDataBuilder` protects mutation with a lock and returns immutable array snapshots in `Build()`. This keeps the scanner phase fast while avoiding races when different scanners add ports, services, routes, warnings, and firewall state.
@@ -44,13 +50,13 @@ The same open port can mean different things on a laptop, a bastion host, a lab 
 
 The default provider supplies conservative built-in role defaults for selected rules. The JSON policy store then overrides those defaults from `~/.config/VulcansTrace/policy.json`, merging user parameters over built-in parameters so local policy can adjust only the part it owns. Disabled rules are skipped, auto-pass policies turn known-acceptable failures into passed results, and severity overrides are applied before findings are created.
 
-## Time-Bound Suppressions
+## Time-Bound, Fingerprint-Scoped Suppressions
 
-Accepted-risk suppressions are exact rule-ID/target matches with explicit durations: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup immediately, but remain visible in the review queue for 30 days before audit-time pruning removes them. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent or hiding recently expired decisions before an analyst can review them.
+Accepted-risk suppressions use finding fingerprints when available, with legacy rule-ID/target matching for entries created before fingerprints existed. A fingerprinted suppression only matches that exact finding identity, so suppressing one accepted exposure does not accidentally hide a different finding with the same rule and target text. Durations are explicit: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup immediately, but remain visible in the review queue for 30 days before audit-time pruning removes them. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent or hiding recently expired decisions before an analyst can review them.
 
 ## Preserve Existing Analysis Contracts
 
-`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
+`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs and fingerprints preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
 
 Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 

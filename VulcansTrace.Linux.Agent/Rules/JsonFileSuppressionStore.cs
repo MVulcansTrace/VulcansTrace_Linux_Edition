@@ -45,7 +45,7 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries[entry.MatchKey] = entry;
+            _entries[entry.StorageKey] = entry;
             SaveToDisk();
         }
         finally
@@ -61,6 +61,15 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         try
         {
             _entries.Remove($"{ruleId}|{target}");
+            var keysToRemove = _entries
+                .Where(kvp => kvp.Value.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase)
+                           && kvp.Value.Target.Equals(target, StringComparison.OrdinalIgnoreCase))
+                .Select(kvp => kvp.Key)
+                .ToList();
+            foreach (var key in keysToRemove)
+            {
+                _entries.Remove(key);
+            }
             SaveToDisk();
         }
         finally
@@ -76,6 +85,43 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         try
         {
             if (!_entries.TryGetValue($"{ruleId}|{target}", out var entry))
+                return false;
+
+            if (!string.IsNullOrEmpty(entry.Fingerprint))
+                return false;
+
+            if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value <= DateTime.UtcNow)
+                return false;
+
+            return true;
+        }
+        finally
+        {
+            _lock.ExitReadLock();
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsSuppressed(string ruleId, string target, string fingerprint)
+    {
+        _lock.EnterReadLock();
+        try
+        {
+            if (!string.IsNullOrEmpty(fingerprint))
+            {
+                if (_entries.TryGetValue($"{ruleId}|{fingerprint}", out var fpEntry))
+                {
+                    if (!fpEntry.ExpiresAt.HasValue || fpEntry.ExpiresAt.Value > DateTime.UtcNow)
+                        return true;
+                }
+            }
+
+            if (!_entries.TryGetValue($"{ruleId}|{target}", out var entry))
+                return false;
+
+            // Only fall back to rule+target match if the entry has no fingerprint
+            // (i.e., it is an old-style suppression).
+            if (!string.IsNullOrEmpty(entry.Fingerprint))
                 return false;
 
             if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value <= DateTime.UtcNow)
@@ -165,7 +211,7 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
             {
                 foreach (var entry in entries)
                 {
-                    _entries[entry.MatchKey] = entry;
+                    _entries[entry.StorageKey] = entry;
                 }
             }
         }
@@ -187,7 +233,10 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
                 Directory.CreateDirectory(directory);
             }
 
-            var json = JsonSerializer.Serialize(_entries.Values.ToList(), new JsonSerializerOptions
+            var json = JsonSerializer.Serialize(_entries.Values
+                .GroupBy(entry => entry.StorageKey, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList(), new JsonSerializerOptions
             {
                 WriteIndented = true
             });

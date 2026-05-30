@@ -51,6 +51,7 @@ User query
   -> Rule policy provider
   -> Rules / contextual rules
   -> Finding records
+  -> Finding fingerprints
   -> ExplanationProvider
   -> AgentResult
   -> UI and/or AgentReportGenerator
@@ -75,9 +76,9 @@ User query
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
 | Local policy | Applies built-in role defaults and JSON overrides for enabled state, auto-pass, severity, and contextual parameters |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
-| Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |
+| Accept Risk | Suppresses selected findings by fingerprint when available, falls back to legacy rule-ID/target entries, supports 7/30/90-day or permanent duration, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
-| Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with a deterministic narrative summary |
+| Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with fingerprint matching and a deterministic narrative summary |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
 
@@ -89,7 +90,7 @@ User query
 - Some checks are posture findings, not compromise findings.
 - Privilege-sensitive command output may be incomplete without elevated permissions.
 - Direct selected-finding explanations summarize the existing finding details.
-- Suppressions match exact rule IDs and targets. Expired suppressions are inactive immediately but remain reviewable for 30 days before pruning.
+- New suppressions match finding fingerprints when available. Legacy entries without fingerprints match exact rule IDs and targets. Expired suppressions are inactive immediately but remain reviewable for 30 days before pruning.
 - Command safety labels are keyword-based classifications and should be reviewed before use.
 - The desktop UI currently uses the `Workstation` role until a role selector exists.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.

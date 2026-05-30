@@ -20,6 +20,7 @@ public sealed record Finding
     private string _details = string.Empty;
     private string? _ruleId;
     private Guid? _id;
+    private string? _fingerprint;
 
     /// <summary>
     /// Optional agent rule identifier (e.g., "FW-001", "PORT-003").
@@ -39,6 +40,18 @@ public sealed record Finding
     {
         get => _id ?? ComputeIdFromFields();
         init => _id = value;
+    }
+
+    /// <summary>
+    /// Stable fingerprint for this finding, derived from semantic fields that identify the
+    /// underlying issue (RuleId, Category, SourceHost, Target). Excludes volatile fields
+    /// like timestamps and descriptions, plus mutable state like severity, so the fingerprint
+    /// remains stable across runs even when wording, time ranges, or severity change slightly.
+    /// </summary>
+    public string Fingerprint
+    {
+        get => _fingerprint ?? ComputeFingerprintFromFields();
+        init => _fingerprint = value;
     }
 
     /// <summary>Category of the finding (e.g., PortScan, Beaconing).</summary>
@@ -129,5 +142,12 @@ public sealed record Finding
         var canonical = $"{_category}|{(int)Severity}|{_sourceHost}|{_target}|{_timeRangeStart:O}|{_timeRangeEnd:O}|{_shortDescription}|{_details}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
         return new Guid(hash[..16]);
+    }
+
+    private string ComputeFingerprintFromFields()
+    {
+        var canonical = $"{_ruleId ?? ""}|{_category}|{_sourceHost}|{_target}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        return Convert.ToHexString(hash[..16]);
     }
 }

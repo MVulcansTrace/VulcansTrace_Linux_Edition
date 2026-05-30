@@ -165,7 +165,8 @@ public class SuppressionViewModelTests
             RuleId = "FW-001",
             Target = "A",
             ExpiresAt = now.AddDays(3),
-            CreatedAt = now.AddDays(-27)
+            CreatedAt = now.AddDays(-27),
+            Fingerprint = "fp-renew"
         });
 
         vm.Refresh();
@@ -182,6 +183,7 @@ public class SuppressionViewModelTests
         var renewed = store.GetAllRaw().First(e => e.RuleId == "FW-001");
         Assert.True(renewed.ExpiresAt > now.AddDays(20));
         Assert.True(renewed.ReviewDate > now.AddDays(20));
+        Assert.Equal("fp-renew", renewed.Fingerprint);
     }
 
     [Fact]
@@ -197,7 +199,8 @@ public class SuppressionViewModelTests
             RuleId = "FW-001",
             Target = "A",
             ExpiresAt = now.AddDays(3),
-            CreatedAt = now.AddDays(-27)
+            CreatedAt = now.AddDays(-27),
+            Fingerprint = "fp-convert"
         });
 
         vm.Refresh();
@@ -211,6 +214,7 @@ public class SuppressionViewModelTests
 
         var converted = store.GetAllRaw().First(e => e.RuleId == "FW-001");
         Assert.True(converted.ExpiresAt <= now.AddDays(8));
+        Assert.Equal("fp-convert", converted.Fingerprint);
     }
 
     [Fact]
@@ -270,6 +274,20 @@ public class SuppressionViewModelTests
         vm.RemoveSuppressionCommand.Execute(entry);
 
         Assert.Empty(store.GetAllRaw());
+    }
+
+    [Fact]
+    public void AddSuppression_PreservesFingerprint()
+    {
+        var store = new InMemorySuppressionStore();
+        var vm = new SuppressionViewModel(store, new TestDialogService());
+
+        vm.AddSuppression("FW-001", "INPUT", "Known lab exposure", SuppressionDuration.Days30, "fp1");
+
+        var entry = Assert.Single(store.GetAllRaw());
+        Assert.Equal("fp1", entry.Fingerprint);
+        Assert.True(store.IsSuppressed("FW-001", "INPUT", "fp1"));
+        Assert.False(store.IsSuppressed("FW-001", "INPUT", "other"));
     }
 
     private sealed class TestDialogService : IDialogService

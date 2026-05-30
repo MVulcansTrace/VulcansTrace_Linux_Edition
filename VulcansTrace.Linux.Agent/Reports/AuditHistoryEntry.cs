@@ -65,4 +65,7 @@ public sealed record AuditSnapshotFinding
     public required string Target { get; init; }
     public required string Severity { get; init; }
     public required string ShortDescription { get; init; }
+
+    /// <summary>Stable fingerprint for matching this finding across audits.</summary>
+    public string? Fingerprint { get; init; }
 }

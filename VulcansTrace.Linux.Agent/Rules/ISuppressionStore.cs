@@ -27,6 +27,15 @@ public interface ISuppressionStore
     bool IsSuppressed(string ruleId, string target);
 
     /// <summary>
+    /// Checks whether a finding is suppressed by rule/target or by fingerprint.
+    /// </summary>
+    /// <param name="ruleId">The rule ID.</param>
+    /// <param name="target">The target.</param>
+    /// <param name="fingerprint">The stable fingerprint of the finding.</param>
+    /// <returns>True if suppressed; otherwise, false.</returns>
+    bool IsSuppressed(string ruleId, string target, string fingerprint);
+
+    /// <summary>
     /// Gets all active suppression entries.
     /// </summary>
     IReadOnlyList<SuppressionEntry> GetAll();

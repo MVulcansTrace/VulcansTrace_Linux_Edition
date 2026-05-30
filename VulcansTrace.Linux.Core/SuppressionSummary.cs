@@ -22,4 +22,7 @@ public sealed record SuppressionSummary
 
     /// <summary>UTC timestamp when the suppression should be reviewed, if any.</summary>
     public DateTime? ReviewDate { get; init; }
+
+    /// <summary>Optional stable fingerprint of the finding being suppressed.</summary>
+    public string? Fingerprint { get; init; }
 }

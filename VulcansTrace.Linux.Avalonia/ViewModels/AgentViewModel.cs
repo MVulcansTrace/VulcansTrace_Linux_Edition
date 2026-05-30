@@ -756,7 +756,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             RuleId = f.RuleId ?? "",
             Target = f.Target,
             Severity = f.Severity.ToString(),
-            ShortDescription = f.ShortDescription
+            ShortDescription = f.ShortDescription,
+            Fingerprint = f.Fingerprint
         }).ToList();
 
         var entry = new AuditHistoryEntry

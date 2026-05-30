@@ -62,7 +62,9 @@ public class MainViewModelTests : IAsyncLifetime
     [Trait("Category", "Timing")]
     public async Task CancelCommand_CancelsActiveAnalysis()
     {
-        _vm.LogText = new string('k', 100_000);
+        _vm.Dispose();
+        _vm = BuildViewModel(baselineDetectors: [new BlockingDetector()]);
+        _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
         _vm.SelectedIntensity = _vm.Intensities[2];
 
         _vm.AnalyzeCommand.Execute(null);
@@ -188,12 +190,15 @@ also not a firewall line";
         }
     }
 
-    private static MainViewModel BuildViewModel(ISuppressionStore? suppressionStore = null, IAgent? agent = null)
+    private static MainViewModel BuildViewModel(
+        ISuppressionStore? suppressionStore = null,
+        IAgent? agent = null,
+        IDetector[]? baselineDetectors = null)
     {
         var logNormalizer = new LogNormalizer();
         var profileProvider = new AnalysisProfileProvider();
 
-        var baselineDetectors = new IDetector[]
+        baselineDetectors ??= new IDetector[]
         {
             new PortScanDetector(),
             new FloodDetector(),
@@ -292,6 +297,18 @@ also not a firewall line";
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
         {
             return Task.FromResult<int?>(null);
+        }
+    }
+
+    private sealed class BlockingDetector : IDetector
+    {
+        public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Thread.Sleep(10);
+            }
         }
     }
 }

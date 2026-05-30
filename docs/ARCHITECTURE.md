@@ -34,7 +34,7 @@ The Security Agent provides a parallel local posture path:
 2. Agent scanners collect firewall, port, service, interface, route, and connection state from local Linux commands.
 3. Role-aware rule policy resolves built-in defaults and local JSON overrides.
 4. Agent rules evaluate the collected `ScanData`, including contextual parameters when supported.
-5. Failed posture checks become `Finding` records with markdown-backed explanations.
+5. Failed posture checks become `Finding` records with stable fingerprints and markdown-backed explanations.
 6. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
 7. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 
@@ -42,7 +42,7 @@ The Security Agent provides a parallel local posture path:
 
 - `UnifiedEvent`: normalized schema for firewall logs, including Linux-specific fields.
 - `AnalysisProfile`: intensity-tuned thresholds for each detector.
-- `Finding`: immutable detector output with severity and time range.
+- `Finding`: immutable detector output with severity, time range, and a stable fingerprint for tracking the same issue across audits.
 - `AnalysisResult`: complete analysis output with entries, findings, and warnings.
 
 ## Detection Layers

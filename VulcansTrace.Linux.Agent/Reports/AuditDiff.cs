@@ -156,6 +156,9 @@ public sealed record DiffFinding
     public required string Target { get; init; }
     public required string Severity { get; init; }
     public required string ShortDescription { get; init; }
+
+    /// <summary>Stable fingerprint for matching this finding across audits.</summary>
+    public string? Fingerprint { get; init; }
 }
 
 /// <summary>
@@ -168,4 +171,7 @@ public sealed record SeverityChangeFinding
     public required string OldSeverity { get; init; }
     public required string NewSeverity { get; init; }
     public required string ShortDescription { get; init; }
+
+    /// <summary>Stable fingerprint for matching this finding across audits.</summary>
+    public string? Fingerprint { get; init; }
 }
