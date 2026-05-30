@@ -39,6 +39,13 @@ public sealed class CsvFormatter : IEvidenceFormatter
             sb.AppendLine(string.Join(",", fields.Select(Escape)));
         }
 
+        if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+        {
+            sb.AppendLine();
+            sb.AppendLine("DataSources");
+            sb.AppendLine(Escape(result.CapabilityReport));
+        }
+
         if (result.Warnings.Count > 0)
         {
             sb.AppendLine();

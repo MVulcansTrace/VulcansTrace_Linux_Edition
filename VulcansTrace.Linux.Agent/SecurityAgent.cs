@@ -640,7 +640,15 @@ public sealed class SecurityAgent : IAgent
                 CapabilityStatus.PermissionLimited => "permission-limited",
                 _ => "unknown"
             };
-            parts.Add($"{cap.SourceName} {statusLabel}");
+            var detail = string.Empty;
+            if (!string.IsNullOrWhiteSpace(cap.Detail) && cap.Status != CapabilityStatus.Available)
+            {
+                var sanitized = cap.Detail.Trim().Replace('\n', ' ').Replace('\r', ' ');
+                if (sanitized.Length > 80)
+                    sanitized = sanitized.Substring(0, 77) + "...";
+                detail = $" ({sanitized})";
+            }
+            parts.Add($"{cap.SourceName} {statusLabel}{detail}");
         }
 
         return "Data sources: " + string.Join("; ", parts) + ".";
