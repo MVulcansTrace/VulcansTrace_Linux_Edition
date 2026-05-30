@@ -23,8 +23,10 @@ public sealed class SecurityAgent : IAgent
     private readonly ISuppressionStore? _suppressionStore;
     private readonly MachineRole _machineRole;
     private readonly IRulePolicyProvider? _policyProvider;
+    private readonly IAuditHistoryStore? _historyStore;
     private readonly object _historyLock = new();
     private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
+    private AgentResult? _lastResult;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -37,6 +39,7 @@ public sealed class SecurityAgent : IAgent
     /// <param name="suppressionStore">Optional store for rule suppressions.</param>
     /// <param name="machineRole">The machine role used to tune rule strictness.</param>
     /// <param name="policyProvider">Optional provider for per-role rule policies.</param>
+    /// <param name="historyStore">Optional store for audit history used by follow-up queries.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -45,7 +48,8 @@ public sealed class SecurityAgent : IAgent
         AnalysisProfileProvider? profileProvider = null,
         ISuppressionStore? suppressionStore = null,
         MachineRole machineRole = MachineRole.Server,
-        IRulePolicyProvider? policyProvider = null)
+        IRulePolicyProvider? policyProvider = null,
+        IAuditHistoryStore? historyStore = null)
     {
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
@@ -55,6 +59,7 @@ public sealed class SecurityAgent : IAgent
         _suppressionStore = suppressionStore;
         _machineRole = machineRole;
         _policyProvider = policyProvider;
+        _historyStore = historyStore;
     }
 
     /// <inheritdoc />
@@ -77,6 +82,11 @@ public sealed class SecurityAgent : IAgent
         if (agentQuery.Intent == AgentIntent.ExplainFinding)
         {
             return await HandleExplainFindingAsync(agentQuery, ct);
+        }
+
+        if (IsFollowUpIntent(agentQuery.Intent))
+        {
+            return await HandleFollowUpAsync(agentQuery, ct);
         }
 
         return await RunAuditAsync(agentQuery.Intent, rawLog, ct);
@@ -239,7 +249,7 @@ public sealed class SecurityAgent : IAgent
 
         ReplaceLastFindings(historyEntries);
 
-        return new AgentResult
+        _lastResult = new AgentResult
         {
             Intent = intent,
             AgentFindings = agentFindings,
@@ -254,7 +264,378 @@ public sealed class SecurityAgent : IAgent
             CrashedCount = crashedCount,
             CapabilityReport = capabilityReport
         };
+
+        return _lastResult;
     }
+
+    private static bool IsFollowUpIntent(AgentIntent intent) => intent switch
+    {
+        AgentIntent.ShowChanges => true,
+        AgentIntent.ExplainCritical => true,
+        AgentIntent.FilterCategory => true,
+        AgentIntent.PrioritizeRemediation => true,
+        AgentIntent.ListSuppressed => true,
+        _ => false
+    };
+
+    private Task<AgentResult> HandleFollowUpAsync(AgentQuery agentQuery, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        return agentQuery.Intent switch
+        {
+            AgentIntent.ShowChanges => HandleShowChangesAsync(ct),
+            AgentIntent.ExplainCritical => HandleExplainCriticalAsync(ct),
+            AgentIntent.FilterCategory => HandleFilterCategoryAsync(agentQuery, ct),
+            AgentIntent.PrioritizeRemediation => HandlePrioritizeRemediationAsync(ct),
+            AgentIntent.ListSuppressed => HandleListSuppressedAsync(ct),
+            _ => Task.FromResult(new AgentResult
+            {
+                Intent = agentQuery.Intent,
+                Summary = "I'm not sure how to answer that. Run an audit first, then try a follow-up question.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            })
+        };
+    }
+
+    private Task<AgentResult> HandleShowChangesAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowChanges,
+                Summary = "No previous audit to compare against. Run an audit first, then ask what changed.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var allHistory = _historyStore?.GetAll();
+        if (allHistory == null || allHistory.Count == 0)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowChanges,
+                Summary = "No audit history available to compare against. Run at least two audits to see changes.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        // Skip the history entry that matches the current result (UI appends it after the audit).
+        AuditHistoryEntry? previous = null;
+        for (int i = 0; i < allHistory.Count; i++)
+        {
+            if (allHistory[i].TimestampUtc != _lastResult.UtcTimestamp)
+            {
+                previous = allHistory[i];
+                break;
+            }
+        }
+
+        if (previous == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowChanges,
+                Summary = "No previous audit found to compare against. Run at least two audits to see changes.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var currentEntry = new AuditHistoryEntry
+        {
+            SnapshotId = Guid.NewGuid().ToString("N")[..8],
+            TimestampUtc = _lastResult.UtcTimestamp,
+            Intent = _lastResult.Intent,
+            TotalFindings = _lastResult.AgentFindings.Count,
+            SnapshotFindings = _lastResult.AgentFindings.Select(ToSnapshotFinding).ToList()
+        };
+
+        var diff = AuditDiffCalculator.Calculate(previous, currentEntry);
+
+        var actionableFindings = new List<Finding>();
+        foreach (var df in diff.NewFindings.Concat(diff.WorsenedFindings.Select(w => new DiffFinding
+        {
+            RuleId = w.RuleId,
+            Target = w.Target,
+            Severity = w.NewSeverity,
+            ShortDescription = w.ShortDescription,
+            Fingerprint = w.Fingerprint
+        })))
+        {
+            actionableFindings.Add(new Finding
+            {
+                RuleId = df.RuleId,
+                Category = "Change",
+                Severity = ParseSeverityString(df.Severity),
+                SourceHost = "localhost",
+                Target = df.Target,
+                ShortDescription = df.ShortDescription,
+                Details = $"This finding is new or worsened since the last audit.",
+                TimeRangeStart = DateTime.UtcNow,
+                TimeRangeEnd = DateTime.UtcNow
+            });
+        }
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ShowChanges,
+            Summary = diff.Narrative,
+            AgentFindings = actionableFindings,
+            AuditDiff = diff,
+            Warnings = Array.Empty<string>()
+        });
+    }
+
+    private Task<AgentResult> HandleExplainCriticalAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ExplainCritical,
+                Summary = "Run an audit first, then ask me why findings are critical.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var criticalHigh = _lastResult.AgentFindings.Where(f => f.Severity >= Severity.High).ToList();
+
+        if (criticalHigh.Count == 0)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ExplainCritical,
+                Summary = "No Critical or High findings in the last audit. Everything is at Medium or below.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var parts = new List<string> { $"**Critical / High Findings ({criticalHigh.Count})**", "" };
+        foreach (var finding in criticalHigh)
+        {
+            var structured = _explanationProvider.ParseStructuredFromText(finding.Details);
+            parts.Add($"**[{finding.RuleId}] {finding.ShortDescription}**");
+            parts.Add(string.IsNullOrEmpty(structured.WhyItMatters) ? finding.Details : structured.WhyItMatters);
+            parts.Add("");
+        }
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ExplainCritical,
+            Summary = string.Join("\n", parts),
+            AgentFindings = criticalHigh,
+            Warnings = Array.Empty<string>()
+        });
+    }
+
+    private async Task<AgentResult> HandleFilterCategoryAsync(AgentQuery agentQuery, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var category = agentQuery.TargetReference;
+
+        if (_lastResult == null)
+        {
+            // Fallback: run a targeted audit for the inferred category
+            var fallbackIntent = InferIntentFromCategory(category);
+            if (fallbackIntent != AgentIntent.Help)
+            {
+                var fallbackResult = await RunAuditAsync(fallbackIntent, null, ct);
+                return fallbackResult with { Intent = AgentIntent.FilterCategory };
+            }
+
+            return new AgentResult
+            {
+                Intent = AgentIntent.FilterCategory,
+                Summary = "Run an audit first, then ask me to filter by category.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.FilterCategory,
+                Summary = "Please specify a category to filter by (e.g., 'show only firewall issues').",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var filtered = _lastResult.AgentFindings
+            .Where(f => f.Category.Contains(category, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var summary = filtered.Count > 0
+            ? $"Showing {filtered.Count} {category} issue(s) from the last audit."
+            : $"No {category} issues found in the last audit.";
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.FilterCategory,
+            Summary = summary,
+            AgentFindings = filtered,
+            Warnings = Array.Empty<string>()
+        };
+    }
+
+    private Task<AgentResult> HandlePrioritizeRemediationAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.PrioritizeRemediation,
+                Summary = "Run an audit first, then ask me what to fix first.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        if (_lastResult.AgentFindings.Count == 0)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.PrioritizeRemediation,
+                Summary = "No active findings to remediate. Great job!",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var builder = new RemediationPlanBuilder(_explanationProvider);
+        var plan = builder.Build(_lastResult.AgentFindings);
+        var sorted = plan.Sections.OrderByDescending(s => ParseSeverityFromSummary(s.FindingSummary)).ToList();
+        var sortedPlan = plan with { Sections = sorted };
+
+        var parts = new List<string> { "**Remediation Plan — Fix in this order**", "" };
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var section = sorted[i];
+            parts.Add($"{i + 1}. {section.FindingSummary}");
+            if (!string.IsNullOrWhiteSpace(section.RiskNote))
+            {
+                parts.Add($"   Risk: {section.RiskNote}");
+            }
+            if (section.ApplyCommands.Count > 0)
+            {
+                parts.Add($"   Action: `{section.ApplyCommands[0].Command}`");
+            }
+            parts.Add("");
+        }
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.PrioritizeRemediation,
+            Summary = string.Join("\n", parts),
+            AgentFindings = _lastResult.AgentFindings.OrderByDescending(f => f.Severity).ToList(),
+            RemediationPlan = sortedPlan,
+            Warnings = Array.Empty<string>()
+        });
+    }
+
+    private Task<AgentResult> HandleListSuppressedAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListSuppressed,
+                Summary = "Run an audit first, then ask me which findings are suppressed.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var suppressed = _lastResult.RuleResults.Where(r => r.Status == RuleStatus.Suppressed).ToList();
+
+        if (suppressed.Count == 0)
+        {
+            var extra = _suppressionStore != null
+                ? $" ({_suppressionStore.GetAll().Count} active suppression(s) in store, but none matched the last audit.)"
+                : "";
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListSuppressed,
+                Summary = $"No findings were suppressed in the last audit.{extra}",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var parts = new List<string> { $"**Suppressed Findings ({suppressed.Count})**", "" };
+        foreach (var result in suppressed)
+        {
+            parts.Add($"• [{result.RuleId}] {result.Description} — Target: {result.Target}");
+        }
+
+        if (_suppressionStore != null)
+        {
+            parts.Add($"\nTotal active suppressions in store: {_suppressionStore.GetAll().Count}");
+        }
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ListSuppressed,
+            Summary = string.Join("\n", parts),
+            AgentFindings = Array.Empty<Finding>(),
+            Warnings = Array.Empty<string>()
+        });
+    }
+
+    private static AuditSnapshotFinding ToSnapshotFinding(Finding f) => new()
+    {
+        RuleId = f.RuleId ?? $"__null-{f.Fingerprint ?? f.Id.ToString("N")}",
+        Target = f.Target,
+        Severity = f.Severity.ToString(),
+        ShortDescription = f.ShortDescription,
+        Fingerprint = f.Fingerprint
+    };
+
+    private static Severity ParseSeverityString(string severity) => severity.ToLowerInvariant() switch
+    {
+        "info" => Severity.Info,
+        "low" => Severity.Low,
+        "medium" => Severity.Medium,
+        "high" => Severity.High,
+        "critical" => Severity.Critical,
+        _ => Severity.Info
+    };
+
+    private static Severity ParseSeverityFromSummary(string summary)
+    {
+        if (summary.Contains("Critical", StringComparison.OrdinalIgnoreCase)) return Severity.Critical;
+        if (summary.Contains("High", StringComparison.OrdinalIgnoreCase)) return Severity.High;
+        if (summary.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return Severity.Medium;
+        if (summary.Contains("Low", StringComparison.OrdinalIgnoreCase)) return Severity.Low;
+        return Severity.Info;
+    }
+
+    private static AgentIntent InferIntentFromCategory(string? category) => category?.ToLowerInvariant() switch
+    {
+        "firewall" or "iptables" or "nftables" => AgentIntent.FirewallCheck,
+        "network" => AgentIntent.NetworkCheck,
+        "service" or "daemon" => AgentIntent.ServiceCheck,
+        "port" => AgentIntent.PortCheck,
+        _ => AgentIntent.Help
+    };
 
     /// <inheritdoc />
     public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
@@ -487,7 +868,7 @@ public sealed class SecurityAgent : IAgent
                 ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
                 : $"Rule {rule.Id} passed — no issue to explain.";
 
-        return new AgentResult
+        _lastResult = new AgentResult
         {
             Intent = AgentIntent.ExplainFinding,
             AgentFindings = agentFindings,
@@ -500,6 +881,8 @@ public sealed class SecurityAgent : IAgent
             CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0,
             CapabilityReport = capabilityReport
         };
+
+        return _lastResult;
     }
 
     private static RuleResult CreatePolicyDisabledResult(IRule rule)
@@ -670,5 +1053,10 @@ public sealed class SecurityAgent : IAgent
         "• \"What services are running?\"\n" +
         "• \"Who am I talking to?\" (network connections)\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
-        "To explain a specific finding: \"explain FW-001\" or select a finding from the list.";
-}
+        "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +
+        "\nFollow-up questions (after an audit):\n" +
+        "• \"What changed since the last audit?\"\n" +
+        "• \"Why is this critical?\"\n" +
+        "• \"Show only firewall issues\"\n" +
+        "• \"What should I fix first?\"\n" +
+        "• \"Which findings are suppressed?\"";}

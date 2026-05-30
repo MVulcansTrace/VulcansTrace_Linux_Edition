@@ -23,6 +23,21 @@ public enum AgentIntent
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 
+    /// <summary>Show what changed since the last audit.</summary>
+    ShowChanges,
+
+    /// <summary>Explain why critical/high findings matter.</summary>
+    ExplainCritical,
+
+    /// <summary>Filter the last result to a specific category.</summary>
+    FilterCategory,
+
+    /// <summary>Prioritize findings into a remediation plan.</summary>
+    PrioritizeRemediation,
+
+    /// <summary>List suppressed findings from the last result.</summary>
+    ListSuppressed,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }

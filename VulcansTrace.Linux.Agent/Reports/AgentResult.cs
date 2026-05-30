@@ -43,4 +43,10 @@ public sealed record AgentResult
 
     /// <summary>Human-readable report of which data sources were available during the audit.</summary>
     public string CapabilityReport { get; init; } = string.Empty;
+
+    /// <summary>Diff against a prior audit, populated for <see cref="Query.AgentIntent.ShowChanges"/>.</summary>
+    public AuditDiff? AuditDiff { get; init; }
+
+    /// <summary>Remediation plan from the last result, populated for <see cref="Query.AgentIntent.PrioritizeRemediation"/>.</summary>
+    public RemediationPlan? RemediationPlan { get; init; }
 }

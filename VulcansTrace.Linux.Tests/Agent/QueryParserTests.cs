@@ -26,6 +26,15 @@ public class QueryParserTests
     [InlineData("listening ports", AgentIntent.PortCheck)]
     [InlineData("explain this finding", AgentIntent.ExplainFinding)]
     [InlineData("what does this mean", AgentIntent.ExplainFinding)]
+    [InlineData("what changed since the last audit", AgentIntent.ShowChanges)]
+    [InlineData("difference since last time", AgentIntent.ShowChanges)]
+    [InlineData("why is this critical", AgentIntent.ExplainCritical)]
+    [InlineData("critical findings", AgentIntent.ExplainCritical)]
+    [InlineData("show only firewall issues", AgentIntent.FilterCategory)]
+    [InlineData("what should I fix first", AgentIntent.PrioritizeRemediation)]
+    [InlineData("remediation plan", AgentIntent.PrioritizeRemediation)]
+    [InlineData("which findings are suppressed", AgentIntent.ListSuppressed)]
+    [InlineData("suppressed", AgentIntent.ListSuppressed)]
     [InlineData("help", AgentIntent.Help)]
     [InlineData("what can you do", AgentIntent.Help)]
     [InlineData("capabilities", AgentIntent.Help)]
@@ -95,5 +104,32 @@ public class QueryParserTests
     {
         var result = _parser.Parse(query);
         Assert.Null(result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("show only firewall issues", "firewall")]
+    [InlineData("filter network findings", "network")]
+    [InlineData("only ssh findings", "ssh")]
+    public void Parse_FilterCategory_WithReference_ReturnsCategoryReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_FilterCategory_WithoutReference_ReturnsNullTargetReference()
+    {
+        var result = _parser.Parse("show only issues");
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.Null(result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_FilterCategory_PortIssues_ReturnsPortCheck()
+    {
+        // "port" scores higher than filter keywords, so this is treated as a fresh port audit
+        var result = _parser.Parse("just show port issues");
+        Assert.Equal(AgentIntent.PortCheck, result.Intent);
     }
 }

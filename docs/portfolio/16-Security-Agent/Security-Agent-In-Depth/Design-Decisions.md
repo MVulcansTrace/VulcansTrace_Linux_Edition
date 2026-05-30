@@ -70,9 +70,13 @@ Agent audit results are also loaded into the shared findings grid. That makes th
 
 The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. This keeps the UI responsible for messages, commands, cancellation, grouped rendering, filtering, quick actions, privilege warnings, suppression review refreshes, and bindings, while the agent project owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
 
+## Follow-Up Questions Without Re-Scanning
+
+Follow-up intents (`ShowChanges`, `ExplainCritical`, `FilterCategory`, `PrioritizeRemediation`, `ListSuppressed`) operate on the cached `_lastResult` instead of re-running scanners. This keeps them fast and deterministic. `ShowChanges` compares `_lastResult` against `IAuditHistoryStore`, skipping the history entry that matches the current result's timestamp so it does not diff an audit against itself. `FilterCategory` falls back to a fresh targeted audit only when no prior context exists, and returns the result with `Intent = FilterCategory` so the UI does not misinterpret it as a standalone audit.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.
 - Command-output parsers are practical for v1 and now have realistic fixture coverage, but more distro variants should be added over time.
-- Direct selected-finding explanations summarize existing finding details rather than performing deeper multi-turn reasoning.
+- Follow-up questions are deterministic transformations of existing data, not open-ended conversational reasoning.
 - Rules favor actionable posture checks, which can create findings that need analyst judgment rather than direct incident conclusions.

@@ -33,6 +33,7 @@ public sealed class ScanDataBuilder
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
+    private SshConfig? _sshConfig;
 
     public string FirewallRaw
     {
@@ -86,6 +87,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _capabilities.Add(capability); }
     }
 
+    public void SetSshConfig(SshConfig config)
+    {
+        lock (_lock) { _sshConfig = config; }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -101,7 +107,8 @@ public sealed class ScanDataBuilder
                 Routes = _routes.ToArray(),
                 ActiveConnections = _activeConnections.ToArray(),
                 Warnings = _warnings.ToArray(),
-                Capabilities = _capabilities.ToArray()
+                Capabilities = _capabilities.ToArray(),
+                SshConfig = _sshConfig
             };
         }
     }

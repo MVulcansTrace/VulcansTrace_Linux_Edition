@@ -35,6 +35,64 @@ public sealed record ScanData
 
     /// <summary>Capabilities of each data source checked during scanning.</summary>
     public IReadOnlyList<DataSourceCapability> Capabilities { get; init; } = Array.Empty<DataSourceCapability>();
+
+    /// <summary>SSH daemon configuration settings.</summary>
+    public SshConfig? SshConfig { get; init; }
+}
+
+/// <summary> Parsed SSH daemon configuration entry. </summary>
+public sealed record SshConfig
+{
+    /// <summary>Whether the configuration could be read.</summary>
+    public bool ConfigReadable { get; init; }
+
+    /// <summary>Value of PermitRootLogin directive.</summary>
+    public string? PermitRootLogin { get; init; }
+
+    /// <summary>Value of PasswordAuthentication directive.</summary>
+    public string? PasswordAuthentication { get; init; }
+
+    /// <summary>Value of MaxAuthTries directive.</summary>
+    public int? MaxAuthTries { get; init; }
+
+    /// <summary>Value of Protocol directive (legacy).</summary>
+    public string? Protocol { get; init; }
+
+    /// <summary>Value of PermitEmptyPasswords directive.</summary>
+    public string? PermitEmptyPasswords { get; init; }
+
+    /// <summary>Value of PubkeyAuthentication directive.</summary>
+    public string? PubkeyAuthentication { get; init; }
+
+    /// <summary>Value of ChallengeResponseAuthentication directive.</summary>
+    public string? ChallengeResponseAuthentication { get; init; }
+
+    /// <summary>Value of UsePAM directive.</summary>
+    public string? UsePAM { get; init; }
+
+    /// <summary>Value of X11Forwarding directive.</summary>
+    public string? X11Forwarding { get; init; }
+
+    /// <summary>Value of ClientAliveInterval directive.</summary>
+    public int? ClientAliveInterval { get; init; }
+
+    /// <summary>Value of LoginGraceTime directive.</summary>
+    public int? LoginGraceTime { get; init; }
+
+    /// <summary>Value of AllowUsers directive.</summary>
+    public string? AllowUsers { get; init; }
+
+    /// <summary>Value of AllowGroups directive.</summary>
+    public string? AllowGroups { get; init; }
+
+    /// <summary>Value of DenyUsers directive.</summary>
+    public string? DenyUsers { get; init; }
+
+    /// <summary>Value of DenyGroups directive.</summary>
+    public string? DenyGroups { get; init; }
+
+    /// <summary>Raw configuration lines that were parsed.</summary>
+    public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>A parsed firewall rule entry.</summary>

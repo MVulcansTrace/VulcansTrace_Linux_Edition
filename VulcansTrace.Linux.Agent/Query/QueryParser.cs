@@ -17,6 +17,11 @@ public sealed class QueryParser : IQueryParser
         (new[] { "service", "running", "daemon", "systemctl", "unit" }, AgentIntent.ServiceCheck, 2),
         (new[] { "port", "open", "listening", "ss", "netstat" }, AgentIntent.PortCheck, 2),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
+        (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
+        (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
+        (new[] { "only", "just show", "show me", "filter" }, AgentIntent.FilterCategory, 3),
+        (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
+        (new[] { "suppressed", "which are suppressed", "hidden findings", "silenced" }, AgentIntent.ListSuppressed, 2),
         (new[] { "help", "what can you do", "capabilities", "commands" }, AgentIntent.Help, 2),
     };
 
@@ -61,7 +66,7 @@ public sealed class QueryParser : IQueryParser
 
     private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
     {
-        if (intent != AgentIntent.ExplainFinding)
+        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory)
             return null;
 
         // Look for rule IDs like FW-001, PORT-002, etc.

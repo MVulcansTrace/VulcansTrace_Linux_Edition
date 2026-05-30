@@ -143,7 +143,7 @@ public partial class MainWindow : Window
             auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
         }
 
-        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider);
+        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider, auditHistoryStore);
         var ruleCatalog = new RuleCatalog(rules);
 
         var dialogService = new AvaloniaDialogService(this);

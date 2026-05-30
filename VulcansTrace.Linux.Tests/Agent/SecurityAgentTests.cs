@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scanners;
@@ -532,5 +533,330 @@ public class SecurityAgentTests
 
         Assert.Single(result.AgentFindings);
         Assert.Equal(Severity.Critical, result.AgentFindings[0].Severity);
+    }
+
+    // ─── Follow-up question tests ───
+
+    [Fact]
+    public async Task AskAsync_ShowChanges_WithHistory_ReturnsDiff()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        historyStore.Append(new AuditHistoryEntry
+        {
+            SnapshotId = "prev-001",
+            Intent = AgentIntent.FullAudit,
+            SnapshotFindings = new[]
+            {
+                new AuditSnapshotFinding { RuleId = "TEST-002", Target = "old-target", Severity = "Low", ShortDescription = "Old finding" }
+            }
+        });
+
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            historyStore: historyStore);
+
+        // Run audit to populate _lastResult
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+
+        // Ask follow-up
+        var result = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowChanges, result.Intent);
+        Assert.NotNull(result.AuditDiff);
+        Assert.NotEmpty(result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowChanges_WithoutHistory_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // Run audit to populate _lastResult
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+
+        var result = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowChanges, result.Intent);
+        Assert.Contains("No audit history available", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowChanges_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowChanges, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainCritical_AfterAudit_ReturnsCriticalHigh()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailCriticalRule(), new AlwaysFailHighRule(), new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("why is this critical", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainCritical, result.Intent);
+        Assert.Equal(2, result.AgentFindings.Count);
+        Assert.All(result.AgentFindings, f => Assert.True(f.Severity >= Severity.High));
+        Assert.Contains("Critical / High Findings", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainCritical_NoCriticalHigh_ReturnsMessage()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("why is this critical", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainCritical, result.Intent);
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("No Critical or High findings", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ExplainCritical_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("why is this critical", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainCritical, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_FilterCategory_AfterAudit_ReturnsFiltered()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule(), new AlwaysPassRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("show only firewall issues", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.All(result.AgentFindings, f => Assert.Equal("Firewall", f.Category));
+        Assert.Contains("firewall", result.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AskAsync_FilterCategory_WithoutContext_FallsBackToAudit()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("show only firewall issues", null, CancellationToken.None);
+
+        // Fallback runs a firewall audit but reports intent as FilterCategory
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.NotNull(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_PrioritizeRemediation_AfterAudit_ReturnsPlan()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailCriticalRule(), new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("what should I fix first", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.PrioritizeRemediation, result.Intent);
+        Assert.NotNull(result.RemediationPlan);
+        Assert.Contains("Remediation Plan", result.Summary);
+        Assert.Equal(Severity.Critical, result.AgentFindings[0].Severity);
+    }
+
+    [Fact]
+    public async Task AskAsync_PrioritizeRemediation_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("what should I fix first", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.PrioritizeRemediation, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ListSuppressed_AfterAudit_ReturnsSuppressed()
+    {
+        var suppressionStore = new InMemorySuppressionStore();
+        suppressionStore.Add(new SuppressionEntry { RuleId = "TEST-001", Target = "test-target" });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            suppressionStore: suppressionStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("which findings are suppressed", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListSuppressed, result.Intent);
+        Assert.Contains("Suppressed Findings", result.Summary);
+        Assert.Contains("TEST-001", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ListSuppressed_NoneSuppressed_ReturnsMessage()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("which findings are suppressed", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListSuppressed, result.Intent);
+        Assert.Contains("No findings were suppressed", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ListSuppressed_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("which findings are suppressed", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListSuppressed, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowChanges_WhenHistoryContainsCurrentAudit_SkipsToPrevious()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            historyStore: historyStore);
+
+        // Simulate UI flow: run audit, then append to history (as AgentViewModel does)
+        var audit1 = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        historyStore.Append(new AuditHistoryEntry
+        {
+            SnapshotId = "snap-1",
+            TimestampUtc = audit1.UtcTimestamp,
+            Intent = audit1.Intent,
+            SnapshotFindings = audit1.AgentFindings.Select(f => new AuditSnapshotFinding
+            {
+                RuleId = f.RuleId ?? "",
+                Target = f.Target,
+                Severity = f.Severity.ToString(),
+                ShortDescription = f.ShortDescription,
+                Fingerprint = f.Fingerprint
+            }).ToList()
+        });
+
+        // Run second audit
+        var audit2 = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        historyStore.Append(new AuditHistoryEntry
+        {
+            SnapshotId = "snap-2",
+            TimestampUtc = audit2.UtcTimestamp,
+            Intent = audit2.Intent,
+            SnapshotFindings = audit2.AgentFindings.Select(f => new AuditSnapshotFinding
+            {
+                RuleId = f.RuleId ?? "",
+                Target = f.Target,
+                Severity = f.Severity.ToString(),
+                ShortDescription = f.ShortDescription,
+                Fingerprint = f.Fingerprint
+            }).ToList()
+        });
+
+        // Ask what changed — should compare audit2 against audit1, not against itself
+        var result = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowChanges, result.Intent);
+        Assert.NotNull(result.AuditDiff);
+        // Since both audits are identical, there should be no new or resolved findings
+        Assert.Equal("No changes between audits.", result.AuditDiff.Narrative);
+    }
+
+    [Fact]
+    public async Task AskAsync_FilterCategory_AfterSingleRuleExplain_ReturnsFullAuditFilter()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule(), new AlwaysPassRule() },
+            new ExplanationProvider());
+
+        // Run full audit first
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+
+        // Explain a single rule by ID (triggers RunSingleRuleAsync)
+        var explainResult = await agent.AskAsync("explain TEST-001", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.ExplainFinding, explainResult.Intent);
+
+        // Follow-up filter should still operate on the last full audit, not the single-rule result
+        var filterResult = await agent.AskAsync("show only firewall issues", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.FilterCategory, filterResult.Intent);
+        Assert.All(filterResult.AgentFindings, f => Assert.Equal("Firewall", f.Category));
+    }
+
+    private sealed class AlwaysFailCriticalRule : IRule
+    {
+        public string Id => "TEST-004";
+        public string Category => "Firewall";
+        public string Description => "Test critical finding";
+        public string WhatItChecks => "Test rule that always fails critically";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.Critical;
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Fail(Id, Category, Id, Description, Severity.Critical, "critical-target");
+        }
+    }
+
+    private sealed class AlwaysFailHighRule : IRule
+    {
+        public string Id => "TEST-005";
+        public string Category => "Port";
+        public string Description => "Test high finding";
+        public string WhatItChecks => "Test rule that always fails with high severity";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.High;
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Fail(Id, Category, Id, Description, Severity.High, "high-target");
+        }
     }
 }

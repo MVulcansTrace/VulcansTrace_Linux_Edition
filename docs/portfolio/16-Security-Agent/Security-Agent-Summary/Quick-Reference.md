@@ -13,6 +13,11 @@
 | `PortCheck` | `What ports are open?` | Port rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
+| `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
+| `ExplainCritical` | `Why is this critical?` | Explain Critical/High findings from the last audit |
+| `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
+| `PrioritizeRemediation` | `What should I fix first?` | Severity-ordered remediation plan from the last audit |
+| `ListSuppressed` | `Which findings are suppressed?` | List suppressed findings from the last audit |
 | `Help` | `What can you do?` | Help text only |
 
 ---

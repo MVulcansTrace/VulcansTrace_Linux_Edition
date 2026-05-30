@@ -15,7 +15,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents
+- **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents, plus deterministic follow-ups such as "what changed since the last audit?" and "what should I fix first?"
 - **Live host scanning** — collects firewall, port, service, interface, route, and connection state through local Linux commands
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
@@ -26,6 +26,7 @@ Documentation is organized for two audiences:
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, fingerprints, capability reports, and active suppression notes in evidence exports
+- **Deterministic follow-up questions** — operates on the last audit result without re-running scans: changes since last audit, critical/high explanations, category filtering, prioritized remediation, and suppressed listing
 - **Timed suppressions** — supports fingerprint-scoped 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
 - **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, suppression review actions, cancellation, audit export, and guarded remediation preview export
 - **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, and agent orchestration

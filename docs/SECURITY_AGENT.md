@@ -19,6 +19,11 @@ The query parser maps natural-language prompts to structured intents:
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
+| `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
+| `Why is this critical?` | `ExplainCritical` | Explain only Critical/High findings from the last audit |
+| `Show only firewall issues` | `FilterCategory` | Filter the last audit's findings by category (falls back to a fresh category audit when no context exists) |
+| `What should I fix first?` | `PrioritizeRemediation` | Build a severity-ordered remediation plan from the last audit |
+| `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
 | `Help` | `Help` | Returns supported agent capabilities |
 
 ## Data Sources
@@ -139,7 +144,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Capability status reports command availability and permission visibility, not semantic completeness of every data source.
 - Some findings are posture checks rather than proof of compromise.
 - Process names and firewall details may require elevated privileges depending on the host.
-- Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.
+- Deterministic follow-up questions (changes, critical explanations, category filtering, remediation prioritization, and suppressed listing) operate on the last audit result without re-running scans. They require a prior audit context; when context is missing they return guidance or fall back to a targeted audit for category-filter queries.
 - New suppressions are fingerprint-scoped when the selected finding has a fingerprint. Older suppressions without fingerprints still match by rule ID and target, so intentional target text changes can require accepting the risk again.
 - Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
 - The desktop UI currently uses the `Workstation` role by default; changing roles requires code-level composition until a role selector is added.
