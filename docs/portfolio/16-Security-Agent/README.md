@@ -16,9 +16,9 @@ Documentation is organized for two audiences:
 ## System Capabilities
 
 - **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents, plus deterministic follow-ups such as "what changed since the last audit?" and "what should I fix first?"
-- **Live host scanning** — collects firewall, port, service, interface, route, and connection state through local Linux commands
+- **Live host scanning** — collects firewall, port, service, SSH daemon configuration, interface, route, and connection state through local Linux commands
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
-- **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
+- **Rule-based posture checks** — evaluates firewall, port, service, SSH, and network rules without external AI dependencies
 - **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
@@ -43,7 +43,8 @@ Documentation is organized for two audiences:
 - [PortScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/PortScanner.cs) — listening-port collection
 - [ServiceScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs) — systemd service collection
 - [NetworkScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs) — interface, route, and connection collection
-- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, and port checks
+- [SshConfigScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs) — SSH daemon configuration collection
+- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, and SSH checks
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [DefaultRulePolicyProvider.cs](../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and user-policy merge behavior

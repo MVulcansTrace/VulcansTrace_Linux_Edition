@@ -513,4 +513,109 @@ public class ScannerParserFixtureTests
 
         Assert.Contains(data.Capabilities, c => c.SourceName == "systemctl");
     }
+
+    // =====================================================================
+    // SshConfigScanner Fixtures
+    // =====================================================================
+
+    private const string SshdTSample = """
+        permitrootlogin no
+        passwordauthentication no
+        maxauthtries 3
+        protocol 2
+        permitemptypasswords no
+        pubkeyauthentication yes
+        challengeresponseauthentication no
+        usepam yes
+        x11forwarding no
+        clientaliveinterval 300
+        logingracetime 120
+        """;
+
+    private const string SshdConfigSample = """
+        #Port 22
+        PermitRootLogin prohibit-password
+        PasswordAuthentication yes
+        MaxAuthTries 6
+        #Protocol 2
+        PermitEmptyPasswords no
+        PubkeyAuthentication yes
+        X11Forwarding yes
+        Include /etc/ssh/sshd_config.d/*.conf
+        """;
+
+    [Fact]
+    public void SshConfigScanner_ParseSshdTOutput_ExtractsDirectives()
+    {
+        var builder = new ScanDataBuilder();
+        var config = SshConfigScanner.ParseSshdTOutput(SshdTSample);
+        builder.SetSshConfig(config);
+        var data = builder.Build();
+
+        Assert.NotNull(data.SshConfig);
+        Assert.True(data.SshConfig.ConfigReadable);
+        Assert.Equal("no", data.SshConfig.PermitRootLogin);
+        Assert.Equal("no", data.SshConfig.PasswordAuthentication);
+        Assert.Equal(3, data.SshConfig.MaxAuthTries);
+        Assert.Equal("2", data.SshConfig.Protocol);
+        Assert.Equal("no", data.SshConfig.PermitEmptyPasswords);
+        Assert.Equal("yes", data.SshConfig.PubkeyAuthentication);
+        Assert.Equal("no", data.SshConfig.ChallengeResponseAuthentication);
+        Assert.Equal("yes", data.SshConfig.UsePAM);
+        Assert.Equal("no", data.SshConfig.X11Forwarding);
+        Assert.Equal(300, data.SshConfig.ClientAliveInterval);
+        Assert.Equal(120, data.SshConfig.LoginGraceTime);
+    }
+
+    [Fact]
+    public void SshConfigScanner_ParseConfigFile_ExtractsDirectives()
+    {
+        var config = SshConfigScanner.ParseConfigFile(SshdConfigSample, "/etc/ssh/sshd_config");
+
+        Assert.True(config.ConfigReadable);
+        Assert.Equal("prohibit-password", config.PermitRootLogin);
+        Assert.Equal("yes", config.PasswordAuthentication);
+        Assert.Equal(6, config.MaxAuthTries);
+        Assert.Null(config.Protocol); // commented out
+        Assert.Equal("no", config.PermitEmptyPasswords);
+        Assert.Equal("yes", config.PubkeyAuthentication);
+        Assert.Equal("yes", config.X11Forwarding);
+    }
+
+    [Fact]
+    public void SshConfigScanner_ParseConfigFile_MatchBlock_IsSkipped()
+    {
+        const string configWithMatch = """
+            PasswordAuthentication yes
+            Match User admin
+                PasswordAuthentication no
+            PermitRootLogin no
+            """;
+
+        var config = SshConfigScanner.ParseConfigFile(configWithMatch, "/etc/ssh/sshd_config");
+
+        Assert.Equal("yes", config.PasswordAuthentication); // global value
+        Assert.Equal("no", config.PermitRootLogin); // after Match block
+    }
+
+    [Fact]
+    public void SshConfigScanner_ParseConfigFile_EmptyInput_IsNotReadable()
+    {
+        var config = SshConfigScanner.ParseConfigFile("", "/etc/ssh/sshd_config");
+
+        Assert.True(config.ConfigReadable); // file was read, just empty
+        Assert.Null(config.PermitRootLogin);
+        Assert.Null(config.PasswordAuthentication);
+    }
+
+    [Fact]
+    public async Task SshConfigScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new SshConfigScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "sshd -T" || c.SourceName == "sshd_config");
+    }
 }

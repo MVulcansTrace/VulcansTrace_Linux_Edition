@@ -11,6 +11,7 @@
 | `NetworkCheck` | `Who am I talking to?` | Network rules |
 | `ServiceCheck` | `What services are running?` | Service rules |
 | `PortCheck` | `What ports are open?` | Port rules |
+| `SshCheck` | `How's my SSH hardening?` | SSH hardening rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
@@ -30,6 +31,7 @@
 | `PortScanner` | `ss -tulnp`, `netstat -tulnp` | `OpenPorts` |
 | `ServiceScanner` | `systemctl list-units --type=service --state=running --no-pager --no-legend` | `RunningServices` |
 | `NetworkScanner` | `ip addr`, `ip route`, `ss -tunap` | `NetworkInterfaces`, `Routes`, `ActiveConnections` |
+| `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | `SshConfig` |
 
 ---
 
@@ -41,6 +43,7 @@
 | Port | SSH default port, all-interface listeners, exposed database ports, unknown high ports |
 | Service | telnet, FTP, SSH presence, legacy r-services, unnecessary services |
 | Network | default route, suspicious outbound connections, interface state, loopback exposure |
+| SSH | root login, password auth, auth retries, protocol version, empty passwords, pubkey auth, X11 forwarding |
 
 ---
 
@@ -75,7 +78,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |

@@ -17,6 +17,7 @@ The query parser maps natural-language prompts to structured intents:
 | `What ports are open?` | `PortCheck` | Reviews listening ports and exposure |
 | `What services are running?` | `ServiceCheck` | Reviews running services |
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
+| `Check my SSH` | `SshCheck` | Reviews SSH daemon hardening configuration |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -36,8 +37,9 @@ The agent reads local host state using common Linux tools:
 | `PortScanner` | `ss -tulnp`, fallback `netstat -tulnp` | Finds listening TCP/UDP ports and owning processes when visible |
 | `ServiceScanner` | `systemctl list-units --type=service --state=running --no-pager --no-legend` | Finds running systemd services |
 | `NetworkScanner` | `ip addr`, `ip route`, `ss -tunap` | Reads interfaces, routes, and active connections |
+| `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | Reads SSH daemon hardening directives |
 
-Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names and firewall rules.
+Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, and `sshd -T` host key access.
 
 ## Rule Coverage
 
@@ -71,6 +73,16 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - At least one interface should be up.
 - Services intended for loopback should not also listen on all interfaces.
 
+### SSH
+
+- Direct root login should be disabled or limited to key-based auth (`PermitRootLogin`).
+- Password authentication should be disabled in favor of key-based auth (`PasswordAuthentication`).
+- Maximum authentication attempts per connection should be low (`MaxAuthTries`).
+- Legacy SSH Protocol 1 should not be enabled (`Protocol`).
+- Empty passwords should not be permitted (`PermitEmptyPasswords`).
+- Public-key authentication should be enabled (`PubkeyAuthentication`).
+- X11 forwarding should be disabled on servers (`X11Forwarding`).
+
 ## How The Pipeline Works
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
@@ -90,7 +102,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`, `Router`, and `DevMachine` profiles. Built-in defaults tune selected rules, and user JSON policies take precedence while inheriting built-in parameters that are not overridden.
 
-The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, and `SRV-005`.
+The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, and `SSH-007`.
 
 The Avalonia composition currently runs the agent as `Workstation`; other roles are available through the agent API and policy provider wiring until a role selector is added.
 
@@ -165,6 +177,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - [PortScanner.cs](../VulcansTrace.Linux.Agent/Scanners/PortScanner.cs)
 - [ServiceScanner.cs](../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs)
 - [NetworkScanner.cs](../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs)
+- [SshConfigScanner.cs](../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)

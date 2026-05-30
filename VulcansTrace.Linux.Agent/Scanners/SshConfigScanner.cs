@@ -20,7 +20,7 @@ public sealed class SshConfigScanner : IScanner
     /// <inheritdoc />
     public async Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
-        // Prefer sshd -T when available because it resolves includes and defaults.
+        // Prefer sshd -T when available because it resolves includes, defaults, and recursion.
         var (testOutput, testError, testOk) = await RunCommandAsync("sshd", new[] { "-T" }, cancellationToken);
         var testStatus = DataSourceCapability.FromCommandResult(testOk, testOutput, testError);
         builder.AddCapability(new DataSourceCapability { SourceName = "sshd -T", Status = testStatus, Detail = testError });
@@ -32,7 +32,7 @@ public sealed class SshConfigScanner : IScanner
             return;
         }
 
-        // Fallback: read config files directly.
+        // Fallback: read config files directly with async recursive include expansion.
         string? configPath = null;
         foreach (var path in ConfigPaths)
         {
@@ -47,13 +47,14 @@ public sealed class SshConfigScanner : IScanner
         {
             builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = "No sshd_config found" });
             builder.AddWarning("SSH config scan skipped: no sshd_config found.");
+            builder.SetSshConfig(new SshConfig { ConfigReadable = false });
             return;
         }
 
         try
         {
-            var content = await File.ReadAllTextAsync(configPath, cancellationToken);
-            var config = ParseConfigFile(content, configPath);
+            var lines = await ReadConfigWithIncludesAsync(configPath, cancellationToken);
+            var config = ParseConfigLines(lines);
             builder.SetSshConfig(config);
             builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Available });
         }
@@ -61,6 +62,7 @@ public sealed class SshConfigScanner : IScanner
         {
             builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = ex.Message });
             builder.AddWarning($"SSH config scan skipped: failed to read {configPath}. {ex.Message}");
+            builder.SetSshConfig(new SshConfig { ConfigReadable = false });
         }
     }
 
@@ -89,9 +91,12 @@ public sealed class SshConfigScanner : IScanner
         return BuildSshConfig(values, rawLines);
     }
 
-    internal static SshConfig ParseConfigFile(string content, string sourcePath)
+    /// <summary>
+    /// Parses an already-resolved sequence of sshd_config lines (includes processed inline).
+    /// Match blocks are skipped for global hardening checks.
+    /// </summary>
+    internal static SshConfig ParseConfigLines(IEnumerable<string> lines)
     {
-        var lines = content.Split('\n');
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var rawLines = new List<string>();
         bool inMatchBlock = false;
@@ -114,7 +119,6 @@ public sealed class SshConfigScanner : IScanner
             if (inMatchBlock)
             {
                 // Match-block directives are indented; global directives are not.
-                // If we see a non-indented line that is not a comment, we've exited the Match block.
                 if (rawLine.Length > 0 && rawLine[0] != ' ' && rawLine[0] != '\t')
                 {
                     inMatchBlock = false;
@@ -140,20 +144,78 @@ public sealed class SshConfigScanner : IScanner
             values[key] = value;
         }
 
-        // Follow Include directives for drop-in configs.
-        if (values.TryGetValue("Include", out var includePattern))
-        {
-            ExpandInclude(includePattern, sourcePath, values, rawLines);
-        }
-
         return BuildSshConfig(values, rawLines);
     }
 
-    private static void ExpandInclude(string includePattern, string sourcePath, Dictionary<string, string> values, List<string> rawLines)
+    /// <summary>
+    /// Legacy entry point for tests that don't need include resolution.
+    /// </summary>
+    internal static SshConfig ParseConfigFile(string content, string sourcePath)
+    {
+        var lines = content.Split('\n');
+        return ParseConfigLines(lines);
+    }
+
+    /// <summary>
+    /// Reads a config file and recursively expands Include directives inline using async I/O.
+    /// Guards against circular includes.
+    /// </summary>
+    private static async Task<List<string>> ReadConfigWithIncludesAsync(string path, CancellationToken ct, HashSet<string>? visited = null)
+    {
+        visited ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!visited.Add(path))
+            return new List<string>(); // Circular include guard
+
+        var lines = new List<string>();
+        string content;
+        try
+        {
+            content = await File.ReadAllTextAsync(path, ct);
+        }
+        catch
+        {
+            return lines; // Unreadable file — skip silently
+        }
+
+        var fileLines = content.Split('\n');
+        var baseDir = Path.GetDirectoryName(path) ?? "/etc/ssh";
+
+        foreach (var rawLine in fileLines)
+        {
+            lines.Add(rawLine);
+
+            var line = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#') || line.StartsWith(";"))
+                continue;
+
+            var spaceIndex = line.IndexOf(' ');
+            if (spaceIndex <= 0)
+                continue;
+
+            var key = line.Substring(0, spaceIndex).Trim();
+            var value = line.Substring(spaceIndex + 1).Trim();
+
+            var commentIndex = value.IndexOf('#');
+            if (commentIndex >= 0)
+                value = value.Substring(0, commentIndex).Trim();
+
+            if (!key.Equals("Include", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            foreach (var resolved in ResolveIncludePattern(value, baseDir))
+            {
+                var includedLines = await ReadConfigWithIncludesAsync(resolved, ct, visited);
+                lines.AddRange(includedLines);
+            }
+        }
+
+        return lines;
+    }
+
+    private static IEnumerable<string> ResolveIncludePattern(string includePattern, string baseDir)
     {
         try
         {
-            var baseDir = Path.GetDirectoryName(sourcePath) ?? "/etc/ssh";
             var path = includePattern;
             if (!Path.IsPathRooted(path))
                 path = Path.Combine(baseDir, path);
@@ -162,45 +224,13 @@ public sealed class SshConfigScanner : IScanner
             var pattern = Path.GetFileName(path);
 
             if (!Directory.Exists(dir))
-                return;
+                return Array.Empty<string>();
 
-            foreach (var file in Directory.GetFiles(dir, pattern).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var extraContent = File.ReadAllText(file);
-                    var extraLines = extraContent.Split('\n');
-                    foreach (var rawLine in extraLines)
-                    {
-                        var line = rawLine.Trim();
-                        rawLines.Add(rawLine);
-
-                        if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#') || line.StartsWith(";"))
-                            continue;
-
-                        var spaceIndex = line.IndexOf(' ');
-                        if (spaceIndex <= 0)
-                            continue;
-
-                        var key = line.Substring(0, spaceIndex).Trim();
-                        var value = line.Substring(spaceIndex + 1).Trim();
-
-                        var commentIndex = value.IndexOf('#');
-                        if (commentIndex >= 0)
-                            value = value.Substring(0, commentIndex).Trim();
-
-                        values[key] = value;
-                    }
-                }
-                catch
-                {
-                    // Ignore unreadable included files.
-                }
-            }
+            return Directory.GetFiles(dir, pattern).OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
         }
         catch
         {
-            // Ignore expansion errors.
+            return Array.Empty<string>();
         }
     }
 

@@ -20,6 +20,9 @@ public enum AgentIntent
     /// <summary>Focus on open ports and listening services.</summary>
     PortCheck,
 
+    /// <summary>Focus on SSH daemon configuration and hardening.</summary>
+    SshCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

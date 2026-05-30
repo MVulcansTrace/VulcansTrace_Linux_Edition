@@ -285,4 +285,277 @@ public class RuleTests
 
         Assert.True(result.Passed);
     }
+
+    // =====================================================================
+    // SSH Rules
+    // =====================================================================
+
+    [Fact]
+    public void SshPermitRootLoginRule_Yes_Fails()
+    {
+        var rule = new SshPermitRootLoginRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PermitRootLogin = "yes" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SshPermitRootLoginRule_No_Passes()
+    {
+        var rule = new SshPermitRootLoginRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PermitRootLogin = "no" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshPermitRootLoginRule_ProhibitPassword_Passes()
+    {
+        var rule = new SshPermitRootLoginRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PermitRootLogin = "prohibit-password" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshPasswordAuthenticationRule_Yes_Fails()
+    {
+        var rule = new SshPasswordAuthenticationRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PasswordAuthentication = "yes" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void SshPasswordAuthenticationRule_No_Passes()
+    {
+        var rule = new SshPasswordAuthenticationRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PasswordAuthentication = "no" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshMaxAuthTriesRule_High_Fails()
+    {
+        var rule = new SshMaxAuthTriesRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, MaxAuthTries = 6 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SshMaxAuthTriesRule_Null_Fails()
+    {
+        var rule = new SshMaxAuthTriesRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, MaxAuthTries = null } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void SshMaxAuthTriesRule_Low_Passes()
+    {
+        var rule = new SshMaxAuthTriesRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, MaxAuthTries = 3 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshProtocolRule_Protocol1_Fails()
+    {
+        var rule = new SshProtocolRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, Protocol = "1,2" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SshProtocolRule_Protocol2_Passes()
+    {
+        var rule = new SshProtocolRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, Protocol = "2" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshProtocolRule_Null_Passes()
+    {
+        var rule = new SshProtocolRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, Protocol = null } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshProtocolRule_Protocol12_DoesNotFalsePositive()
+    {
+        var rule = new SshProtocolRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, Protocol = "12" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshProtocolRule_Protocol21_DoesNotFalsePositive()
+    {
+        var rule = new SshProtocolRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, Protocol = "21" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshMaxAuthTriesRule_Zero_Fails()
+    {
+        var rule = new SshMaxAuthTriesRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, MaxAuthTries = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void SshEmptyPasswordsRule_Yes_Fails()
+    {
+        var rule = new SshEmptyPasswordsRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PermitEmptyPasswords = "yes" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SshEmptyPasswordsRule_No_Passes()
+    {
+        var rule = new SshEmptyPasswordsRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PermitEmptyPasswords = "no" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshPubkeyAuthenticationRule_No_Fails()
+    {
+        var rule = new SshPubkeyAuthenticationRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PubkeyAuthentication = "no" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void SshPubkeyAuthenticationRule_Yes_Passes()
+    {
+        var rule = new SshPubkeyAuthenticationRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, PubkeyAuthentication = "yes" } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshX11ForwardingRule_ServerYes_Fails()
+    {
+        var rule = new SshX11ForwardingRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, X11Forwarding = "yes" } };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SshX11ForwardingRule_WorkstationYes_Passes()
+    {
+        var rule = new SshX11ForwardingRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, X11Forwarding = "yes" } };
+        var context = new RuleEvaluationContext(MachineRole.Workstation, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshX11ForwardingRule_ServerNo_Passes()
+    {
+        var rule = new SshX11ForwardingRule();
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = true, X11Forwarding = "no" } };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshRules_NoConfig_Passes()
+    {
+        var data = new ScanData { SshConfig = null };
+
+        Assert.True(new SshPermitRootLoginRule().Evaluate(data).Passed);
+        Assert.True(new SshPasswordAuthenticationRule().Evaluate(data).Passed);
+        Assert.True(new SshMaxAuthTriesRule().Evaluate(data).Passed);
+        Assert.True(new SshProtocolRule().Evaluate(data).Passed);
+        Assert.True(new SshEmptyPasswordsRule().Evaluate(data).Passed);
+        Assert.True(new SshPubkeyAuthenticationRule().Evaluate(data).Passed);
+        Assert.True(new SshX11ForwardingRule().Evaluate(data).Passed);
+    }
+
+    [Fact]
+    public void SshRules_ConfigNotReadable_Passes()
+    {
+        var data = new ScanData { SshConfig = new SshConfig { ConfigReadable = false } };
+
+        Assert.True(new SshPermitRootLoginRule().Evaluate(data).Passed);
+        Assert.True(new SshPasswordAuthenticationRule().Evaluate(data).Passed);
+        Assert.True(new SshMaxAuthTriesRule().Evaluate(data).Passed);
+        Assert.True(new SshProtocolRule().Evaluate(data).Passed);
+        Assert.True(new SshEmptyPasswordsRule().Evaluate(data).Passed);
+        Assert.True(new SshPubkeyAuthenticationRule().Evaluate(data).Passed);
+        Assert.True(new SshX11ForwardingRule().Evaluate(data).Passed);
+    }
 }
