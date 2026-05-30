@@ -23,6 +23,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
         (new[] { "only", "just show", "show me", "filter" }, AgentIntent.FilterCategory, 3),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
+        (new[] { "fix ", "remediate", "resolve" }, AgentIntent.FixFinding, 3),
         (new[] { "suppressed", "which are suppressed", "hidden findings", "silenced" }, AgentIntent.ListSuppressed, 2),
         (new[] { "set baseline", "save baseline", "snapshot baseline", "mark as baseline", "known good" }, AgentIntent.SetBaseline, 3),
         (new[] { "drift", "check drift", "baseline drift", "deviated", "changed from baseline" }, AgentIntent.CheckDrift, 3),
@@ -71,7 +72,7 @@ public sealed class QueryParser : IQueryParser
 
     private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
     {
-        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory)
+        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory && intent != AgentIntent.FixFinding)
             return null;
 
         // Look for rule IDs like FW-001, PORT-002, etc.

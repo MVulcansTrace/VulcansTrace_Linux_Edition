@@ -28,6 +28,7 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Check my SSH`
 - `Check file permissions`
 - `Explain FW-001`
+- `Fix FW-001`
 
 After an audit, you can also ask follow-up questions without re-running scans:
 
@@ -36,6 +37,7 @@ After an audit, you can also ask follow-up questions without re-running scans:
 - `Show only firewall issues`
 - `Show only file permission issues`
 - `What should I fix first?`
+- `Fix FW-001` — interactive, step-by-step guided remediation for a specific finding
 - `Which findings are suppressed?`
 
 ### Baseline & Drift Detection
@@ -53,6 +55,8 @@ The panel also includes quick-action buttons for common audits (full audit, fire
 The right-side Suppressions tab shows entries needing review, including items expiring soon, recently expired suppressions, permanent suppressions, and stale permanent suppressions. From that queue you can renew, convert duration, edit the reason, or remove the suppression.
 
 Agent chat findings can be filtered by severity and category without changing the underlying audit result. Copyable verification commands include safety badges such as ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, or Unknown, plus inline SUDO, CHAIN, PIPE, REDIR, and DL-EXEC badges when those command structures are detected.
+
+**Interactive Remediation** — When you type `fix FW-001` after an audit, the agent returns a guided remediation card for that specific finding. The card shows preconditions as a checklist, then backup commands (run these first to preserve state), apply commands (the step-by-step fix), rollback commands (if something goes wrong), and verification commands (confirm the fix worked). Every command carries the same safety and structural badges as verification commands. The agent validates the plan before displaying it: risky or unclassified commands without explicit rollback guidance are blocked for safety.
 
 The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings and as a capability report that is also included in Markdown and HTML evidence exports. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 

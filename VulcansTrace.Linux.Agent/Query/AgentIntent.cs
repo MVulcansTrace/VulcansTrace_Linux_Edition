@@ -41,6 +41,9 @@ public enum AgentIntent
     /// <summary>Prioritize findings into a remediation plan.</summary>
     PrioritizeRemediation,
 
+    /// <summary>Interactively guide remediation for a specific finding.</summary>
+    FixFinding,
+
     /// <summary>List suppressed findings from the last result.</summary>
     ListSuppressed,
 

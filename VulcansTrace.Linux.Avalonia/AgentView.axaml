@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+             xmlns:explanations="using:VulcansTrace.Linux.Agent.Explanations"
              x:Class="VulcansTrace.Linux.Avalonia.AgentView"
              x:DataType="vm:AgentViewModel">
 
@@ -17,6 +18,88 @@
         <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
         <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
         <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
+
+        <DataTemplate x:Key="CommandRowTemplate" DataType="explanations:CopyableCommand">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Border Background="#1e293b"
+                        BorderBrush="#334155"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6,2"
+                        MaxWidth="380">
+                    <TextBlock Text="{Binding DisplayText}"
+                               FontFamily="Consolas,Monospace"
+                               FontSize="11"
+                               Foreground="#e2e8f0"
+                               TextWrapping="Wrap"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="{Binding Safety, Converter={x:Static conv:CommandSafetyToBrushConverter.Instance}}">
+                    <TextBlock Text="{Binding Safety}"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding Safety, Converter={x:Static conv:CommandSafetyToForegroundConverter.Instance}}"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="#3f2e14"
+                        IsVisible="{Binding Analysis.RequiresSudo}">
+                    <TextBlock Text="SUDO"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="#fcd34d"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="#2e1065"
+                        IsVisible="{Binding Analysis.HasChain}">
+                    <TextBlock Text="CHAIN"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="#c084fc"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="#1e3a5f"
+                        IsVisible="{Binding Analysis.HasPipe}">
+                    <TextBlock Text="PIPE"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="#60a5fa"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="#3f2e14"
+                        IsVisible="{Binding Analysis.HasRedirect}">
+                    <TextBlock Text="REDIR"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="#fcd34d"/>
+                </Border>
+                <Border CornerRadius="4"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Background="#450a0a"
+                        IsVisible="{Binding Analysis.DownloadsAndExecutes}">
+                    <TextBlock Text="DL-EXEC"
+                               FontSize="9"
+                               FontWeight="SemiBold"
+                               Foreground="#f87171"/>
+                </Border>
+                <Button Content="Copy"
+                        FontSize="10"
+                        Padding="4,2"
+                        VerticalAlignment="Center"
+                        Click="OnCopyCommandClick"
+                        Tag="{Binding FullCommand}"/>
+            </StackPanel>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="0">
@@ -95,96 +178,97 @@
                                                     IsVisible="{Binding HasVerificationCommands}"
                                                     Spacing="4">
                                             <TextBlock Text="How to verify:" FontSize="10" Foreground="#64748b" FontWeight="SemiBold"/>
-                                            <ItemsControl ItemsSource="{Binding VerificationCommands}">
+                                            <ItemsControl ItemsSource="{Binding VerificationCommands}"
+                                                          ItemTemplate="{StaticResource CommandRowTemplate}">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <StackPanel Spacing="4"/>
                                                     </ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <Border Background="#1e293b"
-                                                                    BorderBrush="#334155"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="4"
-                                                                    Padding="6,2"
-                                                                    MaxWidth="380">
-                                                                <TextBlock Text="{Binding DisplayText}"
-                                                                           FontFamily="Consolas,Monospace"
-                                                                           FontSize="11"
-                                                                           Foreground="#e2e8f0"
-                                                                           TextWrapping="Wrap"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="{Binding Safety, Converter={x:Static conv:CommandSafetyToBrushConverter.Instance}}">
-                                                                <TextBlock Text="{Binding Safety}"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="{Binding Safety, Converter={x:Static conv:CommandSafetyToForegroundConverter.Instance}}"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="#3f2e14"
-                                                                    IsVisible="{Binding Analysis.RequiresSudo}">
-                                                                <TextBlock Text="SUDO"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="#fcd34d"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="#2e1065"
-                                                                    IsVisible="{Binding Analysis.HasChain}">
-                                                                <TextBlock Text="CHAIN"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="#c084fc"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="#1e3a5f"
-                                                                    IsVisible="{Binding Analysis.HasPipe}">
-                                                                <TextBlock Text="PIPE"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="#60a5fa"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="#3f2e14"
-                                                                    IsVisible="{Binding Analysis.HasRedirect}">
-                                                                <TextBlock Text="REDIR"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="#fcd34d"/>
-                                                            </Border>
-                                                            <Border CornerRadius="4"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="#450a0a"
-                                                                    IsVisible="{Binding Analysis.DownloadsAndExecutes}">
-                                                                <TextBlock Text="DL-EXEC"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="#f87171"/>
-                                                            </Border>
-                                                            <Button Content="Copy"
-                                                                    FontSize="10"
-                                                                    Padding="4,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Click="OnCopyCommandClick"
-                                                                    Tag="{Binding FullCommand}"/>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
                                             </ItemsControl>
+                                        </StackPanel>
+                                        <!-- Interactive Remediation -->
+                                        <StackPanel Orientation="Vertical"
+                                                    Margin="0,8,0,0"
+                                                    IsVisible="{Binding HasRemediationSection}"
+                                                    Spacing="8">
+                                            <!-- Preconditions -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasPreconditions}"
+                                                        Spacing="3">
+                                                <TextBlock Text="Preconditions:" FontSize="10" Foreground="#64748b" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding RemediationPreconditions}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <TextBlock Text="☐" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding}" FontSize="11" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <!-- Backup Commands -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasBackupCommands}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Backup commands — run these first to preserve state:" FontSize="10" Foreground="#fcd34d" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding RemediationBackupCommands}"
+                                                              ItemTemplate="{StaticResource CommandRowTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <!-- Apply Commands -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasApplyCommands}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Apply commands — step-by-step fix:" FontSize="10" Foreground="#f87171" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding RemediationApplyCommands}"
+                                                              ItemTemplate="{StaticResource CommandRowTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <!-- Rollback Commands -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasRollbackCommands}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Rollback commands — if something goes wrong:" FontSize="10" Foreground="#4ade80" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding RemediationRollbackCommands}"
+                                                              ItemTemplate="{StaticResource CommandRowTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <!-- Verification Commands -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasRemediationVerificationCommands}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Verify the fix:" FontSize="10" Foreground="#64748b" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding RemediationVerificationCommands}"
+                                                              ItemTemplate="{StaticResource CommandRowTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

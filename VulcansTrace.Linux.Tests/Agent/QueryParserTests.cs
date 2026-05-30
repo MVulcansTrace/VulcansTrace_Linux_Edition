@@ -40,6 +40,10 @@ public class QueryParserTests
     [InlineData("show only firewall issues", AgentIntent.FilterCategory)]
     [InlineData("what should I fix first", AgentIntent.PrioritizeRemediation)]
     [InlineData("remediation plan", AgentIntent.PrioritizeRemediation)]
+    [InlineData("fix FW-001", AgentIntent.FixFinding)]
+    [InlineData("remediate PORT-002", AgentIntent.FixFinding)]
+    [InlineData("resolve SSH-003", AgentIntent.FixFinding)]
+    [InlineData("what should I fix", AgentIntent.PrioritizeRemediation)]
     [InlineData("which findings are suppressed", AgentIntent.ListSuppressed)]
     [InlineData("suppressed", AgentIntent.ListSuppressed)]
     [InlineData("set baseline", AgentIntent.SetBaseline)]
@@ -100,6 +104,34 @@ public class QueryParserTests
         var result = _parser.Parse(query);
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
         Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("fix FW-001", "FW-001")]
+    [InlineData("remediate port-002", "port-002")]
+    [InlineData("resolve FILE-003", "FILE-003")]
+    public void Parse_FixFinding_WithReference_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("remediate")]
+    [InlineData("resolve")]
+    public void Parse_FixFinding_WithoutReference_ReturnsNullTargetReference(string query)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.Null(result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_FixKeywordAlone_ReturnsHelp()
+    {
+        var result = _parser.Parse("fix");
+        Assert.Equal(AgentIntent.Help, result.Intent);
     }
 
     [Theory]

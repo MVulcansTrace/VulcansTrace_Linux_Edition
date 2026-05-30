@@ -282,6 +282,7 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.ExplainCritical => true,
         AgentIntent.FilterCategory => true,
         AgentIntent.PrioritizeRemediation => true,
+        AgentIntent.FixFinding => true,
         AgentIntent.ListSuppressed => true,
         AgentIntent.SetBaseline => true,
         AgentIntent.CheckDrift => true,
@@ -299,6 +300,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.ExplainCritical => HandleExplainCriticalAsync(ct),
             AgentIntent.FilterCategory => HandleFilterCategoryAsync(agentQuery, ct),
             AgentIntent.PrioritizeRemediation => HandlePrioritizeRemediationAsync(ct),
+            AgentIntent.FixFinding => HandleFixFindingAsync(agentQuery, ct),
             AgentIntent.ListSuppressed => HandleListSuppressedAsync(ct),
             AgentIntent.SetBaseline => HandleSetBaselineAsync(agentQuery, ct),
             AgentIntent.CheckDrift => HandleCheckDriftAsync(agentQuery, ct),
@@ -567,6 +569,138 @@ public sealed class SecurityAgent : IAgent
             Summary = string.Join("\n", parts),
             AgentFindings = _lastResult.AgentFindings.OrderByDescending(f => f.Severity).ToList(),
             RemediationPlan = sortedPlan,
+            Warnings = Array.Empty<string>()
+        });
+    }
+
+    private Task<AgentResult> HandleFixFindingAsync(AgentQuery agentQuery, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FixFinding,
+                Summary = "Run an audit first, then ask me to fix a specific finding (e.g., \"fix FW-001\").",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var reference = agentQuery.TargetReference;
+        if (string.IsNullOrWhiteSpace(reference))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FixFinding,
+                Summary = "Please specify which finding to fix (e.g., **fix FW-001**).",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var matched = FindPreviousFinding(reference);
+        if (matched == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FixFinding,
+                Summary = $"I couldn't find finding **{reference}** in the last audit. Run an audit first or check the finding ID.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var builder = new RemediationPlanBuilder(_explanationProvider);
+        var plan = builder.Build(new[] { matched });
+        var section = plan.Sections.FirstOrDefault();
+
+        if (section == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FixFinding,
+                Summary = $"I found **{reference}** but couldn't build a remediation plan for it.",
+                AgentFindings = new[] { matched },
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var validation = RemediationPlanValidator.Validate(plan);
+        if (!validation.IsValid)
+        {
+            var parts = new List<string>
+            {
+                $"**Cannot guide remediation for {reference}**",
+                "",
+                "This finding has risky or unclassified commands that lack explicit rollback guidance. The plan was blocked for safety.",
+                ""
+            };
+            foreach (var err in validation.Errors)
+            {
+                parts.Add($"  • {err}");
+            }
+            parts.Add("");
+            parts.Add("Please review the explanation template and ensure rollback commands are provided.");
+
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FixFinding,
+                Summary = string.Join("\n", parts),
+                AgentFindings = new[] { matched },
+                Warnings = validation.Errors.ToList(),
+                RemediationPlan = plan
+            });
+        }
+
+        var summaryParts = new List<string>
+        {
+            $"**Interactive Remediation: {section.RuleId}**",
+            "",
+            $"{section.FindingSummary}",
+            ""
+        };
+
+        if (section.Preconditions.Count > 0)
+        {
+            summaryParts.Add("**Preconditions:**");
+            foreach (var pre in section.Preconditions)
+            {
+                summaryParts.Add($"  • {pre}");
+            }
+            summaryParts.Add("");
+        }
+
+        if (section.BackupCommands.Count > 0)
+        {
+            summaryParts.Add($"**Backup ({section.BackupCommands.Count} command(s)):** Run these first to preserve state.");
+            summaryParts.Add("");
+        }
+
+        summaryParts.Add($"**Apply ({section.ApplyCommands.Count} command(s)):** Step-by-step fix commands.");
+        summaryParts.Add("");
+
+        if (section.RollbackCommands.Count > 0 || section.RollbackHints.Count > 0)
+        {
+            summaryParts.Add($"**Rollback:** Available if something goes wrong.");
+            summaryParts.Add("");
+        }
+
+        if (section.VerificationCommands.Count > 0)
+        {
+            summaryParts.Add($"**Verify ({section.VerificationCommands.Count} command(s)):** Confirm the fix worked.");
+            summaryParts.Add("");
+        }
+
+        summaryParts.Add("Review each command before running it. Use the **Copy** button to grab commands.");
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.FixFinding,
+            Summary = string.Join("\n", summaryParts),
+            AgentFindings = new[] { matched },
+            RemediationPlan = plan,
             Warnings = Array.Empty<string>()
         });
     }
@@ -1246,6 +1380,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.SshCheck => "SSH check",
             AgentIntent.FilePermissionCheck => "File permission check",
             AgentIntent.ExplainFinding => "Finding explanation",
+            AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
         };
 
@@ -1375,6 +1510,7 @@ public sealed class SecurityAgent : IAgent
         "• \"Why is this critical?\"\n" +
         "• \"Show only firewall issues\"\n" +
         "• \"What should I fix first?\"\n" +
+        "• \"Fix FW-001\" — guided step-by-step remediation for a specific finding\n" +
         "• \"Which findings are suppressed?\"\n" +
         "\nBaseline & drift detection:\n" +
         "• \"Set baseline\" — save the last audit as a known-good snapshot\n" +

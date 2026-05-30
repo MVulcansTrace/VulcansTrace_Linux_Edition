@@ -101,6 +101,20 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 **Deduplication choice:** HTML and Markdown compliance-context sections previously grouped by `ControlId` and took `First()`, which hid differing `WhyItMatters` text when multiple rules mapped to the same control (e.g., all five firewall rules map to `CIS 4.5`). The dedup was changed to `Distinct()` on the full record so every unique rationale and benchmark reference is preserved.
 
+## Interactive Remediation: Guided, Not Automated
+
+**Decision:** The agent can guide remediation for a specific finding (`fix FW-001`), but it never executes commands automatically.
+
+**Rationale:**
+
+- Security tools that silently auto-remediate can break production access, drop SSH sessions, or disable services unexpectedly.
+- A guided, step-by-step UX with explicit preconditions, backup commands, apply commands, rollback commands, and verification commands gives the operator full control.
+- Each command is labeled with the existing `CommandSafety` classification (`ReadOnly`, `ConfigChange`, `Destructive`, etc.) and structural badges (`SUDO`, `CHAIN`, `PIPE`, etc.) so the operator knows the blast radius before copying a command.
+- `RemediationPlanValidator` blocks the entire flow if risky or unclassified commands lack explicit rollback guidance. This prevents the UI from presenting a "safe" fix that has no undo path.
+- The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for single-finding interactive remediation, so both paths benefit from the same safety guardrails.
+
+**Trade-off:** The UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. A future "dry-run" executor could bridge this gap without changing the safety model.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.

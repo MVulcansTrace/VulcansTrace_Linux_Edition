@@ -775,6 +775,154 @@ public class SecurityAgentTests
         Assert.Contains("Run an audit first", result.Summary);
     }
 
+    // ─── Interactive Remediation (FixFinding) tests ───
+
+    [Fact]
+    public async Task AskAsync_FixFinding_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("fix FW-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_FixFinding_WithoutReference_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("remediate", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.Contains("specify which finding", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_FixFinding_WithUnknownReference_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("fix UNKNOWN-999", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.Contains("couldn't find finding", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_FixFinding_AfterAudit_ReturnsRemediationPlan()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var auditResult = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        Assert.Single(auditResult.AgentFindings);
+
+        var result = await agent.AskAsync("fix TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.NotNull(result.RemediationPlan);
+        Assert.Single(result.RemediationPlan.Sections);
+        Assert.Contains("Interactive Remediation", result.Summary);
+        Assert.Single(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_FixFinding_ValidationFailure_ReturnsBlockedMessage()
+    {
+        // Use a custom explanation provider that yields a risky command without rollback guidance
+        var riskyProvider = new CustomExplanationProvider(
+            "**Suggested next action:**\n1. Run this: `sudo rm -rf /`\n\n**Risk level:** CRITICAL");
+
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            riskyProvider);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("fix TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.NotNull(result.RemediationPlan);
+        Assert.Contains("blocked for safety", result.Summary);
+        Assert.NotEmpty(result.Warnings);
+    }
+
+    private sealed class CustomExplanationProvider(string markdown) : IExplanationProvider
+    {
+        public string GetExplanation(string key, IReadOnlyDictionary<string, string> variables) => markdown;
+
+        public StructuredExplanation GetStructuredExplanation(string key, IReadOnlyDictionary<string, string> variables)
+            => ParseStructuredFromText(markdown);
+
+        public StructuredExplanation ParseStructuredFromText(string text)
+        {
+            var sections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var lines = text.Split('\n');
+            string? currentKey = null;
+            var currentLines = new List<string>();
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.TrimEnd();
+                if (line.StartsWith("**") && line.Contains(":**"))
+                {
+                    var headerEnd = line.IndexOf(":**");
+                    var key = line.Substring(2, headerEnd - 2).Trim();
+                    if (currentKey != null)
+                        sections[currentKey] = string.Join("\n", currentLines).Trim();
+                    currentKey = key;
+                    currentLines.Clear();
+                    var remainder = line.Substring(headerEnd + 3).TrimStart();
+                    if (!string.IsNullOrEmpty(remainder))
+                        currentLines.Add(remainder);
+                }
+                else if (currentKey != null)
+                {
+                    currentLines.Add(line);
+                }
+            }
+
+            if (currentKey != null)
+                sections[currentKey] = string.Join("\n", currentLines).Trim();
+
+            return new StructuredExplanation
+            {
+                WhatWasFound = GetSection(sections, "What we found"),
+                WhyItMatters = GetSection(sections, "Why this matters"),
+                HowToVerify = GetSection(sections, "How to verify"),
+                SuggestedNextAction = GetSection(sections, "Suggested next action"),
+                Preconditions = GetSection(sections, "Preconditions"),
+                BackupCommands = GetSection(sections, "Backup commands"),
+                RollbackCommands = GetSection(sections, "Rollback commands"),
+                Confidence = GetSection(sections, "Risk level", "Confidence"),
+                Caveats = GetSection(sections, "Caveats")
+            };
+        }
+
+        private static string GetSection(Dictionary<string, string> sections, params string[] keys)
+        {
+            foreach (var key in keys)
+                if (sections.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+                    return value;
+            return string.Empty;
+        }
+    }
+
     [Fact]
     public async Task AskAsync_ListSuppressed_AfterAudit_ReturnsSuppressed()
     {

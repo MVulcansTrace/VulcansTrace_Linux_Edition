@@ -19,6 +19,7 @@
 | `ExplainCritical` | `Why is this critical?` | Explain Critical/High findings from the last audit |
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
 | `PrioritizeRemediation` | `What should I fix first?` | Severity-ordered remediation plan from the last audit |
+| `FixFinding` | `Fix FW-001` | Interactive, step-by-step guided remediation for a specific finding |
 | `ListSuppressed` | `Which findings are suppressed?` | List suppressed findings from the last audit |
 | `SetBaseline` | `Set baseline` | Save the last audit as a known-good baseline snapshot |
 | `CheckDrift` | `Check drift` | Compare live config against the saved baseline; reports new and worsened findings |
@@ -106,6 +107,7 @@ User query
 | Baseline & drift | Persists intent-scoped baselines to the user config directory. Set Baseline saves the last audit as known-good. Check Drift re-runs the audit and diffs against the active baseline. Show Baseline displays saved findings with original details, categories, and fingerprints preserved |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
+| Interactive Remediation | `fix FW-001` surfaces a chat card with preconditions, backup, apply, rollback, and verification commands — each with safety and structural badges. Plans are validated before display; missing rollback guidance for risky commands blocks the card |
 
 ---
 

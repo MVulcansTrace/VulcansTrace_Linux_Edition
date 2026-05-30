@@ -25,6 +25,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Why is this critical?` | `ExplainCritical` | Explain only Critical/High findings from the last audit |
 | `Show only firewall issues` | `FilterCategory` | Filter the last audit's findings by category (falls back to a fresh category audit when no context exists) |
 | `What should I fix first?` | `PrioritizeRemediation` | Build a severity-ordered remediation plan from the last audit |
+| `Fix FW-001` | `FixFinding` | Interactive, step-by-step guided remediation for a specific finding |
 | `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
 | `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
 | `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
@@ -134,6 +135,8 @@ When no selected finding or target reference is available, the agent returns gui
 
 Explanations are rendered as structured sections: what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
 
+**Interactive Remediation** — When a user asks `fix FW-001` after an audit, the agent builds a single-section `RemediationPlan` for that finding, runs `RemediationPlanValidator` to ensure risky or unclassified commands have explicit rollback guidance, and returns the plan as an interactive remediation card. The card surfaces preconditions as a checklist, backup commands, apply commands, rollback commands, and verification commands — each with the same safety and structural badges used for verification commands. If validation fails because rollback guidance is missing, the plan is blocked and the user is told why.
+
 ## UI Integration
 
 The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
@@ -156,6 +159,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
 - Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
+- **Interactive Remediation** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety
@@ -215,7 +219,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - Capability status reports command availability and permission visibility, not semantic completeness of every data source.
 - Some findings are posture checks rather than proof of compromise.
 - Process names and firewall details may require elevated privileges depending on the host.
-- Deterministic follow-up questions (changes, critical explanations, category filtering, remediation prioritization, and suppressed listing) operate on the last audit result without re-running scans. They require a prior audit context; when context is missing they return guidance or fall back to a targeted audit for category-filter queries.
+- Deterministic follow-up questions (changes, critical explanations, category filtering, remediation prioritization, interactive remediation, and suppressed listing) operate on the last audit result without re-running scans. They require a prior audit context; when context is missing they return guidance or fall back to a targeted audit for category-filter queries.
 - New suppressions are fingerprint-scoped when the selected finding has a fingerprint. Older suppressions without fingerprints still match by rule ID and target, so intentional target text changes can require accepting the risk again.
 - Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
 - The desktop UI currently uses the `Workstation` role by default; changing roles requires code-level composition until a role selector is added.
@@ -226,6 +230,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - Add a machine-role selector and policy editing surface in the Avalonia UI.
 - Expand scanner fixtures across more distributions and command variants.
 - Add reminder surfaces for upcoming suppression review dates.
+- Add a "Fix Selected" quick-action button that invokes the same interactive remediation path as `fix <rule-id>`.
 
 ## Implementation Evidence
 

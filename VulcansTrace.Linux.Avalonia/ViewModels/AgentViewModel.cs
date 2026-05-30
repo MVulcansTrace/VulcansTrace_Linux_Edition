@@ -424,34 +424,41 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
                     AddAgentMessage(result.CapabilityReport, true);
 
-                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-
-                if (result.PassedCount > 0)
+                if (result.Intent == AgentIntent.FixFinding && result.RemediationPlan?.Sections.Count == 1)
                 {
-                    AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
+                    AddInteractiveRemediationMessage(result);
                 }
-
-                if (result.AgentFindings.Count > 0)
+                else
                 {
-                    AddAgentFindingGroupSummary(result.AgentFindings);
+                    AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
 
-                    // Populate category filters from current findings
-                    ChatCategoryFilters.Clear();
-                    ChatCategoryFilters.Add(AllCategoriesFilter);
-                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    if (result.PassedCount > 0)
                     {
-                        ChatCategoryFilters.Add(cat);
+                        AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
                     }
 
-                    var grouped = result.AgentFindings
-                        .GroupBy(f => f.Category)
-                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                        .ToList();
-
-                    foreach (var group in grouped)
+                    if (result.AgentFindings.Count > 0)
                     {
-                        AddAgentFindingGroup(group.Category, group.Findings);
+                        AddAgentFindingGroupSummary(result.AgentFindings);
+
+                        // Populate category filters from current findings
+                        ChatCategoryFilters.Clear();
+                        ChatCategoryFilters.Add(AllCategoriesFilter);
+                        foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                        {
+                            ChatCategoryFilters.Add(cat);
+                        }
+
+                        var grouped = result.AgentFindings
+                            .GroupBy(f => f.Category)
+                            .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
+                            .OrderByDescending(g => g.Findings.Max(f => f.Severity))
+                            .ToList();
+
+                        foreach (var group in grouped)
+                        {
+                            AddAgentFindingGroup(group.Category, group.Findings);
+                        }
                     }
                 }
 
@@ -579,6 +586,32 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             Timestamp = DateTime.Now,
             Category = category
         });
+    }
+
+    private void AddInteractiveRemediationMessage(AgentResult result)
+    {
+        var section = result.RemediationPlan!.Sections[0];
+        var severity = ParseSeverityFromSummary(section.FindingSummary);
+
+        Messages.Add(new AgentMessageViewModel
+        {
+            Text = result.Summary,
+            Details = $"Risk: {section.RiskNote}",
+            IsUser = false,
+            IsInfo = false,
+            Severity = severity,
+            Timestamp = DateTime.Now,
+            RemediationSection = section
+        });
+    }
+
+    private static Severity ParseSeverityFromSummary(string summary)
+    {
+        if (summary.Contains("Critical", StringComparison.OrdinalIgnoreCase)) return Severity.Critical;
+        if (summary.Contains("High", StringComparison.OrdinalIgnoreCase)) return Severity.High;
+        if (summary.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return Severity.Medium;
+        if (summary.Contains("Low", StringComparison.OrdinalIgnoreCase)) return Severity.Low;
+        return Severity.Info;
     }
 
     private void ApplyChatFilters()
@@ -1125,6 +1158,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private DateTime _timestamp;
     private string _category = "";
     private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
+    private RemediationSection? _remediationSection;
 
     public string Text
     {
@@ -1183,6 +1217,81 @@ public sealed class AgentMessageViewModel : ViewModelBase
 
     /// <summary>Gets whether this message has verification commands to display.</summary>
     public bool HasVerificationCommands => _verificationCommands.Count > 0;
+
+    /// <summary>Gets or sets the interactive remediation section for this message.</summary>
+    public RemediationSection? RemediationSection
+    {
+        get => _remediationSection;
+        set
+        {
+            if (SetField(ref _remediationSection, value))
+            {
+                OnPropertyChanged(nameof(HasRemediationSection));
+                OnPropertyChanged(nameof(HasPreconditions));
+                OnPropertyChanged(nameof(HasBackupCommands));
+                OnPropertyChanged(nameof(HasApplyCommands));
+                OnPropertyChanged(nameof(HasRollbackCommands));
+                OnPropertyChanged(nameof(HasRemediationVerificationCommands));
+                OnPropertyChanged(nameof(RemediationPreconditions));
+                OnPropertyChanged(nameof(RemediationBackupCommands));
+                OnPropertyChanged(nameof(RemediationApplyCommands));
+                OnPropertyChanged(nameof(RemediationRollbackCommands));
+                OnPropertyChanged(nameof(RemediationVerificationCommands));
+            }
+        }
+    }
+
+    /// <summary>Gets whether this message has an interactive remediation section.</summary>
+    public bool HasRemediationSection => _remediationSection != null;
+
+    /// <summary>Gets whether the remediation section has preconditions.</summary>
+    public bool HasPreconditions => _remediationSection?.Preconditions.Count > 0;
+
+    /// <summary>Gets whether the remediation section has backup commands.</summary>
+    public bool HasBackupCommands => _remediationSection?.BackupCommands.Count > 0;
+
+    /// <summary>Gets whether the remediation section has apply commands.</summary>
+    public bool HasApplyCommands => _remediationSection?.ApplyCommands.Count > 0;
+
+    /// <summary>Gets whether the remediation section has rollback commands.</summary>
+    public bool HasRollbackCommands => _remediationSection?.RollbackCommands.Count > 0;
+
+    /// <summary>Gets whether the remediation section has verification commands.</summary>
+    public bool HasRemediationVerificationCommands => _remediationSection?.VerificationCommands.Count > 0;
+
+    /// <summary>Gets the preconditions for the remediation.</summary>
+    public IReadOnlyList<string> RemediationPreconditions =>
+        _remediationSection?.Preconditions ?? Array.Empty<string>();
+
+    /// <summary>Gets the backup commands as copyable commands.</summary>
+    public IReadOnlyList<CopyableCommand> RemediationBackupCommands =>
+        ToCopyableCommands(_remediationSection?.BackupCommands);
+
+    /// <summary>Gets the apply commands as copyable commands.</summary>
+    public IReadOnlyList<CopyableCommand> RemediationApplyCommands =>
+        ToCopyableCommands(_remediationSection?.ApplyCommands);
+
+    /// <summary>Gets the rollback commands as copyable commands.</summary>
+    public IReadOnlyList<CopyableCommand> RemediationRollbackCommands =>
+        ToCopyableCommands(_remediationSection?.RollbackCommands);
+
+    /// <summary>Gets the verification commands as copyable commands.</summary>
+    public IReadOnlyList<CopyableCommand> RemediationVerificationCommands =>
+        ToCopyableCommands(_remediationSection?.VerificationCommands);
+
+    private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<RemediationCommand>? commands)
+    {
+        if (commands == null || commands.Count == 0)
+            return Array.Empty<CopyableCommand>();
+
+        return commands.Select(c => new CopyableCommand
+        {
+            DisplayText = c.Command,
+            FullCommand = c.Command,
+            Safety = c.Safety,
+            Analysis = c.Analysis
+        }).ToList();
+    }
 
     /// <summary>
     /// Copies the specified command text to the system clipboard.

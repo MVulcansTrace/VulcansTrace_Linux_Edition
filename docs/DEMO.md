@@ -81,6 +81,21 @@ The Security Agent can audit sensitive file and directory permissions without pa
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain FILE-001`.
 
+## Security Agent — Interactive Remediation
+
+After running any audit, you can ask the agent to walk you through fixing a specific finding:
+
+1. Run an audit: `Check my firewall`
+2. When findings appear, type: `Fix FW-001`
+3. The agent returns an interactive remediation card with:
+   - **Preconditions** — checklist items such as "Root or sudo access" and "Console access available"
+   - **Backup commands** — run these first to preserve state (e.g., `iptables-save`)
+   - **Apply commands** — step-by-step fix commands, each with a safety badge
+   - **Rollback commands** — how to undo if something goes wrong
+   - **Verification commands** — confirm the fix worked
+4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
+5. If the finding's explanation template lacks rollback guidance for risky commands, the plan is blocked for safety and the agent tells you why.
+
 ## Performance and Profiling
 
 ```bash
