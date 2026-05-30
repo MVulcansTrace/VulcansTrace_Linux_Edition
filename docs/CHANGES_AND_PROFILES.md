@@ -52,8 +52,22 @@ Last updated: 2026-05-30
   correlation escalates them.
   - Fixture: `VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log`
 
+### Security Agent — File Permission Auditing
+- Added `FilePermissionScanner` that uses `stat` to read permission bits, ownership, and existence of sensitive files and directories (`/etc/shadow`, `/etc/passwd`, `/etc/ssh/ssh_host_*_key`, `/root/.ssh`, `/etc/cron.*`, `/var/spool/cron`, `/etc/crontab`, and user SSH directories under `/home`).
+- Added 7 file permission rules (`FILE-001` through `FILE-007`) with dual-layer CIS compliance mappings:
+  - `FILE-001` — `/etc/shadow` should be `640/600`, root-owned (CIS 6.1)
+  - `FILE-002` — `/etc/passwd` should be `644`, root-owned (CIS 6.1)
+  - `FILE-003` — SSH host private keys should be `600`, root-owned (CIS 5.2)
+  - `FILE-004` — `/root/.ssh` should be `700`; `authorized_keys` should be `600` (CIS 5.2)
+  - `FILE-005` — Cron directories should not be world-writable (CIS 6.1)
+  - `FILE-006` — `/etc/crontab` should be `644/600`, root-owned (CIS 6.1)
+  - `FILE-007` — User SSH directories and `authorized_keys` should be tightly restricted (CIS 5.2)
+- Added `AgentIntent.FilePermissionCheck` and `QueryParser` keywords so users can ask "check file permissions".
+- Added `filepermission.md` explanation template with remediation steps for all file permission rules.
+- Code: `VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/FilePermissionRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/filepermission.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 25 agent rules now carry dual-layer CIS compliance mappings:
+- All 32 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

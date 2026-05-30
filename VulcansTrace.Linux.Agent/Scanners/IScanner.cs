@@ -28,6 +28,7 @@ public sealed class ScanDataBuilder
     private readonly List<NetworkInterface> _networkInterfaces = new();
     private readonly List<RouteEntry> _routes = new();
     private readonly List<ActiveConnection> _activeConnections = new();
+    private readonly List<FilePermissionEntry> _filePermissions = new();
     private readonly List<string> _warnings = new();
     private readonly List<DataSourceCapability> _capabilities = new();
     private readonly object _lock = new();
@@ -77,6 +78,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _activeConnections.Add(connection); }
     }
 
+    public void AddFilePermission(FilePermissionEntry entry)
+    {
+        lock (_lock) { _filePermissions.Add(entry); }
+    }
+
     public void AddWarning(string warning)
     {
         lock (_lock) { _warnings.Add(warning); }
@@ -106,6 +112,7 @@ public sealed class ScanDataBuilder
                 NetworkInterfaces = _networkInterfaces.ToArray(),
                 Routes = _routes.ToArray(),
                 ActiveConnections = _activeConnections.ToArray(),
+                FilePermissions = _filePermissions.ToArray(),
                 Warnings = _warnings.ToArray(),
                 Capabilities = _capabilities.ToArray(),
                 SshConfig = _sshConfig

@@ -67,6 +67,20 @@ For logs that trigger other detectors, use the integration test fixtures or craf
 - **Multiple destination hosts** for LateralMovement
 - **High-volume bursts** for Flood/DoS
 
+## Security Agent — File Permission Audit
+
+The Security Agent can audit sensitive file and directory permissions without pasting a log:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check file permissions`
+3. The agent runs `FilePermissionScanner` and evaluates rules for:
+   - `/etc/shadow`, `/etc/passwd`
+   - SSH host private keys (`/etc/ssh/ssh_host_*_key`)
+   - Root and user SSH directories (`~/.ssh`, `~/.ssh/authorized_keys`)
+   - Cron directories and `/etc/crontab`
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain FILE-001`.
+
 ## Performance and Profiling
 
 ```bash

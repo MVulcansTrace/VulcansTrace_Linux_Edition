@@ -32,7 +32,14 @@ public class RuleCatalogTests
         new SshProtocolRule(),
         new SshEmptyPasswordsRule(),
         new SshPubkeyAuthenticationRule(),
-        new SshX11ForwardingRule()
+        new SshX11ForwardingRule(),
+        new ShadowPermissionRule(),
+        new PasswdPermissionRule(),
+        new SshHostKeyPermissionRule(),
+        new RootSshDirectoryPermissionRule(),
+        new CronDirectoryWorldWritableRule(),
+        new CrontabPermissionRule(),
+        new UserSshDirectoryPermissionRule()
     };
 
     [Fact]
@@ -40,7 +47,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(25, catalog.Items.Count);
+        Assert.Equal(32, catalog.Items.Count);
     }
 
     [Fact]
@@ -66,6 +73,7 @@ public class RuleCatalogTests
     [InlineData("PORT-0", 4)]
     [InlineData("SRV-0", 5)]
     [InlineData("SSH-0", 7)]
+    [InlineData("FILE-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -90,7 +98,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(25, results.Count);
+        Assert.Equal(32, results.Count);
     }
 
     [Fact]
@@ -128,6 +136,13 @@ public class RuleCatalogTests
     [InlineData("SSH-005", "CIS 5.2")]
     [InlineData("SSH-006", "CIS 6.3")]
     [InlineData("SSH-007", "CIS 4.8")]
+    [InlineData("FILE-001", "CIS 6.1")]
+    [InlineData("FILE-002", "CIS 6.1")]
+    [InlineData("FILE-003", "CIS 5.2")]
+    [InlineData("FILE-004", "CIS 5.2")]
+    [InlineData("FILE-005", "CIS 6.1")]
+    [InlineData("FILE-006", "CIS 6.1")]
+    [InlineData("FILE-007", "CIS 5.2")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());

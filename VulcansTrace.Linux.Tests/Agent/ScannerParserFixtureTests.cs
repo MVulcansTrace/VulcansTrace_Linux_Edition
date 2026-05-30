@@ -618,4 +618,58 @@ public class ScannerParserFixtureTests
 
         Assert.Contains(data.Capabilities, c => c.SourceName == "sshd -T" || c.SourceName == "sshd_config");
     }
+
+    // =====================================================================
+    // FilePermissionScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void FilePermissionScanner_ParseStatLine_ValidLine_ReturnsEntry()
+    {
+        var entry = FilePermissionScanner.ParseStatLine("640 root shadow /etc/shadow");
+
+        Assert.NotNull(entry);
+        Assert.Equal("/etc/shadow", entry.Path);
+        Assert.Equal("640", entry.Mode);
+        Assert.Equal("root", entry.Owner);
+        Assert.Equal("shadow", entry.Group);
+        Assert.True(entry.Exists);
+    }
+
+    [Fact]
+    public void FilePermissionScanner_ParseStatLine_PathWithSpaces_ReturnsEntry()
+    {
+        var entry = FilePermissionScanner.ParseStatLine("755 root root /path with spaces/file");
+
+        Assert.NotNull(entry);
+        Assert.Equal("/path with spaces/file", entry.Path);
+        Assert.Equal("755", entry.Mode);
+        Assert.Equal("root", entry.Owner);
+        Assert.Equal("root", entry.Group);
+    }
+
+    [Fact]
+    public void FilePermissionScanner_ParseStatLine_EmptyInput_ReturnsNull()
+    {
+        var entry = FilePermissionScanner.ParseStatLine("");
+        Assert.Null(entry);
+    }
+
+    [Fact]
+    public void FilePermissionScanner_ParseStatLine_TooFewParts_ReturnsNull()
+    {
+        var entry = FilePermissionScanner.ParseStatLine("640 root");
+        Assert.Null(entry);
+    }
+
+    [Fact]
+    public async Task FilePermissionScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new FilePermissionScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "stat");
+    }
 }

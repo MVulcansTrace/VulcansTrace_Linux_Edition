@@ -23,6 +23,9 @@ public enum AgentIntent
     /// <summary>Focus on SSH daemon configuration and hardening.</summary>
     SshCheck,
 
+    /// <summary>Focus on sensitive file and directory permissions.</summary>
+    FilePermissionCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

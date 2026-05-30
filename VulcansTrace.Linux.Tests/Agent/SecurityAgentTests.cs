@@ -50,6 +50,20 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task RunAuditAsync_FilePermissionCheck_OnlyFilePermissionRulesRun()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.RunAuditAsync(AgentIntent.FilePermissionCheck, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FilePermissionCheck, result.Intent);
+        Assert.NotNull(result.AgentFindings);
+        // All non-file-permission rules should be filtered out
+        Assert.DoesNotContain(result.RuleResults, r => r.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.RuleResults, r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task RunAuditAsync_Cancellation_ThrowsOperationCanceledException()
     {
         var agent = CreateAgent();
@@ -328,7 +342,8 @@ public class SecurityAgentTests
             new FirewallScanner(),
             new PortScanner(),
             new ServiceScanner(),
-            new NetworkScanner()
+            new NetworkScanner(),
+            new FilePermissionScanner()
         };
 
         var rules = new IRule[]
@@ -337,7 +352,14 @@ public class SecurityAgentTests
             new FirewallDefaultDropRule(),
             new TelnetServiceRule(),
             new SshServiceRule(),
-            new DefaultRouteRule()
+            new DefaultRouteRule(),
+            new ShadowPermissionRule(),
+            new PasswdPermissionRule(),
+            new SshHostKeyPermissionRule(),
+            new RootSshDirectoryPermissionRule(),
+            new CronDirectoryWorldWritableRule(),
+            new CrontabPermissionRule(),
+            new UserSshDirectoryPermissionRule()
         };
 
         var explanationProvider = new ExplanationProvider();

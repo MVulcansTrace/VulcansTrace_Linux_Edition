@@ -50,6 +50,19 @@ for the step-by-step HMAC signing key flow.
 3. Add tests in `VulcansTrace.Linux.Tests/Detectors`.
 4. Update any relevant profile thresholds in `VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs`.
 
+## Adding an Agent Scanner or Rule
+
+1. Implement `IScanner` in `VulcansTrace.Linux.Agent/Scanners` and add its output to `ScanDataBuilder` / `ScanData`.
+2. Implement `IRule` in `VulcansTrace.Linux.Agent/Rules/SecurityRules`.
+3. Register the scanner and rule in:
+   - `VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs`
+   - `tools/agent-demo/AgentDemo.cs` (optional demo usage)
+4. Add explanation templates to `VulcansTrace.Linux.Agent/Explanations/Templates/`.
+5. Add `AgentIntent` value to `VulcansTrace.Linux.Agent/Query/AgentIntent.cs` and keywords to `QueryParser.cs`.
+6. Add tests in `VulcansTrace.Linux.Tests/Agent` (scanner fixtures, rule behavior, intent parsing).
+7. Update `RuleCatalogTests.cs` if adding rules to the catalog.
+8. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
+
 ## Build Policies
 
 `Directory.Build.props` enforces warnings as errors so restore, build, and vulnerability-audit warnings are treated as release blockers.

@@ -27,6 +27,10 @@ public class QueryParserTests
     [InlineData("check my ssh", AgentIntent.SshCheck)]
     [InlineData("how's my sshd config", AgentIntent.SshCheck)]
     [InlineData("ssh hardening", AgentIntent.SshCheck)]
+    [InlineData("check file permissions", AgentIntent.FilePermissionCheck)]
+    [InlineData("are my permissions secure", AgentIntent.FilePermissionCheck)]
+    [InlineData("chmod shadow", AgentIntent.FilePermissionCheck)]
+    [InlineData("show file permission findings", AgentIntent.FilePermissionCheck)]
     [InlineData("explain this finding", AgentIntent.ExplainFinding)]
     [InlineData("what does this mean", AgentIntent.ExplainFinding)]
     [InlineData("what changed since the last audit", AgentIntent.ShowChanges)]
@@ -122,6 +126,7 @@ public class QueryParserTests
     [InlineData("show only firewall issues", "firewall")]
     [InlineData("filter network findings", "network")]
     [InlineData("only ssh findings", "ssh")]
+    [InlineData("filter permission issues", "permission")]
     public void Parse_FilterCategory_WithReference_ReturnsCategoryReference(string query, string expectedReference)
     {
         var result = _parser.Parse(query);

@@ -939,6 +939,7 @@ public sealed class SecurityAgent : IAgent
         "service" or "daemon" => AgentIntent.ServiceCheck,
         "port" => AgentIntent.PortCheck,
         "ssh" or "sshd" => AgentIntent.SshCheck,
+        "file" or "filepermission" or "permissions" => AgentIntent.FilePermissionCheck,
         _ => AgentIntent.Help
     };
 
@@ -1223,6 +1224,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.ServiceCheck => _rules.Where(r => r.Category.Equals("Service", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.PortCheck => _rules.Where(r => r.Category.Equals("Port", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.SshCheck => _rules.Where(r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.FilePermissionCheck => _rules.Where(r => r.Category.Equals("FilePermission", StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }
@@ -1242,6 +1244,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.ServiceCheck => "Service check",
             AgentIntent.PortCheck => "Port check",
             AgentIntent.SshCheck => "SSH check",
+            AgentIntent.FilePermissionCheck => "File permission check",
             AgentIntent.ExplainFinding => "Finding explanation",
             _ => "Audit"
         };
@@ -1305,7 +1308,8 @@ public sealed class SecurityAgent : IAgent
             "ss connections",
             "systemctl",
             "sshd -T",
-            "sshd_config"
+            "sshd_config",
+            "stat"
         };
 
         var orderedCapabilities = capabilities
@@ -1363,6 +1367,7 @@ public sealed class SecurityAgent : IAgent
         "• \"What services are running?\"\n" +
         "• \"Who am I talking to?\" (network connections)\n" +
         "• \"Check my ssh\" or \"How's my SSH hardening?\"\n" +
+        "• \"Check file permissions\" or \"Are my sensitive files secure?\"\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
         "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +
         "\nFollow-up questions (after an audit):\n" +

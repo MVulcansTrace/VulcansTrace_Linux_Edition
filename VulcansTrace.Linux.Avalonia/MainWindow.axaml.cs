@@ -88,7 +88,8 @@ public partial class MainWindow : Window
             new PortScanner(),
             new ServiceScanner(),
             new NetworkScanner(),
-            new SshConfigScanner()
+            new SshConfigScanner(),
+            new FilePermissionScanner()
         };
 
         var rules = new IRule[]
@@ -117,7 +118,14 @@ public partial class MainWindow : Window
             new SshProtocolRule(),
             new SshEmptyPasswordsRule(),
             new SshPubkeyAuthenticationRule(),
-            new SshX11ForwardingRule()
+            new SshX11ForwardingRule(),
+            new ShadowPermissionRule(),
+            new PasswdPermissionRule(),
+            new SshHostKeyPermissionRule(),
+            new RootSshDirectoryPermissionRule(),
+            new CronDirectoryWorldWritableRule(),
+            new CrontabPermissionRule(),
+            new UserSshDirectoryPermissionRule()
         };
 
         var explanationProvider = new ExplanationProvider();

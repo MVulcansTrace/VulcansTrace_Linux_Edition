@@ -12,6 +12,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `PortScanner` knows how to collect listening sockets.
 - `ServiceScanner` knows how to read running systemd services.
 - `NetworkScanner` knows how to collect interfaces, routes, and connections.
+- `FilePermissionScanner` knows how to read permission bits and ownership via `stat`.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.

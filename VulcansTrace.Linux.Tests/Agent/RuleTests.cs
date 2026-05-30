@@ -560,6 +560,236 @@ public class RuleTests
     }
 
     // =====================================================================
+    // File Permission Rules
+    // =====================================================================
+
+    [Fact]
+    public void ShadowPermissionRule_Correct_Passes()
+    {
+        var rule = new ShadowPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/shadow", Mode = "640", Owner = "root", Group = "shadow", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void ShadowPermissionRule_TooPermissive_Fails()
+    {
+        var rule = new ShadowPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/shadow", Mode = "644", Owner = "root", Group = "root", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void PasswdPermissionRule_Correct_Passes()
+    {
+        var rule = new PasswdPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/passwd", Mode = "644", Owner = "root", Group = "root", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PasswdPermissionRule_WrongMode_Fails()
+    {
+        var rule = new PasswdPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/passwd", Mode = "664", Owner = "root", Group = "root", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void SshHostKeyPermissionRule_Correct_Passes()
+    {
+        var rule = new SshHostKeyPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/etc/ssh/ssh_host_rsa_key", Mode = "600", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshHostKeyPermissionRule_TooPermissive_Fails()
+    {
+        var rule = new SshHostKeyPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/etc/ssh/ssh_host_rsa_key", Mode = "644", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void RootSshDirectoryPermissionRule_Correct_Passes()
+    {
+        var rule = new RootSshDirectoryPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/root/.ssh", Mode = "700", Owner = "root", Group = "root", Exists = true },
+                new FilePermissionEntry { Path = "/root/.ssh/authorized_keys", Mode = "600", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void RootSshDirectoryPermissionRule_DirTooPermissive_Fails()
+    {
+        var rule = new RootSshDirectoryPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/root/.ssh", Mode = "755", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void CronDirectoryWorldWritableRule_Safe_Passes()
+    {
+        var rule = new CronDirectoryWorldWritableRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/etc/cron.d", Mode = "755", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CronDirectoryWorldWritableRule_WorldWritable_Fails()
+    {
+        var rule = new CronDirectoryWorldWritableRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/etc/cron.d", Mode = "777", Owner = "root", Group = "root", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void CrontabPermissionRule_Correct_Passes()
+    {
+        var rule = new CrontabPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/crontab", Mode = "644", Owner = "root", Group = "root", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CrontabPermissionRule_WrongOwner_Fails()
+    {
+        var rule = new CrontabPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[] { new FilePermissionEntry { Path = "/etc/crontab", Mode = "644", Owner = "user", Group = "root", Exists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void UserSshDirectoryPermissionRule_Correct_Passes()
+    {
+        var rule = new UserSshDirectoryPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/home/alice/.ssh", Mode = "700", Owner = "alice", Group = "alice", Exists = true },
+                new FilePermissionEntry { Path = "/home/alice/.ssh/authorized_keys", Mode = "600", Owner = "alice", Group = "alice", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void UserSshDirectoryPermissionRule_TooPermissive_Fails()
+    {
+        var rule = new UserSshDirectoryPermissionRule();
+        var data = new ScanData
+        {
+            FilePermissions = new[]
+            {
+                new FilePermissionEntry { Path = "/home/alice/.ssh", Mode = "755", Owner = "alice", Group = "alice", Exists = true }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void FilePermissionRules_MissingData_Passes()
+    {
+        var data = new ScanData { FilePermissions = Array.Empty<FilePermissionEntry>() };
+
+        Assert.True(new ShadowPermissionRule().Evaluate(data).Passed);
+        Assert.True(new PasswdPermissionRule().Evaluate(data).Passed);
+        Assert.True(new SshHostKeyPermissionRule().Evaluate(data).Passed);
+        Assert.True(new RootSshDirectoryPermissionRule().Evaluate(data).Passed);
+        Assert.True(new CronDirectoryWorldWritableRule().Evaluate(data).Passed);
+        Assert.True(new CrontabPermissionRule().Evaluate(data).Passed);
+        Assert.True(new UserSshDirectoryPermissionRule().Evaluate(data).Passed);
+    }
+
+    // =====================================================================
     // CIS Benchmark Mapping
     // =====================================================================
 
@@ -589,6 +819,13 @@ public class RuleTests
     [InlineData(typeof(SshEmptyPasswordsRule), "CIS 5.2")]
     [InlineData(typeof(SshPubkeyAuthenticationRule), "CIS 6.3")]
     [InlineData(typeof(SshX11ForwardingRule), "CIS 4.8")]
+    [InlineData(typeof(ShadowPermissionRule), "CIS 6.1")]
+    [InlineData(typeof(PasswdPermissionRule), "CIS 6.1")]
+    [InlineData(typeof(SshHostKeyPermissionRule), "CIS 5.2")]
+    [InlineData(typeof(RootSshDirectoryPermissionRule), "CIS 5.2")]
+    [InlineData(typeof(CronDirectoryWorldWritableRule), "CIS 6.1")]
+    [InlineData(typeof(CrontabPermissionRule), "CIS 6.1")]
+    [InlineData(typeof(UserSshDirectoryPermissionRule), "CIS 5.2")]
     public void KeyRules_HaveCisMappings(Type ruleType, string expectedControlId)
     {
         var rule = (IRule)Activator.CreateInstance(ruleType)!;

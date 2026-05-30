@@ -19,7 +19,8 @@ public class AgentDemo
             new FirewallScanner(),
             new PortScanner(),
             new ServiceScanner(),
-            new NetworkScanner()
+            new NetworkScanner(),
+            new FilePermissionScanner()
         };
 
         var rules = new IRule[]
@@ -41,7 +42,14 @@ public class AgentDemo
             new SshNonDefaultPortRule(),
             new WideOpenServicesRule(),
             new DatabasePortExposureRule(),
-            new HighPortListeningRule()
+            new HighPortListeningRule(),
+            new ShadowPermissionRule(),
+            new PasswdPermissionRule(),
+            new SshHostKeyPermissionRule(),
+            new RootSshDirectoryPermissionRule(),
+            new CronDirectoryWorldWritableRule(),
+            new CrontabPermissionRule(),
+            new UserSshDirectoryPermissionRule()
         };
 
         var agent = new SecurityAgent(

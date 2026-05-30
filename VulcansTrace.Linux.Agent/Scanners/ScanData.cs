@@ -38,6 +38,9 @@ public sealed record ScanData
 
     /// <summary>SSH daemon configuration settings.</summary>
     public SshConfig? SshConfig { get; init; }
+
+    /// <summary>Sensitive file and directory permission entries.</summary>
+    public IReadOnlyList<FilePermissionEntry> FilePermissions { get; init; } = Array.Empty<FilePermissionEntry>();
 }
 
 /// <summary> Parsed SSH daemon configuration entry. </summary>
@@ -157,4 +160,23 @@ public sealed record ActiveConnection
     public int RemotePort { get; init; }
     public string State { get; init; } = string.Empty;
     public string? ProcessName { get; init; }
+}
+
+/// <summary>Permission metadata for a single file or directory.</summary>
+public sealed record FilePermissionEntry
+{
+    /// <summary>Absolute path to the file or directory.</summary>
+    public string Path { get; init; } = string.Empty;
+
+    /// <summary>Octal permission mode (e.g. "640").</summary>
+    public string Mode { get; init; } = string.Empty;
+
+    /// <summary>File owner username.</summary>
+    public string Owner { get; init; } = string.Empty;
+
+    /// <summary>File group name.</summary>
+    public string Group { get; init; } = string.Empty;
+
+    /// <summary>Whether the path exists.</summary>
+    public bool Exists { get; init; }
 }
