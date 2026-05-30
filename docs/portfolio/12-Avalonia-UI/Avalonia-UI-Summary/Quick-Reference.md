@@ -90,8 +90,9 @@ MainWindow.axaml.cs constructor:
     5 Linux detectors    → IDetector[]
     2 advanced detectors → IDetector[]
     RiskEscalator → SentryAnalyzer(logNormalizer, profileProvider, baseline, linux, advanced, riskEscalator, logSink)
+    Agent scanners + rules + DefaultRulePolicyProvider(JsonRulePolicyStore) → SecurityAgent(MachineRole.Workstation)
     IntegrityHasher → CsvFormatter, MarkdownFormatter, HtmlFormatter, JsonFormatter, StixFormatter → EvidenceBuilder
-    AvaloniaDialogService(this) → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider)
+    AvaloniaDialogService(this) → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, stores)
 ```
 
 ---

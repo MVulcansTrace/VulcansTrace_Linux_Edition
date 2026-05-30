@@ -122,6 +122,17 @@ public partial class MainWindow : Window
             suppressionStore = new InMemorySuppressionStore("Suppression persistence is unavailable. Accepted risks will last only for this session.");
         }
 
+        IRulePolicyProvider? policyProvider;
+        try
+        {
+            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault();
+            policyProvider = new DefaultRulePolicyProvider(jsonPolicyStore);
+        }
+        catch
+        {
+            policyProvider = new DefaultRulePolicyProvider();
+        }
+
         IAuditHistoryStore auditHistoryStore;
         try
         {
@@ -132,7 +143,7 @@ public partial class MainWindow : Window
             auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
         }
 
-        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore);
+        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider);
         var ruleCatalog = new RuleCatalog(rules);
 
         var dialogService = new AvaloniaDialogService(this);

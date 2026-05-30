@@ -42,7 +42,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
-- Provides a local Security Agent that answers plain-English posture questions using live host scanners and deterministic rules.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, and role-aware local policy.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 
@@ -148,7 +148,7 @@ Evidence documentation:
 | `VulcansTrace.Linux.Core` | Domain models, `UnifiedEvent`, log normalization, iptables/nftables parsers, and logging abstractions |
 | `VulcansTrace.Linux.Engine` | Detector implementations, intensity profiles, `SentryAnalyzer`, and risk escalation |
 | `VulcansTrace.Linux.Evidence` | Evidence bundle generation and CSV, JSON, STIX, HTML, and Markdown formatters |
-| `VulcansTrace.Linux.Agent` | Local Security Agent, scanners, posture rules, explanations, and agent report adapter |
+| `VulcansTrace.Linux.Agent` | Local Security Agent, scanners, posture rules, role-aware policy, explanations, and agent report adapter |
 | `VulcansTrace.Linux.Avalonia` | Desktop UI, ViewModels, commands, and dialog services |
 | `VulcansTrace.Linux.Tests` | xUnit unit, integration, detector, evidence, UI, and performance tests |
 | `VulcansTrace.Linux.Performance` | Benchmark and profiling helpers |
@@ -203,7 +203,7 @@ The `docs/portfolio` folder contains 16 implementation-focused case studies. Eac
 | [13 - C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md) | Periodic command-and-control channel detection and grouping behavior |
 | [14 - Privilege Escalation Detection](docs/portfolio/14-Privilege-Escalation-Detection/README.md) | Admin-port spikes and sweeps as privilege-escalation indicators |
 | [15 - Linux Deep Inspection](docs/portfolio/15-Linux-Deep-Inspection/README.md) | Linux-specific signals including flags, MACs, kernel modules, interfaces, and packet sizes |
-| [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, scanner orchestration, and explanations |
+| [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, role-aware policy, scanner orchestration, and explanations |
 
 ## Development
 

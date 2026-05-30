@@ -37,6 +37,48 @@ The agent reads local host state through Linux tools such as `iptables`, `nft`, 
 
 For the full capability list and limitations, see [Security Agent](SECURITY_AGENT.md).
 
+## Rule Tuning / Local Policy
+
+The agent supports per-machine-role rule tuning via a local policy file. The desktop UI currently runs the agent as **Workstation**; the other roles are available through the agent API and policy provider wiring until a role selector is added. Roles are:
+
+- **Workstation** — laptops and desktops.
+- **Server** — production servers and bastion hosts.
+- **LabBox** — test and lab machines.
+- **Router** — network gateways and appliances.
+- **DevMachine** — development workstations with extra services.
+
+Rules can be stricter or looser depending on the role. For example:
+- `PORT-001` (SSH on default port) is stricter on **Server** and looser on **Workstation**.
+- `PORT-002` (wide-open services) allows extra ports such as `8080` on **DevMachine**.
+- `SRV-005` (unnecessary services) ignores `nfs` and `smb` on **DevMachine**.
+
+Policies are stored in `~/.config/VulcansTrace/policy.json` and can override:
+- `enabled` — skip a rule entirely.
+- `severityOverride` — change the severity when a rule fails.
+- `autoPass` — treat a failure as passed (looser).
+- `parameters` — rule-specific key/value pairs for contextual rules.
+
+Example `policy.json`:
+
+```json
+{
+  "DevMachine": {
+    "PORT-002": {
+      "parameters": {
+        "expectedPublicPorts": "22,80,443,8080,8443"
+      }
+    },
+    "SRV-005": {
+      "parameters": {
+        "ignoredServices": "nfs,smb"
+      }
+    }
+  }
+}
+```
+
+Built-in defaults are provided for tuned rules and roles; user-supplied policies in the JSON file take precedence and inherit any built-in parameters they do not replace.
+
 ## Evidence Export
 
 Exporting evidence produces a ZIP archive with:

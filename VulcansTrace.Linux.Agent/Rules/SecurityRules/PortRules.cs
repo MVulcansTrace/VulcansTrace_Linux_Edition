@@ -6,7 +6,7 @@ namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 /// <summary>
 /// PORT-001: SSH should ideally run on a non-default port.
 /// </summary>
-public sealed class SshNonDefaultPortRule : IRule
+public sealed class SshNonDefaultPortRule : IRule, IContextualRule
 {
     public string Id => "PORT-001";
     public string Category => "Port";
@@ -16,10 +16,19 @@ public sealed class SshNonDefaultPortRule : IRule
     public Severity Severity => Severity.Info;
 
     public RuleResult Evaluate(ScanData data)
+        => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
+
+    public RuleResult Evaluate(ScanData data, RuleEvaluationContext context)
     {
         var sshPort = data.OpenPorts.FirstOrDefault(p => p.LocalPort == 22);
         if (sshPort != null)
         {
+            if (context.Policy?.Parameters.TryGetValue("treatDefaultAs", out var treatDefaultAs) == true &&
+                string.Equals(treatDefaultAs, "Pass", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuleResult.Pass(Id, Category, "PORT-001", Description);
+            }
+
             return RuleResult.Fail(Id, Category, "PORT-001", Description, Severity.Info, "22",
                 new Dictionary<string, string> { ["port"] = "22" });
         }
@@ -31,7 +40,7 @@ public sealed class SshNonDefaultPortRule : IRule
 /// <summary>
 /// PORT-002: Services listening on 0.0.0.0/:: should be reviewed.
 /// </summary>
-public sealed class WideOpenServicesRule : IRule
+public sealed class WideOpenServicesRule : IRule, IContextualRule
 {
     public string Id => "PORT-002";
     public string Category => "Port";
@@ -40,14 +49,27 @@ public sealed class WideOpenServicesRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
     public Severity Severity => Severity.Medium;
 
-    private static readonly int[] ExpectedPublicPorts = { 22, 80, 443 };
+    private static readonly int[] DefaultExpectedPublicPorts = { 22, 80, 443 };
 
     public RuleResult Evaluate(ScanData data)
+        => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
+
+    public RuleResult Evaluate(ScanData data, RuleEvaluationContext context)
     {
+        var expectedPorts = DefaultExpectedPublicPorts;
+        if (context.Policy?.Parameters.TryGetValue("expectedPublicPorts", out var portsStr) == true)
+        {
+            expectedPorts = portsStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s.Trim(), out var p) ? p : (int?)null)
+                .Where(p => p.HasValue)
+                .Select(p => p!.Value)
+                .ToArray();
+        }
+
         var wideOpen = data.OpenPorts.Where(p =>
             p.LocalAddress is "0.0.0.0" or "::" &&
             p.State is "LISTEN" or "LISTENING" &&
-            !ExpectedPublicPorts.Contains(p.LocalPort)).ToList();
+            !expectedPorts.Contains(p.LocalPort)).ToList();
 
         if (wideOpen.Any())
         {

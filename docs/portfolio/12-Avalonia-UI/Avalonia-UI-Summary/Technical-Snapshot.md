@@ -4,7 +4,7 @@
 
 ## Implementation Overview
 
-The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a single-window MVVM application built on Avalonia (a cross-platform XAML framework for .NET). MainWindow.axaml.cs acts as the composition root, wiring the complete analysis engine — LogNormalizer, 13 detectors across baseline, Linux-specific, and advanced tiers, RiskEscalator, SentryAnalyzer — plus the full evidence pipeline — IntegrityHasher, 5 formatters, EvidenceBuilder — in one constructor. The application provides paste-in log analysis with intensity selection, real-time findings display with severity filtering and text search, a timeline canvas with category-grouped severity-colored bars, and one-click evidence export with cryptographic signing key generation.
+The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a single-window MVVM application built on Avalonia (a cross-platform XAML framework for .NET). MainWindow.axaml.cs acts as the composition root, wiring the complete analysis engine — LogNormalizer, 13 detectors across baseline, Linux-specific, and advanced tiers, RiskEscalator, SentryAnalyzer — the local Security Agent — scanners, rules, suppression store, audit history, and role-aware policy — plus the full evidence pipeline — IntegrityHasher, 5 formatters, EvidenceBuilder — in one constructor. The application provides paste-in log analysis with intensity selection, live posture audit chat, real-time findings display with severity filtering and text search, a timeline canvas with category-grouped severity-colored bars, and one-click evidence export with cryptographic signing key generation.
 
 ---
 
@@ -12,10 +12,11 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 | Metric | Value |
 |---|---|
-| ViewModel files | 10 (MainViewModel, Findings, Evidence, Timeline, FindingItem, IntensityOption, SeverityFilterOption, ViewModelBase, RelayCommand, AsyncRelayCommand) |
+| ViewModel files | 17, including MainViewModel, Agent, Findings, Evidence, Timeline, Suppressions, Rule Coverage, Rule Catalog, commands, and option/item models |
 | Dialog abstraction | 1 interface + 1 Avalonia adapter |
-| Test files | 4 (MainViewModel, Findings, Evidence, AsyncRelayCommand) |
+| Avalonia test files | 9, covering main UI, agent UI, findings, evidence, suppressions, coverage, audit diff, and async commands |
 | Detectors wired in composition root | 13 (6 baseline + 5 Linux + 2 advanced) |
+| Agent stores wired in composition root | Suppressions, audit history, and rule policy JSON stores with in-memory fallbacks |
 | Timeline severity colors | 5 (Critical=#ef4444, High=#f97316, Medium=#eab308, Low=#22c55e, Unknown=#64748b) |
 
 ---
@@ -32,7 +33,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 ## Key Evidence
 
-- [MainWindow.axaml.cs](../../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root wiring 13 detectors + engine + evidence builder
+- [MainWindow.axaml.cs](../../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root wiring 13 detectors + engine + Security Agent + evidence builder
 - [MainViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs) — central orchestrator with async analysis, advisor messages
 - [FindingsViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — filtering, search, parse error capping
 - [EvidenceViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, key generation, clipboard
@@ -47,7 +48,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 ## Key Design Choices
 
-- **Composition root in code-behind** — MainWindow.axaml.cs constructs every dependency explicitly rather than using a DI container, making the wiring visible and auditable in one file
+- **Composition root in code-behind** — MainWindow.axaml.cs constructs every dependency explicitly rather than using a DI container, making the engine, agent, policy, persistence, and evidence wiring visible in one file
 - **ViewModelBase with SetField pattern** — generic `SetField<T>` checks equality via `EqualityComparer<T>.Default` before raising `PropertyChanged`, preventing unnecessary re-renders
 - **RelayCommand with manual RaiseCanExecuteChanged** — commands expose `RaiseCanExecuteChanged()` called explicitly when dependent properties change (e.g., `IsBusy`, `LogText`, `SelectedIntensity`), avoiding memory leaks from automatic re-query subscriptions
 - **StatusChanged event for cross-ViewModel communication** — EvidenceViewModel raises `StatusChanged` instead of coupling directly to MainViewModel, keeping the parent–child relationship one-directional
@@ -59,7 +60,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 ## Security Takeaways
 
-- The composition root is the single point where all engine and evidence dependencies are wired — no hidden registrations or reflection-based DI that could inject malicious implementations
+- The composition root is the single point where all engine, agent, policy, persistence, and evidence dependencies are wired — no hidden registrations or reflection-based DI that could inject malicious implementations
 - Signing keys are generated with `RandomNumberGenerator.Create()` (CSPRNG), not `Random`, ensuring cryptographic quality for evidence HMAC signing
 - The masked signing key display (`new string('*', length)`) prevents shoulder-surfing exposure of the full key in the UI
 - Dialog service abstraction prevents ViewModels from directly accessing Window or StorageProvider, reducing the attack surface for UI-level vulnerabilities

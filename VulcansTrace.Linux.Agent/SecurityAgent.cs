@@ -21,6 +21,8 @@ public sealed class SecurityAgent : IAgent
     private readonly SentryAnalyzer? _sentryAnalyzer;
     private readonly AnalysisProfileProvider? _profileProvider;
     private readonly ISuppressionStore? _suppressionStore;
+    private readonly MachineRole _machineRole;
+    private readonly IRulePolicyProvider? _policyProvider;
     private readonly object _historyLock = new();
     private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
 
@@ -33,13 +35,17 @@ public sealed class SecurityAgent : IAgent
     /// <param name="sentryAnalyzer">Optional SentryAnalyzer for log-based analysis.</param>
     /// <param name="profileProvider">Optional profile provider for SentryAnalyzer intensity profiles.</param>
     /// <param name="suppressionStore">Optional store for rule suppressions.</param>
+    /// <param name="machineRole">The machine role used to tune rule strictness.</param>
+    /// <param name="policyProvider">Optional provider for per-role rule policies.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
         IExplanationProvider explanationProvider,
         SentryAnalyzer? sentryAnalyzer = null,
         AnalysisProfileProvider? profileProvider = null,
-        ISuppressionStore? suppressionStore = null)
+        ISuppressionStore? suppressionStore = null,
+        MachineRole machineRole = MachineRole.Server,
+        IRulePolicyProvider? policyProvider = null)
     {
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
@@ -47,6 +53,8 @@ public sealed class SecurityAgent : IAgent
         _sentryAnalyzer = sentryAnalyzer;
         _profileProvider = profileProvider;
         _suppressionStore = suppressionStore;
+        _machineRole = machineRole;
+        _policyProvider = policyProvider;
     }
 
     /// <inheritdoc />
@@ -106,16 +114,43 @@ public sealed class SecurityAgent : IAgent
         foreach (var rule in rulesToRun)
         {
             ct.ThrowIfCancellationRequested();
+            var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
+
+            if (policy?.Enabled == false)
+            {
+                ruleResults.Add(CreatePolicyDisabledResult(rule));
+                continue;
+            }
+
+            RuleResult result;
             try
             {
-                var result = rule.Evaluate(scanData);
-                ruleResults.Add(result);
+                if (rule is IContextualRule contextualRule)
+                {
+                    result = contextualRule.Evaluate(scanData, new RuleEvaluationContext(_machineRole, policy));
+                }
+                else
+                {
+                    result = rule.Evaluate(scanData);
+                }
             }
             catch (Exception ex)
             {
                 warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-                ruleResults.Add(RuleResult.Crash(rule.Id, rule.Category, rule.Description));
+                result = RuleResult.Crash(rule.Id, rule.Category, rule.Description);
             }
+
+            if (!result.Passed && policy?.AutoPass == true)
+            {
+                result = result with { Passed = true, Status = RuleStatus.Passed };
+            }
+
+            if (policy?.SeverityOverride.HasValue == true && !result.Passed && result.Status != RuleStatus.Crashed)
+            {
+                result = result with { Severity = policy.SeverityOverride.Value };
+            }
+
+            ruleResults.Add(result);
         }
 
         // Phase 3: Mark suppression status and convert rule failures to Findings
@@ -378,15 +413,49 @@ public sealed class SecurityAgent : IAgent
         var scanData = builder.Build();
         warnings.AddRange(scanData.Warnings);
 
+        var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
+        if (policy?.Enabled == false)
+        {
+            var disabledResult = CreatePolicyDisabledResult(rule);
+            ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
+            return new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = warnings,
+                UtcTimestamp = DateTime.UtcNow,
+                Summary = $"Rule {rule.Id} is disabled by policy for {_machineRole}.",
+                RuleResults = new[] { disabledResult },
+                PassedCount = 1
+            };
+        }
+
         RuleResult result;
         try
         {
-            result = rule.Evaluate(scanData);
+            if (rule is IContextualRule contextualRule)
+            {
+                result = contextualRule.Evaluate(scanData, new RuleEvaluationContext(_machineRole, policy));
+            }
+            else
+            {
+                result = rule.Evaluate(scanData);
+            }
         }
         catch (Exception ex)
         {
             warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
             result = RuleResult.Crash(rule.Id, rule.Category, rule.Description);
+        }
+
+        if (!result.Passed && policy?.AutoPass == true)
+        {
+            result = result with { Passed = true, Status = RuleStatus.Passed };
+        }
+
+        if (policy?.SeverityOverride.HasValue == true && !result.Passed && result.Status != RuleStatus.Crashed)
+        {
+            result = result with { Severity = policy.SeverityOverride.Value };
         }
 
         var agentFindings = new List<Finding>();
@@ -427,6 +496,11 @@ public sealed class SecurityAgent : IAgent
             FailedCount = result.Status == RuleStatus.Failed ? 1 : 0,
             CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0
         };
+    }
+
+    private static RuleResult CreatePolicyDisabledResult(IRule rule)
+    {
+        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)");
     }
 
     private static async Task<string[]> RunScannerSafelyAsync(IScanner scanner, ScanDataBuilder builder, CancellationToken ct)

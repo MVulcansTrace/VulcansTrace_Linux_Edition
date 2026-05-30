@@ -9,11 +9,21 @@
 **Rationale:**
 
 - The UI is the only entry point — there is no need for scoped lifetimes, interceptor support, or modular registration
-- Every dependency is visible in one composition block — a reviewer can audit the complete wiring without searching multiple configuration files
+- Every dependency is visible in one composition block — a reviewer can audit the complete engine, agent, persistence, policy, and evidence wiring without searching multiple configuration files
 - No DI container means no reflection overhead at startup and no hidden registrations that could inject a malicious detector or formatter
 - The constructor is the single source of truth for the dependency graph
 
 **Trade-off:** The constructor has many local variables. This is acceptable because it runs once per application lifecycle and each variable maps directly to a real dependency.
+
+## Desktop Role Defaults Are Explicit
+
+**Decision:** The desktop composition currently creates the Security Agent with `MachineRole.Workstation` and a `DefaultRulePolicyProvider` backed by `JsonRulePolicyStore`.
+
+**Rationale:**
+
+- Workstation is the least surprising default for a desktop app running on an analyst's machine
+- Local JSON policy can still override individual tuned rules without adding UI complexity
+- The explicit constructor argument makes the current limitation obvious until a role selector exists
 
 ---
 

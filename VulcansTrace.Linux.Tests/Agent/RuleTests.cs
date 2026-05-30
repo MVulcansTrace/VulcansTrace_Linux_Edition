@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scanners;
@@ -182,6 +184,104 @@ public class RuleTests
         };
 
         var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshNonDefaultPortRule_Workstation_PassesOnDefaultPort()
+    {
+        var rule = new SshNonDefaultPortRule();
+        var data = new ScanData
+        {
+            OpenPorts = new[] { new OpenPort { LocalAddress = "0.0.0.0", LocalPort = 22, State = "LISTEN", ProcessName = "sshd" } }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Workstation,
+            new RulePolicy { Parameters = new Dictionary<string, string> { ["treatDefaultAs"] = "Pass" }.ToImmutableDictionary() });
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshNonDefaultPortRule_Server_FailsOnDefaultPort()
+    {
+        var rule = new SshNonDefaultPortRule();
+        var data = new ScanData
+        {
+            OpenPorts = new[] { new OpenPort { LocalAddress = "0.0.0.0", LocalPort = 22, State = "LISTEN", ProcessName = "sshd" } }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Server,
+            new RulePolicy { Parameters = new Dictionary<string, string> { ["treatDefaultAs"] = "Fail" }.ToImmutableDictionary() });
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void WideOpenServicesRule_Default_FailsOn8080()
+    {
+        var rule = new WideOpenServicesRule();
+        var data = new ScanData
+        {
+            OpenPorts = new[]
+            {
+                new OpenPort { LocalAddress = "0.0.0.0", LocalPort = 8080, State = "LISTEN", ProcessName = "node" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void WideOpenServicesRule_DevMachine_AllowsExtraPorts()
+    {
+        var rule = new WideOpenServicesRule();
+        var data = new ScanData
+        {
+            OpenPorts = new[]
+            {
+                new OpenPort { LocalAddress = "0.0.0.0", LocalPort = 8080, State = "LISTEN", ProcessName = "node" }
+            }
+        };
+        var context = new RuleEvaluationContext(MachineRole.DevMachine,
+            new RulePolicy { Parameters = new Dictionary<string, string> { ["expectedPublicPorts"] = "22,80,443,8080,8443" }.ToImmutableDictionary() });
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void UnnecessaryServicesRule_Default_FailsOnNfs()
+    {
+        var rule = new UnnecessaryServicesRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "nfs-server.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void UnnecessaryServicesRule_DevMachine_IgnoresConfiguredServices()
+    {
+        var rule = new UnnecessaryServicesRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "nfs-server.service", State = "running" } }
+        };
+        var context = new RuleEvaluationContext(MachineRole.DevMachine,
+            new RulePolicy { Parameters = new Dictionary<string, string> { ["ignoredServices"] = "nfs,smb" }.ToImmutableDictionary() });
+
+        var result = rule.Evaluate(data, context);
 
         Assert.True(result.Passed);
     }

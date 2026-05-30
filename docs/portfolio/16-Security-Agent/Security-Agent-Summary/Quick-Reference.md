@@ -48,7 +48,8 @@ User query
   -> SecurityAgent
   -> Scanners
   -> ScanDataBuilder / ScanData
-  -> Rules
+  -> Rule policy provider
+  -> Rules / contextual rules
   -> Finding records
   -> ExplanationProvider
   -> AgentResult
@@ -72,6 +73,7 @@ User query
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
 | Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, and crashed check totals |
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
+| Local policy | Applies built-in role defaults and JSON overrides for enabled state, auto-pass, severity, and contextual parameters |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected rule-ID/target findings for 7, 30, or 90 days, or permanently, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
@@ -89,4 +91,5 @@ User query
 - Direct selected-finding explanations summarize the existing finding details.
 - Suppressions match exact rule IDs and targets. Expired suppressions are inactive immediately but remain reviewable for 30 days before pruning.
 - Command safety labels are keyword-based classifications and should be reviewed before use.
+- The desktop UI currently uses the `Workstation` role until a role selector exists.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.

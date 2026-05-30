@@ -62,9 +62,15 @@ var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetect
 var hasher = new IntegrityHasher();
 var evidenceBuilder = new EvidenceBuilder(hasher, csv, markdown, html, json, stix);
 
+// Security Agent chain
+var suppressionStore = JsonFileSuppressionStore.CreateDefault();
+var auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault();
+var policyProvider = new DefaultRulePolicyProvider(JsonRulePolicyStore.CreateDefault());
+var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider);
+
 // UI layer
 var dialogService = new AvaloniaDialogService(this);
-var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider);
+var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, suppressionStore, auditHistoryStore);
 DataContext = viewModel;
 ```
 

@@ -117,7 +117,7 @@ public sealed class LegacyRservicesRule : IRule
 /// <summary>
 /// SRV-005: Unnecessary services that expand attack surface.
 /// </summary>
-public sealed class UnnecessaryServicesRule : IRule
+public sealed class UnnecessaryServicesRule : IRule, IContextualRule
 {
     public string Id => "SRV-005";
     public string Category => "Service";
@@ -126,15 +126,27 @@ public sealed class UnnecessaryServicesRule : IRule
     public IReadOnlyList<string> SupportedDataSources => new[] { "systemctl list-units --type=service --state=running" };
     public Severity Severity => Severity.Low;
 
-    private static readonly string[] UnnecessaryServices =
+    private static readonly string[] DefaultUnnecessaryServices =
     {
         "cups", "avahi", "bluetooth", "nfs", "rpcbind", "smb", "nmb"
     };
 
     public RuleResult Evaluate(ScanData data)
+        => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
+
+    public RuleResult Evaluate(ScanData data, RuleEvaluationContext context)
     {
+        var services = DefaultUnnecessaryServices.ToList();
+        if (context.Policy?.Parameters.TryGetValue("ignoredServices", out var ignoredStr) == true)
+        {
+            var ignored = ignoredStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            services.RemoveAll(s => ignored.Contains(s));
+        }
+
         var found = data.RunningServices.Where(s =>
-            UnnecessaryServices.Any(u => s.Name.Contains(u, StringComparison.OrdinalIgnoreCase))).ToList();
+            services.Any(u => s.Name.Contains(u, StringComparison.OrdinalIgnoreCase))).ToList();
 
         if (found.Any())
         {

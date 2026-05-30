@@ -36,9 +36,12 @@ When the application starts, `MainWindow.axaml.cs` constructs the full dependenc
 LogNormalizer → 13 detectors (6 baseline + 5 Linux + 2 advanced)
   → RiskEscalator → SentryAnalyzer
 
+Agent scanners + rules + DefaultRulePolicyProvider(JsonRulePolicyStore)
+  → SecurityAgent(MachineRole.Workstation)
+
 IntegrityHasher → 5 formatters → EvidenceBuilder
 
-AvaloniaDialogService(this) → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider)
+AvaloniaDialogService(this) → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, stores)
 
 DataContext = viewModel
 ```

@@ -1,6 +1,6 @@
 # Avalonia UI
 
-The Avalonia UI subsystem provides a cross-platform desktop interface for VulcansTrace, composing the full analysis engine, evidence builder, and interactive timeline into a single-window MVVM application. It is the primary way analysts interact with the system without using the CLI.
+The Avalonia UI subsystem provides a cross-platform desktop interface for VulcansTrace, composing the full analysis engine, local Security Agent, evidence builder, and interactive timeline into a single-window MVVM application. It is the primary way analysts interact with the system without using the CLI.
 
 Documentation is organized for two audiences:
 
@@ -21,8 +21,8 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 13 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, IntegrityHasher, 5 formatters, and EvidenceBuilder in one constructor
-- **MVVM with 10 ViewModel-layer classes** — MainViewModel (orchestrator), FindingsViewModel (filter/search), EvidenceViewModel (export/signing), TimelineViewModel (visualization), plus FindingItemViewModel, IntensityOption, SeverityFilterOption, ViewModelBase, RelayCommand, and AsyncRelayCommand
+- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 13 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, Security Agent scanners/rules/policy, IntegrityHasher, 5 formatters, and EvidenceBuilder in one constructor
+- **MVVM with Security Agent child workflow** — MainViewModel orchestrates Findings, Evidence, Timeline, Suppressions, Rule Coverage, and Agent ViewModels without making those child ViewModels own each other's state
 - **Context-sensitive advisor** — MainViewModel generates triage guidance based on finding counts, severity distribution, warnings, and parse errors
 - **Timeline canvas rendering** — severity-colored horizontal bars grouped by category, normalized to 0–1 range, with dynamic canvas height calculation
 - **Evidence export with key generation** — 32-byte random signing key via RandomNumberGenerator, save-file dialog, clipboard copy, status event bubbling
@@ -31,11 +31,12 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [MainWindow.axaml.cs](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root, engine chain wiring, timeline canvas rendering
+- [MainWindow.axaml.cs](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root, engine chain wiring, Security Agent wiring, timeline canvas rendering
 - [MainWindow.axaml](../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml) — XAML layout: summary badges, bot advisor, log input, findings DataGrid, timeline tab
 - [MainViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs) — central orchestrator: AnalyzeCommand, CancelCommand, advisor messages, child VM delegation
 - [FindingsViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — items/filtered collections, severity filter, text search, parse error capping at 200
 - [EvidenceViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, 32-byte key generation, save dialog, clipboard copy, StatusChanged event
+- [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — Security Agent chat, audit history, filtering, and export handoff
 - [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation
 - [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching
 - [IDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface

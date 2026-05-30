@@ -34,6 +34,12 @@ VulcansTrace.Linux.Tests/
 │   ├── JsonFormatterTests.cs                 — JSON output and structure tests
 │   ├── MarkdownFormatterTests.cs             — Markdown formatting tests
 │   └── StixFormatterTests.cs                 — STIX format output tests
+├── Agent/
+│   ├── SecurityAgentTests.cs                 — agent orchestration, policy, coverage, suppression, and explanation tests
+│   ├── RuleTests.cs                          — posture rule and contextual rule behavior tests
+│   ├── DefaultRulePolicyProviderTests.cs     — built-in role defaults and JSON override merge tests
+│   ├── JsonRulePolicyStoreTests.cs           — policy persistence and hand-edited JSON lookup tests
+│   └── ScannerParserFixtureTests.cs          — realistic command-output parser fixtures
 ├── Integration/
 │   ├── SentryAnalyzerTests.cs                — full-pipeline orchestration tests
 │   ├── RealLogFileIntegrationTests.cs        — real sample log file tests
@@ -45,6 +51,10 @@ VulcansTrace.Linux.Tests/
 ├── Avalonia/
 │   ├── AsyncRelayCommandTests.cs             — async command execution tests
 │   ├── MainViewModelTests.cs                 — main UI ViewModel command tests
+│   ├── AgentViewModelTests.cs                — Security Agent chat and command tests
+│   ├── AgentViewModelHistoryTests.cs         — persistent audit history tests
+│   ├── RuleCoverageViewModelTests.cs         — rule coverage grouping tests
+│   ├── SuppressionViewModelTests.cs          — suppression review queue tests
 │   ├── FindingsViewModelTests.cs             — findings display ViewModel tests
 │   └── EvidenceViewModelTests.cs             — evidence export ViewModel tests
 ├── Helpers/

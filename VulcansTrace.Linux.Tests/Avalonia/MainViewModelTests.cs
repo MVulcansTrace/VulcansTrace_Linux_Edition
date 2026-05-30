@@ -66,6 +66,14 @@ public class MainViewModelTests : IAsyncLifetime
         _vm.SelectedIntensity = _vm.Intensities[2];
 
         _vm.AnalyzeCommand.Execute(null);
+
+        // Wait until the analysis has actually started before cancelling
+        var busyDeadline = Environment.TickCount64 + 5000;
+        while (!_vm.IsBusy && Environment.TickCount64 < busyDeadline)
+        {
+            await Task.Delay(10);
+        }
+
         _vm.CancelCommand.Execute(null);
         await WaitForBusyAsync(_vm);
 

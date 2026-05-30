@@ -38,6 +38,12 @@ Scanner command helpers return stdout, stderr, and success status. They read std
 
 Copyable commands are intentionally scoped to the `How to verify` section. Suggested remediation commands remain visible in explanations and guarded remediation preview exports, but they are not labeled as verification steps and are not executed by the application. Extracted commands receive a keyword-based safety label so analysts can quickly distinguish read-only checks from configuration changes, service restarts, package operations, destructive commands, or unclassified commands.
 
+## Tune Rules With Local Context
+
+The same open port can mean different things on a laptop, a bastion host, a lab VM, or a development machine. `MachineRole`, `RulePolicy`, and `IContextualRule` keep that local context explicit instead of baking one global standard into every rule.
+
+The default provider supplies conservative built-in role defaults for selected rules. The JSON policy store then overrides those defaults from `~/.config/VulcansTrace/policy.json`, merging user parameters over built-in parameters so local policy can adjust only the part it owns. Disabled rules are skipped, auto-pass policies turn known-acceptable failures into passed results, and severity overrides are applied before findings are created.
+
 ## Time-Bound Suppressions
 
 Accepted-risk suppressions are exact rule-ID/target matches with explicit durations: 7 days, 30 days, 90 days, or permanent. Expired entries are ignored by lookup immediately, but remain visible in the review queue for 30 days before audit-time pruning removes them. This keeps the feature useful for intentional exceptions without allowing temporary risk acceptance to silently become permanent or hiding recently expired decisions before an analyst can review them.

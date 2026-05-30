@@ -50,6 +50,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _hasAdvisorMessage;
     private IntensityOption? _selectedIntensity;
     private AnalysisResult? _lastResult;
+    private bool _analysisCancelRequested;
 
     /// <summary>Gets the last analysis result.</summary>
     public AnalysisResult? LastResult => _lastResult;
@@ -340,6 +341,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void CancelAnalysis()
     {
+        _analysisCancelRequested = true;
         _cancellationTokenSource?.Cancel();
     }
 
@@ -352,6 +354,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         IsBusy = true;
+        _analysisCancelRequested = false;
         SummaryText = "Analyzing log...";
         AdvisorMessage = "Analyzing...";
 
@@ -367,9 +370,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             InvalidateAnalysisContext();
             var intensity = _selectedIntensity.Level;
             result = await Task.Run(() => AnalyzeWithOverrides(intensity, logSnapshot, token), token);
+            token.ThrowIfCancellationRequested();
         }
         catch (OperationCanceledException)
         {
+            _analysisCancelRequested = false;
             IsBusy = false;
             SummaryText = "Analysis cancelled by user.";
             AdvisorMessage = "Analysis cancelled.";
@@ -386,6 +391,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+        }
+
+        if (_analysisCancelRequested || token.IsCancellationRequested)
+        {
+            _analysisCancelRequested = false;
+            IsBusy = false;
+            SummaryText = "Analysis cancelled by user.";
+            AdvisorMessage = "Analysis cancelled.";
+            return;
         }
 
         if (!string.Equals(_logText, logSnapshot, StringComparison.Ordinal))

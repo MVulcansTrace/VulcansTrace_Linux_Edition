@@ -7,7 +7,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `VulcansTrace.Linux.Core`: domain models and log parsing (UnifiedEvent, LogNormalizer).
 - `VulcansTrace.Linux.Engine`: detectors, profiles, and analysis orchestration.
 - `VulcansTrace.Linux.Evidence`: evidence bundle creation and report formatting.
-- `VulcansTrace.Linux.Agent`: local Security Agent, live host scanners, posture rules, explanations, and report adaptation.
+- `VulcansTrace.Linux.Agent`: local Security Agent, live host scanners, posture rules, role-aware policy, explanations, and report adaptation.
 - `VulcansTrace.Linux.Avalonia`: Avalonia UI and composition root.
 - `VulcansTrace.Linux.Tests`: unit and integration tests.
 - `VulcansTrace.Linux.Performance`: performance benchmarks and metrics.
@@ -32,10 +32,11 @@ The Security Agent provides a parallel local posture path:
 
 1. A natural-language query is parsed into an `AgentIntent`.
 2. Agent scanners collect firewall, port, service, interface, route, and connection state from local Linux commands.
-3. Agent rules evaluate the collected `ScanData`.
-4. Failed posture checks become `Finding` records with markdown-backed explanations.
-5. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
-6. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
+3. Role-aware rule policy resolves built-in defaults and local JSON overrides.
+4. Agent rules evaluate the collected `ScanData`, including contextual parameters when supported.
+5. Failed posture checks become `Finding` records with markdown-backed explanations.
+6. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
+7. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 
 ## Key Domain Types
 

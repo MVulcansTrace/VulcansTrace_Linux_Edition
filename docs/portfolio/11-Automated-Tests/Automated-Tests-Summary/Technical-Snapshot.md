@@ -44,6 +44,7 @@ The test suite validates the VulcansTrace analysis pipeline end-to-end. Unit tes
 - [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests
 - [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests
 - [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence integrity tests
+- [SecurityAgentTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs), [RuleTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/RuleTests.cs), [DefaultRulePolicyProviderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/DefaultRulePolicyProviderTests.cs), and [JsonRulePolicyStoreTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/JsonRulePolicyStoreTests.cs) — Security Agent orchestration, contextual rules, and local policy persistence tests
 - [LogScenarioBuilder.cs](../../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator
 - [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — UI ViewModel tests
 

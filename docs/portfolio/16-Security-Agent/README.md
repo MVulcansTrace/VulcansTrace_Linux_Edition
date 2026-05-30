@@ -1,6 +1,6 @@
 # Security Agent
 
-The Security Agent subsystem adds a local, deterministic security assistant to VulcansTrace Linux Edition. It accepts plain-English questions, scans live Linux host state, evaluates posture rules, explains findings with markdown templates, and bridges those results back into the existing analysis and evidence model.
+The Security Agent subsystem adds a local, deterministic security assistant to VulcansTrace Linux Edition. It accepts plain-English questions, scans live Linux host state, evaluates role-aware posture rules, explains findings with markdown templates, and bridges those results back into the existing analysis and evidence model.
 
 Documentation is organized for two audiences:
 
@@ -11,13 +11,14 @@ Documentation is organized for two audiences:
 
 - [Technical Snapshot](./Security-Agent-Summary/Technical-Snapshot.md) — one-page overview of the subsystem, architecture, and proof points
 - [Quick Reference](./Security-Agent-Summary/Quick-Reference.md) — intents, scanners, rules, UI behavior, and limitations at a glance
-- [Design Decisions](./Security-Agent-In-Depth/Design-Decisions.md) — rationale for deterministic local analysis, scanner/rule separation, and explanation templates
+- [Design Decisions](./Security-Agent-In-Depth/Design-Decisions.md) — rationale for deterministic local analysis, scanner/rule separation, role-aware policy, and explanation templates
 
 ## System Capabilities
 
 - **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents
 - **Live host scanning** — collects firewall, port, service, interface, route, and connection state through local Linux commands
 - **Rule-based posture checks** — evaluates firewall, port, service, and network rules without external AI dependencies
+- **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
@@ -39,6 +40,8 @@ Documentation is organized for two audiences:
 - [ServiceScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs) — systemd service collection
 - [NetworkScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs) — interface, route, and connection collection
 - [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, and port checks
+- [DefaultRulePolicyProvider.cs](../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and user-policy merge behavior
+- [JsonRulePolicyStore.cs](../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — local JSON policy persistence
 - [ExplanationProvider.cs](../../../VulcansTrace.Linux.Agent/Explanations/ExplanationProvider.cs) — embedded markdown explanation loading
 - [AgentReportGenerator.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentReportGenerator.cs) — agent-to-analysis result adapter
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — chat panel ViewModel

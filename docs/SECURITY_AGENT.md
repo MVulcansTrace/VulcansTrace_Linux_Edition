@@ -71,13 +71,23 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
 2. `SecurityAgent` runs the required scanners with cancellation support.
 3. `ScanDataBuilder` collects scanner output into a thread-safe snapshot.
-4. Rules matching the requested intent evaluate the snapshot.
-5. Failed rules become `Finding` records.
-6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
-7. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
-8. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-9. Suppressions expired longer than the 30-day review retention window are pruned, active exact-match suppressions are applied, and rule pass/fail/suppressed counts are added to `AgentResult`.
-10. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present and can include active suppression notes.
+4. The rule policy provider resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`.
+5. Rules matching the requested intent evaluate the snapshot, using contextual role parameters when they opt into `IContextualRule`.
+6. Disabled rules are skipped, auto-pass rules are downgraded to passed results, and severity overrides are applied before findings are created.
+7. Failed rules become `Finding` records.
+8. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
+9. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
+10. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
+11. Suppressions expired longer than the 30-day review retention window are pruned, active exact-match suppressions are applied, and rule pass/fail/suppressed counts are added to `AgentResult`.
+12. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs when present and can include active suppression notes.
+
+## Rule Tuning
+
+The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`, `Router`, and `DevMachine` profiles. Built-in defaults tune selected rules, and user JSON policies take precedence while inheriting built-in parameters that are not overridden.
+
+The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, and `SRV-005`.
+
+The Avalonia composition currently runs the agent as `Workstation`; other roles are available through the agent API and policy provider wiring until a role selector is added.
 
 ## Explanation Behavior
 
@@ -104,6 +114,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
+- Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Accept Risk suppressions by rule ID and target, with 7-day, 30-day, 90-day, or permanent durations. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
 - A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
@@ -128,10 +139,12 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.
 - Suppressions are exact rule-ID/target matches, so intentional target text changes can require accepting the risk again.
 - Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
+- The desktop UI currently uses the `Workstation` role by default; changing roles requires code-level composition until a role selector is added.
 
 ## Roadmap
 
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
+- Add a machine-role selector and policy editing surface in the Avalonia UI.
 - Expand scanner fixtures across more distributions and command variants.
 - Add reminder surfaces for upcoming suppression review dates.
 

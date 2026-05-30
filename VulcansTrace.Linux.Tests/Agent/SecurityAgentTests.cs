@@ -168,6 +168,27 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task AskAsync_ExplainFinding_ByRuleId_RespectsDisabledPolicy()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { Enabled = false });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent.AskAsync("explain TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("disabled by policy", result.Summary);
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(0, result.FailedCount);
+    }
+
+    [Fact]
     public async Task RunAuditAsync_FindingIncludesRuleId()
     {
         var agent = new SecurityAgent(
@@ -396,5 +417,61 @@ public class SecurityAgentTests
         var passResult = result.RuleResults.First(r => r.RuleId == "TEST-002");
         Assert.Equal(RuleStatus.Passed, passResult.Status);
         Assert.True(passResult.Passed);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_DisabledRule_SkipsRule()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { Enabled = false });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Empty(result.AgentFindings);
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(0, result.FailedCount);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_AutoPassRule_ConvertsFailureToPass()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { AutoPass = true });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Empty(result.AgentFindings);
+        Assert.Equal(1, result.PassedCount);
+        Assert.Equal(0, result.FailedCount);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_SeverityOverride_UpdatesSeverity()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { SeverityOverride = Severity.Critical });
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Single(result.AgentFindings);
+        Assert.Equal(Severity.Critical, result.AgentFindings[0].Severity);
     }
 }
