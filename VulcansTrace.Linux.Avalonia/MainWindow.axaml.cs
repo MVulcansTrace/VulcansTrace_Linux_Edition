@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
@@ -151,7 +152,17 @@ public partial class MainWindow : Window
             auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
         }
 
-        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider, auditHistoryStore);
+        IBaselineStore baselineStore;
+        try
+        {
+            baselineStore = JsonFileBaselineStore.CreateDefault();
+        }
+        catch
+        {
+            baselineStore = new InMemoryBaselineStore("Baseline persistence is unavailable. Baselines will last only for this session.");
+        }
+
+        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider, auditHistoryStore, baselineStore);
         var ruleCatalog = new RuleCatalog(rules);
 
         var dialogService = new AvaloniaDialogService(this);

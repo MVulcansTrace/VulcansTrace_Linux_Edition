@@ -103,5 +103,26 @@ public class AgentViewModelTests
                 Summary = "stub",
                 AgentFindings = new[] { finding }
             });
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SetBaseline,
+                Summary = "stub"
+            });
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.CheckDrift,
+                Summary = "stub"
+            });
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowBaseline,
+                Summary = "stub"
+            });
     }
 }

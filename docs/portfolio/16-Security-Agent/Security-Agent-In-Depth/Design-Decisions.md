@@ -72,7 +72,18 @@ The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates
 
 ## Follow-Up Questions Without Re-Scanning
 
-Follow-up intents (`ShowChanges`, `ExplainCritical`, `FilterCategory`, `PrioritizeRemediation`, `ListSuppressed`) operate on the cached `_lastResult` instead of re-running scanners. This keeps them fast and deterministic. `ShowChanges` compares `_lastResult` against `IAuditHistoryStore`, skipping the history entry that matches the current result's timestamp so it does not diff an audit against itself. `FilterCategory` falls back to a fresh targeted audit only when no prior context exists, and returns the result with `Intent = FilterCategory` so the UI does not misinterpret it as a standalone audit.
+Follow-up intents (`ShowChanges`, `ExplainCritical`, `FilterCategory`, `PrioritizeRemediation`, `ListSuppressed`) operate on the cached `_lastResult` instead of re-running scanners. This keeps them fast and deterministic. `ShowChanges` compares `_lastResult` against `IAuditHistoryStore`, skipping the history entry that matches the current result's timestamp so it does not diff an audit against itself. `FilterCategory` falls back to a fresh targeted audit only when no prior context exists, saves and restores `_lastResult` around the fallback so it does not corrupt the user's context, and returns the result with `Intent = FilterCategory` so the UI does not misinterpret it as a standalone audit.
+
+## Configuration Baselines And Drift Detection
+
+Baselines are user-designated "known good" snapshots, separate from the automatic rolling audit history. This separation matters because history is an automatic log with pruning, while baselines are curated, intent-scoped, and long-lived.
+
+- **Intent-scoped baselines** — one active baseline per `AgentIntent` (FullAudit, FirewallCheck, SSHCheck, etc.). This lets a user baseline their firewall posture separately from their full system posture.
+- **Named baselines** — each baseline has a user-friendly name and stores both lightweight `AuditSnapshotFinding` records for diff calculations and the original `Finding` objects for lossless display in `ShowBaseline`.
+- **Separate storage** — `IBaselineStore` and `JsonFileBaselineStore` follow the same persistence pattern as audit history and suppressions, writing to `~/.config/VulcansTrace/baselines.json`.
+- **Drift via diff reuse** — `CheckDrift` re-runs the target audit and compares the live result against the active baseline using `AuditDiffCalculator`. The diff semantics (new, resolved, worsened, improved, unchanged) map directly to drift semantics, so the same narrative and summary experience applies.
+- **Context preservation** — `RunDriftCheckAsync` saves and restores `_lastResult` around the inner `RunAuditAsync` call so drift checks do not corrupt the user's previous audit context.
+- **Audit-intent isolation** — `_lastAuditIntent` tracks only actual audit intents, separate from `_lastResult.Intent`. This prevents a `SetBaseline` after `CheckDrift` from scoping the baseline to `CheckDrift` instead of the original audit intent.
 
 ## Current Tradeoffs
 

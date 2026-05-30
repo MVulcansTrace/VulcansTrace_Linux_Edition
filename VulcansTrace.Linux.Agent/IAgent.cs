@@ -34,4 +34,30 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>An agent result containing only the explained finding.</returns>
     Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct);
+
+    /// <summary>
+    /// Saves the most recent audit result as a known-good baseline.
+    /// </summary>
+    /// <param name="name">User-friendly name for the baseline.</param>
+    /// <param name="description">Optional description.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result confirming the baseline was saved.</returns>
+    Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct);
+
+    /// <summary>
+    /// Runs an audit and compares it against the active baseline for the intent.
+    /// </summary>
+    /// <param name="intent">The audit intent to check.</param>
+    /// <param name="rawLog">Optional firewall log content.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result with drift findings.</returns>
+    Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the active baseline for the specified intent without running an audit.
+    /// </summary>
+    /// <param name="intent">The audit intent.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the baseline findings.</returns>
+    Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct);
 }

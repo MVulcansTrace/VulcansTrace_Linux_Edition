@@ -15,13 +15,14 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Metric | Value |
 | --- | --- |
 | Agent project | `VulcansTrace.Linux.Agent` |
-| Scanner types | 4: Firewall, Port, Service, Network |
-| Rule categories | 4: Firewall, Port, Service, Network |
+| Scanner types | 5: Firewall, Port, Service, Network, SSH |
+| Rule categories | 5: Firewall, Port, Service, Network, SSH |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
+| Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
-| Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, and evidence traceability |
-| Agent intents | 12: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, ListSuppressed, Help |
+| Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
+| Agent intents | 15: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 4 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, and guarded remediation export |
@@ -59,6 +60,9 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [JsonRulePolicyStore.cs](../../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — persisted rule policy store
 - [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding identity and fingerprints
 - [AuditDiffCalculator.cs](../../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit comparison
+- [BaselineEntry.cs](../../../../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs) — baseline snapshot with original findings
+- [IBaselineStore.cs](../../../../VulcansTrace.Linux.Agent/Baselines/IBaselineStore.cs) — baseline storage contract
+- [JsonFileBaselineStore.cs](../../../../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs) — persisted baseline store
 - [SuppressionEntry.cs](../../../../VulcansTrace.Linux.Agent/Rules/SuppressionEntry.cs) — fingerprint-scoped accepted-risk entries
 - [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — UI command flow
 - [SecurityAgentTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs) — orchestration tests
@@ -68,4 +72,4 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Current Status
 
-This is a v1 local security assistant. It can scan, evaluate, report data-source capability status, tune selected rules by machine role and local JSON policy, explain selected or referenced findings, answer deterministic follow-up questions (changes since last audit, critical explanations, category filtering, prioritized remediation, suppressed listing) without re-running scans, group and filter results in the UI, surface privilege-limited scans, preserve and expire fingerprint-scoped accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with fingerprint matching and a deterministic change narrative, export guarded remediation previews with explicit rollback requirements for risky commands, and export agent audits with capability and active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are a UI role selector, broader distro-specific parser fixtures, and reminder surfaces for upcoming suppression reviews.
+This is a v1 local security assistant. It can scan, evaluate, report data-source capability status, tune selected rules by machine role and local JSON policy, explain selected or referenced findings, answer deterministic follow-up questions (changes since last audit, critical explanations, category filtering, prioritized remediation, suppressed listing) without re-running scans, group and filter results in the UI, surface privilege-limited scans, preserve and expire fingerprint-scoped accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with fingerprint matching and a deterministic change narrative, snapshot known-good configuration baselines per intent, detect drift against those baselines with new and worsened findings surfaced as actionable results, display baselines with original finding details preserved, export guarded remediation previews with explicit rollback requirements for risky commands, and export agent audits with capability and active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are a UI role selector, broader distro-specific parser fixtures, and reminder surfaces for upcoming suppression reviews.

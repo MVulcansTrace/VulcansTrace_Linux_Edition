@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -678,6 +679,27 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task AskAsync_FilterCategory_Fallback_DoesNotOverwriteLastResult()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            historyStore: historyStore);
+
+        // Fallback filter with no prior audit
+        var filterResult = await agent.AskAsync("show only firewall issues", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.FilterCategory, filterResult.Intent);
+
+        // A subsequent ShowChanges should still report "no previous audit",
+        // proving the fallback RunAuditAsync didn't corrupt _lastResult.
+        var changesResult = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.ShowChanges, changesResult.Intent);
+        Assert.Contains("No previous audit", changesResult.Summary);
+    }
+
+    [Fact]
     public async Task AskAsync_PrioritizeRemediation_AfterAudit_ReturnsPlan()
     {
         var agent = new SecurityAgent(
@@ -828,6 +850,342 @@ public class SecurityAgentTests
         var filterResult = await agent.AskAsync("show only firewall issues", null, CancellationToken.None);
         Assert.Equal(AgentIntent.FilterCategory, filterResult.Intent);
         Assert.All(filterResult.AgentFindings, f => Assert.Equal("Firewall", f.Category));
+    }
+
+    // ─── Baseline & drift tests ───
+
+    [Fact]
+    public async Task AskAsync_SetBaseline_AfterAudit_SavesBaseline()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("set baseline", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.SetBaseline, result.Intent);
+        Assert.NotNull(result.Baseline);
+        Assert.Single(baselineStore.GetAll());
+        Assert.True(baselineStore.GetActive(AgentIntent.FullAudit)!.IsActive);
+        Assert.Contains("saved", result.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AskAsync_SetBaseline_WithoutAudit_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("set baseline", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.SetBaseline, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_CheckDrift_WithBaseline_ReturnsDiff()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.AskAsync("set baseline", null, CancellationToken.None);
+
+        var result = await agent.AskAsync("check drift", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.NotNull(result.BaselineDiff);
+        Assert.Contains("No drift detected", result.BaselineDiff.Narrative);
+    }
+
+    [Fact]
+    public async Task AskAsync_CheckDrift_WithoutBaseline_ReturnsGuidance()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var result = await agent.AskAsync("check drift", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.Contains("No baseline set", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_CheckDrift_WhenDriftDetected_ReturnsDriftFindings()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        // First audit with AlwaysFailRule => 1 finding
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.AskAsync("set baseline", null, CancellationToken.None);
+
+        // Now swap to AlwaysFailCriticalRule => drift (new finding, different rule ID)
+        var agent2 = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailCriticalRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var result = await agent2.AskAsync("check drift", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.NotNull(result.BaselineDiff);
+        Assert.True(result.BaselineDiff.HasDrift);
+        Assert.NotEmpty(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowBaseline_WithBaseline_ReturnsBaseline()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.AskAsync("set baseline", null, CancellationToken.None);
+
+        var result = await agent.AskAsync("show baseline", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.NotNull(result.Baseline);
+        Assert.Single(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowBaseline_WithoutBaseline_ReturnsGuidance()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var result = await agent.AskAsync("show baseline", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.Contains("No baseline set", result.Summary);
+    }
+
+    [Fact]
+    public async Task SetBaselineAsync_SetsBaselineWithCustomName()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.SetBaselineAsync("MyBaseline", "Description", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.SetBaseline, result.Intent);
+        Assert.NotNull(result.Baseline);
+        Assert.Equal("MyBaseline", result.Baseline.Name);
+    }
+
+    [Fact]
+    public async Task CheckDriftAsync_WithoutBaseline_ReturnsGuidance()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var result = await agent.CheckDriftAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.Contains("No baseline set", result.Summary);
+    }
+
+    [Fact]
+    public async Task GetBaselineAsync_WithoutBaseline_ReturnsGuidance()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var result = await agent.GetBaselineAsync(AgentIntent.FullAudit, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.Contains("No baseline set", result.Summary);
+    }
+
+    [Fact]
+    public async Task CheckDriftAsync_WithBaseline_ReturnsDiff()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.SetBaselineAsync("TestBaseline", null, CancellationToken.None);
+
+        var result = await agent.CheckDriftAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.NotNull(result.BaselineDiff);
+        Assert.Contains("No drift detected", result.BaselineDiff.Narrative);
+    }
+
+    [Fact]
+    public async Task GetBaselineAsync_WithBaseline_ReturnsBaseline()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.SetBaselineAsync("TestBaseline", null, CancellationToken.None);
+
+        var result = await agent.GetBaselineAsync(AgentIntent.FullAudit, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.NotNull(result.Baseline);
+        Assert.Equal("TestBaseline", result.Baseline.Name);
+        Assert.Single(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task CheckDriftAsync_PreservesLastResult()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var auditResult = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.SetBaselineAsync("TestBaseline", null, CancellationToken.None);
+
+        var driftResult = await agent.CheckDriftAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        // After drift check, a follow-up ShowChanges should still work against the original audit
+        var changesResult = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.ShowChanges, changesResult.Intent);
+    }
+
+    [Fact]
+    public async Task ShowBaseline_PreservesOriginalFindingFields()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        var auditResult = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var originalFinding = auditResult.AgentFindings[0];
+        await agent.SetBaselineAsync("TestBaseline", null, CancellationToken.None);
+
+        var result = await agent.GetBaselineAsync(AgentIntent.FullAudit, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.Single(result.AgentFindings);
+
+        var reconstructed = result.AgentFindings[0];
+        Assert.Equal(originalFinding.RuleId, reconstructed.RuleId);
+        Assert.Equal(originalFinding.Category, reconstructed.Category);
+        Assert.Equal(originalFinding.Severity, reconstructed.Severity);
+        Assert.Equal(originalFinding.Target, reconstructed.Target);
+        Assert.Equal(originalFinding.ShortDescription, reconstructed.ShortDescription);
+        Assert.Equal(originalFinding.Fingerprint, reconstructed.Fingerprint);
+        Assert.Equal(originalFinding.SourceHost, reconstructed.SourceHost);
+        // Details should be original plus baseline annotation
+        Assert.Contains(originalFinding.Details, reconstructed.Details);
+        Assert.Contains("TestBaseline", reconstructed.Details);
+    }
+
+    [Fact]
+    public async Task SetBaseline_AfterCheckDrift_UsesAuditIntent_NotCheckDrift()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var driftResult = await agent.AskAsync("check drift", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.CheckDrift, driftResult.Intent);
+
+        var baselineResult = await agent.AskAsync("set baseline", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.SetBaseline, baselineResult.Intent);
+        Assert.NotNull(baselineResult.Baseline);
+        Assert.Equal(AgentIntent.FullAudit, baselineResult.Baseline.Intent);
+
+        // A subsequent drift check for FullAudit should find this baseline
+        var driftResult2 = await agent.CheckDriftAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+        Assert.Contains("No drift detected", driftResult2.BaselineDiff!.Narrative);
+    }
+
+    [Fact]
+    public async Task CheckDriftAsync_WorsenedSeverity_Detected()
+    {
+        var baselineStore = new InMemoryBaselineStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        await agent.SetBaselineAsync("TestBaseline", null, CancellationToken.None);
+
+        // Same rule ID, but severity escalated via policy override
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { SeverityOverride = Severity.Critical });
+        var agent2 = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            baselineStore: baselineStore,
+            machineRole: MachineRole.Server,
+            policyProvider: policyStore);
+
+        var result = await agent2.CheckDriftAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.NotNull(result.BaselineDiff);
+        Assert.True(result.BaselineDiff.HasDrift);
+        Assert.Single(result.BaselineDiff.Diff.WorsenedFindings);
     }
 
     private sealed class AlwaysFailCriticalRule : IRule

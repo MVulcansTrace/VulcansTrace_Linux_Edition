@@ -49,4 +49,10 @@ public sealed record AgentResult
 
     /// <summary>Remediation plan from the last result, populated for <see cref="Query.AgentIntent.PrioritizeRemediation"/>.</summary>
     public RemediationPlan? RemediationPlan { get; init; }
+
+    /// <summary>Drift result against a saved baseline, populated for <see cref="Query.AgentIntent.CheckDrift"/>.</summary>
+    public Baselines.BaselineDiffResult? BaselineDiff { get; init; }
+
+    /// <summary>The active baseline, populated for <see cref="Query.AgentIntent.ShowBaseline"/>.</summary>
+    public Baselines.BaselineEntry? Baseline { get; init; }
 }

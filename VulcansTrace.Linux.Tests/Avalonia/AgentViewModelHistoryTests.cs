@@ -176,5 +176,38 @@ public class AgentViewModelHistoryTests
                 Warnings = Array.Empty<string>()
             });
         }
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SetBaseline,
+                Summary = "Mock baseline set",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.CheckDrift,
+                Summary = "Mock drift check",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowBaseline,
+                Summary = "Mock baseline",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 }

@@ -25,6 +25,9 @@ The query parser maps natural-language prompts to structured intents:
 | `Show only firewall issues` | `FilterCategory` | Filter the last audit's findings by category (falls back to a fresh category audit when no context exists) |
 | `What should I fix first?` | `PrioritizeRemediation` | Build a severity-ordered remediation plan from the last audit |
 | `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
+| `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
+| `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
+| `Show baseline` | `ShowBaseline` | Display the active baseline findings for the last audit intent |
 | `Help` | `Help` | Returns supported agent capabilities |
 
 ## Data Sources
@@ -96,7 +99,8 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 9. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 10. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
 11. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
-12. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, and active suppression notes when present.
+12. Baseline snapshots can be saved from any audit result. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display. Baselines are intent-scoped and persisted to the user config directory; the active baseline per intent is used by `CheckDrift` to compare live state against the known-good snapshot via `AuditDiffCalculator`.
+13. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, and active suppression notes when present.
 
 ## Rule Tuning
 
@@ -124,6 +128,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 
 - Chat-style natural-language questions.
 - Quick-action buttons for full audit, firewall, ports, services, network, selected-finding explanation, and audit export.
+- Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
 - Agent findings grouped by category with compact severity summaries.
@@ -134,6 +139,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
+- Configuration baselines persisted to the user config directory (`~/.config/VulcansTrace/baselines.json`) when available, with in-memory fallback. Baselines are intent-scoped; each intent has one active baseline at a time. Drift detection re-runs the audit and compares against the active baseline, surfacing new and worsened findings.
 - Accept Risk suppressions by finding fingerprint when available, with legacy rule-ID/target matching for older entries. Suppressions can last 7 days, 30 days, 90 days, or permanently. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
 - A Suppressions tab with friendly filter labels, review counts, status badges, and row actions to renew, convert duration, edit reason, or remove suppressions.
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
@@ -182,3 +188,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)
 - [ScannerParserFixtureTests.cs](../VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs)
+- [BaselineEntry.cs](../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs)
+- [IBaselineStore.cs](../VulcansTrace.Linux.Agent/Baselines/IBaselineStore.cs)
+- [JsonFileBaselineStore.cs](../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs)
+- [BaselineDiffResult.cs](../VulcansTrace.Linux.Agent/Baselines/BaselineDiffResult.cs)

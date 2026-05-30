@@ -23,6 +23,9 @@ public sealed class QueryParser : IQueryParser
         (new[] { "only", "just show", "show me", "filter" }, AgentIntent.FilterCategory, 3),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
         (new[] { "suppressed", "which are suppressed", "hidden findings", "silenced" }, AgentIntent.ListSuppressed, 2),
+        (new[] { "set baseline", "save baseline", "snapshot baseline", "mark as baseline", "known good" }, AgentIntent.SetBaseline, 3),
+        (new[] { "drift", "check drift", "baseline drift", "deviated", "changed from baseline" }, AgentIntent.CheckDrift, 3),
+        (new[] { "show baseline", "view baseline", "current baseline", "what is my baseline" }, AgentIntent.ShowBaseline, 3),
         (new[] { "help", "what can you do", "capabilities", "commands" }, AgentIntent.Help, 2),
     };
 

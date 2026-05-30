@@ -19,6 +19,9 @@
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
 | `PrioritizeRemediation` | `What should I fix first?` | Severity-ordered remediation plan from the last audit |
 | `ListSuppressed` | `Which findings are suppressed?` | List suppressed findings from the last audit |
+| `SetBaseline` | `Set baseline` | Save the last audit as a known-good baseline snapshot |
+| `CheckDrift` | `Check drift` | Compare live config against the saved baseline; reports new and worsened findings |
+| `ShowBaseline` | `Show baseline` | Display the active baseline findings for the last audit intent |
 | `Help` | `What can you do?` | Help text only |
 
 ---
@@ -63,6 +66,8 @@ User query
   -> Finding fingerprints
   -> ExplanationProvider
   -> AgentResult
+  -> BaselineStore (optional save)
+  -> AuditDiffCalculator (drift comparison)
   -> UI and/or AgentReportGenerator
 ```
 
@@ -78,7 +83,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
@@ -89,6 +94,7 @@ User query
 | Accept Risk | Suppresses selected findings by fingerprint when available, falls back to legacy rule-ID/target entries, supports 7/30/90-day or permanent duration, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
 | Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with fingerprint matching and a deterministic narrative summary |
+| Baseline & drift | Persists intent-scoped baselines to the user config directory. Set Baseline saves the last audit as known-good. Check Drift re-runs the audit and diffs against the active baseline. Show Baseline displays saved findings with original details, categories, and fingerprints preserved |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
 

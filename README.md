@@ -43,6 +43,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
 - Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, and role-aware local policy.
+- Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 
@@ -203,7 +204,7 @@ The `docs/portfolio` folder contains 16 implementation-focused case studies. Eac
 | [13 - C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md) | Periodic command-and-control channel detection and grouping behavior |
 | [14 - Privilege Escalation Detection](docs/portfolio/14-Privilege-Escalation-Detection/README.md) | Admin-port spikes and sweeps as privilege-escalation indicators |
 | [15 - Linux Deep Inspection](docs/portfolio/15-Linux-Deep-Inspection/README.md) | Linux-specific signals including flags, MACs, kernel modules, interfaces, and packet sizes |
-| [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, role-aware policy, scanner orchestration, and explanations |
+| [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, role-aware policy, scanner orchestration, explanations, and configuration baseline / drift detection |
 
 ## Development
 

@@ -222,6 +222,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to export the last agent audit.</summary>
     public RelayCommand ExportAuditCommand { get; }
 
+    /// <summary>Gets the command to save the last audit as a baseline.</summary>
+    public AsyncRelayCommand SetBaselineCommand { get; }
+
+    /// <summary>Gets the command to check drift against the saved baseline.</summary>
+    public AsyncRelayCommand CheckDriftCommand { get; }
+
+    /// <summary>Gets the command to show the current baseline.</summary>
+    public AsyncRelayCommand ShowBaselineCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -318,6 +327,21 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         ClearChatFiltersCommand = new RelayCommand(
             _ => ClearChatFilters(),
             _ => true);
+
+        SetBaselineCommand = new AsyncRelayCommand(
+            async _ => await SetBaselineAsync(),
+            _ => !_isBusy && _lastResult != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        CheckDriftCommand = new AsyncRelayCommand(
+            async _ => await CheckDriftAsync(),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ShowBaselineCommand = new AsyncRelayCommand(
+            async _ => await ShowBaselineAsync(),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
 
@@ -748,6 +772,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanExportAudit));
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
+        SetBaselineCommand.RaiseCanExecuteChanged();
     }
 
     private void PublishAuditCompleted(AgentResult result)
@@ -843,6 +868,180 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private static bool IsAllCategoryFilter(string? categoryFilter) =>
         string.IsNullOrWhiteSpace(categoryFilter)
             || categoryFilter.Equals(AllCategoriesFilter, StringComparison.OrdinalIgnoreCase);
+
+    private async Task SetBaselineAsync()
+    {
+        if (_lastResult == null)
+        {
+            AddAgentMessage("Run an audit first, then save it as a baseline.", true);
+            return;
+        }
+
+        AddUserMessage("Set baseline");
+        IsBusy = true;
+        ClearPrivilegeWarning();
+
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        try
+        {
+            // Pass empty name so the agent generates it from _lastAuditIntent,
+            // avoiding wrong intent (e.g. CheckDrift) in the name.
+            var result = await _agent.SetBaselineAsync("", null, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                AddAgentMessage(result.Summary, true);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
+        }
+        finally
+        {
+            Dispatcher.UIThread.Post(() => IsBusy = false);
+            _cts?.Dispose();
+            _cts = null;
+        }
+    }
+
+    private async Task CheckDriftAsync()
+    {
+        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        AddUserMessage($"Check drift ({intent})");
+        IsBusy = true;
+        ClearPrivilegeWarning();
+
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        try
+        {
+            var result = await _agent.CheckDriftAsync(intent, null, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
+
+                if (result.AgentFindings.Count > 0)
+                {
+                    AddAgentFindingGroupSummary(result.AgentFindings);
+
+                    ChatCategoryFilters.Clear();
+                    ChatCategoryFilters.Add(AllCategoriesFilter);
+                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    {
+                        ChatCategoryFilters.Add(cat);
+                    }
+
+                    var grouped = result.AgentFindings
+                        .GroupBy(f => f.Category)
+                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
+                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
+                        .ToList();
+
+                    foreach (var group in grouped)
+                    {
+                        AddAgentFindingGroup(group.Category, group.Findings);
+                    }
+                }
+
+                if (result.Warnings.Count > 0)
+                {
+                    AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
+                    DetectPrivilegeWarning(result.Warnings);
+                }
+
+                ApplyChatFilters();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
+        }
+        finally
+        {
+            Dispatcher.UIThread.Post(() => IsBusy = false);
+            _cts?.Dispose();
+            _cts = null;
+        }
+    }
+
+    private async Task ShowBaselineAsync()
+    {
+        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        AddUserMessage("Show baseline");
+        IsBusy = true;
+        ClearPrivilegeWarning();
+
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        try
+        {
+            var result = await _agent.GetBaselineAsync(intent, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
+
+                if (result.AgentFindings.Count > 0)
+                {
+                    AddAgentFindingGroupSummary(result.AgentFindings);
+
+                    ChatCategoryFilters.Clear();
+                    ChatCategoryFilters.Add(AllCategoriesFilter);
+                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    {
+                        ChatCategoryFilters.Add(cat);
+                    }
+
+                    var grouped = result.AgentFindings
+                        .GroupBy(f => f.Category)
+                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
+                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
+                        .ToList();
+
+                    foreach (var group in grouped)
+                    {
+                        AddAgentFindingGroup(group.Category, group.Findings);
+                    }
+                }
+
+                ApplyChatFilters();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
+        }
+        finally
+        {
+            Dispatcher.UIThread.Post(() => IsBusy = false);
+            _cts?.Dispose();
+            _cts = null;
+        }
+    }
 
     private void ExportRemediationPlan()
     {

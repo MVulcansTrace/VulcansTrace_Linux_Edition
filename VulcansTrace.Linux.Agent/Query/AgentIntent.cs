@@ -41,6 +41,15 @@ public enum AgentIntent
     /// <summary>List suppressed findings from the last result.</summary>
     ListSuppressed,
 
+    /// <summary>Save the last audit as a known-good baseline.</summary>
+    SetBaseline,
+
+    /// <summary>Check whether the live config has drifted from the saved baseline.</summary>
+    CheckDrift,
+
+    /// <summary>Show the current baseline for an intent.</summary>
+    ShowBaseline,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }
