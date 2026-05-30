@@ -48,6 +48,12 @@ public sealed class HtmlFormatter : IEvidenceFormatter
         }
         sb.AppendLine("</ul>");
 
+        if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+        {
+            sb.AppendLine("<h2>Data Sources</h2>");
+            sb.AppendLine($"<p>{System.Net.WebUtility.HtmlEncode(result.CapabilityReport)}</p>");
+        }
+
         sb.AppendLine("<h2>Warnings</h2>");
         if (result.Warnings.Count == 0)
         {

@@ -397,6 +397,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
+                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+                    AddAgentMessage(result.CapabilityReport, true);
+
                 AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
 
                 if (result.PassedCount > 0)
@@ -433,6 +436,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
                     DetectPrivilegeWarning(result.Warnings);
                 }
+
+                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+                    AddAgentMessage(result.CapabilityReport, true);
 
                 ApplyChatFilters();
             });
@@ -602,6 +608,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
+                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+                    AddAgentMessage(result.CapabilityReport, true);
+
                 AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
 
                 if (result.PassedCount > 0)
@@ -638,6 +647,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
                     DetectPrivilegeWarning(result.Warnings);
                 }
+
+                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+                    AddAgentMessage(result.CapabilityReport, true);
 
                 ApplyChatFilters();
             });

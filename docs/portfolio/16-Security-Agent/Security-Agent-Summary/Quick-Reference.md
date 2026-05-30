@@ -48,6 +48,7 @@ User query
   -> SecurityAgent
   -> Scanners
   -> ScanDataBuilder / ScanData
+  -> Data-source capability report
   -> Rule policy provider
   -> Rules / contextual rules
   -> Finding records
@@ -71,6 +72,7 @@ User query
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
 | Quick actions | Runs full audit, firewall, ports, services, network, explain selected, export audit, export remediation, compare last two audits, and compare selected audits without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
+| Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
 | Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, and crashed check totals |
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
@@ -89,6 +91,7 @@ User query
 - Scanner output parsing is command-text based and should continue expanding with distro-specific fixtures.
 - Some checks are posture findings, not compromise findings.
 - Privilege-sensitive command output may be incomplete without elevated permissions.
+- Capability status describes scanner command visibility, not a guarantee that every host fact was collected.
 - Direct selected-finding explanations summarize the existing finding details.
 - New suppressions match finding fingerprints when available. Legacy entries without fingerprints match exact rule IDs and targets. Expired suppressions are inactive immediately but remain reviewable for 30 days before pruning.
 - Command safety labels are keyword-based classifications and should be reviewed before use.

@@ -32,6 +32,9 @@ public sealed record ScanData
 
     /// <summary>Warnings collected during scanning (permission errors, missing tools, etc.).</summary>
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
+
+    /// <summary>Capabilities of each data source checked during scanning.</summary>
+    public IReadOnlyList<DataSourceCapability> Capabilities { get; init; } = Array.Empty<DataSourceCapability>();
 }
 
 /// <summary>A parsed firewall rule entry.</summary>

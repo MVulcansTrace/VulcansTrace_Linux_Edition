@@ -18,19 +18,28 @@ public sealed class NetworkScanner : IScanner
         var (routeOutput, routeError, routeOk) = await RunCommandAsync("ip", new[] { "route" }, cancellationToken);
         var (connOutput, connError, connOk) = await RunCommandAsync("ss", new[] { "-tunap" }, cancellationToken);
 
+        var addrStatus = DataSourceCapability.FromCommandResult(addrOk, addrOutput, addrError);
+        builder.AddCapability(new DataSourceCapability { SourceName = "ip addr", Status = addrStatus, Detail = addrError });
+
         if (addrOk && !string.IsNullOrWhiteSpace(addrOutput))
             ParseAddresses(addrOutput, builder);
         else
             builder.AddWarning($"Network interface scan skipped: 'ip addr' failed. {addrError}");
+
+        var routeStatus = DataSourceCapability.FromCommandResult(routeOk, routeOutput, routeError);
+        builder.AddCapability(new DataSourceCapability { SourceName = "ip route", Status = routeStatus, Detail = routeError });
 
         if (routeOk && !string.IsNullOrWhiteSpace(routeOutput))
             ParseRoutes(routeOutput, builder);
         else
             builder.AddWarning($"Route scan skipped: 'ip route' failed. {routeError}");
 
-        if (connOk && !string.IsNullOrWhiteSpace(connOutput) && !connOutput.Contains("Permission denied"))
+        var connStatus = DataSourceCapability.FromCommandResult(connOk, connOutput, connError);
+        builder.AddCapability(new DataSourceCapability { SourceName = "ss connections", Status = connStatus, Detail = connError });
+
+        if (connOk && !string.IsNullOrWhiteSpace(connOutput) && !DataSourceCapability.ContainsPermissionDenied(connOutput))
             ParseConnections(connOutput, builder);
-        else if (connOutput?.Contains("Permission denied") == true)
+        else if (DataSourceCapability.ContainsPermissionDenied(connOutput) || DataSourceCapability.ContainsPermissionDenied(connError))
             builder.AddWarning("Connection scan skipped: permission denied.");
         else
             builder.AddWarning($"Connection scan skipped: 'ss' failed. {connError}");

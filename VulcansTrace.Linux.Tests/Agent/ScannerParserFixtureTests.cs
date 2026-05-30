@@ -461,4 +461,56 @@ public class ScannerParserFixtureTests
         Assert.Equal("::1", addr);
         Assert.Equal(53, port);
     }
+
+    // =====================================================================
+    // Scanner Capability Tests
+    // =====================================================================
+
+    [Fact]
+    public async Task FirewallScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new FirewallScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "iptables");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "nftables");
+    }
+
+    [Fact]
+    public async Task PortScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new PortScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "ss");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "netstat");
+    }
+
+    [Fact]
+    public async Task NetworkScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new NetworkScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "ip addr");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "ip route");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "ss connections");
+    }
+
+    [Fact]
+    public async Task ServiceScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new ServiceScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "systemctl");
+    }
 }

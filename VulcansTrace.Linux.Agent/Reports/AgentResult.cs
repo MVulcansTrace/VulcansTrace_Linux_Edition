@@ -40,4 +40,7 @@ public sealed record AgentResult
 
     /// <summary>Number of rules that crashed during evaluation.</summary>
     public int CrashedCount { get; init; }
+
+    /// <summary>Human-readable report of which data sources were available during the audit.</summary>
+    public string CapabilityReport { get; init; } = string.Empty;
 }

@@ -145,4 +145,21 @@ public class HtmlFormatterTests
         Assert.Contains("&lt;fp1&gt;", html);
         Assert.DoesNotContain("<fp1>", html);
     }
+
+    [Fact]
+    public void ToHtml_IncludesEncodedCapabilityReport()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings = [],
+            CapabilityReport = "Data sources: iptables <available>."
+        };
+
+        var html = formatter.ToHtml(result);
+
+        Assert.Contains("<h2>Data Sources</h2>", html);
+        Assert.Contains("iptables &lt;available&gt;", html);
+        Assert.DoesNotContain("iptables <available>", html);
+    }
 }

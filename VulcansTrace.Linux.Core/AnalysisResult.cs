@@ -87,6 +87,9 @@ public sealed record AnalysisResult
         init => _activeSuppressions = value ?? throw new ArgumentNullException(nameof(ActiveSuppressions));
     }
 
+    /// <summary>Human-readable report of which data sources were available during the audit.</summary>
+    public string CapabilityReport { get; init; } = string.Empty;
+
     /// <summary>
     /// Gets the start of the time range covered by the analysis.
     /// When using <c>with</c> expressions to modify time range properties, set

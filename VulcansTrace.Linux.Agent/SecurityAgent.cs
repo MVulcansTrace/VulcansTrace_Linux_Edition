@@ -104,6 +104,7 @@ public sealed class SecurityAgent : IAgent
 
         var scanData = builder.Build();
         warnings.AddRange(scanData.Warnings);
+        var capabilityReport = BuildCapabilityReport(scanData.Capabilities);
 
         ct.ThrowIfCancellationRequested();
 
@@ -250,7 +251,8 @@ public sealed class SecurityAgent : IAgent
             PassedCount = passedCount,
             FailedCount = failedCount,
             SuppressedCount = suppressedCount,
-            CrashedCount = crashedCount
+            CrashedCount = crashedCount,
+            CapabilityReport = capabilityReport
         };
     }
 
@@ -412,6 +414,7 @@ public sealed class SecurityAgent : IAgent
 
         var scanData = builder.Build();
         warnings.AddRange(scanData.Warnings);
+        var capabilityReport = BuildCapabilityReport(scanData.Capabilities);
 
         var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
         if (policy?.Enabled == false)
@@ -494,7 +497,8 @@ public sealed class SecurityAgent : IAgent
             RuleResults = new[] { result },
             PassedCount = result.Status == RuleStatus.Passed ? 1 : 0,
             FailedCount = result.Status == RuleStatus.Failed ? 1 : 0,
-            CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0
+            CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0,
+            CapabilityReport = capabilityReport
         };
     }
 
@@ -593,6 +597,62 @@ public sealed class SecurityAgent : IAgent
 
         return string.Join(" ", parts);
     }
+
+    private static string BuildCapabilityReport(IReadOnlyList<DataSourceCapability> capabilities)
+    {
+        if (capabilities.Count == 0)
+            return string.Empty;
+
+        var sourceOrder = new[]
+        {
+            "iptables",
+            "nftables",
+            "ss",
+            "netstat",
+            "ip addr",
+            "ip route",
+            "ss connections",
+            "systemctl"
+        };
+
+        var orderedCapabilities = capabilities
+            .Where(cap => !string.IsNullOrWhiteSpace(cap.SourceName))
+            .GroupBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(cap => GetCapabilityPriority(cap.Status)).First())
+            .OrderBy(cap =>
+            {
+                var index = Array.FindIndex(sourceOrder, source => source.Equals(cap.SourceName, StringComparison.OrdinalIgnoreCase));
+                return index >= 0 ? index : int.MaxValue;
+            })
+            .ThenBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (orderedCapabilities.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>(orderedCapabilities.Count);
+        foreach (var cap in orderedCapabilities)
+        {
+            var statusLabel = cap.Status switch
+            {
+                CapabilityStatus.Available => "available",
+                CapabilityStatus.Unavailable => "unavailable",
+                CapabilityStatus.PermissionLimited => "permission-limited",
+                _ => "unknown"
+            };
+            parts.Add($"{cap.SourceName} {statusLabel}");
+        }
+
+        return "Data sources: " + string.Join("; ", parts) + ".";
+    }
+
+    private static int GetCapabilityPriority(CapabilityStatus status) => status switch
+    {
+        CapabilityStatus.PermissionLimited => 3,
+        CapabilityStatus.Available => 2,
+        CapabilityStatus.Unavailable => 1,
+        _ => 0
+    };
 
     private static string GetHelpText() =>
         "I can help you audit your Linux system security. Try asking:\n" +

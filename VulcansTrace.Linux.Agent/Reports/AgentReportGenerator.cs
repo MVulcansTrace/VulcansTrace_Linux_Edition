@@ -72,7 +72,8 @@ public sealed class AgentReportGenerator
             TimeRangeStart = agentResult.UtcTimestamp,
             TimeRangeEnd = agentResult.UtcTimestamp,
             SuppressedCount = agentResult.SuppressedCount,
-            ActiveSuppressions = activeSuppressions
+            ActiveSuppressions = activeSuppressions,
+            CapabilityReport = agentResult.CapabilityReport
         };
     }
 }

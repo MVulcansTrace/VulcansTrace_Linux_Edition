@@ -4,7 +4,7 @@
 
 ## Implementation Overview
 
-The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. The main orchestrator, `SecurityAgent`, parses the user's query into an `AgentQuery`, runs local scanners, resolves role-aware policy, evaluates rules, converts failed checks into fingerprinted `Finding` records, fills human-readable markdown explanations, caches findings by originating rule ID for follow-up questions, and optionally includes firewall-log analysis through `SentryAnalyzer`.
+The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. The main orchestrator, `SecurityAgent`, parses the user's query into an `AgentQuery`, runs local scanners, records data-source capabilities, resolves role-aware policy, evaluates rules, converts failed checks into fingerprinted `Finding` records, fills human-readable markdown explanations, caches findings by originating rule ID for follow-up questions, and optionally includes firewall-log analysis through `SentryAnalyzer`.
 
 The subsystem is deliberately deterministic and explainable. Each result can be traced to a scanner, a rule, and an explanation template rather than to opaque model output.
 
@@ -19,6 +19,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Rule categories | 4: Firewall, Port, Service, Network |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
+| Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, and evidence traceability |
 | Agent intents | 7: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, ExplainFinding, Help |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
@@ -32,6 +33,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 - **Bridges raw analysis and analyst questions** — the user can ask "what ports are open?" instead of choosing a detector manually
 - **Adds live host posture** — VulcansTrace can now inspect the system state, not only pasted firewall logs
+- **Shows audit visibility** — capability reports make it clear when scanner evidence came from available, unavailable, or permission-limited commands
 - **Reduces false positives with explicit local context** — Workstation, Server, LabBox, Router, and DevMachine profiles tune selected rules without weakening the global rule catalog
 - **Keeps trust high** — deterministic rules and markdown explanations make findings auditable
 - **Stays local-first** — no external AI call is required to answer security questions
@@ -44,6 +46,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [SecurityAgent.cs](../../../../VulcansTrace.Linux.Agent/SecurityAgent.cs) — orchestration
 - [QueryParser.cs](../../../../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing
 - [IScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/IScanner.cs) — thread-safe scanner aggregation
+- [DataSourceCapability.cs](../../../../VulcansTrace.Linux.Agent/Scanners/DataSourceCapability.cs) — data-source availability and permission status
 - [FirewallScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/FirewallScanner.cs) — firewall collection
 - [PortScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/PortScanner.cs) — listening-port collection
 - [ServiceScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs) — service collection
@@ -65,4 +68,4 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Current Status
 
-This is a v1 local security assistant. It can scan, evaluate, tune selected rules by machine role and local JSON policy, explain selected or referenced findings, group and filter results in the UI, surface privilege-limited scans, preserve and expire fingerprint-scoped accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with fingerprint matching and a deterministic change narrative, export guarded remediation previews with explicit rollback requirements for risky commands, and export agent audits with active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are a UI role selector, broader distro-specific parser fixtures, richer follow-up explanation flows, and reminder surfaces for upcoming suppression reviews.
+This is a v1 local security assistant. It can scan, evaluate, report data-source capability status, tune selected rules by machine role and local JSON policy, explain selected or referenced findings, group and filter results in the UI, surface privilege-limited scans, preserve and expire fingerprint-scoped accepted-risk suppressions, keep recently expired suppressions reviewable for 30 days, compare selected audits with fingerprint matching and a deterministic change narrative, export guarded remediation previews with explicit rollback requirements for risky commands, and export agent audits with capability and active suppression notes through the shared evidence workflow. It is not an LLM-backed conversational agent. The next high-value improvements are a UI role selector, broader distro-specific parser fixtures, richer follow-up explanation flows, and reminder surfaces for upcoming suppression reviews.

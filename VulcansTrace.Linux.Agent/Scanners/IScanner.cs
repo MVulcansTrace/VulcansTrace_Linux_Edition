@@ -29,6 +29,7 @@ public sealed class ScanDataBuilder
     private readonly List<RouteEntry> _routes = new();
     private readonly List<ActiveConnection> _activeConnections = new();
     private readonly List<string> _warnings = new();
+    private readonly List<DataSourceCapability> _capabilities = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
@@ -80,6 +81,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _warnings.Add(warning); }
     }
 
+    public void AddCapability(DataSourceCapability capability)
+    {
+        lock (_lock) { _capabilities.Add(capability); }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -94,7 +100,8 @@ public sealed class ScanDataBuilder
                 NetworkInterfaces = _networkInterfaces.ToArray(),
                 Routes = _routes.ToArray(),
                 ActiveConnections = _activeConnections.ToArray(),
-                Warnings = _warnings.ToArray()
+                Warnings = _warnings.ToArray(),
+                Capabilities = _capabilities.ToArray()
             };
         }
     }

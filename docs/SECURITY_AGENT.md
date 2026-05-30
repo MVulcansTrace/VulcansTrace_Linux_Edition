@@ -70,7 +70,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
 2. `SecurityAgent` runs the required scanners with cancellation support.
-3. `ScanDataBuilder` collects scanner output into a thread-safe snapshot.
+3. `ScanDataBuilder` collects scanner output and data-source capability status into a thread-safe snapshot.
 4. The rule policy provider resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`.
 5. Rules matching the requested intent evaluate the snapshot, using contextual role parameters when they opt into `IContextualRule`.
 6. Disabled rules are skipped, auto-pass rules are downgraded to passed results, and severity overrides are applied before findings are created.
@@ -79,7 +79,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 9. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 10. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
 11. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
-12. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs and fingerprints when present and can include active suppression notes.
+12. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, and active suppression notes when present.
 
 ## Rule Tuning
 
@@ -108,6 +108,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Chat-style natural-language questions.
 - Quick-action buttons for full audit, firewall, ports, services, network, selected-finding explanation, and audit export.
 - In-flight query cancellation.
+- Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
 - Agent findings grouped by category with compact severity summaries.
 - Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
 - A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
@@ -129,11 +130,13 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - It reads host state through local Linux commands.
 - It does not modify firewall rules, services, network interfaces, routes, or files.
 - It reports warnings when data cannot be collected.
+- It reports data-source capability status so exported evidence shows which local commands informed the audit.
 
 ## Current Limitations
 
 - It is a deterministic rule-based assistant, not an LLM-backed conversational system.
 - Scanner parsers are pragmatic and command-output based, so unusual distro output may need parser tests and adjustments.
+- Capability status reports command availability and permission visibility, not semantic completeness of every data source.
 - Some findings are posture checks rather than proof of compromise.
 - Process names and firewall details may require elevated privileges depending on the host.
 - Direct selected-finding explanations summarize the existing finding details; deeper conversational follow-up is not implemented yet.

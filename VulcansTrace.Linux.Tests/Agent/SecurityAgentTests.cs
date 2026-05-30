@@ -260,6 +260,50 @@ public class SecurityAgentTests
         Assert.Single(result.AgentFindings);
     }
 
+    [Fact]
+    public async Task RunAuditAsync_PopulatesCapabilityReport_WithRealScanners()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.NotNull(result.CapabilityReport);
+        Assert.Contains("Data sources:", result.CapabilityReport);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_CapabilityReport_WithNoopScanner_IsEmpty()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysPassRule() },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal(string.Empty, result.CapabilityReport);
+    }
+
+    [Fact]
+    public async Task RunAuditAsync_CapabilityReport_IsDeterministicAndDeduplicated()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[]
+            {
+                new CapabilityScanner(
+                    new DataSourceCapability { SourceName = "systemctl", Status = CapabilityStatus.Unavailable },
+                    new DataSourceCapability { SourceName = "iptables", Status = CapabilityStatus.Available },
+                    new DataSourceCapability { SourceName = "systemctl", Status = CapabilityStatus.PermissionLimited },
+                    new DataSourceCapability { SourceName = "ss", Status = CapabilityStatus.Unknown })
+            },
+            Array.Empty<IRule>(),
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        Assert.Equal("Data sources: iptables available; ss unknown; systemctl permission-limited.", result.CapabilityReport);
+    }
+
     private sealed class AlwaysPassRule : IRule
     {
         public string Id => "TEST-002";
@@ -304,6 +348,21 @@ public class SecurityAgentTests
 
         public Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class CapabilityScanner(params DataSourceCapability[] capabilities) : IScanner
+    {
+        public string Name => "Capability";
+
+        public Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+        {
+            foreach (var capability in capabilities)
+            {
+                builder.AddCapability(capability);
+            }
+
             return Task.CompletedTask;
         }
     }

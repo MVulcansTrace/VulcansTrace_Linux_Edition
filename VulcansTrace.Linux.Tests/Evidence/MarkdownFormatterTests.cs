@@ -185,4 +185,19 @@ public class MarkdownFormatterTests
         Assert.Contains("| Rule ID | Target | Fingerprint |", md);
         Assert.Contains("| FW-001 | INPUT | fp1 | Known exposure |", md);
     }
+
+    [Fact]
+    public void ToMarkdown_IncludesCapabilityReport()
+    {
+        var result = new AnalysisResult
+        {
+            Findings = [],
+            CapabilityReport = "Data sources: iptables available; systemctl permission-limited."
+        };
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("## Data Sources", md);
+        Assert.Contains("Data sources: iptables available; systemctl permission-limited.", md);
+    }
 }

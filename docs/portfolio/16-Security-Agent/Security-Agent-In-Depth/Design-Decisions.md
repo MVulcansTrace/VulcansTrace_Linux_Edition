@@ -34,6 +34,12 @@ Audit history stores the fingerprint with each snapshot finding. The diff calcul
 
 The agent runs scanners concurrently, so `ScanDataBuilder` protects mutation with a lock and returns immutable array snapshots in `Build()`. This keeps the scanner phase fast while avoiding races when different scanners add ports, services, routes, warnings, and firewall state.
 
+## Report Data-Source Capability Separately
+
+Scanner warnings explain what went wrong; data-source capabilities explain what evidence was actually available. Each scanner records command visibility as available, unavailable, permission-limited, or unknown. `SecurityAgent` turns those entries into a deterministic report so the UI and exported evidence can show whether posture conclusions came from full scanner visibility or from a limited local environment.
+
+Unknown is used when a fallback command was intentionally not checked because a preferred source already returned usable data. This avoids implying that a command is missing when the scanner simply did not need it.
+
 ## Command Execution With Explicit Exit Status
 
 Scanner command helpers return stdout, stderr, and success status. They read stdout and stderr concurrently to avoid process deadlocks when a command writes enough stderr output to fill a pipe. Scanner failures are converted into warnings so a missing command or permission issue does not crash the whole audit.
@@ -56,7 +62,7 @@ Accepted-risk suppressions use finding fingerprints when available, with legacy 
 
 ## Preserve Existing Analysis Contracts
 
-`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs and fingerprints preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
+`AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs, fingerprints, and capability reports preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
 
 Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 

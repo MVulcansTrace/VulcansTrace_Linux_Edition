@@ -22,6 +22,15 @@ public sealed class ServiceScanner : IScanner
             "--no-legend"
         }, cancellationToken);
 
+        var status = DataSourceCapability.FromCommandResult(ok, output, error);
+        builder.AddCapability(new DataSourceCapability { SourceName = "systemctl", Status = status, Detail = error });
+
+        if (status == CapabilityStatus.PermissionLimited)
+        {
+            builder.AddWarning("Service scan skipped: permission denied.");
+            return;
+        }
+
         if (!ok || string.IsNullOrWhiteSpace(output))
         {
             builder.AddWarning($"Service scan skipped: 'systemctl' is not available (non-systemd system?). {error}");

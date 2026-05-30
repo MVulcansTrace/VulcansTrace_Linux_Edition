@@ -34,6 +34,13 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
             sb.AppendLine($"* Warnings: {result.Warnings.Count}");
         }
 
+        if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Data Sources");
+            sb.AppendLine($"* {Escape(result.CapabilityReport)}");
+        }
+
         sb.AppendLine();
         sb.AppendLine("## Warnings");
         if (result.Warnings.Count == 0)
