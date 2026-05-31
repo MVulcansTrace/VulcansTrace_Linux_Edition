@@ -31,6 +31,23 @@
 
 ---
 
+## Compliance Scorecard
+
+| Element | Detail |
+| --- | --- |
+| Overall score | Rule-level pass rate (0–100%), rounded to 1 decimal |
+| Family scores | Passed, Failed, Crashed, Suppressed, Total per CIS family |
+| Pass threshold | ≥90% (`ComplianceScorecard.PassThreshold`) |
+| Warn threshold | ≥80% (`ComplianceScorecard.WarnThreshold`) |
+| Fail threshold | <80% or any crashed rule |
+| Trend | Last 10 audit history entries, bar-chart visualization |
+| NotApplicable handling | Excluded from scoring entirely |
+| Suppressed handling | Excluded from applicable denominator |
+| Multi-family rules | Counted once per family for family scores; rule-level for overall |
+| Export formats | `compliance-scorecard.html`, `compliance-scorecard.md` in signed ZIP |
+
+---
+
 ## Scanner Catalog
 
 | Scanner | Commands | Output model |

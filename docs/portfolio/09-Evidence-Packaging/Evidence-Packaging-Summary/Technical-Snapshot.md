@@ -13,7 +13,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 | Metric | Value |
 |---|---|
 | Core source files | 8 (EvidenceBuilder, 5 formatters, IntegrityHasher, IEvidenceFormatter) |
-| Output formats per archive | 6 core formats (CSV, HTML, Markdown, JSON, STIX 2.1, raw log), plus optional suppression and guarded remediation appendices |
+| Output formats per archive | 8 core formats (CSV, HTML, Markdown, JSON, STIX 2.1, raw log, compliance-scorecard HTML, compliance-scorecard Markdown), plus optional suppression and guarded remediation appendices |
 | Cryptographic primitives | SHA-256 (per-file) + HMAC-SHA256 (manifest) |
 | Test files | 6 (EvidenceBuilder, Csv, Html, Json, Markdown, Stix) |
 | ZIP archive entries | 8 core entries (6 content files + manifest.json + manifest.hmac), with optional `suppressions.csv` and `remediation.md` |
@@ -29,6 +29,7 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 - **Formula injection and XSS defense protect the recipient** — the CSV formatter neutralizes spreadsheet macro attacks, and the HTML formatter encodes all user content
 - **STIX 2.1 export enables automated threat intelligence sharing** — findings map to observed-data with IP observables and optional malware SDOs for C2 activity
 - **CIS Benchmark mapping preservation** — agent audit findings carry dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark references that flow through all five export formats, giving auditors precise compliance traceability
+- **Compliance scorecard export** — formal Pass/Warn/Fail per control family, overall percentage, and trend are rendered as self-contained HTML and Markdown reports for manager handoff
 
 ---
 

@@ -68,7 +68,9 @@ public static class AgentFactory
         var htmlFormatter = new HtmlFormatter();
         var jsonFormatter = new JsonFormatter();
         var stixFormatter = new StixFormatter();
-        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter);
+        var scorecardHtmlFormatter = new ComplianceScorecardHtmlFormatter();
+        var scorecardMarkdownFormatter = new ComplianceScorecardMarkdownFormatter();
+        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter);
 
         var scanners = new IScanner[]
         {
@@ -191,6 +193,8 @@ public static class AgentFactory
             scheduleStore = new InMemoryScheduleStore("Schedule persistence is unavailable. Schedules will last only for this session.");
         }
 
+        var scorecardBuilder = new ComplianceScorecardBuilder();
+
         var agent = new SecurityAgent(
             scanners,
             rules,
@@ -201,7 +205,8 @@ public static class AgentFactory
             machineRole,
             policyProvider,
             auditHistoryStore,
-            baselineStore);
+            baselineStore,
+            scorecardBuilder);
 
         var ruleCatalog = new RuleCatalog(rules);
         var notificationService = new NotifySendNotificationService();

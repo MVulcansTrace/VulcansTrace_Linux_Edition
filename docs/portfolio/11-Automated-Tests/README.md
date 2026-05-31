@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Full pipeline coverage** — tests span Core (parsing, normalization, events), Detectors (baseline, Linux-specific, advanced), Evidence (formatters, integrity), Integration (orchestration, real logs, performance), and Avalonia (ViewModels)
+- **Full pipeline coverage** — tests span Core (parsing, normalization, events, compliance models), Detectors (baseline, Linux-specific, advanced), Evidence (formatters, integrity, compliance scorecard), Integration (orchestration, real logs, performance), and Avalonia (ViewModels)
 - **Synthetic scenario generation** — `LogScenarioBuilder` produces realistic iptables log entries for port scans, beaconing, floods, and lateral movement
 - **Real-world log fixtures** — sample attack logs (`iptables-attack.log`, `nftables-traffic.log`, `large-portscan.log`, `iptables-mixed-prefixes.log`, `golden-compromise-timeline.log`) validate against actual firewall output
 - **Boundary testing** — detector tests probe exact threshold boundaries (at-threshold, just-below, well-above) to verify detection edges
@@ -38,4 +38,6 @@ Documentation is organized for two audiences:
 - [SentryAnalyzerTests.cs](../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) — full-pipeline integration tests
 - [RealWorldAttackScenarioTests.cs](../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) — attack scenario tests
 - [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — evidence package integrity tests
+- [ComplianceScorecardBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs) — compliance scorecard computation tests
+- [ComplianceScorecardFormatterTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/ComplianceScorecardFormatterTests.cs) — compliance scorecard HTML and Markdown formatter tests
 - [LogScenarioBuilder.cs](../../../VulcansTrace.Linux.Tests/Helpers/LogScenarioBuilder.cs) — synthetic log generator helper

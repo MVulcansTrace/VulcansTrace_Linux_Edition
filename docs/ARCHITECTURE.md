@@ -37,9 +37,10 @@ The Security Agent provides a parallel local posture path:
 4. Agent rules evaluate the collected `ScanData`, including contextual parameters when supported.
 5. Failed posture checks become `Finding` records with stable fingerprints, markdown-backed explanations, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
 6. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
-7. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
-8. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
-9. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
+7. `ComplianceScorecardBuilder` computes a formal CIS compliance scorecard from rule results: per-family pass/fail/warn scores, an overall rule-level percentage, and a trend over time using `IAuditHistoryStore`.
+8. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
+9. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
+10. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 
 The Scheduling layer provides recurring audit automation:
 
@@ -48,7 +49,7 @@ The Scheduling layer provides recurring audit automation:
 3. `CrontabManager` reads/writes the system user crontab, using a unique marker prefix to identify VulcansTrace entries.
 4. `CronExpressionValidator` validates 5-field cron syntax before persistence or crontab installation.
 5. Scheduled audits run through the CLI (`vulcanstrace schedule run --id <id>`), which compares critical findings against the previous `AuditHistoryEntry` via fingerprint diffing and only notifies on new criticals.
-6. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison.
+6. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison and compliance trend calculation.
 
 Notification services are pluggable:
 
@@ -64,6 +65,7 @@ Notification services are pluggable:
 - `AnalysisProfile`: intensity-tuned thresholds for each detector.
 - `Finding`: immutable detector output with severity, time range, and a stable fingerprint for tracking the same issue across audits.
 - `AnalysisResult`: complete analysis output with entries, findings, warnings, and optional agent data-source capability context.
+- `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 
 ## Detection Layers
 

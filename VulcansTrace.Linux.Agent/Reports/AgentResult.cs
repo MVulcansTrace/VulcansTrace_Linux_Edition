@@ -55,4 +55,7 @@ public sealed record AgentResult
 
     /// <summary>The active baseline, populated for <see cref="Query.AgentIntent.ShowBaseline"/>.</summary>
     public Baselines.BaselineEntry? Baseline { get; init; }
+
+    /// <summary>CIS compliance scorecard with pass/fail/warn per control family and trend.</summary>
+    public Core.Compliance.ComplianceScorecard? Scorecard { get; init; }
 }

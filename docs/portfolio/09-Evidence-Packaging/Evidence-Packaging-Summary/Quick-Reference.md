@@ -13,6 +13,8 @@
 | `findings.stix.json` | `StixFormatter` | STIX 2.1 bundle with identity, observed-data, notes, IP observables, malware SDO |
 | `log.txt` | (passthrough) | Original raw log file content |
 | `suppressions.csv` | `CsvFormatter` | Active accepted-risk suppressions, included only when present |
+| `compliance-scorecard.html` | `ComplianceScorecardHtmlFormatter` | Manager-friendly HTML compliance scorecard (Pass/Warn/Fail per CIS family, overall score, trend) |
+| `compliance-scorecard.md` | `ComplianceScorecardMarkdownFormatter` | Markdown compliance scorecard for Git-based workflows |
 | `manifest.json` | (generated) | Per-file SHA-256 hashes, byte lengths, warnings, and creation timestamp |
 | `manifest.hmac` | (generated) | HMAC-SHA256 hex signature of `manifest.json` |
 

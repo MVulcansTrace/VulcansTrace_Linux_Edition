@@ -84,6 +84,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for schedule management.</summary>
     public ScheduleViewModel Schedules { get; }
 
+    /// <summary>Gets the child ViewModel for CIS compliance scorecard.</summary>
+    public ComplianceScorecardViewModel ComplianceScorecard { get; }
+
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
 
@@ -330,6 +333,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
         RuleCoverage = new RuleCoverageViewModel();
+        ComplianceScorecard = new ComplianceScorecardViewModel();
         Schedules = new ScheduleViewModel(
             scheduleStore ?? new InMemoryScheduleStore(),
             auditHistoryStore,
@@ -530,6 +534,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline.LoadAnalysisResult(null);
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);
+        ComplianceScorecard.LoadScorecard(agentResult.Scorecard);
         SummaryText = agentResult.Summary;
     }
 

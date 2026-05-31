@@ -130,6 +130,34 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 **Trade-off:** UI coverage grids must account for NotApplicable as a fifth bucket alongside Passed, Failed, Suppressed, and Crashed.
 
+## CIS Compliance Scorecard Design
+
+**Decision:** Compute a formal compliance scorecard from rule results with per-family Pass/Warn/Fail, an overall rule-level percentage, and a trend over time.
+
+**Rationale:**
+
+- Managers and auditors need a 10-second readable summary of compliance posture, not a raw list of findings.
+- A scorecard with per-family breakdown shows which control areas (e.g., Firewall, SSH, Kernel) need attention.
+- Trend visualization makes improvement or regression visible over repeated audits.
+- Evidence bundles should include manager-friendly reports (`compliance-scorecard.html` and `compliance-scorecard.md`) alongside technical findings.
+
+**Thresholds:**
+- Pass ≥90% (`ComplianceScorecard.PassThreshold`)
+- Warn ≥80% (`ComplianceScorecard.WarnThreshold`)
+- Fail <80% or any crashed rule
+
+**Scoring rules:**
+- `NotApplicable` rules are excluded from scoring entirely (they distort neither family nor overall metrics).
+- `Suppressed` rules are excluded from the applicable denominator (suppression is a deliberate user decision, not a compliance gap).
+- Multi-family rules count once per family for family scores, but the overall score is computed at the rule level to prevent double-counting.
+- Families with only `NotApplicable` rules are filtered out (no noise entries with 0 total).
+
+**Trend:**
+- Uses `IAuditHistoryStore` (last 10 entries, capped to prevent unbounded growth).
+- Compares current score against the most recent history entry for direction (Improving, Declining, Stable).
+
+**Trade-off:** The scorecard is a management abstraction, not a substitute for individual finding review. A family can Pass at 90% while still having failed rules that need remediation.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.

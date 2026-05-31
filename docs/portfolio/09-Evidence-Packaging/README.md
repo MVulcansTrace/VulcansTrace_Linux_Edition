@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Six-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, and raw log in a single ZIP archive
+- **Eight-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, raw log, plus compliance scorecard HTML and Markdown in a single ZIP archive
 - **Data-source visibility notes** — agent audit Markdown and HTML reports can include scanner capability status for local commands used during posture checks
 - **Suppression notes** — agent audit exports can include active accepted-risk suppressions in reports and a conditional `suppressions.csv`, including finding fingerprints when available
 - **Cryptographic integrity chain** — SHA-256 per-file hashes in a manifest, HMAC-SHA256 signature over the manifest, written as `manifest.json` + `manifest.hmac`
@@ -40,5 +40,7 @@ Documentation is organized for two audiences:
 - [JsonFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export with metadata
 - [MarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/MarkdownFormatter.cs) — GFM tables with severity grouping and escaping
 - [StixFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) — STIX 2.1 bundle with identity, observed-data, IP observables, and deterministic IDs
+- [ComplianceScorecardHtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardHtmlFormatter.cs) — manager-friendly HTML compliance scorecard
+- [ComplianceScorecardMarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardMarkdownFormatter.cs) — Markdown compliance scorecard
 - [IntegrityHasher.cs](../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 wrapper
 - [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, reproducibility, and HMAC verification tests

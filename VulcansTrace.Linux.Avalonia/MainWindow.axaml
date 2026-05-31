@@ -697,6 +697,10 @@
                     </DataGrid>
                 </Grid>
             </TabItem>
+            <TabItem Header="Compliance"
+                     AutomationProperties.AutomationId="ComplianceTab">
+                <views:ComplianceScorecardView DataContext="{Binding ComplianceScorecard}"/>
+            </TabItem>
             <TabItem Header="Schedules"
                      AutomationProperties.AutomationId="SchedulesTab">
                 <views:ScheduleView DataContext="{Binding Schedules}"/>

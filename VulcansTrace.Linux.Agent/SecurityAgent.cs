@@ -26,6 +26,7 @@ public sealed class SecurityAgent : IAgent
     private readonly IRulePolicyProvider? _policyProvider;
     private readonly IAuditHistoryStore? _historyStore;
     private readonly IBaselineStore? _baselineStore;
+    private readonly IComplianceScorecardBuilder? _scorecardBuilder;
     private readonly object _historyLock = new();
     private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
     private AgentResult? _lastResult;
@@ -44,6 +45,7 @@ public sealed class SecurityAgent : IAgent
     /// <param name="policyProvider">Optional provider for per-role rule policies.</param>
     /// <param name="historyStore">Optional store for audit history used by follow-up queries.</param>
     /// <param name="baselineStore">Optional store for configuration baselines.</param>
+    /// <param name="scorecardBuilder">Optional builder for CIS compliance scorecards.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -54,7 +56,8 @@ public sealed class SecurityAgent : IAgent
         MachineRole machineRole = MachineRole.Server,
         IRulePolicyProvider? policyProvider = null,
         IAuditHistoryStore? historyStore = null,
-        IBaselineStore? baselineStore = null)
+        IBaselineStore? baselineStore = null,
+        IComplianceScorecardBuilder? scorecardBuilder = null)
     {
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
@@ -66,6 +69,7 @@ public sealed class SecurityAgent : IAgent
         _policyProvider = policyProvider;
         _historyStore = historyStore;
         _baselineStore = baselineStore;
+        _scorecardBuilder = scorecardBuilder;
     }
 
     /// <inheritdoc />
@@ -256,6 +260,8 @@ public sealed class SecurityAgent : IAgent
 
         ReplaceLastFindings(historyEntries);
 
+        var scorecard = _scorecardBuilder?.Build(ruleResults, _historyStore, DateTime.UtcNow);
+
         _lastResult = new AgentResult
         {
             Intent = intent,
@@ -269,7 +275,8 @@ public sealed class SecurityAgent : IAgent
             FailedCount = failedCount,
             SuppressedCount = suppressedCount,
             CrashedCount = crashedCount,
-            CapabilityReport = capabilityReport
+            CapabilityReport = capabilityReport,
+            Scorecard = scorecard
         };
 
         _lastAuditIntent = intent;

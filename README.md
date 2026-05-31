@@ -49,6 +49,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.
+- **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors. Included in the Avalonia UI and evidence exports.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
@@ -152,6 +153,8 @@ The UI can export a signed ZIP evidence package containing:
 | `suppressions.csv` | Active accepted-risk suppressions, when present |
 | `manifest.json` | File hashes, parse metadata, skipped lines, and bundle metadata |
 | `manifest.hmac` | HMAC-SHA256 signature over the manifest |
+| `compliance-scorecard.html` | Manager-friendly HTML compliance scorecard (Pass/Warn/Fail per CIS family, overall score, trend) |
+| `compliance-scorecard.md` | Markdown compliance scorecard for Git-based workflows |
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
 

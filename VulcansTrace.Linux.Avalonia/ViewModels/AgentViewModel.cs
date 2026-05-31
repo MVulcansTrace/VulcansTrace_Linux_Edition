@@ -863,7 +863,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             FailedCount = result.FailedCount,
             SuppressedCount = result.SuppressedCount,
             CrashedCount = result.CrashedCount,
-            SnapshotFindings = snapshotFindings
+            SnapshotFindings = snapshotFindings,
+            Scorecard = result.Scorecard
         };
 
         _historyStore.Append(entry);

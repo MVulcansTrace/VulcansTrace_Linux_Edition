@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.ComplianceScorecardView"
+             x:DataType="vm:ComplianceScorecardViewModel">
+
+    <Design.DataContext>
+        <vm:ComplianceScorecardViewModel/>
+    </Design.DataContext>
+
+    <UserControl.Resources>
+        <conv:ComplianceStatusToBackgroundConverter x:Key="ComplianceStatusToBackgroundConverter" />
+        <conv:ComplianceStatusToForegroundConverter x:Key="ComplianceStatusToForegroundConverter" />
+    </UserControl.Resources>
+
+    <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <!-- Overall score -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16" IsVisible="{Binding HasData}">
+            <Border Background="{Binding StatusBackground}"
+                    BorderBrush="{Binding StatusColor}"
+                    BorderThickness="2"
+                    CornerRadius="12"
+                    Padding="24,16">
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding OverallScore, StringFormat={}{0:F1}%}"
+                               FontSize="48"
+                               FontWeight="Bold"
+                               Foreground="{Binding StatusColor}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SummaryStatus}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding StatusColor}"
+                               HorizontalAlignment="Center"
+                               />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Text="CIS Compliance Score"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#e2e8f0"/>
+                <TextBlock Text="Pass/fail per control family"
+                           FontSize="12"
+                           Foreground="#94a3b8"/>
+                <TextBlock Text="{Binding TrendDirection}"
+                           FontSize="12"
+                           Foreground="#94a3b8"
+                           IsVisible="{Binding HasData}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Trend -->
+        <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,16" IsVisible="{Binding HasData}">
+            <TextBlock Text="Compliance Trend"
+                       FontWeight="Bold"
+                       FontSize="12"
+                       Foreground="#94a3b8"
+                       Margin="0,0,0,6"
+                       IsVisible="{Binding TrendPoints.Count}" />
+            <ItemsControl ItemsSource="{Binding TrendPoints}" IsVisible="{Binding TrendPoints.Count}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom" Height="64" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="12"
+                                Height="{Binding BarHeight}"
+                                Background="#60a5fa"
+                                CornerRadius="2"
+                                VerticalAlignment="Bottom"
+                                ToolTip.Tip="{Binding OverallScore, StringFormat={}{0:F1}%}">
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <!-- Empty state -->
+        <TextBlock Grid.Row="2"
+                   Text="Run an agent audit to generate a compliance scorecard."
+                   Foreground="#64748b"
+                   FontSize="12"
+                   Margin="0,4,0,8"
+                   IsVisible="{Binding !HasData}"/>
+
+        <!-- Family scores -->
+        <TextBlock Grid.Row="3"
+                   Text="Control Families"
+                   FontWeight="Bold"
+                   FontSize="14"
+                   Foreground="#e2e8f0"
+                   Margin="0,0,0,8"
+                   IsVisible="{Binding HasData}"/>
+
+        <DataGrid Grid.Row="4"
+                  ItemsSource="{Binding FamilyScores}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  IsVisible="{Binding HasData}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Family" Binding="{Binding FamilyName}" Width="280" />
+                <DataGridTextColumn Header="Total" Binding="{Binding TotalControls}" Width="70" />
+                <DataGridTextColumn Header="Passed" Binding="{Binding PassedControls}" Width="70" />
+                <DataGridTextColumn Header="Failed" Binding="{Binding FailedControls}" Width="70" />
+                <DataGridTextColumn Header="Crashed" Binding="{Binding CrashedControls}" Width="80" />
+                <DataGridTextColumn Header="Suppressed" Binding="{Binding SuppressedControls}" Width="90" />
+                <DataGridTextColumn Header="Score" Binding="{Binding ScorePercentage, StringFormat={}{0:F1}%}" Width="80" />
+                <DataGridTemplateColumn Header="Status" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Status, Converter={StaticResource ComplianceStatusToBackgroundConverter}}"
+                                    CornerRadius="999"
+                                    Padding="8,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Status}"
+                                           Foreground="{Binding Status, Converter={StaticResource ComplianceStatusToForegroundConverter}}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

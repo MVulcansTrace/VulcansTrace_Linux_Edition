@@ -189,6 +189,18 @@ Last updated: 2026-05-30
 - CLI test runner supports `--intensity`, `--all`, `--export`.
   - Tool: `tools/TestAnalysis/Program.cs`
 
+### CIS Compliance Scorecard
+- Added `ComplianceScorecardBuilder` implementing `IComplianceScorecardBuilder` for formal CIS compliance reporting.
+- Computes per-control-family pass/fail/warn scores, overall rule-level percentage, and trend over time using `IAuditHistoryStore`.
+- Thresholds: Pass ≥90%, Warn ≥80%, Fail <80%. Named constants (`PassThreshold`, `WarnThreshold`) on `ComplianceScorecard` prevent magic-number drift.
+- `NotApplicable` rules are excluded from scoring; `Suppressed` rules are excluded from the applicable denominator.
+- Multi-family rules count once per family for family scores, but overall score is computed at the rule level to avoid double-counting.
+- Trend capped at the last 10 audit history entries to prevent unbounded growth.
+- Evidence exports include `compliance-scorecard.html` and `compliance-scorecard.md` in the signed ZIP bundle.
+- Avalonia UI has a new **Compliance** tab with overall score badge, family DataGrid, and mini bar-chart trend visualization.
+- 42+ unit tests covering builder logic, `CisFamilyResolver`, formatters, ViewModel, and `ComplianceTrendAnalyzer`.
+  - Code: `VulcansTrace.Linux.Core/Compliance/`, `VulcansTrace.Linux.Agent/Reports/ComplianceScorecardBuilder.cs`, `VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardHtmlFormatter.cs`, `VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardMarkdownFormatter.cs`, `VulcansTrace.Linux.Avalonia/Views/ComplianceScorecardView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs`, `VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/ComplianceScorecardViewModelTests.cs`, `VulcansTrace.Linux.Tests/Evidence/ComplianceScorecardFormatterTests.cs`
+
 ## 2) Profiles and Their Capabilities
 
 Profiles are defined in:

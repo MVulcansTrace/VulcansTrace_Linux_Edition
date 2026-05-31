@@ -25,6 +25,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Agent intents | 21: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
 | CIS mapping coverage | 51 / 51 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
+| Compliance scorecard | Per-family Pass/Warn/Fail, overall rule-level percentage, trend over time (last 10 audits) |
+| Compliance thresholds | Pass ≥90%, Warn ≥80%, Fail <80% (named constants on `ComplianceScorecard`) |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 7 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, and interactive single-finding remediation cards with preconditions, backup/apply/rollback/verification commands and safety badges |
@@ -42,6 +44,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **Stays local-first** — no external AI call is required to answer security questions
 - **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, active suppression notes, and CIS Benchmark mappings preserved in exported evidence
 - **Dual-layer compliance context** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical), giving auditors precise 1:1 traceability from a finding to the exact benchmark section it validates
+- **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
 
 ---
 
@@ -74,7 +77,10 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [JsonFileBaselineStore.cs](../../../../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs) — persisted baseline store
 - [SuppressionEntry.cs](../../../../VulcansTrace.Linux.Agent/Rules/SuppressionEntry.cs) — fingerprint-scoped accepted-risk entries
 - [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — UI command flow
+- [ComplianceScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/ComplianceScorecardBuilder.cs) — compliance scorecard computation
+- [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding
 - [SecurityAgentTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs) — orchestration tests
+- [ComplianceScorecardBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs) — scorecard computation tests
 - [ScannerParserFixtureTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs) — realistic command-output parser fixtures
 
 ---

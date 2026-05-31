@@ -54,6 +54,9 @@ public sealed record AuditHistoryEntry
 
     /// <summary>Lightweight snapshot of findings for diff comparisons.</summary>
     public IReadOnlyList<AuditSnapshotFinding> SnapshotFindings { get; init; } = Array.Empty<AuditSnapshotFinding>();
+
+    /// <summary>CIS compliance scorecard snapshot for this audit.</summary>
+    public VulcansTrace.Linux.Core.Compliance.ComplianceScorecard? Scorecard { get; init; }
 }
 
 /// <summary>

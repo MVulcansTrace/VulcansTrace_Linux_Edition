@@ -28,7 +28,7 @@ Sample logs used by integration tests live in:
 
 ## Project Layout
 
-- `VulcansTrace.Linux.Core`: parsing, schema, and logging abstractions.
+- `VulcansTrace.Linux.Core`: parsing, schema, compliance models, and logging abstractions.
 - `VulcansTrace.Linux.Engine`: detectors, profiles, analysis orchestration.
 - `VulcansTrace.Linux.Evidence`: evidence packaging and report formatting.
 - `VulcansTrace.Linux.Agent`: Security Agent, scanners, rules, policy, scheduling, and notifications.

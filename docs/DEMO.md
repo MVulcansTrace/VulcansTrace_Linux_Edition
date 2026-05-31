@@ -145,6 +145,25 @@ After running any audit, you can ask the agent to walk you through fixing a spec
 4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
 5. If the finding's explanation template lacks rollback guidance for risky commands, the plan is blocked for safety and the agent tells you why.
 
+## CIS Compliance Scorecard
+
+After any agent audit, view the formal compliance scorecard:
+
+1. Run an audit: `Is my system secure?`
+2. Switch to the **Compliance** tab.
+3. Review the overall score badge:
+   - **Pass** (green) — overall score ≥90% and no failed families
+   - **Warn** (yellow) — overall score ≥80% but <90%, or at least one family is Warn
+   - **Fail** (red) — overall score <80%, any family failed, or any rule crashed
+4. Review the **Control Families** grid for per-family totals, passed counts, failed counts, score percentage, and status.
+5. Review the **Trend** bar chart showing overall scores from previous audits (up to 10 entries).
+6. Export evidence — the signed ZIP includes `compliance-scorecard.html` and `compliance-scorecard.md` for manager handoff.
+
+Scorecard rules:
+- **NotApplicable** rules are excluded from scoring entirely.
+- **Suppressed** rules are excluded from the applicable total.
+- Multi-family rules count once per family in family scores, but the overall score is rule-level (no double-counting).
+
 ## Recurring Audit Scheduling — GUI
 
 1. Open the **Schedules** tab in the Avalonia UI.

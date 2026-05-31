@@ -33,6 +33,8 @@ public sealed class EvidenceBuilder
     private readonly HtmlFormatter _htmlFormatter;
     private readonly JsonFormatter _jsonFormatter;
     private readonly StixFormatter _stixFormatter;
+    private readonly ComplianceScorecardHtmlFormatter? _scorecardHtmlFormatter;
+    private readonly ComplianceScorecardMarkdownFormatter? _scorecardMarkdownFormatter;
     private static readonly DateTimeOffset ZipMinTimestamp = new DateTimeOffset(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     private static readonly DateTimeOffset ZipMaxTimestamp = new DateTimeOffset(new DateTime(2107, 12, 31, 23, 59, 59, DateTimeKind.Utc));
 
@@ -45,13 +47,17 @@ public sealed class EvidenceBuilder
     /// <param name="htmlFormatter">Formatter for HTML output.</param>
     /// <param name="jsonFormatter">Formatter for JSON output.</param>
     /// <param name="stixFormatter">Formatter for STIX output.</param>
+    /// <param name="scorecardHtmlFormatter">Optional formatter for compliance scorecard HTML.</param>
+    /// <param name="scorecardMarkdownFormatter">Optional formatter for compliance scorecard Markdown.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
         MarkdownFormatter markdownFormatter,
         HtmlFormatter htmlFormatter,
         JsonFormatter? jsonFormatter = null,
-        StixFormatter? stixFormatter = null)
+        StixFormatter? stixFormatter = null,
+        ComplianceScorecardHtmlFormatter? scorecardHtmlFormatter = null,
+        ComplianceScorecardMarkdownFormatter? scorecardMarkdownFormatter = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -59,6 +65,8 @@ public sealed class EvidenceBuilder
         _htmlFormatter = htmlFormatter;
         _jsonFormatter = jsonFormatter ?? new JsonFormatter();
         _stixFormatter = stixFormatter ?? new StixFormatter();
+        _scorecardHtmlFormatter = scorecardHtmlFormatter;
+        _scorecardMarkdownFormatter = scorecardMarkdownFormatter;
     }
 
     /// <summary>
@@ -129,6 +137,18 @@ public sealed class EvidenceBuilder
         if (!string.IsNullOrWhiteSpace(remediationPlanMarkdown))
         {
             files["remediation.md"] = Encoding.UTF8.GetBytes(remediationPlanMarkdown);
+        }
+
+        if (result.Scorecard != null)
+        {
+            if (_scorecardHtmlFormatter != null)
+            {
+                files["compliance-scorecard.html"] = Encoding.UTF8.GetBytes(_scorecardHtmlFormatter.ToHtml(result.Scorecard));
+            }
+            if (_scorecardMarkdownFormatter != null)
+            {
+                files["compliance-scorecard.md"] = Encoding.UTF8.GetBytes(_scorecardMarkdownFormatter.ToMarkdown(result.Scorecard));
+            }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
