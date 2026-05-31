@@ -222,12 +222,12 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - Deterministic follow-up questions (changes, critical explanations, category filtering, remediation prioritization, interactive remediation, and suppressed listing) operate on the last audit result without re-running scans. They require a prior audit context; when context is missing they return guidance or fall back to a targeted audit for category-filter queries.
 - New suppressions are fingerprint-scoped when the selected finding has a fingerprint. Older suppressions without fingerprints still match by rule ID and target, so intentional target text changes can require accepting the risk again.
 - Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
-- The desktop UI currently uses the `Workstation` role by default; changing roles requires code-level composition until a role selector is added.
+- The desktop UI includes a machine-role dropdown for hot-swapping roles without code changes.
 
 ## Roadmap
 
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
-- Add a machine-role selector and policy editing surface in the Avalonia UI.
+- Add a policy editing surface in the Avalonia UI.
 - Expand scanner fixtures across more distributions and command variants.
 - Add reminder surfaces for upcoming suppression review dates.
 - Add a "Fix Selected" quick-action button that invokes the same interactive remediation path as `fix <rule-id>`.

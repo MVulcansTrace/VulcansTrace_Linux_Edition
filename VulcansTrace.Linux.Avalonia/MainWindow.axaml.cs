@@ -6,22 +6,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using VulcansTrace.Linux.Agent;
-using VulcansTrace.Linux.Agent.Baselines;
-using VulcansTrace.Linux.Agent.Explanations;
-using VulcansTrace.Linux.Agent.Reports;
-using VulcansTrace.Linux.Agent.Rules;
-using VulcansTrace.Linux.Agent.Rules.SecurityRules;
-using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
-using VulcansTrace.Linux.Core.Logging;
-using VulcansTrace.Linux.Engine;
-using VulcansTrace.Linux.Engine.Configuration;
-using VulcansTrace.Linux.Engine.Detectors;
-using VulcansTrace.Linux.Evidence;
-using VulcansTrace.Linux.Evidence.Formatters;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
-using VulcansTrace.Linux.Core.Security;
 
 namespace VulcansTrace.Linux.Avalonia;
 
@@ -36,146 +23,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Wire up the complete engine chain
-        var logSink = new DiagnosticsLogSink();
-        var logNormalizer = new LogNormalizer(logSink);
-        var profileProvider = new AnalysisProfileProvider();
-
-        // Baseline detectors (ported from Windows)
-        var baselineDetectors = new IDetector[]
-        {
-            new PortScanDetector(),
-            new FloodDetector(),
-            new LateralMovementDetector(),
-            new BeaconingDetector(),
-            new PolicyViolationDetector(),
-            new NoveltyDetector()
-        };
-
-        // Linux-specific detectors
-        var linuxDetectors = new IDetector[]
-        {
-            new FlagAnomalyDetector(),
-            new MacSpoofingDetector(),
-            new KernelModuleDetector(),
-            new InterfaceHoppingDetector(),
-            new UnusualPacketSizeDetector()
-        };
-
-        // Advanced threat detectors
-        var advancedDetectors = new IDetector[]
-        {
-            new C2ChannelDetector(),
-            new PrivilegeEscalationDetector()
-        };
-
-        var riskEscalator = new RiskEscalator();
-        var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, riskEscalator, logSink);
-
-        // Wire up evidence building
-        var hasher = new IntegrityHasher();
-        var csvFormatter = new CsvFormatter();
-        var markdownFormatter = new MarkdownFormatter();
-        var htmlFormatter = new HtmlFormatter();
-        var jsonFormatter = new JsonFormatter();
-        var stixFormatter = new StixFormatter();
-        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter);
-
-        // Wire up the security agent
-        var scanners = new IScanner[]
-        {
-            new FirewallScanner(),
-            new PortScanner(),
-            new ServiceScanner(),
-            new NetworkScanner(),
-            new SshConfigScanner(),
-            new FilePermissionScanner()
-        };
-
-        var rules = new IRule[]
-        {
-            new FirewallActiveRule(),
-            new FirewallDefaultDropRule(),
-            new FirewallSshExposureRule(),
-            new FirewallStateTrackingRule(),
-            new FirewallIcmpRule(),
-            new DefaultRouteRule(),
-            new SuspiciousConnectionsRule(),
-            new NetworkInterfaceUpRule(),
-            new LoopbackExposureRule(),
-            new TelnetServiceRule(),
-            new FtpServiceRule(),
-            new SshServiceRule(),
-            new LegacyRservicesRule(),
-            new UnnecessaryServicesRule(),
-            new SshNonDefaultPortRule(),
-            new WideOpenServicesRule(),
-            new DatabasePortExposureRule(),
-            new HighPortListeningRule(),
-            new SshPermitRootLoginRule(),
-            new SshPasswordAuthenticationRule(),
-            new SshMaxAuthTriesRule(),
-            new SshProtocolRule(),
-            new SshEmptyPasswordsRule(),
-            new SshPubkeyAuthenticationRule(),
-            new SshX11ForwardingRule(),
-            new ShadowPermissionRule(),
-            new PasswdPermissionRule(),
-            new SshHostKeyPermissionRule(),
-            new RootSshDirectoryPermissionRule(),
-            new CronDirectoryWorldWritableRule(),
-            new CrontabPermissionRule(),
-            new UserSshDirectoryPermissionRule()
-        };
-
-        var explanationProvider = new ExplanationProvider();
-        ISuppressionStore suppressionStore;
-        try
-        {
-            suppressionStore = JsonFileSuppressionStore.CreateDefault();
-        }
-        catch
-        {
-            suppressionStore = new InMemorySuppressionStore("Suppression persistence is unavailable. Accepted risks will last only for this session.");
-        }
-
-        IRulePolicyProvider? policyProvider;
-        try
-        {
-            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault();
-            policyProvider = new DefaultRulePolicyProvider(jsonPolicyStore);
-        }
-        catch
-        {
-            policyProvider = new DefaultRulePolicyProvider();
-        }
-
-        IAuditHistoryStore auditHistoryStore;
-        try
-        {
-            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault();
-        }
-        catch
-        {
-            auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
-        }
-
-        IBaselineStore baselineStore;
-        try
-        {
-            baselineStore = JsonFileBaselineStore.CreateDefault();
-        }
-        catch
-        {
-            baselineStore = new InMemoryBaselineStore("Baseline persistence is unavailable. Baselines will last only for this session.");
-        }
-
-        var agent = new SecurityAgent(scanners, rules, explanationProvider, analyzer, profileProvider, suppressionStore, MachineRole.Workstation, policyProvider, auditHistoryStore, baselineStore);
-        var ruleCatalog = new RuleCatalog(rules);
-
+        var services = AgentFactory.Create(MachineRole.Workstation);
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, suppressionStore, auditHistoryStore);
-        viewModel.RuleCatalog.LoadCatalog(ruleCatalog);
+        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.AuditHistoryStore, services.ScheduleStore, services.NotificationService);
+        viewModel.RuleCatalog.LoadCatalog(services.RuleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {
             var window = new Views.AuditDiffWindow();
@@ -183,11 +34,21 @@ public partial class MainWindow : Window
             window.ShowDialog(this);
         };
         DataContext = viewModel;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         DataContextChanged += (_, _) => HookTimelineViewModel();
         TimelineCanvas.SizeChanged += (_, _) => RenderTimeline();
         Closed += OnClosed;
         HookTimelineViewModel();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.SelectedMachineRole) && DataContext is MainViewModel vm)
+        {
+            var newServices = AgentFactory.Create(vm.SelectedMachineRole);
+            vm.Agent.SetAgent(newServices.Agent);
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -196,6 +57,7 @@ public partial class MainWindow : Window
 
         if (DataContext is MainViewModel vm)
         {
+            vm.PropertyChanged -= OnViewModelPropertyChanged;
             vm.Dispose();
         }
     }

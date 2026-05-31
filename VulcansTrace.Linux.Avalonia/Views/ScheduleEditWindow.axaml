@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+        x:Class="VulcansTrace.Linux.Avalonia.Views.ScheduleEditWindow"
+        x:DataType="vm:ScheduleEditViewModel"
+        Title="Edit Schedule"
+        Width="420"
+        Height="460"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:ScheduleEditViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+        <TextBlock Grid.Row="0" Text="Schedule Name:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="1" Text="{Binding Name}" Watermark="e.g. Daily Full Audit" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="2" Text="Intent:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
+        <ComboBox Grid.Row="3" ItemsSource="{Binding AvailableIntents}" SelectedItem="{Binding Intent}" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="4" Text="Cron Expression:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="5" Text="{Binding CronExpression}" Watermark="e.g. 0 6 * * *" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="6" Text="Machine Role:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
+        <ComboBox Grid.Row="7" ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding MachineRole}" Margin="0,0,0,12"/>
+
+        <StackPanel Grid.Row="8" Orientation="Vertical" Spacing="8">
+            <TextBlock Text="Output Directory (optional):" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <TextBox Text="{Binding OutputDirectory}" Watermark="/var/log/vulcanstrace"/>
+
+            <TextBlock Text="Notification Channel:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <ComboBox ItemsSource="{Binding AvailableChannels}" SelectedItem="{Binding NotificationChannel}"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <CheckBox Content="Notify on critical findings" IsChecked="{Binding NotifyOnCritical}" Foreground="#e2e8f0"/>
+                <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="#e2e8f0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="ValidationError" Text="" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                <Button x:Name="OkButton" Content="Save" MinWidth="80" Click="OkButton_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" Click="CancelButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

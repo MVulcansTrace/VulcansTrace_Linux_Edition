@@ -23,7 +23,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 {
     private const string AllCategoriesFilter = "All categories";
 
-    private readonly IAgent _agent;
+    private IAgent _agent;
     private readonly IAuditHistoryStore _historyStore;
     private CancellationTokenSource? _cts;
 
@@ -254,6 +254,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="agent">The agent instance to use for queries.</param>
     /// <param name="historyStore">The store for persisting audit history.</param>
+    /// <summary>
+    /// Swaps the underlying agent implementation (used when machine role changes).
+    /// </summary>
+    public void SetAgent(IAgent agent)
+    {
+        _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+    }
+
     public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));

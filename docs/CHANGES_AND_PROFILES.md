@@ -84,6 +84,51 @@ Last updated: 2026-05-30
   - HTML and Markdown compliance-context deduplication changed from `ControlId`-only grouping to `Distinct()` so unique rationale per rule is preserved
   - Code: `VulcansTrace.Linux.Core/CisBenchmarkMapping.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/*.cs`, `VulcansTrace.Linux.Evidence/Formatters/*.cs`
 
+### Recurring Audit Scheduling
+- Headless CLI (`VulcansTrace.Linux.Cli`) with `audit` and `schedule` subcommands for running audits and managing recurring schedules without the desktop UI.
+  - Commands: `list`, `add`, `edit`, `delete`, `enable`, `disable`, `run`, `install-cron`, `uninstall-cron`.
+  - Exit codes: 0 (success), 1 (error), 2 (success with critical findings).
+  - Code: `VulcansTrace.Linux.Cli/Program.cs`
+- GUI Schedule Editor (`ScheduleView`) in the Avalonia UI with a DataGrid, Add/Edit/Delete/Run Now/Install Cron actions, and cron status indicators.
+  - Code: `VulcansTrace.Linux.Avalonia/Views/ScheduleView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs`, `ScheduleEditWindow.axaml`
+- System crontab integration (`CrontabManager`) reads and writes the user crontab, using a unique marker prefix (`# VT-SCH-7a3f9e2d schedule-id=`) to avoid collision with non-VulcansTrace entries.
+  - Code: `VulcansTrace.Linux.Agent/Scheduling/CrontabManager.cs`
+- Cron expression validation (`CronExpressionValidator`) ensures 5-field syntax before saving.
+  - Code: `VulcansTrace.Linux.Agent/Scheduling/CronExpressionValidator.cs`
+- Schedule persistence via `JsonFileScheduleStore` (atomic temp-file writes to `~/.config/VulcansTrace/schedules.json`) and `InMemoryScheduleStore` fallback.
+  - Code: `VulcansTrace.Linux.Agent/Scheduling/JsonFileScheduleStore.cs`, `InMemoryScheduleStore.cs`
+- Fingerprint-aware new-critical-only diffing compares current audit critical findings against the previous `AuditHistoryEntry` and only notifies when new critical fingerprints appear. Pre-fingerprint history entries are handled gracefully to avoid upgrade-storm notifications.
+  - Code: `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs`
+- Machine role picker dropdown in the Avalonia UI allows hot-swapping roles without code changes.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs`, `AgentViewModel.cs`
+
+### Notifications
+- `NotifySendNotificationService` — Linux desktop notifications via `notify-send`.
+  - Code: `VulcansTrace.Linux.Agent/Notifications/NotifySendNotificationService.cs`
+- `EmailNotificationService` — SMTP email notifications with TLS support and configurable credentials via environment variables.
+  - Code: `VulcansTrace.Linux.Agent/Notifications/EmailNotificationService.cs`
+- `WebhookNotificationService` — HTTP POST JSON notifications with 3 retries and exponential backoff for transient failures (5xx, timeouts, connection errors). Implements `IDisposable`.
+  - Code: `VulcansTrace.Linux.Agent/Notifications/WebhookNotificationService.cs`
+- `INotificationService.NotifyAsync` marked `[Obsolete]` — unused, prefer `NotifyCriticalFindingsAsync`.
+  - Code: `VulcansTrace.Linux.Agent/Notifications/INotificationService.cs`
+
+### Packaging
+- `scripts/publish-cli.sh` builds a self-contained `linux-x64` binary.
+  - Script: `scripts/publish-cli.sh`
+
+### Robustness and Security Hardening
+- `AgentServices` implements `IDisposable` and properly disposes all store and notification service instances.
+- `JsonFileScheduleStore` uses atomic file writes (temp file + move) to prevent JSON corruption on power loss.
+- `InMemoryScheduleStore` is now thread-safe with `ReaderWriterLockSlim`.
+- `CrontabManager.ReadCrontab` handles multiple cron implementations' empty-crontab messages.
+- `CrontabManager.WriteCrontab` reads stderr asynchronously before `WaitForExit()` to prevent deadlocks on large stderr output.
+- `CrontabManager.Install` rejects disabled schedules.
+- CLI `ParseArg`/`TryParseArg` reject values starting with `--` to prevent flags from being consumed as values.
+- Schedule name deduplication (case-insensitive) in CLI and GUI.
+- `VT_EMAIL_NO_SSL` parsing supports `1`, `true`, and `yes` as disable-SSL values.
+- `LastRunUtc` displayed with explicit `UTC` label in CLI list output.
+- `ScheduleViewModel.Refresh` preserves DataGrid selection by ID across reloads.
+
 ### Documentation
 - Portfolio and technical docs aligned to actual behavior and formats.
   - Docs: `README.md`, `docs/portfolio/` (15 implementation portfolios),

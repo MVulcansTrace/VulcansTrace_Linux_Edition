@@ -8,13 +8,14 @@
    - **Low - Critical Threat Triage** — conservative thresholds, fewer findings.
    - **Medium - Investigation Review** — balanced thresholds for standard investigations.
    - **High - Deep Hunt / Forensics** — aggressive thresholds for deep hunts and forensics.
-4. Click **Analyze** to generate findings.
-5. Review results:
+4. Select a machine role from the dropdown (Workstation, Server, LabBox, Router, DevMachine). The role affects which rules are enforced and how strictly they are evaluated.
+5. Click **Analyze** to generate findings.
+6. Review results:
    - **Findings tab** — searchable, filterable table of all detected threats. Use the search box and severity dropdown to narrow results.
    - **Timeline tab** — visual timeline of findings by category.
    - **Parse Errors tab** — lines that could not be parsed.
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
-6. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
+7. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
 
 ### Security Agent Panel
 
@@ -62,9 +63,130 @@ The agent reads local host state through Linux tools such as `iptables`, `nft`, 
 
 For the full capability list and limitations, see [Security Agent](SECURITY_AGENT.md).
 
+## Recurring Audit Scheduling
+
+VulcansTrace supports automatic recurring audits through the system `crontab`. Schedules can be created and managed from both the GUI and the headless CLI.
+
+### GUI Schedule Editor
+
+The Avalonia UI includes a **Schedules** tab:
+
+1. Open the **Schedules** tab.
+2. Click **Add** to create a new schedule, or select an existing schedule and click **Edit**.
+3. Fill in the schedule details:
+   - **Name** — a unique, human-friendly name.
+   - **Intent** — the audit intent to run (FullAudit, FirewallCheck, etc.).
+   - **Cron Expression** — a standard 5-field cron expression (e.g., `0 6 * * *` for daily at 06:00).
+   - **Machine Role** — the role used when running the audit.
+   - **Output Directory** — optional directory to write JSON audit results.
+   - **Notification Channel** — Desktop, Email, or Webhook.
+   - **Notify on critical findings** — whether to send a notification when new critical findings appear.
+   - **Enabled** — whether the schedule is active.
+4. Click **Save**. The schedule is persisted to `~/.config/VulcansTrace/schedules.json`.
+5. Select a schedule and click **Install in Cron** to register it with the system crontab. The schedule must be enabled to install.
+6. Click **Run Now** to execute a schedule on demand. The result is persisted to the audit history store.
+7. The grid shows whether each schedule is currently installed in cron.
+
+### CLI Schedule Management
+
+The headless CLI provides full schedule management:
+
+```bash
+# List all schedules
+vulcanstrace schedule list
+
+# Add a schedule
+vulcanstrace schedule add --name "Daily Full Audit" --intent FullAudit --cron "0 6 * * *" --role Server --notify-on-critical --channel Desktop
+
+# Edit a schedule
+vulcanstrace schedule edit --id <schedule-id> --cron "0 7 * * 1" --channel Email
+
+# Enable / disable a schedule
+vulcanstrace schedule enable --id <schedule-id>
+vulcanstrace schedule disable --id <schedule-id>
+
+# Install into system crontab
+vulcanstrace schedule install-cron --id <schedule-id>
+
+# Remove from system crontab
+vulcanstrace schedule uninstall-cron --id <schedule-id>
+
+# Run a scheduled audit immediately (also used by cron)
+vulcanstrace schedule run --id <schedule-id>
+
+# Delete a schedule
+vulcanstrace schedule delete --id <schedule-id>
+```
+
+Scheduled audits compare critical findings against the previous audit's fingerprints and only notify when **new** critical findings appear. This prevents alert fatigue from recurring known issues.
+
+### Cron Expression Format
+
+Standard 5-field Linux cron:
+
+```
+minute hour day-of-month month day-of-week
+```
+
+Examples:
+
+| Expression | Meaning |
+|------------|---------|
+| `0 6 * * *` | Daily at 06:00 |
+| `0 6 * * 1` | Weekly on Monday at 06:00 |
+| `0 */6 * * *` | Every 6 hours |
+| `30 2 1 * *` | Monthly on the 1st at 02:30 |
+
+The CLI and GUI both validate cron expressions before saving.
+
+## Headless CLI Audits
+
+Run audits without launching the desktop UI:
+
+```bash
+vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
+```
+
+Exit codes:
+- `0` — success, no critical findings.
+- `1` — error.
+- `2` — success with critical findings.
+
+## Notifications
+
+When a scheduled audit produces new critical findings, a notification is sent through the configured channel. Notification failures are logged to `stderr` and do not affect the audit exit code.
+
+### Desktop Notifications
+
+Uses `notify-send` (Linux desktop notification daemon). Falls back silently if unavailable.
+
+### Email Notifications
+
+Configure via environment variables:
+
+```bash
+export VT_EMAIL_SMTP_HOST=smtp.example.com
+export VT_EMAIL_SMTP_PORT=587
+export VT_EMAIL_FROM=vulcanstrace@example.com
+export VT_EMAIL_TO=security@example.com
+export VT_EMAIL_USER=username      # optional
+export VT_EMAIL_PASS=password      # optional
+export VT_EMAIL_NO_SSL=1           # set to 1, true, or yes to disable SSL
+```
+
+### Webhook Notifications
+
+Configure via environment variable:
+
+```bash
+export VT_WEBHOOK_URL=https://hooks.example.com/vulcanstrace
+```
+
+The webhook receives a JSON POST with `title`, `message`, `scheduleName`, `criticalCount`, and `timestamp`. Failed requests are retried up to 3 times with exponential backoff for transient errors (5xx, timeouts, connection failures).
+
 ## Rule Tuning / Local Policy
 
-The agent supports per-machine-role rule tuning via a local policy file. The desktop UI currently runs the agent as **Workstation**; the other roles are available through the agent API and policy provider wiring until a role selector is added. Roles are:
+The agent supports per-machine-role rule tuning via a local policy file. Roles are:
 
 - **Workstation** — laptops and desktops.
 - **Server** — production servers and bastion hosts.
@@ -160,3 +282,11 @@ It can also export and verify evidence bundles:
 dotnet run --project tools/TestAnalysis -- VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log --export /tmp/vulcan-evidence --intensity Medium
 dotnet run --project tools/TestAnalysis -- --verify /tmp/vulcan-evidence/iptables-attack_Medium.zip --key <printed-signing-key>
 ```
+
+## Building a Self-Contained CLI Binary
+
+```bash
+./scripts/publish-cli.sh
+```
+
+This produces a self-contained `linux-x64` binary at `artifacts/publish/vulcanstrace` that can be copied to target systems without requiring the .NET runtime.

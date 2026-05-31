@@ -3,6 +3,7 @@
         xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
         xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
         xmlns:local="using:VulcansTrace.Linux.Avalonia"
+        xmlns:views="using:VulcansTrace.Linux.Avalonia.Views"
         x:Class="VulcansTrace.Linux.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/VulcansTraceAvatar.png"
@@ -169,6 +170,12 @@
                        FontSize="11"
                        TextWrapping="Wrap"
                        Margin="0,0,0,8"/>
+
+            <TextBlock Text="Machine role:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <ComboBox ItemsSource="{Binding MachineRoles}"
+                      SelectedItem="{Binding SelectedMachineRole}"
+                      AutomationProperties.AutomationId="MachineRoleComboBox"
+                      Margin="0,4,0,8"/>
 
             <Expander Header="Advanced" Margin="0,0,0,12">
                 <ScrollViewer MaxHeight="260">
@@ -689,6 +696,10 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
+            </TabItem>
+            <TabItem Header="Schedules"
+                     AutomationProperties.AutomationId="SchedulesTab">
+                <views:ScheduleView DataContext="{Binding Schedules}"/>
             </TabItem>
         </TabControl>
 

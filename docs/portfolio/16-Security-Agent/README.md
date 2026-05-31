@@ -19,7 +19,7 @@ Documentation is organized for two audiences:
 - **Live host scanning** — collects firewall, port, service, SSH daemon configuration, file permissions, interface, route, and connection state through local Linux commands
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
 - **Rule-based posture checks** — evaluates firewall, port, service, SSH, file permission, and network rules without external AI dependencies
-- **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides
+- **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides; the Avalonia UI includes a role dropdown for hot-swapping without code changes
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats

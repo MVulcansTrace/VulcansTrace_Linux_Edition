@@ -96,6 +96,53 @@ After running any audit, you can ask the agent to walk you through fixing a spec
 4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
 5. If the finding's explanation template lacks rollback guidance for risky commands, the plan is blocked for safety and the agent tells you why.
 
+## Recurring Audit Scheduling — GUI
+
+1. Open the **Schedules** tab in the Avalonia UI.
+2. Click **Add** to create a schedule:
+   - Name: `Daily Server Audit`
+   - Intent: `FullAudit`
+   - Cron: `0 6 * * *` (daily at 06:00)
+   - Role: `Server`
+   - Channel: `Desktop`
+   - Check **Notify on critical findings**
+3. Click **Save**, then select the schedule and click **Install in Cron**.
+4. The schedule appears in the grid with a green checkmark under the **In Cron** column.
+5. Click **Run Now** to execute the schedule immediately. Results are persisted to the audit history store.
+
+## Recurring Audit Scheduling — CLI
+
+```bash
+# Add a daily audit schedule
+vulcanstrace schedule add --name "Daily Server Audit" --intent FullAudit --cron "0 6 * * *" --role Server --notify-on-critical --channel Desktop
+
+# List schedules
+vulcanstrace schedule list
+
+# Install the schedule into the system crontab
+vulcanstrace schedule install-cron --id <schedule-id-from-list>
+
+# Run the schedule immediately
+vulcanstrace schedule run --id <schedule-id>
+
+# Uninstall from cron when no longer needed
+vulcanstrace schedule uninstall-cron --id <schedule-id>
+```
+
+Scheduled audits only notify when **new** critical findings appear, using fingerprint-aware diffing against the previous audit history.
+
+## Headless Audit via CLI
+
+```bash
+# Run a full audit without the GUI
+vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
+
+# Check exit code
+# 0 = success, no critical findings
+# 1 = error
+# 2 = success with critical findings
+```
+
 ## Performance and Profiling
 
 ```bash

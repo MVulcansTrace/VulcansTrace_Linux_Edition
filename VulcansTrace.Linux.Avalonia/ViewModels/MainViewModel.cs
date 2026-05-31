@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -49,6 +51,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private bool _isBusy;
     private bool _hasAdvisorMessage;
     private IntensityOption? _selectedIntensity;
+    private MachineRole _selectedMachineRole = MachineRole.Workstation;
     private AnalysisResult? _lastResult;
     private bool _analysisCancelRequested;
 
@@ -77,6 +80,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for rule coverage display.</summary>
     public RuleCoverageViewModel RuleCoverage { get; }
+
+    /// <summary>Gets the child ViewModel for schedule management.</summary>
+    public ScheduleViewModel Schedules { get; }
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -164,6 +170,23 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 AnalyzeCommand.RaiseCanExecuteChanged();
             }
         }
+    }
+
+    /// <summary>Gets the available machine roles.</summary>
+    public ObservableCollection<MachineRole> MachineRoles { get; } = new()
+    {
+        MachineRole.Workstation,
+        MachineRole.Server,
+        MachineRole.LabBox,
+        MachineRole.Router,
+        MachineRole.DevMachine
+    };
+
+    /// <summary>Gets or sets the selected machine role.</summary>
+    public MachineRole SelectedMachineRole
+    {
+        get => _selectedMachineRole;
+        set => SetField(ref _selectedMachineRole, value);
     }
 
     /// <summary>Gets or sets the port scan max entries per source override.</summary>
@@ -262,7 +285,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AnalysisProfileProvider profileProvider,
         IAgent agent,
         ISuppressionStore suppressionStore,
-        IAuditHistoryStore auditHistoryStore)
+        IAuditHistoryStore auditHistoryStore,
+        IScheduleStore? scheduleStore = null,
+        INotificationService? notificationService = null)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -305,6 +330,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
         RuleCoverage = new RuleCoverageViewModel();
+        Schedules = new ScheduleViewModel(
+            scheduleStore ?? new InMemoryScheduleStore(),
+            auditHistoryStore,
+            notificationService ?? new NotifySendNotificationService(),
+            dialogService);
 
         AcceptRiskCommand = new AsyncRelayCommand(
             async _ => await AcceptRiskAsync(),

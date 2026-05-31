@@ -9,6 +9,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `VulcansTrace.Linux.Evidence`: evidence bundle creation and report formatting.
 - `VulcansTrace.Linux.Agent`: local Security Agent, live host scanners, posture rules, role-aware policy, explanations, and report adaptation.
 - `VulcansTrace.Linux.Avalonia`: Avalonia UI and composition root.
+- `VulcansTrace.Linux.Cli`: headless CLI for audits, schedule management, and system cron integration.
 - `VulcansTrace.Linux.Tests`: unit and integration tests.
 - `VulcansTrace.Linux.Performance`: performance benchmarks and metrics.
 - `VulcansTrace.Linux.PerformanceConsole`: console runner for performance tests.
@@ -39,6 +40,23 @@ The Security Agent provides a parallel local posture path:
 7. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 8. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 9. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
+
+The Scheduling layer provides recurring audit automation:
+
+1. `AuditSchedule` records define intent, cron expression, machine role, notification channel, and enabled state.
+2. `IScheduleStore` persists schedules (`JsonFileScheduleStore` → `~/.config/VulcansTrace/schedules.json`); `InMemoryScheduleStore` provides a fallback.
+3. `CrontabManager` reads/writes the system user crontab, using a unique marker prefix to identify VulcansTrace entries.
+4. `CronExpressionValidator` validates 5-field cron syntax before persistence or crontab installation.
+5. Scheduled audits run through the CLI (`vulcanstrace schedule run --id <id>`), which compares critical findings against the previous `AuditHistoryEntry` via fingerprint diffing and only notifies on new criticals.
+6. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison.
+
+Notification services are pluggable:
+
+- `INotificationService` abstraction with `NotifyCriticalFindingsAsync`.
+- `NotifySendNotificationService` shells out to `notify-send` for desktop alerts.
+- `EmailNotificationService` sends SMTP email with TLS and credential support.
+- `WebhookNotificationService` POSTs JSON payloads with retry logic for transient failures.
+- All notification services catch exceptions and log to `stderr` so notification failures do not crash audits.
 
 ## Key Domain Types
 

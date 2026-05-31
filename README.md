@@ -45,6 +45,9 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands and rollback visibility.
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
+- **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
+- **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.
+- **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 
@@ -111,6 +114,25 @@ dotnet run --project VulcansTrace.Linux.PerformanceConsole
 dotnet run --project VulcansTrace.Linux.PerformanceConsole -- profile
 ```
 
+Run a headless audit via CLI:
+
+```bash
+dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --role Server
+```
+
+Manage recurring schedules via CLI:
+
+```bash
+dotnet run --project VulcansTrace.Linux.Cli -- schedule list
+dotnet run --project VulcansTrace.Linux.Cli -- schedule add --name "Daily Full Audit" --intent FullAudit --cron "0 6 * * *" --role Server --notify-on-critical --channel Desktop
+```
+
+Build a self-contained CLI binary:
+
+```bash
+./scripts/publish-cli.sh
+```
+
 For a guided product walkthrough, see [docs/DEMO.md](docs/DEMO.md).
 
 ## Evidence Bundles
@@ -152,6 +174,7 @@ Evidence documentation:
 | `VulcansTrace.Linux.Evidence` | Evidence bundle generation and CSV, JSON, STIX, HTML, and Markdown formatters |
 | `VulcansTrace.Linux.Agent` | Local Security Agent, scanners, posture rules, role-aware policy, explanations, and agent report adapter |
 | `VulcansTrace.Linux.Avalonia` | Desktop UI, ViewModels, commands, and dialog services |
+| `VulcansTrace.Linux.Cli` | Headless CLI for audits, schedule management, and cron integration |
 | `VulcansTrace.Linux.Tests` | xUnit unit, integration, detector, evidence, UI, and performance tests |
 | `VulcansTrace.Linux.Performance` | Benchmark and profiling helpers |
 | `VulcansTrace.Linux.PerformanceConsole` | Console runner for benchmark and profiling workflows |
@@ -182,6 +205,7 @@ Recommended review paths:
 - For detection engineering: [Port Scan Detection](docs/portfolio/02-Port-Scan-Detection/README.md) -> [Beaconing Detection](docs/portfolio/03-Beaconing-Detection/README.md) -> [C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md)
 - For investigation workflow: [Risk Escalation](docs/portfolio/08-Risk-Escalation/README.md) -> [Evidence Packaging](docs/portfolio/09-Evidence-Packaging/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For local assistant workflow: [Security Agent](docs/SECURITY_AGENT.md) -> [Security Agent portfolio](docs/portfolio/16-Security-Agent/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
+- For scheduling and automation: [Usage](docs/USAGE.md) -> [Changes](docs/CHANGES_AND_PROFILES.md) -> [Security](docs/SECURITY.md)
 - For verification: [Automated Tests](docs/portfolio/11-Automated-Tests/README.md) -> [Development](docs/DEVELOPMENT.md) -> [Security](docs/SECURITY.md)
 
 ## Portfolio Deep Dives

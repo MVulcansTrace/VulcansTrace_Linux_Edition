@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.Performa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.Agent", "VulcansTrace.Linux.Agent\VulcansTrace.Linux.Agent.csproj", "{88AA0B97-90B4-4287-B8A2-6F9689399125}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulcansTrace.Linux.Cli", "VulcansTrace.Linux.Cli\VulcansTrace.Linux.Cli.csproj", "{EB60B28A-E9A1-4377-A06A-BD34B9DC836E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,5 +62,9 @@ Global
 		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88AA0B97-90B4-4287-B8A2-6F9689399125}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB60B28A-E9A1-4377-A06A-BD34B9DC836E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB60B28A-E9A1-4377-A06A-BD34B9DC836E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB60B28A-E9A1-4377-A06A-BD34B9DC836E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB60B28A-E9A1-4377-A06A-BD34B9DC836E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
