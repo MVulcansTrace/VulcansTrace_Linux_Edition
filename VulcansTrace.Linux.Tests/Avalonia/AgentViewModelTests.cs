@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -67,6 +68,109 @@ public class AgentViewModelTests
         Assert.True(networkMessage.IsVisible);
     }
 
+    [Fact]
+    public async Task SendQueryCommand_AddsCapabilityReportOnce()
+    {
+        const string capabilityReport = "Data sources: ss available.";
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "is my system secure?"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(1, vm.Messages.Count(message => message.Text == capabilityReport));
+    }
+
+    [Fact]
+    public async Task FullAuditCommand_AddsCapabilityReportOnce()
+    {
+        const string capabilityReport = "Data sources: ss available.";
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore());
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(1, vm.Messages.Count(message => message.Text == capabilityReport));
+    }
+
+    [Fact]
+    public async Task SendQueryCommand_TypedSshAudit_AppendsHistoryAndEnablesExport()
+    {
+        var agent = new TrackingAgent(AgentIntent.SshCheck);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.CanExportAudit);
+        Assert.Single(vm.History);
+        Assert.Equal(AgentIntent.SshCheck, vm.History[0].Intent);
+    }
+
+    [Fact]
+    public async Task CheckDriftCommand_AfterShowBaseline_UsesLastAuditIntent()
+    {
+        var agent = new TrackingAgent(AgentIntent.SshCheck);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.ShowBaselineCommand.Execute(null);
+        await vm.ShowBaselineCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.CheckDriftCommand.Execute(null);
+        await vm.CheckDriftCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(AgentIntent.SshCheck, agent.LastBaselineIntent);
+        Assert.Equal(AgentIntent.SshCheck, agent.LastDriftIntent);
+    }
+
+    [Fact]
+    public void SetBaselineCommand_IsDisabledBeforeAudit()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore());
+
+        Assert.False(vm.SetBaselineCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task SetAgent_ClearsStaleAuditState()
+    {
+        var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+        Assert.True(vm.CanExportAudit);
+        Assert.True(vm.SetBaselineCommand.CanExecute(null));
+
+        vm.SetAgent(new StubAgent());
+
+        Assert.Null(vm.LastResult);
+        Assert.False(vm.CanExportAudit);
+        Assert.False(vm.SetBaselineCommand.CanExecute(null));
+    }
+
+    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+
     private static Finding CreateFinding() => new()
     {
         Category = "Firewall",
@@ -124,5 +228,84 @@ public class AgentViewModelTests
                 Intent = AgentIntent.ShowBaseline,
                 Summary = "stub"
             });
+    }
+
+    private sealed class CapabilityReportAgent : IAgent
+    {
+        private readonly string _capabilityReport;
+
+        public CapabilityReportAgent(string capabilityReport)
+        {
+            _capabilityReport = capabilityReport;
+        }
+
+        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.FullAudit));
+
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(CreateResult(intent));
+
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ExplainFinding));
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.SetBaseline));
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.CheckDrift));
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
+
+        private AgentResult CreateResult(AgentIntent intent) => new()
+        {
+            Intent = intent,
+            Summary = "stub",
+            CapabilityReport = _capabilityReport
+        };
+    }
+
+    private sealed class TrackingAgent : IAgent
+    {
+        private readonly AgentIntent _auditIntent;
+
+        public TrackingAgent(AgentIntent auditIntent)
+        {
+            _auditIntent = auditIntent;
+        }
+
+        public AgentIntent? LastDriftIntent { get; private set; }
+        public AgentIntent? LastBaselineIntent { get; private set; }
+
+        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(CreateResult(_auditIntent));
+
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(CreateResult(intent));
+
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ExplainFinding));
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.SetBaseline));
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            LastDriftIntent = intent;
+            return Task.FromResult(CreateResult(AgentIntent.CheckDrift));
+        }
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        {
+            LastBaselineIntent = intent;
+            return Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
+        }
+
+        private static AgentResult CreateResult(AgentIntent intent) => new()
+        {
+            Intent = intent,
+            Summary = "stub",
+            UtcTimestamp = DateTime.UtcNow
+        };
     }
 }

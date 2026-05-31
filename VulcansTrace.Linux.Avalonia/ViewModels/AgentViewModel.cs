@@ -34,6 +34,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _privilegeWarningText = "";
     private AgentResult? _lastResult;
     private bool _lastResultIsExportableAudit;
+    private bool _hasCompletedAudit;
+    private AgentIntent _lastAuditIntent = AgentIntent.FullAudit;
     private SeverityFilterOption? _selectedChatSeverityFilter;
     private string? _selectedChatCategoryFilter;
 
@@ -260,6 +262,16 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public void SetAgent(IAgent agent)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+        _lastResult = null;
+        _lastResultIsExportableAudit = false;
+        _hasCompletedAudit = false;
+        _lastAuditIntent = AgentIntent.FullAudit;
+
+        OnPropertyChanged(nameof(LastResult));
+        OnPropertyChanged(nameof(CanExportAudit));
+        ExportAuditCommand.RaiseCanExecuteChanged();
+        ExportRemediationCommand.RaiseCanExecuteChanged();
+        SetBaselineCommand.RaiseCanExecuteChanged();
     }
 
     public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
@@ -338,7 +350,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         SetBaselineCommand = new AsyncRelayCommand(
             async _ => await SetBaselineAsync(),
-            _ => !_isBusy && _lastResult != null,
+            _ => !_isBusy && _hasCompletedAudit,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         CheckDriftCommand = new AsyncRelayCommand(
@@ -476,15 +488,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     DetectPrivilegeWarning(result.Warnings);
                 }
 
-                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
-                    AddAgentMessage(result.CapabilityReport, true);
-
                 ApplyChatFilters();
             });
 
             // Raise audit completion for audit intents so MainViewModel can sync evidence
-            if (result.Intent is AgentIntent.FullAudit or AgentIntent.FirewallCheck
-                or AgentIntent.PortCheck or AgentIntent.ServiceCheck or AgentIntent.NetworkCheck)
+            if (IsAuditIntent(result.Intent))
             {
                 PublishAuditCompleted(result);
             }
@@ -713,9 +721,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     DetectPrivilegeWarning(result.Warnings);
                 }
 
-                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
-                    AddAgentMessage(result.CapabilityReport, true);
-
                 ApplyChatFilters();
             });
 
@@ -819,10 +824,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void PublishAuditCompleted(AgentResult result)
     {
         AuditCompleted?.Invoke(this, result);
+        _hasCompletedAudit = true;
+        _lastAuditIntent = result.Intent;
         _lastResultIsExportableAudit = true;
         OnPropertyChanged(nameof(CanExportAudit));
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
+        SetBaselineCommand.RaiseCanExecuteChanged();
         AppendHistoryEntry(result);
     }
 
@@ -904,7 +912,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             or AgentIntent.FirewallCheck
             or AgentIntent.PortCheck
             or AgentIntent.ServiceCheck
-            or AgentIntent.NetworkCheck;
+            or AgentIntent.NetworkCheck
+            or AgentIntent.SshCheck
+            or AgentIntent.FilePermissionCheck
+            or AgentIntent.KernelCheck;
 
     private static bool IsAllCategoryFilter(string? categoryFilter) =>
         string.IsNullOrWhiteSpace(categoryFilter)
@@ -956,7 +967,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task CheckDriftAsync()
     {
-        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        var intent = _lastAuditIntent;
         AddUserMessage($"Check drift ({intent})");
         IsBusy = true;
         ClearPrivilegeWarning();
@@ -1024,7 +1035,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ShowBaselineAsync()
     {
-        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        var intent = _lastAuditIntent;
         AddUserMessage("Show baseline");
         IsBusy = true;
         ClearPrivilegeWarning();

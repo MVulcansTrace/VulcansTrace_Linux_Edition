@@ -58,9 +58,10 @@ for the step-by-step HMAC signing key flow.
 4. Add explanation templates to `VulcansTrace.Linux.Agent/Explanations/Templates/`.
 5. Add `AgentIntent` value to `VulcansTrace.Linux.Agent/Query/AgentIntent.cs` and keywords to `QueryParser.cs`.
 6. Add the intent to `InferIntentFromCategory` and `FilterRulesByIntent` in `SecurityAgent.cs`.
-7. Add tests in `VulcansTrace.Linux.Tests/Agent` (scanner fixtures, rule behavior, intent parsing).
-8. Update `RuleCatalogTests.cs` if adding rules to the catalog.
-9. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
+7. If the intent is an audit result the UI should export, baseline, or track in history, add it to `IsAuditIntent` in `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`.
+8. Add tests in `VulcansTrace.Linux.Tests/Agent` and/or `VulcansTrace.Linux.Tests/Avalonia` (scanner fixtures, rule behavior, intent parsing, and UI audit-state behavior).
+9. Update `RuleCatalogTests.cs` if adding rules to the catalog.
+10. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
 
 ## Packaging
 
