@@ -13,6 +13,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `ServiceScanner` knows how to read running systemd services.
 - `NetworkScanner` knows how to collect interfaces, routes, and connections.
 - `FilePermissionScanner` knows how to read permission bits and ownership via `stat`.
+- `KernelHardeningScanner` knows how to read `/proc/sys` parameters and Secure Boot state.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.
@@ -114,6 +115,18 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 - The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for single-finding interactive remediation, so both paths benefit from the same safety guardrails.
 
 **Trade-off:** The UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. A future "dry-run" executor could bridge this gap without changing the safety model.
+
+## Not-Applicable Results For Hardware-Dependent Checks
+
+**Decision:** Rules that depend on hardware features the system may not have (e.g., UEFI Secure Boot on BIOS systems) return `RuleStatus.NotApplicable` instead of Pass or Fail.
+
+**Rationale:**
+
+- Returning Pass would mislead the user into thinking they passed a check that does not apply to their system.
+- Returning Fail would create false positives on correctly configured BIOS systems.
+- NotApplicable is excluded from passed/failed counts but included in the total rule count, and the audit summary explicitly notes how many checks were not applicable. This keeps the user informed without distorting pass/fail metrics.
+
+**Trade-off:** UI coverage grids must account for NotApplicable as a fifth bucket alongside Passed, Failed, Suppressed, and Crashed.
 
 ## Current Tradeoffs
 

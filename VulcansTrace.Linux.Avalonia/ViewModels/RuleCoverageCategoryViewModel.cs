@@ -10,6 +10,7 @@ public sealed class RuleCoverageCategoryViewModel : ViewModelBase
     private int _failed;
     private int _suppressed;
     private int _crashed;
+    private int _notApplicable;
 
     /// <summary>The category name (e.g., "Firewall", "Network").</summary>
     public string Category
@@ -46,6 +47,13 @@ public sealed class RuleCoverageCategoryViewModel : ViewModelBase
         set => SetField(ref _crashed, value);
     }
 
+    /// <summary>Number of rules not applicable in this category.</summary>
+    public int NotApplicable
+    {
+        get => _notApplicable;
+        set => SetField(ref _notApplicable, value);
+    }
+
     /// <summary>Total number of rules evaluated in this category.</summary>
-    public int Total => Passed + Failed + Suppressed + Crashed;
+    public int Total => Passed + Failed + Suppressed + Crashed + NotApplicable;
 }

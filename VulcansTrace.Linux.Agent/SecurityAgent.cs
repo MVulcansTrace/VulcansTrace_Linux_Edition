@@ -1074,6 +1074,7 @@ public sealed class SecurityAgent : IAgent
         "port" => AgentIntent.PortCheck,
         "ssh" or "sshd" => AgentIntent.SshCheck,
         "file" or "filepermission" or "permissions" => AgentIntent.FilePermissionCheck,
+        "kernel" => AgentIntent.KernelCheck,
         _ => AgentIntent.Help
     };
 
@@ -1359,6 +1360,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.PortCheck => _rules.Where(r => r.Category.Equals("Port", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.SshCheck => _rules.Where(r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.FilePermissionCheck => _rules.Where(r => r.Category.Equals("FilePermission", StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }
@@ -1379,6 +1381,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.PortCheck => "Port check",
             AgentIntent.SshCheck => "SSH check",
             AgentIntent.FilePermissionCheck => "File permission check",
+            AgentIntent.KernelCheck => "Kernel check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
@@ -1417,6 +1420,12 @@ public sealed class SecurityAgent : IAgent
         if (crashedCount > 0)
         {
             parts.Add($"{crashedCount} rule(s) crashed.");
+        }
+
+        var notApplicableCount = allResults.Count(r => r.Status == RuleStatus.NotApplicable);
+        if (notApplicableCount > 0)
+        {
+            parts.Add($"{notApplicableCount} check(s) not applicable.");
         }
 
         if (logFindingsCount > 0)

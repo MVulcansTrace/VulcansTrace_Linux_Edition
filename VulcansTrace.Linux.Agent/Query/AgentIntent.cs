@@ -26,6 +26,9 @@ public enum AgentIntent
     /// <summary>Focus on sensitive file and directory permissions.</summary>
     FilePermissionCheck,
 
+    /// <summary>Focus on kernel and system hardening parameters.</summary>
+    KernelCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

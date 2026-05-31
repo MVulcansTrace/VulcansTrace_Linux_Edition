@@ -55,6 +55,10 @@ public class QueryParserTests
     [InlineData("show baseline", AgentIntent.ShowBaseline)]
     [InlineData("view baseline", AgentIntent.ShowBaseline)]
     [InlineData("what is my baseline", AgentIntent.ShowBaseline)]
+    [InlineData("check my kernel hardening", AgentIntent.KernelCheck)]
+    [InlineData("sysctl settings", AgentIntent.KernelCheck)]
+    [InlineData("is secure boot enabled", AgentIntent.KernelCheck)]
+    [InlineData("kernel modules", AgentIntent.KernelCheck)]
     [InlineData("help", AgentIntent.Help)]
     [InlineData("what can you do", AgentIntent.Help)]
     [InlineData("capabilities", AgentIntent.Help)]
@@ -159,6 +163,7 @@ public class QueryParserTests
     [InlineData("filter network findings", "network")]
     [InlineData("only ssh findings", "ssh")]
     [InlineData("filter permission issues", "permission")]
+    [InlineData("show only kernel findings", "kernel")]
     public void Parse_FilterCategory_WithReference_ReturnsCategoryReference(string query, string expectedReference)
     {
         var result = _parser.Parse(query);

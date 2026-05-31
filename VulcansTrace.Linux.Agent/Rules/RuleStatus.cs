@@ -15,5 +15,8 @@ public enum RuleStatus
     Suppressed,
 
     /// <summary>The rule could not be evaluated because of an unexpected exception.</summary>
-    Crashed
+    Crashed,
+
+    /// <summary>The rule does not apply to this system (e.g., hardware-dependent check on incompatible hardware).</summary>
+    NotApplicable
 }

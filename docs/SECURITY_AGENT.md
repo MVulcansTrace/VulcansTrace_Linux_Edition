@@ -19,6 +19,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
 | `Check my SSH` | `SshCheck` | Reviews SSH daemon hardening configuration |
 | `Check file permissions` | `FilePermissionCheck` | Reviews sensitive file and directory permissions |
+| `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -44,6 +45,7 @@ The agent reads local host state using common Linux tools:
 | `NetworkScanner` | `ip addr`, `ip route`, `ss -tunap` | Reads interfaces, routes, and active connections |
 | `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | Reads SSH daemon hardening directives |
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | Reads permission bits, ownership, and existence of sensitive files and directories |
+| `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
 
 Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -89,6 +91,16 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Public-key authentication should be enabled (`PubkeyAuthentication`).
 - X11 forwarding should be disabled on servers (`X11Forwarding`).
 
+### Kernel
+
+- ASLR should be fully enabled (`kernel.randomize_va_space >= 2`) (`KERN-001`).
+- IP forwarding should be disabled on non-router hosts (`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`) (`KERN-002`).
+- ICMP redirects should be disabled (`net.ipv4.conf.all.accept_redirects`, `net.ipv6.conf.all.accept_redirects`) (`KERN-003`).
+- Source routed packets should be rejected (`net.ipv4.conf.all.accept_source_route`) (`KERN-004`).
+- Kernel module loading should be restricted (`kernel.modules_disabled != 0`); severity is High on Server, Medium on Workstation (`KERN-005`).
+- Secure Boot should be enabled on UEFI systems; BIOS systems return NotApplicable (`KERN-006`).
+- Kernel pointer and dmesg exposure should be restricted (`kernel.kptr_restrict >= 1`, `kernel.dmesg_restrict == 1`) (`KERN-007`).
+
 ### File Permissions
 
 - `/etc/shadow` should be `640` or `600` and owned by root (`FILE-001`).
@@ -119,7 +131,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`, `Router`, and `DevMachine` profiles. Built-in defaults tune selected rules, and user JSON policies take precedence while inheriting built-in parameters that are not overridden.
 
-The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, and `SSH-007`.
+The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, `SSH-007`, and `KERN-005`.
 
 The Avalonia composition currently runs the agent as `Workstation`; other roles are available through the agent API and policy provider wiring until a role selector is added.
 
@@ -182,6 +194,13 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 
 | Rule | CIS Control | Ubuntu Benchmark |
 |------|-------------|------------------|
+| KERN-001 | CIS 1.5 — Establish and Maintain a Secure Configuration Process | 1.5.2 — Ensure address space layout randomization is enabled |
+| KERN-002 | CIS 3.1 — Network Parameters (Host Only) | 3.1.1 — Ensure IP forwarding is disabled |
+| KERN-003 | CIS 3.1 — Network Parameters (Host Only) | 3.1.2 — Ensure ICMP redirects are not accepted |
+| KERN-004 | CIS 3.1 — Network Parameters (Host Only) | 3.1.3 — Ensure source routed packets are not accepted |
+| KERN-005 | CIS 1.4 — Secure Boot Settings | 1.4.1 — Ensure loading and unloading of kernel modules is restricted |
+| KERN-006 | CIS 1.4 — Secure Boot Settings | 1.4.2 — Ensure Secure Boot is enabled |
+| KERN-007 | CIS 1.5 — Establish and Maintain a Secure Configuration Process | 1.5.3 — Ensure kernel pointer restriction is enabled |
 | SSH-001 | CIS 5.4 — Restrict Administrator Privileges | 5.2.7 — Ensure SSH root login is disabled |
 | SSH-002 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.16 — Ensure SSH PasswordAuthentication is disabled |
 | SSH-003 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.14 — Ensure SSH MaxAuthTries is configured |
@@ -208,7 +227,7 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | SRV-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.16 — Ensure rsh server is not installed |
 | SRV-005 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.x — Ensure unnecessary services are removed or disabled |
 
-The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists.
+The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable.
 
 Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMappings`, and are attached to `Finding.CisMappings` in both the full audit and single-rule explain paths. Evidence exports preserve them in CSV, HTML, Markdown, JSON, and STIX formats.
 
@@ -243,6 +262,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [NetworkScanner.cs](../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs)
 - [SshConfigScanner.cs](../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs)
 - [FilePermissionScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs)
+- [KernelHardeningScanner.cs](../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)

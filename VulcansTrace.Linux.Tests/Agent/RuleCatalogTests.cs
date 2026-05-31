@@ -39,7 +39,14 @@ public class RuleCatalogTests
         new RootSshDirectoryPermissionRule(),
         new CronDirectoryWorldWritableRule(),
         new CrontabPermissionRule(),
-        new UserSshDirectoryPermissionRule()
+        new UserSshDirectoryPermissionRule(),
+        new AslrEnabledRule(),
+        new IpForwardingDisabledRule(),
+        new IcmpRedirectsDisabledRule(),
+        new SourceRoutingDisabledRule(),
+        new KernelModuleLoadingRestrictedRule(),
+        new SecureBootEnabledRule(),
+        new KernelPointerExposureRestrictedRule()
     };
 
     [Fact]
@@ -47,7 +54,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(32, catalog.Items.Count);
+        Assert.Equal(39, catalog.Items.Count);
     }
 
     [Fact]
@@ -74,6 +81,7 @@ public class RuleCatalogTests
     [InlineData("SRV-0", 5)]
     [InlineData("SSH-0", 7)]
     [InlineData("FILE-0", 7)]
+    [InlineData("KERN-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -98,7 +106,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(32, results.Count);
+        Assert.Equal(39, results.Count);
     }
 
     [Fact]
@@ -143,6 +151,13 @@ public class RuleCatalogTests
     [InlineData("FILE-005", "CIS 6.1")]
     [InlineData("FILE-006", "CIS 6.1")]
     [InlineData("FILE-007", "CIS 5.2")]
+    [InlineData("KERN-001", "CIS 1.5")]
+    [InlineData("KERN-002", "CIS 3.1")]
+    [InlineData("KERN-003", "CIS 3.1")]
+    [InlineData("KERN-004", "CIS 3.1")]
+    [InlineData("KERN-005", "CIS 1.4")]
+    [InlineData("KERN-006", "CIS 1.4")]
+    [InlineData("KERN-007", "CIS 1.5")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());

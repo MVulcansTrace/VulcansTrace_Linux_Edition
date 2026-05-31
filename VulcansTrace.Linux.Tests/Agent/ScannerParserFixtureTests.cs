@@ -620,6 +620,46 @@ public class ScannerParserFixtureTests
     }
 
     // =====================================================================
+    // KernelHardeningScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void KernelHardeningScanner_ParseSysctlLine_ValidLine_ReturnsPair()
+    {
+        var result = KernelHardeningScanner.ParseSysctlLine("kernel.randomize_va_space = 2");
+
+        Assert.NotNull(result);
+        Assert.Equal("kernel.randomize_va_space", result.Value.Key);
+        Assert.Equal("2", result.Value.Value);
+    }
+
+    [Fact]
+    public void KernelHardeningScanner_ParseSysctlLine_NoEquals_ReturnsNull()
+    {
+        var result = KernelHardeningScanner.ParseSysctlLine("kernel.randomize_va_space 2");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void KernelHardeningScanner_SysctlKeyToProcPath_ConvertsCorrectly()
+    {
+        var path = KernelHardeningScanner.SysctlKeyToProcPath("kernel.randomize_va_space");
+        Assert.Equal("/proc/sys/kernel/randomize_va_space", path);
+    }
+
+    [Fact]
+    public async Task KernelHardeningScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new KernelHardeningScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "/proc/sys");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "secureboot");
+    }
+
+    // =====================================================================
     // FilePermissionScanner Fixtures
     // =====================================================================
 

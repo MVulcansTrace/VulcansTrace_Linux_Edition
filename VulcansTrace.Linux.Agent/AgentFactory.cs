@@ -77,7 +77,8 @@ public static class AgentFactory
             new ServiceScanner(),
             new NetworkScanner(),
             new SshConfigScanner(),
-            new FilePermissionScanner()
+            new FilePermissionScanner(),
+            new KernelHardeningScanner()
         };
 
         var rules = new IRule[]
@@ -113,7 +114,14 @@ public static class AgentFactory
             new RootSshDirectoryPermissionRule(),
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
-            new UserSshDirectoryPermissionRule()
+            new UserSshDirectoryPermissionRule(),
+            new AslrEnabledRule(),
+            new IpForwardingDisabledRule(),
+            new IcmpRedirectsDisabledRule(),
+            new SourceRoutingDisabledRule(),
+            new KernelModuleLoadingRestrictedRule(),
+            new SecureBootEnabledRule(),
+            new KernelPointerExposureRestrictedRule()
         };
 
         var explanationProvider = new ExplanationProvider();

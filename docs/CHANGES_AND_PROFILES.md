@@ -74,8 +74,24 @@ Last updated: 2026-05-30
 - Added 10 new tests covering intent parsing, target reference extraction, and all `HandleFixFindingAsync` code paths (no context, no reference, unknown reference, success, validation failure).
 - Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`
 
+### Security Agent — Kernel and System Hardening
+- Added `KernelHardeningScanner` that reads 9 sysctl values directly from `/proc/sys/` (fast, no shell), with `sysctl -a` fallback for missing values, and checks Secure Boot via `mokutil --sb-state` with EFI variable fallback.
+- Added `KernelParameters` record to `ScanData` with typed fields: `RandomizeVaSpace`, `IpForwardIpv4/Ipv6`, `AcceptRedirectsIpv4/Ipv6`, `AcceptSourceRouteIpv4`, `ModulesDisabled`, `SecureBootEnabled`, `KptrRestrict`, `DmesgRestrict`.
+- Added 7 kernel hardening rules (`KERN-001` through `KERN-007`) with dual-layer CIS compliance mappings:
+  - `KERN-001` — ASLR fully enabled (`kernel.randomize_va_space >= 2`) (CIS 1.5)
+  - `KERN-002` — IP forwarding disabled (IPv4 + IPv6) (CIS 3.1)
+  - `KERN-003` — ICMP redirects disabled (IPv4 + IPv6) (CIS 3.1)
+  - `KERN-004` — Source routed packets rejected (CIS 3.1)
+  - `KERN-005` — Kernel module loading restricted (`kernel.modules_disabled != 0`); role-aware severity: High on Server, Medium on Workstation (CIS 1.4)
+  - `KERN-006` — Secure Boot enabled; returns `NotApplicable` on BIOS/legacy systems where Secure Boot is unavailable (CIS 1.4)
+  - `KERN-007` — Kernel pointer and dmesg exposure restricted (`kptr_restrict >= 1`, `dmesg_restrict == 1`) (CIS 1.5)
+- Added `AgentIntent.KernelCheck` and `QueryParser` keywords so users can ask "check my kernel hardening".
+- Added `kernel.md` explanation template with remediation steps for all kernel hardening rules.
+- Added `RuleStatus.NotApplicable` for hardware-dependent checks that do not apply to the current system (e.g., Secure Boot on BIOS). `BuildSummary` reports not-applicable counts in the audit summary.
+- Code: `VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/KernelHardeningRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/kernel.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 32 agent rules now carry dual-layer CIS compliance mappings:
+- All 39 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

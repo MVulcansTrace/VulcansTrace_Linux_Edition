@@ -41,6 +41,9 @@ public sealed record ScanData
 
     /// <summary>Sensitive file and directory permission entries.</summary>
     public IReadOnlyList<FilePermissionEntry> FilePermissions { get; init; } = Array.Empty<FilePermissionEntry>();
+
+    /// <summary>Kernel and system hardening parameters.</summary>
+    public KernelParameters? KernelParameters { get; init; }
 }
 
 /// <summary> Parsed SSH daemon configuration entry. </summary>
@@ -179,4 +182,44 @@ public sealed record FilePermissionEntry
 
     /// <summary>Whether the path exists.</summary>
     public bool Exists { get; init; }
+}
+
+/// <summary>Kernel and system hardening parameters read from /proc/sys and EFI variables.</summary>
+public sealed record KernelParameters
+{
+    /// <summary>Value of kernel.randomize_va_space (ASLR). 2 = full, 1 = partial, 0 = off.</summary>
+    public int? RandomizeVaSpace { get; init; }
+
+    /// <summary>Value of net.ipv4.ip_forward. 0 = disabled, 1 = enabled.</summary>
+    public int? IpForwardIpv4 { get; init; }
+
+    /// <summary>Value of net.ipv6.conf.all.forwarding. 0 = disabled, 1 = enabled.</summary>
+    public int? IpForwardIpv6 { get; init; }
+
+    /// <summary>Value of net.ipv4.conf.all.accept_redirects. 0 = disabled, 1 = enabled.</summary>
+    public int? AcceptRedirectsIpv4 { get; init; }
+
+    /// <summary>Value of net.ipv6.conf.all.accept_redirects. 0 = disabled, 1 = enabled.</summary>
+    public int? AcceptRedirectsIpv6 { get; init; }
+
+    /// <summary>Value of net.ipv4.conf.all.accept_source_route. 0 = disabled, 1 = enabled.</summary>
+    public int? AcceptSourceRouteIpv4 { get; init; }
+
+    /// <summary>Value of kernel.modules_disabled. 0 = enabled, 1 = disabled.</summary>
+    public int? ModulesDisabled { get; init; }
+
+    /// <summary>Whether Secure Boot is enabled.</summary>
+    public bool? SecureBootEnabled { get; init; }
+
+    /// <summary>Value of kernel.kptr_restrict. 0 = no restriction, 1 = restricted, 2 = fully restricted.</summary>
+    public int? KptrRestrict { get; init; }
+
+    /// <summary>Value of kernel.dmesg_restrict. 0 = unrestricted, 1 = restricted to CAP_SYSLOG.</summary>
+    public int? DmesgRestrict { get; init; }
+
+    /// <summary>Whether the parameters were readable.</summary>
+    public bool ParametersReadable { get; init; }
+
+    /// <summary>Raw warning or detail message if reading failed.</summary>
+    public string? ReadWarning { get; init; }
 }

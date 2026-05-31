@@ -790,6 +790,280 @@ public class RuleTests
     }
 
     // =====================================================================
+    // Kernel Hardening Rules
+    // =====================================================================
+
+    [Fact]
+    public void AslrEnabledRule_Disabled_Fails()
+    {
+        var rule = new AslrEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, RandomizeVaSpace = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void AslrEnabledRule_Enabled_Passes()
+    {
+        var rule = new AslrEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, RandomizeVaSpace = 2 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AslrEnabledRule_MissingData_Passes()
+    {
+        var rule = new AslrEnabledRule();
+        var data = new ScanData { KernelParameters = null };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void IpForwardingDisabledRule_Enabled_Fails()
+    {
+        var rule = new IpForwardingDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, IpForwardIpv4 = 1, IpForwardIpv6 = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void IpForwardingDisabledRule_Disabled_Passes()
+    {
+        var rule = new IpForwardingDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, IpForwardIpv4 = 0, IpForwardIpv6 = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void IcmpRedirectsDisabledRule_Enabled_Fails()
+    {
+        var rule = new IcmpRedirectsDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, AcceptRedirectsIpv4 = 1, AcceptRedirectsIpv6 = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void IcmpRedirectsDisabledRule_Disabled_Passes()
+    {
+        var rule = new IcmpRedirectsDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, AcceptRedirectsIpv4 = 0, AcceptRedirectsIpv6 = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SourceRoutingDisabledRule_Enabled_Fails()
+    {
+        var rule = new SourceRoutingDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, AcceptSourceRouteIpv4 = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SourceRoutingDisabledRule_Disabled_Passes()
+    {
+        var rule = new SourceRoutingDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, AcceptSourceRouteIpv4 = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void KernelModuleLoadingRestrictedRule_Unrestricted_Fails()
+    {
+        var rule = new KernelModuleLoadingRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, ModulesDisabled = 0 } };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void KernelModuleLoadingRestrictedRule_Restricted_Passes()
+    {
+        var rule = new KernelModuleLoadingRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, ModulesDisabled = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SecureBootEnabledRule_Disabled_Fails()
+    {
+        var rule = new SecureBootEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = false } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SecureBootEnabledRule_Enabled_Passes()
+    {
+        var rule = new SecureBootEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = true } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void KernelPointerExposureRestrictedRule_LowKptr_Fails()
+    {
+        var rule = new KernelPointerExposureRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, KptrRestrict = 0, DmesgRestrict = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void KernelPointerExposureRestrictedRule_DmesgOpen_Fails()
+    {
+        var rule = new KernelPointerExposureRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, KptrRestrict = 2, DmesgRestrict = 0 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void KernelPointerExposureRestrictedRule_Restricted_Passes()
+    {
+        var rule = new KernelPointerExposureRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, KptrRestrict = 2, DmesgRestrict = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AslrEnabledRule_PartialAslr_Fails()
+    {
+        var rule = new AslrEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, RandomizeVaSpace = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void KernelPointerExposureRestrictedRule_KptrOne_Passes()
+    {
+        var rule = new KernelPointerExposureRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, KptrRestrict = 1, DmesgRestrict = 1 } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SecureBootEnabledRule_Null_ReturnsNotApplicable()
+    {
+        var rule = new SecureBootEnabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = null } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void IcmpRedirectsDisabledRule_NullIpv6_DoesNotFail()
+    {
+        var rule = new IcmpRedirectsDisabledRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, AcceptRedirectsIpv4 = 0, AcceptRedirectsIpv6 = null } };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void KernelModuleLoadingRestrictedRule_Server_HighSeverity()
+    {
+        var rule = new KernelModuleLoadingRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, ModulesDisabled = 0 } };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void KernelModuleLoadingRestrictedRule_Workstation_MediumSeverity()
+    {
+        var rule = new KernelModuleLoadingRestrictedRule();
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, ModulesDisabled = 0 } };
+        var context = new RuleEvaluationContext(MachineRole.Workstation, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void KernelHardeningRules_MissingData_Passes()
+    {
+        var data = new ScanData { KernelParameters = null };
+
+        Assert.True(new AslrEnabledRule().Evaluate(data).Passed);
+        Assert.True(new IpForwardingDisabledRule().Evaluate(data).Passed);
+        Assert.True(new IcmpRedirectsDisabledRule().Evaluate(data).Passed);
+        Assert.True(new SourceRoutingDisabledRule().Evaluate(data).Passed);
+        Assert.True(new KernelModuleLoadingRestrictedRule().Evaluate(data).Passed);
+        Assert.True(new SecureBootEnabledRule().Evaluate(data).Passed);
+        Assert.True(new KernelPointerExposureRestrictedRule().Evaluate(data).Passed);
+    }
+
+    // =====================================================================
     // CIS Benchmark Mapping
     // =====================================================================
 
@@ -826,6 +1100,13 @@ public class RuleTests
     [InlineData(typeof(CronDirectoryWorldWritableRule), "CIS 6.1")]
     [InlineData(typeof(CrontabPermissionRule), "CIS 6.1")]
     [InlineData(typeof(UserSshDirectoryPermissionRule), "CIS 5.2")]
+    [InlineData(typeof(AslrEnabledRule), "CIS 1.5")]
+    [InlineData(typeof(IpForwardingDisabledRule), "CIS 3.1")]
+    [InlineData(typeof(IcmpRedirectsDisabledRule), "CIS 3.1")]
+    [InlineData(typeof(SourceRoutingDisabledRule), "CIS 3.1")]
+    [InlineData(typeof(KernelModuleLoadingRestrictedRule), "CIS 1.4")]
+    [InlineData(typeof(SecureBootEnabledRule), "CIS 1.4")]
+    [InlineData(typeof(KernelPointerExposureRestrictedRule), "CIS 1.5")]
     public void KeyRules_HaveCisMappings(Type ruleType, string expectedControlId)
     {
         var rule = (IRule)Activator.CreateInstance(ruleType)!;

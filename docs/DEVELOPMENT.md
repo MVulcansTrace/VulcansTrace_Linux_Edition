@@ -57,9 +57,10 @@ for the step-by-step HMAC signing key flow.
 3. Register the scanner and rule in `AgentFactory.Create()` in `VulcansTrace.Linux.Agent/AgentFactory.cs`.
 4. Add explanation templates to `VulcansTrace.Linux.Agent/Explanations/Templates/`.
 5. Add `AgentIntent` value to `VulcansTrace.Linux.Agent/Query/AgentIntent.cs` and keywords to `QueryParser.cs`.
-6. Add tests in `VulcansTrace.Linux.Tests/Agent` (scanner fixtures, rule behavior, intent parsing).
-7. Update `RuleCatalogTests.cs` if adding rules to the catalog.
-8. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
+6. Add the intent to `InferIntentFromCategory` and `FilterRulesByIntent` in `SecurityAgent.cs`.
+7. Add tests in `VulcansTrace.Linux.Tests/Agent` (scanner fixtures, rule behavior, intent parsing).
+8. Update `RuleCatalogTests.cs` if adding rules to the catalog.
+9. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
 
 ## Packaging
 

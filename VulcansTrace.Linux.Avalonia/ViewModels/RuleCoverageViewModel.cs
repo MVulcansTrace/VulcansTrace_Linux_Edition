@@ -15,6 +15,7 @@ public sealed class RuleCoverageViewModel : ViewModelBase
     private int _totalFailed;
     private int _totalSuppressed;
     private int _totalCrashed;
+    private int _totalNotApplicable;
     private int _totalRules;
     private bool _hasData;
 
@@ -49,6 +50,13 @@ public sealed class RuleCoverageViewModel : ViewModelBase
         private set => SetField(ref _totalCrashed, value);
     }
 
+    /// <summary>Gets the total number of rules not applicable.</summary>
+    public int TotalNotApplicable
+    {
+        get => _totalNotApplicable;
+        private set => SetField(ref _totalNotApplicable, value);
+    }
+
     /// <summary>Gets the total number of rules evaluated.</summary>
     public int TotalRules
     {
@@ -76,6 +84,7 @@ public sealed class RuleCoverageViewModel : ViewModelBase
             TotalFailed = 0;
             TotalSuppressed = 0;
             TotalCrashed = 0;
+            TotalNotApplicable = 0;
             TotalRules = 0;
             HasData = false;
             return;
@@ -89,7 +98,8 @@ public sealed class RuleCoverageViewModel : ViewModelBase
                 Passed = g.Count(r => r.Status == RuleStatus.Passed),
                 Failed = g.Count(r => r.Status == RuleStatus.Failed),
                 Suppressed = g.Count(r => r.Status == RuleStatus.Suppressed),
-                Crashed = g.Count(r => r.Status == RuleStatus.Crashed)
+                Crashed = g.Count(r => r.Status == RuleStatus.Crashed),
+                NotApplicable = g.Count(r => r.Status == RuleStatus.NotApplicable)
             })
             .OrderByDescending(r => r.Failed + r.Crashed)
             .ThenBy(r => r.Category)
@@ -104,6 +114,7 @@ public sealed class RuleCoverageViewModel : ViewModelBase
         TotalFailed = ruleResults.Count(r => r.Status == RuleStatus.Failed);
         TotalSuppressed = ruleResults.Count(r => r.Status == RuleStatus.Suppressed);
         TotalCrashed = ruleResults.Count(r => r.Status == RuleStatus.Crashed);
+        TotalNotApplicable = ruleResults.Count(r => r.Status == RuleStatus.NotApplicable);
         TotalRules = ruleResults.Count;
         HasData = true;
     }

@@ -18,6 +18,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "port", "open", "listening", "ss", "netstat" }, AgentIntent.PortCheck, 2),
         (new[] { "ssh", "sshd", "ssh config", "ssh hardening", "permitrootlogin", "passwordauthentication" }, AgentIntent.SshCheck, 2),
         (new[] { "file permission", "permissions", "filepermission", "chmod", "chown", "shadow", "passwd" }, AgentIntent.FilePermissionCheck, 2),
+        (new[] { "kernel", "sysctl", "hardening", "aslr", "secure boot", "module loading", "ip forward", "icmp redirect" }, AgentIntent.KernelCheck, 2),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
         (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
@@ -35,7 +36,7 @@ public sealed class QueryParser : IQueryParser
 
     private static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "kernel"
     };
 
     /// <inheritdoc />

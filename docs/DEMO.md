@@ -67,6 +67,23 @@ For logs that trigger other detectors, use the integration test fixtures or craf
 - **Multiple destination hosts** for LateralMovement
 - **High-volume bursts** for Flood/DoS
 
+## Security Agent — Kernel Hardening Audit
+
+The Security Agent audits kernel and system hardening parameters without pasting a log:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my kernel hardening`
+3. The agent runs `KernelHardeningScanner` and evaluates rules for:
+   - ASLR (`kernel.randomize_va_space`)
+   - IP forwarding (`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`)
+   - ICMP redirects (`net.ipv4.conf.all.accept_redirects`)
+   - Source routing (`net.ipv4.conf.all.accept_source_route`)
+   - Kernel module loading restrictions (`kernel.modules_disabled`)
+   - Secure Boot status
+   - Kernel pointer exposure (`kernel.kptr_restrict`, `kernel.dmesg_restrict`)
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain KERN-001`.
+
 ## Security Agent — File Permission Audit
 
 The Security Agent can audit sensitive file and directory permissions without pasting a log:

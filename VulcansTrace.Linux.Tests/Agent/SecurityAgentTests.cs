@@ -64,6 +64,19 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task RunAuditAsync_KernelCheck_OnlyKernelRulesRun()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.RunAuditAsync(AgentIntent.KernelCheck, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.KernelCheck, result.Intent);
+        Assert.NotNull(result.RuleResults);
+        Assert.All(result.RuleResults, r => Assert.Equal("Kernel", r.Category));
+        Assert.DoesNotContain(result.RuleResults, r => r.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task RunAuditAsync_Cancellation_ThrowsOperationCanceledException()
     {
         var agent = CreateAgent();
@@ -343,7 +356,9 @@ public class SecurityAgentTests
             new PortScanner(),
             new ServiceScanner(),
             new NetworkScanner(),
-            new FilePermissionScanner()
+            new SshConfigScanner(),
+            new FilePermissionScanner(),
+            new KernelHardeningScanner()
         };
 
         var rules = new IRule[]
@@ -359,7 +374,14 @@ public class SecurityAgentTests
             new RootSshDirectoryPermissionRule(),
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
-            new UserSshDirectoryPermissionRule()
+            new UserSshDirectoryPermissionRule(),
+            new AslrEnabledRule(),
+            new IpForwardingDisabledRule(),
+            new IcmpRedirectsDisabledRule(),
+            new SourceRoutingDisabledRule(),
+            new KernelModuleLoadingRestrictedRule(),
+            new SecureBootEnabledRule(),
+            new KernelPointerExposureRestrictedRule()
         };
 
         var explanationProvider = new ExplanationProvider();

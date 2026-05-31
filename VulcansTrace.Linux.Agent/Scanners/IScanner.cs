@@ -35,6 +35,7 @@ public sealed class ScanDataBuilder
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
     private SshConfig? _sshConfig;
+    private KernelParameters? _kernelParameters;
 
     public string FirewallRaw
     {
@@ -98,6 +99,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _sshConfig = config; }
     }
 
+    public void SetKernelParameters(KernelParameters parameters)
+    {
+        lock (_lock) { _kernelParameters = parameters; }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -115,7 +121,8 @@ public sealed class ScanDataBuilder
                 FilePermissions = _filePermissions.ToArray(),
                 Warnings = _warnings.ToArray(),
                 Capabilities = _capabilities.ToArray(),
-                SshConfig = _sshConfig
+                SshConfig = _sshConfig,
+                KernelParameters = _kernelParameters
             };
         }
     }
