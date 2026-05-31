@@ -44,6 +44,18 @@ public sealed record ScanData
 
     /// <summary>Kernel and system hardening parameters.</summary>
     public KernelParameters? KernelParameters { get; init; }
+
+    /// <summary>Local user accounts from /etc/passwd.</summary>
+    public IReadOnlyList<UserAccount> UserAccounts { get; init; } = Array.Empty<UserAccount>();
+
+    /// <summary>Shadow password entries from /etc/shadow.</summary>
+    public IReadOnlyList<ShadowEntry> ShadowEntries { get; init; } = Array.Empty<ShadowEntry>();
+
+    /// <summary>Password aging definitions from /etc/login.defs.</summary>
+    public LoginDefs? LoginDefs { get; init; }
+
+    /// <summary>PAM password configuration lines.</summary>
+    public PamConfig? PamConfig { get; init; }
 }
 
 /// <summary> Parsed SSH daemon configuration entry. </summary>
@@ -222,4 +234,47 @@ public sealed record KernelParameters
 
     /// <summary>Raw warning or detail message if reading failed.</summary>
     public string? ReadWarning { get; init; }
+}
+
+/// <summary>A local user account parsed from /etc/passwd.</summary>
+public sealed record UserAccount
+{
+    public string Username { get; init; } = string.Empty;
+    public int Uid { get; init; }
+    public int Gid { get; init; }
+    public string Gecos { get; init; } = string.Empty;
+    public string HomeDirectory { get; init; } = string.Empty;
+    public string Shell { get; init; } = string.Empty;
+    public bool HomeDirectoryExists { get; init; }
+}
+
+/// <summary>A shadow password entry parsed from /etc/shadow.</summary>
+public sealed record ShadowEntry
+{
+    public string Username { get; init; } = string.Empty;
+    public string PasswordHash { get; init; } = string.Empty;
+    public int? LastChange { get; init; }
+    public int? MinDays { get; init; }
+    public int? MaxDays { get; init; }
+    public int? WarnDays { get; init; }
+    public int? InactiveDays { get; init; }
+    public int? ExpireDate { get; init; }
+}
+
+/// <summary>Password aging policy parsed from /etc/login.defs.</summary>
+public sealed record LoginDefs
+{
+    public bool Readable { get; init; }
+    public int? PassMaxDays { get; init; }
+    public int? PassMinDays { get; init; }
+    public int? PassMinLen { get; init; }
+    public int? PassWarnAge { get; init; }
+    public string? EncryptMethod { get; init; }
+}
+
+/// <summary>PAM password configuration aggregated from relevant PAM files.</summary>
+public sealed record PamConfig
+{
+    public bool Readable { get; init; }
+    public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
 }

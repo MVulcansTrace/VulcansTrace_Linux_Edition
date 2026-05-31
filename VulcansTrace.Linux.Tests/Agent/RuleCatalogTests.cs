@@ -46,7 +46,14 @@ public class RuleCatalogTests
         new SourceRoutingDisabledRule(),
         new KernelModuleLoadingRestrictedRule(),
         new SecureBootEnabledRule(),
-        new KernelPointerExposureRestrictedRule()
+        new KernelPointerExposureRestrictedRule(),
+        new UidZeroBeyondRootRule(),
+        new EmptyPasswordRule(),
+        new PasswordAgingRule(),
+        new PamPasswordComplexityRule(),
+        new InactiveAccountsRule(),
+        new DuplicateUidsRule(),
+        new MissingHomeDirectoryRule()
     };
 
     [Fact]
@@ -54,7 +61,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(39, catalog.Items.Count);
+        Assert.Equal(46, catalog.Items.Count);
     }
 
     [Fact]
@@ -82,6 +89,7 @@ public class RuleCatalogTests
     [InlineData("SSH-0", 7)]
     [InlineData("FILE-0", 7)]
     [InlineData("KERN-0", 7)]
+    [InlineData("USER-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -106,7 +114,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(39, results.Count);
+        Assert.Equal(46, results.Count);
     }
 
     [Fact]
@@ -158,6 +166,13 @@ public class RuleCatalogTests
     [InlineData("KERN-005", "CIS 1.4")]
     [InlineData("KERN-006", "CIS 1.4")]
     [InlineData("KERN-007", "CIS 1.5")]
+    [InlineData("USER-001", "CIS 6.2")]
+    [InlineData("USER-002", "CIS 5.4")]
+    [InlineData("USER-003", "CIS 5.4")]
+    [InlineData("USER-004", "CIS 5.4")]
+    [InlineData("USER-005", "CIS 6.2")]
+    [InlineData("USER-006", "CIS 6.2")]
+    [InlineData("USER-007", "CIS 6.2")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());

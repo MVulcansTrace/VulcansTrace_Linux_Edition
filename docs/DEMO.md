@@ -98,6 +98,23 @@ The Security Agent can audit sensitive file and directory permissions without pa
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain FILE-001`.
 
+## Security Agent — User Account Audit
+
+The Security Agent audits local user accounts, password aging, and PAM configuration without pasting a log:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my user accounts`
+3. The agent runs `UserAccountScanner` and evaluates rules for:
+   - UID 0 accounts beyond root
+   - Empty or unset password hashes
+   - Password aging from `/etc/login.defs` and per-user shadow entries
+   - PAM password complexity module presence
+   - Inactive or locked interactive accounts
+   - Duplicate UIDs
+   - Missing home directories for regular users
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain USER-001`.
+
 ## Security Agent — Interactive Remediation
 
 After running any audit, you can ask the agent to walk you through fixing a specific finding:

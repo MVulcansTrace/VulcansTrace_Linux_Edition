@@ -20,6 +20,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my SSH` | `SshCheck` | Reviews SSH daemon hardening configuration |
 | `Check file permissions` | `FilePermissionCheck` | Reviews sensitive file and directory permissions |
 | `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
+| `Check my user accounts` | `UserAccountCheck` | Reviews user accounts, password aging, PAM complexity, and shadow entries |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -46,6 +47,7 @@ The agent reads local host state using common Linux tools:
 | `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | Reads SSH daemon hardening directives |
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | Reads permission bits, ownership, and existence of sensitive files and directories |
 | `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
+| `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
 
 Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -110,6 +112,16 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Cron directories should not be world-writable (`FILE-005`).
 - `/etc/crontab` should be `644` or `600` and owned by root (`FILE-006`).
 - User SSH directories (`/home/*/.ssh`) should be `700` and user `authorized_keys` files should be `600` (`FILE-007`).
+
+### User Accounts
+
+- Only `root` should have UID 0; additional UID-0 accounts are flagged (`USER-001`).
+- Empty or unset password hashes are flagged; locked interactive accounts are flagged at lower severity (`USER-002`).
+- Password aging should enforce rotation via `PASS_MAX_DAYS <= 90`, `PASS_MIN_DAYS >= 1`, and `PASS_WARN_AGE >= 7` in `/etc/login.defs`, plus per-user shadow `max_days` checks (`USER-003`).
+- PAM password-stack should include a complexity module (`pam_pwquality.so`, `pam_cracklib.so`, or `pam_passwdqc.so`) (`USER-004`).
+- Inactive or locked interactive accounts (UID >= 1000) with expired account expiry dates are flagged (`USER-005`).
+- Each UID should be unique (`USER-006`).
+- Regular interactive accounts (UID >= 1000) should have an existing home directory (`USER-007`).
 
 ## How The Pipeline Works
 
@@ -215,6 +227,13 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | FILE-005 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | FILE-006 | CIS 6.1 — Configure System File Permissions | 6.1.4 — Ensure permissions on /etc/crontab are configured |
 | FILE-007 | CIS 5.2 — Use Unique Passwords | 5.2.4 — Ensure permissions on SSH public host key files are configured |
+| USER-001 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
+| USER-002 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
+| USER-003 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
+| USER-004 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
+| USER-005 | CIS 6.2 — Configure System Account Security | 6.2.5 — Ensure inactive accounts are locked or removed |
+| USER-006 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
+| USER-007 | CIS 6.2 — Configure System Account Security | 6.2.6 — Ensure all users' home directories exist |
 | FW-001 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.3 / 3.5.2.3 — Ensure default deny firewall policy |
 | FW-002 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
 | FW-003 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled |
@@ -263,6 +282,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [SshConfigScanner.cs](../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs)
 - [FilePermissionScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs)
 - [KernelHardeningScanner.cs](../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs)
+- [UserAccountScanner.cs](../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)

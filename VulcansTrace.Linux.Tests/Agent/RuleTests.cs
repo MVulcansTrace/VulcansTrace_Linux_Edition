@@ -1064,6 +1064,383 @@ public class RuleTests
     }
 
     // =====================================================================
+    // User Account Rules
+    // =====================================================================
+
+    [Fact]
+    public void UidZeroBeyondRootRule_ExtraUidZero_Fails()
+    {
+        var rule = new UidZeroBeyondRootRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "root", Uid = 0, Shell = "/bin/bash" }, new UserAccount { Username = "backdoor", Uid = 0, Shell = "/bin/bash" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void UidZeroBeyondRootRule_OnlyRoot_Passes()
+    {
+        var rule = new UidZeroBeyondRootRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "root", Uid = 0, Shell = "/bin/bash" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_EmptyHash_Fails()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_LockedInteractive_Fails()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "!!" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_SystemLocked_Passes()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "bin", Uid = 1, Shell = "/usr/sbin/nologin" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "bin", PasswordHash = "*" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_ValidHash_Passes()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "$6$rounds=5000$xyz$abc" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PasswordAgingRule_MaxDaysTooHigh_Fails()
+    {
+        var rule = new PasswordAgingRule();
+        var data = new ScanData
+        {
+            LoginDefs = new LoginDefs { Readable = true, PassMaxDays = 99999, PassMinDays = 1, PassWarnAge = 7 }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void PasswordAgingRule_MinDaysZero_Fails()
+    {
+        var rule = new PasswordAgingRule();
+        var data = new ScanData
+        {
+            LoginDefs = new LoginDefs { Readable = true, PassMaxDays = 90, PassMinDays = 0, PassWarnAge = 7 }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void PasswordAgingRule_WarnAgeLow_Fails()
+    {
+        var rule = new PasswordAgingRule();
+        var data = new ScanData
+        {
+            LoginDefs = new LoginDefs { Readable = true, PassMaxDays = 90, PassMinDays = 1, PassWarnAge = 3 }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void PasswordAgingRule_Valid_Passes()
+    {
+        var rule = new PasswordAgingRule();
+        var data = new ScanData
+        {
+            LoginDefs = new LoginDefs { Readable = true, PassMaxDays = 90, PassMinDays = 1, PassWarnAge = 7 }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PasswordAgingRule_ShadowMaxDaysHigh_Fails()
+    {
+        var rule = new PasswordAgingRule();
+        var data = new ScanData
+        {
+            LoginDefs = new LoginDefs { Readable = true, PassMaxDays = 90, PassMinDays = 1, PassWarnAge = 7 },
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", MaxDays = 99999 } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordComplexityRule_NoModule_Fails()
+    {
+        var rule = new PamPasswordComplexityRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig { Readable = true, RawLines = new[] { "password required pam_unix.so sha512" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordComplexityRule_Pwquality_Passes()
+    {
+        var rule = new PamPasswordComplexityRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig { Readable = true, RawLines = new[] { "password requisite pam_pwquality.so retry=3" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordComplexityRule_Cracklib_Passes()
+    {
+        var rule = new PamPasswordComplexityRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig { Readable = true, RawLines = new[] { "password required pam_cracklib.so difok=3" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordComplexityRule_MissingData_Passes()
+    {
+        var rule = new PamPasswordComplexityRule();
+        var data = new ScanData { PamConfig = null };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void InactiveAccountsRule_LockedInteractive_Fails()
+    {
+        var rule = new InactiveAccountsRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "!!" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void InactiveAccountsRule_Expired_Fails()
+    {
+        var rule = new InactiveAccountsRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "$6$xyz", ExpireDate = 1 } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void InactiveAccountsRule_Active_Passes()
+    {
+        var rule = new InactiveAccountsRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "alice", PasswordHash = "$6$xyz", ExpireDate = null } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void DuplicateUidsRule_Duplicate_Fails()
+    {
+        var rule = new DuplicateUidsRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[]
+            {
+                new UserAccount { Username = "alice", Uid = 1000 },
+                new UserAccount { Username = "bob", Uid = 1000 }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void DuplicateUidsRule_Unique_Passes()
+    {
+        var rule = new DuplicateUidsRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[]
+            {
+                new UserAccount { Username = "alice", Uid = 1000 },
+                new UserAccount { Username = "bob", Uid = 1001 }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void MissingHomeDirectoryRule_Missing_Fails()
+    {
+        var rule = new MissingHomeDirectoryRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash", HomeDirectory = "/nonexistent/home/alice", HomeDirectoryExists = false } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void MissingHomeDirectoryRule_Exists_Passes()
+    {
+        var rule = new MissingHomeDirectoryRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash", HomeDirectory = "/home/alice", HomeDirectoryExists = true } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_ShadowUnreadable_NotApplicable()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            Capabilities = new[] { new DataSourceCapability { SourceName = "shadow", Status = CapabilityStatus.PermissionLimited } },
+            UserAccounts = new[] { new UserAccount { Username = "alice", Uid = 1000, Shell = "/bin/bash" } },
+            ShadowEntries = Array.Empty<ShadowEntry>()
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void EmptyPasswordRule_RootEmptyPassword_Fails()
+    {
+        var rule = new EmptyPasswordRule();
+        var data = new ScanData
+        {
+            UserAccounts = new[] { new UserAccount { Username = "root", Uid = 0, Shell = "/bin/bash" } },
+            ShadowEntries = new[] { new ShadowEntry { Username = "root", PasswordHash = "" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void UserAccountRules_MissingData_Passes()
+    {
+        var data = new ScanData { UserAccounts = Array.Empty<UserAccount>(), ShadowEntries = Array.Empty<ShadowEntry>() };
+
+        Assert.True(new UidZeroBeyondRootRule().Evaluate(data).Passed);
+        Assert.True(new EmptyPasswordRule().Evaluate(data).Passed);
+        Assert.True(new PasswordAgingRule().Evaluate(data).Passed);
+        Assert.True(new PamPasswordComplexityRule().Evaluate(data).Passed);
+        Assert.True(new InactiveAccountsRule().Evaluate(data).Passed);
+        Assert.True(new DuplicateUidsRule().Evaluate(data).Passed);
+        Assert.True(new MissingHomeDirectoryRule().Evaluate(data).Passed);
+    }
+
+    // =====================================================================
     // CIS Benchmark Mapping
     // =====================================================================
 
@@ -1107,6 +1484,13 @@ public class RuleTests
     [InlineData(typeof(KernelModuleLoadingRestrictedRule), "CIS 1.4")]
     [InlineData(typeof(SecureBootEnabledRule), "CIS 1.4")]
     [InlineData(typeof(KernelPointerExposureRestrictedRule), "CIS 1.5")]
+    [InlineData(typeof(UidZeroBeyondRootRule), "CIS 6.2")]
+    [InlineData(typeof(EmptyPasswordRule), "CIS 5.4")]
+    [InlineData(typeof(PasswordAgingRule), "CIS 5.4")]
+    [InlineData(typeof(PamPasswordComplexityRule), "CIS 5.4")]
+    [InlineData(typeof(InactiveAccountsRule), "CIS 6.2")]
+    [InlineData(typeof(DuplicateUidsRule), "CIS 6.2")]
+    [InlineData(typeof(MissingHomeDirectoryRule), "CIS 6.2")]
     public void KeyRules_HaveCisMappings(Type ruleType, string expectedControlId)
     {
         var rule = (IRule)Activator.CreateInstance(ruleType)!;

@@ -90,8 +90,26 @@ Last updated: 2026-05-30
 - Added `RuleStatus.NotApplicable` for hardware-dependent checks that do not apply to the current system (e.g., Secure Boot on BIOS). `BuildSummary` reports not-applicable counts in the audit summary.
 - Code: `VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/KernelHardeningRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/kernel.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
 
+### Security Agent — User & Account Auditing
+- Added `UserAccountScanner` that reads `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configs (`common-password`, `system-auth`, `password-auth`, plus `/etc/security/pwquality.conf`). Note: only local files are scanned; LDAP/NIS/AD users are not covered.
+- Added `UserAccount`, `ShadowEntry`, `LoginDefs`, and `PamConfig` records to `ScanData`.
+- Added 7 user account rules (`USER-001` through `USER-007`) with dual-layer CIS compliance mappings:
+  - `USER-001` — Only root should have UID 0 (CIS 6.2)
+  - `USER-002` — Empty or unset password hashes flagged; locked interactive accounts flagged at lower severity (CIS 5.4)
+  - `USER-003` — Password aging enforces `PASS_MAX_DAYS <= 90`, `PASS_MIN_DAYS >= 1`, `PASS_WARN_AGE >= 7`, plus per-user shadow checks (CIS 5.4)
+  - `USER-004` — PAM password-stack must include a complexity module (`pam_pwquality.so`, `pam_cracklib.so`, or `pam_passwdqc.so`) (CIS 5.4)
+  - `USER-005` — Inactive or locked interactive accounts (UID >= 1000) with expired expiry dates flagged (CIS 6.2)
+  - `USER-006` — Each UID should be unique (CIS 6.2)
+  - `USER-007` — Regular interactive accounts should have an existing home directory (CIS 6.2)
+- `EmptyPasswordRule` returns `NotApplicable` when `/etc/shadow` is unreadable (non-root), matching `KERN-006` behavior.
+- `PamPasswordComplexityRule` only inspects PAM lines in the `password` management stack.
+- `MissingHomeDirectoryRule` uses pre-collected `HomeDirectoryExists` from the scanner instead of calling `Directory.Exists()` at evaluation time.
+- Added `AgentIntent.UserAccountCheck` and `QueryParser` keywords so users can ask "check my user accounts".
+- Added `useraccount.md` explanation template with remediation steps for all user account rules.
+- Code: `VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/UserAccountRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/useraccount.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 39 agent rules now carry dual-layer CIS compliance mappings:
+- All 46 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

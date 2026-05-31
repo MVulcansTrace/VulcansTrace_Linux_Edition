@@ -14,6 +14,7 @@
 | `SshCheck` | `How's my SSH hardening?` | SSH hardening rules |
 | `FilePermissionCheck` | `Check file permissions` | File permission posture rules |
 | `KernelCheck` | `Check my kernel hardening` | Kernel and system hardening posture rules |
+| `UserAccountCheck` | `Check my user accounts` | User account, password aging, and PAM posture rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
@@ -40,6 +41,7 @@
 | `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | `SshConfig` |
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | `FilePermissions` |
 | `KernelHardeningScanner` | `/proc/sys/*` reads, `sysctl -a` fallback, `mokutil --sb-state` | `KernelParameters` |
+| `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs, `/etc/security/pwquality.conf` | `UserAccounts`, `ShadowEntries`, `LoginDefs`, `PamConfig` |
 
 ---
 
@@ -54,9 +56,10 @@
 | SSH | root login, password auth, auth retries, protocol version, empty passwords, pubkey auth, X11 forwarding | 7/7 rules mapped to CIS 5.2 / 5.4 / 6.3 / 4.8 + Ubuntu 5.2.x |
 | FilePermission | shadow, passwd, SSH host keys, root SSH dir, cron world-writable, crontab, user SSH dirs | 7/7 rules mapped to CIS 5.2 / 6.1 + Ubuntu 5.2.x / 6.1.x |
 | Kernel | ASLR, IP forwarding, ICMP redirects, source routing, module loading, Secure Boot, pointer exposure | 7/7 rules mapped to CIS 1.4 / 1.5 / 3.1 + Ubuntu 1.4.x / 1.5.x / 3.1.x |
+| UserAccount | UID 0 beyond root, empty passwords, password aging, PAM complexity, inactive accounts, duplicate UIDs, missing home directories | 7/7 rules mapped to CIS 5.4 / 6.2 + Ubuntu 5.4.x / 6.2.x |
 
-All 39 rules carry dual-layer CIS mappings:
-- **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.3`, `CIS 13.3`
+All 46 rules carry dual-layer CIS mappings:
+- **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.2`, `CIS 6.3`, `CIS 13.3`
 - **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled`
 
 Mappings flow through full audits, single-rule explanations (`explain FW-001`), crash results, policy-disabled results, and all evidence export formats (CSV, HTML, Markdown, JSON, STIX).

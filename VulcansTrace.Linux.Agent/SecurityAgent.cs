@@ -1075,6 +1075,7 @@ public sealed class SecurityAgent : IAgent
         "ssh" or "sshd" => AgentIntent.SshCheck,
         "file" or "filepermission" or "permissions" => AgentIntent.FilePermissionCheck,
         "kernel" => AgentIntent.KernelCheck,
+        "user" or "useraccount" or "account" or "password" or "shadow" or "uid" or "pam" => AgentIntent.UserAccountCheck,
         _ => AgentIntent.Help
     };
 
@@ -1361,6 +1362,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.SshCheck => _rules.Where(r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.FilePermissionCheck => _rules.Where(r => r.Category.Equals("FilePermission", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.UserAccountCheck => _rules.Where(r => r.Category.Equals(FindingCategories.UserAccount, StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }
@@ -1382,6 +1384,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.SshCheck => "SSH check",
             AgentIntent.FilePermissionCheck => "File permission check",
             AgentIntent.KernelCheck => "Kernel check",
+            AgentIntent.UserAccountCheck => "User account check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
@@ -1512,6 +1515,7 @@ public sealed class SecurityAgent : IAgent
         "• \"Who am I talking to?\" (network connections)\n" +
         "• \"Check my ssh\" or \"How's my SSH hardening?\"\n" +
         "• \"Check file permissions\" or \"Are my sensitive files secure?\"\n" +
+        "• \"Check my user accounts\" or \"Are my passwords strong?\"\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
         "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +
         "\nFollow-up questions (after an audit):\n" +

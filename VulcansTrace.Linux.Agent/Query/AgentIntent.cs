@@ -29,6 +29,9 @@ public enum AgentIntent
     /// <summary>Focus on kernel and system hardening parameters.</summary>
     KernelCheck,
 
+    /// <summary>Focus on user accounts, passwords, and PAM configuration.</summary>
+    UserAccountCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

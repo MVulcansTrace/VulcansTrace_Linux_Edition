@@ -16,7 +16,7 @@ Documentation is organized for two audiences:
 ## System Capabilities
 
 - **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents, plus deterministic follow-ups such as "what changed since the last audit?" and "what should I fix first?"
-- **Live host scanning** — collects firewall, port, service, SSH daemon configuration, file permissions, kernel and system hardening parameters, interface, route, and connection state through local Linux commands
+- **Live host scanning** — collects firewall, port, service, SSH daemon configuration, file permissions, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, interface, route, and connection state through local Linux commands
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
 - **Rule-based posture checks** — evaluates firewall, port, service, SSH, file permission, kernel hardening, and network rules without external AI dependencies
 - **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides; the Avalonia UI includes a role dropdown for hot-swapping without code changes
@@ -48,7 +48,8 @@ Documentation is organized for two audiences:
 - [SshConfigScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs) — SSH daemon configuration collection
 - [FilePermissionScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs) — sensitive file and directory permission collection
 - [KernelHardeningScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs) — kernel and system hardening parameter collection
-- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, and kernel hardening checks
+- [UserAccountScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs) — local user account, shadow, password aging, and PAM configuration collection
+- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, kernel hardening, and user account checks
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [BaselineEntry.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs) — baseline snapshot with original findings

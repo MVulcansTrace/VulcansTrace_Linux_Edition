@@ -31,11 +31,15 @@ public sealed class ScanDataBuilder
     private readonly List<FilePermissionEntry> _filePermissions = new();
     private readonly List<string> _warnings = new();
     private readonly List<DataSourceCapability> _capabilities = new();
+    private readonly List<UserAccount> _userAccounts = new();
+    private readonly List<ShadowEntry> _shadowEntries = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
     private SshConfig? _sshConfig;
     private KernelParameters? _kernelParameters;
+    private LoginDefs? _loginDefs;
+    private PamConfig? _pamConfig;
 
     public string FirewallRaw
     {
@@ -104,6 +108,26 @@ public sealed class ScanDataBuilder
         lock (_lock) { _kernelParameters = parameters; }
     }
 
+    public void AddUserAccount(UserAccount account)
+    {
+        lock (_lock) { _userAccounts.Add(account); }
+    }
+
+    public void AddShadowEntry(ShadowEntry entry)
+    {
+        lock (_lock) { _shadowEntries.Add(entry); }
+    }
+
+    public void SetLoginDefs(LoginDefs defs)
+    {
+        lock (_lock) { _loginDefs = defs; }
+    }
+
+    public void SetPamConfig(PamConfig config)
+    {
+        lock (_lock) { _pamConfig = config; }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -122,7 +146,11 @@ public sealed class ScanDataBuilder
                 Warnings = _warnings.ToArray(),
                 Capabilities = _capabilities.ToArray(),
                 SshConfig = _sshConfig,
-                KernelParameters = _kernelParameters
+                KernelParameters = _kernelParameters,
+                UserAccounts = _userAccounts.ToArray(),
+                ShadowEntries = _shadowEntries.ToArray(),
+                LoginDefs = _loginDefs,
+                PamConfig = _pamConfig
             };
         }
     }

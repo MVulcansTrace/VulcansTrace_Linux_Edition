@@ -44,6 +44,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
 - Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands and rollback visibility.
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
+- User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, and missing home directories.
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.

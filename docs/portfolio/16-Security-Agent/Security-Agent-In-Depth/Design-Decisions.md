@@ -14,6 +14,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `NetworkScanner` knows how to collect interfaces, routes, and connections.
 - `FilePermissionScanner` knows how to read permission bits and ownership via `stat`.
 - `KernelHardeningScanner` knows how to read `/proc/sys` parameters and Secure Boot state.
+- `UserAccountScanner` knows how to read `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configuration.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.

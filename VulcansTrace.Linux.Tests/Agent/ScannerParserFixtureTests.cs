@@ -712,4 +712,92 @@ public class ScannerParserFixtureTests
 
         Assert.Contains(data.Capabilities, c => c.SourceName == "stat");
     }
+
+    // =====================================================================
+    // UserAccountScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void UserAccountScanner_ParsePasswdLine_ValidLine_ReturnsAccount()
+    {
+        var account = UserAccountScanner.ParsePasswdLine("alice:x:1000:1000:Alice Smith:/home/alice:/bin/bash");
+
+        Assert.NotNull(account);
+        Assert.Equal("alice", account.Username);
+        Assert.Equal(1000, account.Uid);
+        Assert.Equal(1000, account.Gid);
+        Assert.Equal("Alice Smith", account.Gecos);
+        Assert.Equal("/home/alice", account.HomeDirectory);
+        Assert.Equal("/bin/bash", account.Shell);
+    }
+
+    [Fact]
+    public void UserAccountScanner_ParsePasswdLine_TooFewParts_ReturnsNull()
+    {
+        var account = UserAccountScanner.ParsePasswdLine("alice:x:1000");
+        Assert.Null(account);
+    }
+
+    [Fact]
+    public void UserAccountScanner_ParseShadowLine_ValidLine_ReturnsEntry()
+    {
+        var entry = UserAccountScanner.ParseShadowLine("alice:$6$rounds=5000$xyz$abc:19800:1:90:7:30::");
+
+        Assert.NotNull(entry);
+        Assert.Equal("alice", entry.Username);
+        Assert.Equal("$6$rounds=5000$xyz$abc", entry.PasswordHash);
+        Assert.Equal(19800, entry.LastChange);
+        Assert.Equal(1, entry.MinDays);
+        Assert.Equal(90, entry.MaxDays);
+        Assert.Equal(7, entry.WarnDays);
+        Assert.Equal(30, entry.InactiveDays);
+        Assert.Null(entry.ExpireDate);
+    }
+
+    [Fact]
+    public void UserAccountScanner_ParseShadowLine_EmptyExpiry_ReturnsEntry()
+    {
+        var entry = UserAccountScanner.ParseShadowLine("bin:*:19800:0:99999:7:::");
+
+        Assert.NotNull(entry);
+        Assert.Equal("bin", entry.Username);
+        Assert.Equal("*", entry.PasswordHash);
+        Assert.Equal(0, entry.MinDays);
+        Assert.Equal(99999, entry.MaxDays);
+        Assert.Null(entry.ExpireDate);
+    }
+
+    [Fact]
+    public void UserAccountScanner_ParseLoginDefs_ExtractsValues()
+    {
+        var lines = new[]
+        {
+            "# Comment line",
+            "PASS_MAX_DAYS   90",
+            "PASS_MIN_DAYS\t1",
+            "PASS_MIN_LEN    14",
+            "PASS_WARN_AGE   7",
+            "ENCRYPT_METHOD  SHA512"
+        };
+
+        var defs = UserAccountScanner.ParseLoginDefs(lines);
+
+        Assert.True(defs.Readable);
+        Assert.Equal(90, defs.PassMaxDays);
+        Assert.Equal(1, defs.PassMinDays);
+        Assert.Equal(14, defs.PassMinLen);
+        Assert.Equal(7, defs.PassWarnAge);
+        Assert.Equal("SHA512", defs.EncryptMethod);
+    }
+
+    [Fact]
+    public async Task UserAccountScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new UserAccountScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "passwd");
+    }
 }
