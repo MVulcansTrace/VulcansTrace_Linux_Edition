@@ -108,8 +108,24 @@ Last updated: 2026-05-30
 - Added `useraccount.md` explanation template with remediation steps for all user account rules.
 - Code: `VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/UserAccountRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/useraccount.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
 
+### Security Agent — Filesystem Auditing
+- Added `FilesystemAuditScanner` that runs targeted `find` commands to discover world-writable files, SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount options.
+- Added 5 filesystem audit rules (`FSYS-001` through `FSYS-005`) with dual-layer CIS compliance mappings:
+  - `FSYS-001` — World-writable files outside expected temporary paths (CIS 6.1.9)
+  - `FSYS-002` — Unexpected SUID/SGID binaries outside the known-good full-path whitelist (CIS 6.1.12)
+  - `FSYS-003` — Unowned files (no valid user or group) (CIS 6.1.11)
+  - `FSYS-004` — World-writable directories without sticky bit (CIS 6.1.10)
+  - `FSYS-005` — `/tmp` should be a separate mount with `noexec`, `nosuid`, and `nodev` (CIS 1.1.2)
+- `AgentIntent.FilesystemAuditCheck` and `QueryParser` keywords so users can ask "check my filesystem" or "any SUID binaries?".
+- Added `FilesystemAuditEntry` record to `ScanData` with `Path`, `Mode`, `Owner`, `Group`, and `AuditCategory`.
+- Added `TmpMountOptions` and `TmpMountTarget` to `ScanData` for `/tmp` mount analysis.
+- SUID whitelist uses **full paths** (not filenames) to prevent bypass by naming a backdoor after a whitelisted binary.
+- Fingerprints are stable: rules sort findings by path and use the first path only in `Target`, with count in `Variables`.
+- Added `filesystemaudit.md` explanation template with remediation steps for all filesystem audit rules.
+- Code: `VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/FilesystemAuditRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/filesystemaudit.md`, `VulcansTrace.Linux.Agent/Scanners/ScanData.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 46 agent rules now carry dual-layer CIS compliance mappings:
+- All 51 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

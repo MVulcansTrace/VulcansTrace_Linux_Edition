@@ -17,7 +17,8 @@ public sealed class QueryParser : IQueryParser
         (new[] { "service", "running", "daemon", "systemctl", "unit" }, AgentIntent.ServiceCheck, 2),
         (new[] { "port", "open", "listening", "ss", "netstat" }, AgentIntent.PortCheck, 2),
         (new[] { "ssh", "sshd", "ssh config", "ssh hardening", "permitrootlogin", "passwordauthentication" }, AgentIntent.SshCheck, 2),
-        (new[] { "file permission", "permissions", "filepermission", "chmod", "chown", "shadow", "passwd" }, AgentIntent.FilePermissionCheck, 2),
+        (new[] { "file permission", "permission", "permissions", "filepermission", "chmod", "chown", "shadow", "passwd" }, AgentIntent.FilePermissionCheck, 2),
+        (new[] { "filesystem", "world-writable", "suid", "sgid", "sticky bit", "unowned", "tmp hardening" }, AgentIntent.FilesystemAuditCheck, 2),
         (new[] { "kernel", "sysctl", "hardening", "aslr", "secure boot", "module loading", "ip forward", "icmp redirect" }, AgentIntent.KernelCheck, 2),
         (new[] { "user", "account", "password", "passwd", "shadow", "uid", "pam", "login.defs", "pwquality" }, AgentIntent.UserAccountCheck, 2),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
@@ -37,7 +38,7 @@ public sealed class QueryParser : IQueryParser
 
     private static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "kernel", "user", "account", "password", "uid", "pam"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam"
     };
 
     /// <inheritdoc />

@@ -98,6 +98,21 @@ The Security Agent can audit sensitive file and directory permissions without pa
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain FILE-001`.
 
+## Security Agent — Filesystem Audit
+
+The Security Agent can audit the broader filesystem for dangerous permission patterns without pasting a log:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my filesystem`
+3. The agent runs `FilesystemAuditScanner` and evaluates rules for:
+   - World-writable files outside `/tmp`, `/var/tmp`, `/dev/shm`, and other expected paths (`FSYS-001`)
+   - Unexpected SUID/SGID binaries not matching the known-good full-path whitelist (`FSYS-002`)
+   - Unowned files (no valid user or group) (`FSYS-003`)
+   - World-writable directories without the sticky bit (`FSYS-004`)
+   - `/tmp` mounted as a separate partition with `noexec`, `nosuid`, and `nodev` (`FSYS-005`)
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain FSYS-002`.
+
 ## Security Agent — User Account Audit
 
 The Security Agent audits local user accounts, password aging, and PAM configuration without pasting a log:

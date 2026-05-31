@@ -53,7 +53,12 @@ public class RuleCatalogTests
         new PamPasswordComplexityRule(),
         new InactiveAccountsRule(),
         new DuplicateUidsRule(),
-        new MissingHomeDirectoryRule()
+        new MissingHomeDirectoryRule(),
+        new WorldWritableFileRule(),
+        new UnexpectedSuidSgidRule(),
+        new UnownedFileRule(),
+        new WorldWritableDirNoStickyRule(),
+        new TmpHardeningRule()
     };
 
     [Fact]
@@ -61,7 +66,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(46, catalog.Items.Count);
+        Assert.Equal(51, catalog.Items.Count);
     }
 
     [Fact]
@@ -88,6 +93,7 @@ public class RuleCatalogTests
     [InlineData("SRV-0", 5)]
     [InlineData("SSH-0", 7)]
     [InlineData("FILE-0", 7)]
+    [InlineData("FSYS-0", 5)]
     [InlineData("KERN-0", 7)]
     [InlineData("USER-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
@@ -114,7 +120,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(46, results.Count);
+        Assert.Equal(51, results.Count);
     }
 
     [Fact]
@@ -159,6 +165,11 @@ public class RuleCatalogTests
     [InlineData("FILE-005", "CIS 6.1")]
     [InlineData("FILE-006", "CIS 6.1")]
     [InlineData("FILE-007", "CIS 5.2")]
+    [InlineData("FSYS-001", "CIS 6.1.9")]
+    [InlineData("FSYS-002", "CIS 6.1.12")]
+    [InlineData("FSYS-003", "CIS 6.1.11")]
+    [InlineData("FSYS-004", "CIS 6.1.10")]
+    [InlineData("FSYS-005", "CIS 1.1.2")]
     [InlineData("KERN-001", "CIS 1.5")]
     [InlineData("KERN-002", "CIS 3.1")]
     [InlineData("KERN-003", "CIS 3.1")]

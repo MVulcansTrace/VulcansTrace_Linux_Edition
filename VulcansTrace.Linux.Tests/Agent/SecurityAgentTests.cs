@@ -358,6 +358,7 @@ public class SecurityAgentTests
             new NetworkScanner(),
             new SshConfigScanner(),
             new FilePermissionScanner(),
+            new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
             new UserAccountScanner()
         };
@@ -376,6 +377,11 @@ public class SecurityAgentTests
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
             new UserSshDirectoryPermissionRule(),
+            new WorldWritableFileRule(),
+            new UnexpectedSuidSgidRule(),
+            new UnownedFileRule(),
+            new WorldWritableDirNoStickyRule(),
+            new TmpHardeningRule(),
             new AslrEnabledRule(),
             new IpForwardingDisabledRule(),
             new IcmpRedirectsDisabledRule(),

@@ -47,9 +47,10 @@ Documentation is organized for two audiences:
 - [NetworkScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs) — interface, route, and connection collection
 - [SshConfigScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs) — SSH daemon configuration collection
 - [FilePermissionScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs) — sensitive file and directory permission collection
+- [FilesystemAuditScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs) — filesystem permission anomaly collection
 - [KernelHardeningScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs) — kernel and system hardening parameter collection
 - [UserAccountScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs) — local user account, shadow, password aging, and PAM configuration collection
-- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, kernel hardening, and user account checks
+- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, filesystem audit, kernel hardening, and user account checks
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [BaselineEntry.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs) — baseline snapshot with original findings

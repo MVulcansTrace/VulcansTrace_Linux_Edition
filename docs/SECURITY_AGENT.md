@@ -19,6 +19,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
 | `Check my SSH` | `SshCheck` | Reviews SSH daemon hardening configuration |
 | `Check file permissions` | `FilePermissionCheck` | Reviews sensitive file and directory permissions |
+| `Check my filesystem` | `FilesystemAuditCheck` | Reviews world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, and /tmp mount hardening |
 | `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
 | `Check my user accounts` | `UserAccountCheck` | Reviews user accounts, password aging, PAM complexity, and shadow entries |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
@@ -46,6 +47,7 @@ The agent reads local host state using common Linux tools:
 | `NetworkScanner` | `ip addr`, `ip route`, `ss -tunap` | Reads interfaces, routes, and active connections |
 | `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | Reads SSH daemon hardening directives |
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | Reads permission bits, ownership, and existence of sensitive files and directories |
+| `FilesystemAuditScanner` | `find / -xdev … -exec stat …` | Discovers world-writable files, SUID/SGID binaries, unowned files, world-writable dirs without sticky bit, and /tmp mount options |
 | `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
 
@@ -112,6 +114,14 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Cron directories should not be world-writable (`FILE-005`).
 - `/etc/crontab` should be `644` or `600` and owned by root (`FILE-006`).
 - User SSH directories (`/home/*/.ssh`) should be `700` and user `authorized_keys` files should be `600` (`FILE-007`).
+
+### Filesystem Audit
+
+- World-writable files outside expected temporary paths (`/tmp`, `/var/tmp`, `/dev/shm`, `/var/cache`, `/var/spool`) are flagged (`FSYS-001`).
+- SUID/SGID binaries that do not match the known-good full-path whitelist are flagged (`FSYS-002`).
+- Files with no valid owner or group are flagged (`FSYS-003`).
+- World-writable directories without the sticky bit are flagged (`FSYS-004`).
+- `/tmp` should be a separate mount with `noexec`, `nosuid`, and `nodev` options (`FSYS-005`).
 
 ### User Accounts
 
@@ -227,6 +237,11 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | FILE-005 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | FILE-006 | CIS 6.1 — Configure System File Permissions | 6.1.4 — Ensure permissions on /etc/crontab are configured |
 | FILE-007 | CIS 5.2 — Use Unique Passwords | 5.2.4 — Ensure permissions on SSH public host key files are configured |
+| FSYS-001 | CIS 6.1.9 — Ensure no world writable files exist | 6.1.9 — Ensure no world writable files exist |
+| FSYS-002 | CIS 6.1.12 — Ensure SUID and SGID files are reviewed | 6.1.12 — Ensure SUID and SGID files are reviewed |
+| FSYS-003 | CIS 6.1.11 — Ensure no unowned files or directories exist | 6.1.11 — Ensure no unowned files or directories exist |
+| FSYS-004 | CIS 6.1.10 — Ensure sticky bit is set on all world-writable directories | 6.1.10 — Ensure sticky bit is set on all world-writable directories |
+| FSYS-005 | CIS 1.1.2 — Configure /tmp | 1.1.2.2-4 — Ensure nodev, nosuid, noexec options set on /tmp partition |
 | USER-001 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
 | USER-002 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
 | USER-003 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
@@ -281,6 +296,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [NetworkScanner.cs](../VulcansTrace.Linux.Agent/Scanners/NetworkScanner.cs)
 - [SshConfigScanner.cs](../VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs)
 - [FilePermissionScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs)
+- [FilesystemAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs)
 - [KernelHardeningScanner.cs](../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs)
 - [UserAccountScanner.cs](../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)

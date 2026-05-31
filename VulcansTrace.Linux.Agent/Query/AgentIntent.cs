@@ -26,6 +26,9 @@ public enum AgentIntent
     /// <summary>Focus on sensitive file and directory permissions.</summary>
     FilePermissionCheck,
 
+    /// <summary>Focus on filesystem audit findings (world-writable files, SUID/SGID, unowned files, sticky bit, /tmp hardening).</summary>
+    FilesystemAuditCheck,
+
     /// <summary>Focus on kernel and system hardening parameters.</summary>
     KernelCheck,
 

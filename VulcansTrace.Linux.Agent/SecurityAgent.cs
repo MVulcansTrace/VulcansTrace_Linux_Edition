@@ -1074,6 +1074,7 @@ public sealed class SecurityAgent : IAgent
         "port" => AgentIntent.PortCheck,
         "ssh" or "sshd" => AgentIntent.SshCheck,
         "file" or "filepermission" or "permissions" => AgentIntent.FilePermissionCheck,
+        "filesystem" or "suid" or "sgid" or "world-writable" or "sticky" or "unowned" => AgentIntent.FilesystemAuditCheck,
         "kernel" => AgentIntent.KernelCheck,
         "user" or "useraccount" or "account" or "password" or "shadow" or "uid" or "pam" => AgentIntent.UserAccountCheck,
         _ => AgentIntent.Help
@@ -1361,6 +1362,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.PortCheck => _rules.Where(r => r.Category.Equals("Port", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.SshCheck => _rules.Where(r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.FilePermissionCheck => _rules.Where(r => r.Category.Equals("FilePermission", StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.FilesystemAuditCheck => _rules.Where(r => r.Category.Equals(FindingCategories.FilesystemAudit, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.UserAccountCheck => _rules.Where(r => r.Category.Equals(FindingCategories.UserAccount, StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
@@ -1383,6 +1385,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.PortCheck => "Port check",
             AgentIntent.SshCheck => "SSH check",
             AgentIntent.FilePermissionCheck => "File permission check",
+            AgentIntent.FilesystemAuditCheck => "Filesystem audit check",
             AgentIntent.KernelCheck => "Kernel check",
             AgentIntent.UserAccountCheck => "User account check",
             AgentIntent.ExplainFinding => "Finding explanation",
@@ -1515,6 +1518,7 @@ public sealed class SecurityAgent : IAgent
         "• \"Who am I talking to?\" (network connections)\n" +
         "• \"Check my ssh\" or \"How's my SSH hardening?\"\n" +
         "• \"Check file permissions\" or \"Are my sensitive files secure?\"\n" +
+        "• \"Check my filesystem\" or \"Any SUID binaries?\" or \"World-writable files?\"\n" +
         "• \"Check my user accounts\" or \"Are my passwords strong?\"\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
         "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +

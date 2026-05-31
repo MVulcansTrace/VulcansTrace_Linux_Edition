@@ -800,4 +800,23 @@ public class ScannerParserFixtureTests
 
         Assert.Contains(data.Capabilities, c => c.SourceName == "passwd");
     }
+
+    // =====================================================================
+    // FilesystemAuditScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public async Task FilesystemAuditScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new FilesystemAuditScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "find-world-writable-files");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "find-suid-sgid");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "find-unowned-files");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "find-world-writable-dirs");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "findmnt-tmp");
+    }
 }

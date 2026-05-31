@@ -78,6 +78,7 @@ public static class AgentFactory
             new NetworkScanner(),
             new SshConfigScanner(),
             new FilePermissionScanner(),
+            new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
             new UserAccountScanner()
         };
@@ -116,6 +117,11 @@ public static class AgentFactory
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
             new UserSshDirectoryPermissionRule(),
+            new WorldWritableFileRule(),
+            new UnexpectedSuidSgidRule(),
+            new UnownedFileRule(),
+            new WorldWritableDirNoStickyRule(),
+            new TmpHardeningRule(),
             new AslrEnabledRule(),
             new IpForwardingDisabledRule(),
             new IcmpRedirectsDisabledRule(),

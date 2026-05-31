@@ -13,6 +13,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `ServiceScanner` knows how to read running systemd services.
 - `NetworkScanner` knows how to collect interfaces, routes, and connections.
 - `FilePermissionScanner` knows how to read permission bits and ownership via `stat`.
+- `FilesystemAuditScanner` knows how to run targeted `find` commands for world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, and `/tmp` mount options.
 - `KernelHardeningScanner` knows how to read `/proc/sys` parameters and Secure Boot state.
 - `UserAccountScanner` knows how to read `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configuration.
 - Rules only consume `ScanData`.

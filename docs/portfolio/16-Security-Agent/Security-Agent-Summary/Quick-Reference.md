@@ -13,6 +13,7 @@
 | `PortCheck` | `What ports are open?` | Port rules |
 | `SshCheck` | `How's my SSH hardening?` | SSH hardening rules |
 | `FilePermissionCheck` | `Check file permissions` | File permission posture rules |
+| `FilesystemAuditCheck` | `Check my filesystem` | Filesystem audit rules (world-writable files, SUID/SGID, unowned files, sticky bit, /tmp hardening) |
 | `KernelCheck` | `Check my kernel hardening` | Kernel and system hardening posture rules |
 | `UserAccountCheck` | `Check my user accounts` | User account, password aging, and PAM posture rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
@@ -40,6 +41,7 @@
 | `NetworkScanner` | `ip addr`, `ip route`, `ss -tunap` | `NetworkInterfaces`, `Routes`, `ActiveConnections` |
 | `SshConfigScanner` | `sshd -T`, fallback `/etc/ssh/sshd_config` + includes | `SshConfig` |
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | `FilePermissions` |
+| `FilesystemAuditScanner` | `find / -xdev … -exec stat …`, `findmnt /tmp` | `FilesystemAudits`, `TmpMountOptions`, `TmpMountTarget` |
 | `KernelHardeningScanner` | `/proc/sys/*` reads, `sysctl -a` fallback, `mokutil --sb-state` | `KernelParameters` |
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs, `/etc/security/pwquality.conf` | `UserAccounts`, `ShadowEntries`, `LoginDefs`, `PamConfig` |
 
@@ -55,10 +57,11 @@
 | Network | default route, suspicious outbound connections, interface state, loopback exposure | 4/4 rules mapped to CIS 4.1 / 13.3 + Ubuntu 3.5.x |
 | SSH | root login, password auth, auth retries, protocol version, empty passwords, pubkey auth, X11 forwarding | 7/7 rules mapped to CIS 5.2 / 5.4 / 6.3 / 4.8 + Ubuntu 5.2.x |
 | FilePermission | shadow, passwd, SSH host keys, root SSH dir, cron world-writable, crontab, user SSH dirs | 7/7 rules mapped to CIS 5.2 / 6.1 + Ubuntu 5.2.x / 6.1.x |
+| FilesystemAudit | world-writable files, SUID/SGID binaries, unowned files, sticky-bit dirs, /tmp mount hardening | 5/5 rules mapped to CIS 1.1.2 / 6.1.9-12 + Ubuntu 1.1.2.x / 6.1.9-12 |
 | Kernel | ASLR, IP forwarding, ICMP redirects, source routing, module loading, Secure Boot, pointer exposure | 7/7 rules mapped to CIS 1.4 / 1.5 / 3.1 + Ubuntu 1.4.x / 1.5.x / 3.1.x |
 | UserAccount | UID 0 beyond root, empty passwords, password aging, PAM complexity, inactive accounts, duplicate UIDs, missing home directories | 7/7 rules mapped to CIS 5.4 / 6.2 + Ubuntu 5.4.x / 6.2.x |
 
-All 46 rules carry dual-layer CIS mappings:
+All 51 rules carry dual-layer CIS mappings:
 - **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.2`, `CIS 6.3`, `CIS 13.3`
 - **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled`
 
@@ -99,7 +102,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, kernel hardening, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |

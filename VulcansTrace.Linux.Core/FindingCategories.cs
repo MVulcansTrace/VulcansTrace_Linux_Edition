@@ -16,4 +16,5 @@ public static class FindingCategories
     public const string C2Channel = "C2Channel";
     public const string PrivilegeEscalation = "PrivilegeEscalation";
     public const string UserAccount = "UserAccount";
+    public const string FilesystemAudit = "FilesystemAudit";
 }

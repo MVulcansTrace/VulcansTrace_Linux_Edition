@@ -28,6 +28,8 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Who am I talking to?`
 - `Check my SSH`
 - `Check file permissions`
+- `Check my filesystem`
+- `Any SUID binaries?`
 - `Check my kernel hardening`
 - `Check my user accounts`
 - `Explain FW-001`
@@ -40,6 +42,7 @@ After an audit, you can also ask follow-up questions without re-running scans:
 - `Show only firewall issues`
 - `Show only kernel issues`
 - `Show only file permission issues`
+- `Show only filesystem issues`
 - `Show only user account issues`
 - `What should I fix first?`
 - `Fix FW-001` — interactive, step-by-step guided remediation for a specific finding
@@ -53,7 +56,7 @@ The agent can snapshot a "known good" baseline and continuously monitor for drif
 - **`Check drift`** — re-runs the audit for the baseline's intent and compares live findings against the saved snapshot. Drift results show new and worsened findings as actionable `Drift` entries, with a narrative summary. The user's previous audit context is preserved so follow-up questions still work.
 - **`Show baseline`** — displays the saved baseline findings with their original details, categories, and fingerprints preserved.
 
-Baselines are intent-scoped: you can have one active baseline per intent (FullAudit, FirewallCheck, SSHCheck, FilePermissionCheck, KernelCheck, UserAccountCheck, etc.). Setting a new baseline for an intent automatically activates it and deactivates any previous baseline for that same intent. Baseline names default to `Intent-Timestamp` but can be customized when set via chat (`set baseline MyName`).
+Baselines are intent-scoped: you can have one active baseline per intent (FullAudit, FirewallCheck, SSHCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, etc.). Setting a new baseline for an intent automatically activates it and deactivates any previous baseline for that same intent. Baseline names default to `Intent-Timestamp` but can be customized when set via chat (`set baseline MyName`).
 
 The panel also includes quick-action buttons for common audits (full audit, firewall, ports, services, network, SSH, file permissions, kernel hardening), selected-finding explanation, exporting the latest agent audit through the shared evidence ZIP workflow, exporting a review-only remediation plan, and comparing either the latest two audits or two selected history entries. Remediation exports include preconditions, backup commands, apply commands, rollback commands or hints, and verification commands; risky or unclassified apply/backup commands must have explicit rollback guidance before the plan can be exported. Audit comparisons open with a deterministic narrative summary of what changed before the detailed counts and match findings by stable fingerprint, with rule-ID/target fallback for older history entries. Audit history is persisted when possible and keeps the latest 50 lightweight snapshots by default. Agent audit findings are loaded into the main findings grid, where they can be selected for explanation or marked as accepted risk. The Coverage tab shows passed, active failed, suppressed, and crashed rule checks by category after an agent audit. The chat shows a data-source capability report for local scanner inputs such as iptables, nftables, ss, netstat, ip, systemctl, and sshd, including permission-limited sources. Accepted-risk suppressions are fingerprint-scoped when possible and can be set for 7, 30, or 90 days, or permanently; expired suppressions stop applying immediately, remain visible in the suppression review queue for 30 days, and are then pruned during audits. Legacy suppressions without fingerprints still match by rule ID and target. Suppressions are persisted when possible; if persistence is unavailable, the UI reports that suppressions are session-only.
 

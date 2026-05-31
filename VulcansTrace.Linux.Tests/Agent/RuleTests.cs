@@ -1533,4 +1533,178 @@ public class RuleTests
         Assert.NotEmpty(result.CisMappings);
         Assert.Equal(rule.CisMappings, result.CisMappings);
     }
+
+    // =====================================================================
+    // Filesystem Audit Rules
+    // =====================================================================
+
+    [Fact]
+    public void WorldWritableFileRule_NoFiles_Passes()
+    {
+        var rule = new WorldWritableFileRule();
+        var data = new ScanData { FilesystemAudits = Array.Empty<FilesystemAuditEntry>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void WorldWritableFileRule_FilesFound_Fails()
+    {
+        var rule = new WorldWritableFileRule();
+        var data = new ScanData
+        {
+            FilesystemAudits = new[]
+            {
+                new FilesystemAuditEntry { Path = "/opt/app/data.txt", Mode = "666", Owner = "root", Group = "root", AuditCategory = "WorldWritableFile" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void UnexpectedSuidSgidRule_ExpectedOnly_Passes()
+    {
+        var rule = new UnexpectedSuidSgidRule();
+        var data = new ScanData
+        {
+            FilesystemAudits = new[]
+            {
+                new FilesystemAuditEntry { Path = "/usr/bin/sudo", Mode = "4755", Owner = "root", Group = "root", AuditCategory = "SuidBinary" },
+                new FilesystemAuditEntry { Path = "/usr/bin/passwd", Mode = "4755", Owner = "root", Group = "root", AuditCategory = "SuidBinary" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void UnexpectedSuidSgidRule_UnexpectedFound_Fails()
+    {
+        var rule = new UnexpectedSuidSgidRule();
+        var data = new ScanData
+        {
+            FilesystemAudits = new[]
+            {
+                new FilesystemAuditEntry { Path = "/usr/bin/sudo", Mode = "4755", Owner = "root", Group = "root", AuditCategory = "SuidBinary" },
+                new FilesystemAuditEntry { Path = "/tmp/backdoor", Mode = "4755", Owner = "root", Group = "root", AuditCategory = "SuidBinary" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void UnownedFileRule_None_Passes()
+    {
+        var rule = new UnownedFileRule();
+        var data = new ScanData { FilesystemAudits = Array.Empty<FilesystemAuditEntry>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void UnownedFileRule_Found_Fails()
+    {
+        var rule = new UnownedFileRule();
+        var data = new ScanData
+        {
+            FilesystemAudits = new[]
+            {
+                new FilesystemAuditEntry { Path = "/opt/orphan.log", Mode = "644", Owner = "9999", Group = "9999", AuditCategory = "UnownedFile" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void WorldWritableDirNoStickyRule_None_Passes()
+    {
+        var rule = new WorldWritableDirNoStickyRule();
+        var data = new ScanData { FilesystemAudits = Array.Empty<FilesystemAuditEntry>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void WorldWritableDirNoStickyRule_Found_Fails()
+    {
+        var rule = new WorldWritableDirNoStickyRule();
+        var data = new ScanData
+        {
+            FilesystemAudits = new[]
+            {
+                new FilesystemAuditEntry { Path = "/opt/shared", Mode = "777", Owner = "root", Group = "root", AuditCategory = "WorldWritableDirNoSticky" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void TmpHardeningRule_AllOptions_Passes()
+    {
+        var rule = new TmpHardeningRule();
+        var data = new ScanData { TmpMountOptions = "rw,noexec,nosuid,nodev,relatime" };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void TmpHardeningRule_MissingOptions_Fails()
+    {
+        var rule = new TmpHardeningRule();
+        var data = new ScanData { TmpMountOptions = "rw,relatime" };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void TmpHardeningRule_NoData_Passes()
+    {
+        var rule = new TmpHardeningRule();
+        var data = new ScanData { TmpMountOptions = string.Empty };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void FilesystemAuditRules_MissingData_Passes()
+    {
+        var data = new ScanData { FilesystemAudits = Array.Empty<FilesystemAuditEntry>(), TmpMountOptions = string.Empty };
+
+        Assert.True(new WorldWritableFileRule().Evaluate(data).Passed);
+        Assert.True(new UnexpectedSuidSgidRule().Evaluate(data).Passed);
+        Assert.True(new UnownedFileRule().Evaluate(data).Passed);
+        Assert.True(new WorldWritableDirNoStickyRule().Evaluate(data).Passed);
+        Assert.True(new TmpHardeningRule().Evaluate(data).Passed);
+    }
 }

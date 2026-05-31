@@ -29,6 +29,7 @@ public sealed class ScanDataBuilder
     private readonly List<RouteEntry> _routes = new();
     private readonly List<ActiveConnection> _activeConnections = new();
     private readonly List<FilePermissionEntry> _filePermissions = new();
+    private readonly List<FilesystemAuditEntry> _filesystemAudits = new();
     private readonly List<string> _warnings = new();
     private readonly List<DataSourceCapability> _capabilities = new();
     private readonly List<UserAccount> _userAccounts = new();
@@ -38,6 +39,8 @@ public sealed class ScanDataBuilder
     private bool _firewallActive;
     private SshConfig? _sshConfig;
     private KernelParameters? _kernelParameters;
+    private string _tmpMountOptions = string.Empty;
+    private string _tmpMountTarget = string.Empty;
     private LoginDefs? _loginDefs;
     private PamConfig? _pamConfig;
 
@@ -86,6 +89,21 @@ public sealed class ScanDataBuilder
     public void AddFilePermission(FilePermissionEntry entry)
     {
         lock (_lock) { _filePermissions.Add(entry); }
+    }
+
+    public void AddFilesystemAudit(FilesystemAuditEntry entry)
+    {
+        lock (_lock) { _filesystemAudits.Add(entry); }
+    }
+
+    public void SetTmpMountOptions(string options)
+    {
+        lock (_lock) { _tmpMountOptions = options; }
+    }
+
+    public void SetTmpMountTarget(string target)
+    {
+        lock (_lock) { _tmpMountTarget = target; }
     }
 
     public void AddWarning(string warning)
@@ -143,6 +161,9 @@ public sealed class ScanDataBuilder
                 Routes = _routes.ToArray(),
                 ActiveConnections = _activeConnections.ToArray(),
                 FilePermissions = _filePermissions.ToArray(),
+                FilesystemAudits = _filesystemAudits.ToArray(),
+                TmpMountOptions = _tmpMountOptions,
+                TmpMountTarget = _tmpMountTarget,
                 Warnings = _warnings.ToArray(),
                 Capabilities = _capabilities.ToArray(),
                 SshConfig = _sshConfig,

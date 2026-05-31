@@ -45,6 +45,15 @@ public sealed record ScanData
     /// <summary>Kernel and system hardening parameters.</summary>
     public KernelParameters? KernelParameters { get; init; }
 
+    /// <summary>Filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, etc.).</summary>
+    public IReadOnlyList<FilesystemAuditEntry> FilesystemAudits { get; init; } = Array.Empty<FilesystemAuditEntry>();
+
+    /// <summary>Mount options for /tmp (comma-separated).</summary>
+    public string TmpMountOptions { get; init; } = string.Empty;
+
+    /// <summary>Mount target for /tmp (e.g. "/tmp" if separate mount, "/" if on root filesystem).</summary>
+    public string TmpMountTarget { get; init; } = string.Empty;
+
     /// <summary>Local user accounts from /etc/passwd.</summary>
     public IReadOnlyList<UserAccount> UserAccounts { get; init; } = Array.Empty<UserAccount>();
 
@@ -194,6 +203,25 @@ public sealed record FilePermissionEntry
 
     /// <summary>Whether the path exists.</summary>
     public bool Exists { get; init; }
+}
+
+/// <summary>Filesystem audit entry for world-writable files, SUID/SGID binaries, unowned files, etc.</summary>
+public sealed record FilesystemAuditEntry
+{
+    /// <summary>Absolute path to the file or directory.</summary>
+    public string Path { get; init; } = string.Empty;
+
+    /// <summary>Octal permission mode (e.g. "4755").</summary>
+    public string Mode { get; init; } = string.Empty;
+
+    /// <summary>File owner username or UID.</summary>
+    public string Owner { get; init; } = string.Empty;
+
+    /// <summary>File group name or GID.</summary>
+    public string Group { get; init; } = string.Empty;
+
+    /// <summary>Audit category (e.g. "WorldWritableFile", "SuidBinary", "SgidBinary", "UnownedFile", "WorldWritableDirNoSticky").</summary>
+    public string AuditCategory { get; init; } = string.Empty;
 }
 
 /// <summary>Kernel and system hardening parameters read from /proc/sys and EFI variables.</summary>
