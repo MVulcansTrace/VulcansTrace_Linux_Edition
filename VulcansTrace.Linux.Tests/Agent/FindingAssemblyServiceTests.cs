@@ -94,6 +94,21 @@ public class FindingAssemblyServiceTests
         Assert.True(suppressionStore.IsSuppressedWithFingerprintCalled);
     }
 
+    [Fact]
+    public void Assemble_WithoutSuppression_DoesNotCheckSuppressionStore()
+    {
+        var suppressionStore = new TrackingSuppressionStore();
+        var service = new FindingAssemblyService(new TestExplanationProvider(), suppressionStore);
+
+        var result = service.Assemble(
+            new[] { RuleResult.Fail("TEST-001", "Test", "TEST-001", "Test failed", Severity.High, "test-target") },
+            applySuppressions: false);
+
+        Assert.Single(result.AgentFindings);
+        Assert.False(suppressionStore.PruneExpiredCalled);
+        Assert.False(suppressionStore.IsSuppressedWithFingerprintCalled);
+    }
+
     private sealed class TestExplanationProvider : IExplanationProvider
     {
         public string GetExplanation(string key, IReadOnlyDictionary<string, string> variables)

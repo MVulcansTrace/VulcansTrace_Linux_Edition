@@ -85,6 +85,8 @@ Accepted-risk suppressions use finding fingerprints when available, with legacy 
 
 `AgentResultFinalizer` owns final audit result construction, compliance scorecard attachment, risk scorecard attachment, and updating `AgentAuditState`. `AgentAuditState` keeps the previous audit result, previous audit intent, and active finding lookup list used by follow-up questions. This keeps `SecurityAgent` from directly managing result memory while preserving the existing follow-up workflow.
 
+`SingleRuleExplanationService` owns the explain-by-rule path. It runs scanners, evaluates the selected rule, builds the explanation result, and updates audit state only in the same cases as the original flow. Full audits still apply suppressions, while single-rule explanations intentionally bypass suppression checks so an analyst can inspect the rule directly.
+
 Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 
 ## UI As A Thin Control Shell

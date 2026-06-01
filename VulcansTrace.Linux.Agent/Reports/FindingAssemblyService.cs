@@ -15,7 +15,7 @@ internal sealed class FindingAssemblyService
         _suppressionStore = suppressionStore;
     }
 
-    public FindingAssemblyResult Assemble(IReadOnlyList<RuleResult> ruleResults)
+    public FindingAssemblyResult Assemble(IReadOnlyList<RuleResult> ruleResults, bool applySuppressions = true)
     {
         var agentFindings = new List<Finding>();
         var historyEntries = new List<(string RuleId, Finding Finding)>();
@@ -24,7 +24,10 @@ internal sealed class FindingAssemblyService
         var suppressedCount = 0;
 
         // Prune expired suppressions beyond the review retention window before checking.
-        _suppressionStore?.PruneExpired();
+        if (applySuppressions)
+        {
+            _suppressionStore?.PruneExpired();
+        }
 
         foreach (var result in ruleResults)
         {
@@ -42,7 +45,7 @@ internal sealed class FindingAssemblyService
 
             var finding = CreateFinding(result);
 
-            if (_suppressionStore != null && !string.IsNullOrEmpty(result.RuleId))
+            if (applySuppressions && _suppressionStore != null && !string.IsNullOrEmpty(result.RuleId))
             {
                 if (_suppressionStore.IsSuppressed(result.RuleId, result.Target, finding.Fingerprint))
                 {

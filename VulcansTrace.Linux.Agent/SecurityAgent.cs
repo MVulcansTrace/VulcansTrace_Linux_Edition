@@ -23,9 +23,9 @@ public sealed class SecurityAgent : IAgent
     private readonly AgentLogAnalysisService _logAnalysisService;
     private readonly AgentAuditState _auditState;
     private readonly AgentResultFinalizer _resultFinalizer;
+    private readonly SingleRuleExplanationService _singleRuleExplanationService;
     private readonly IExplanationProvider _explanationProvider;
     private readonly ISuppressionStore? _suppressionStore;
-    private readonly MachineRole _machineRole;
     private readonly IAuditHistoryStore? _historyStore;
     private readonly IBaselineStore? _baselineStore;
 
@@ -66,8 +66,14 @@ public sealed class SecurityAgent : IAgent
         _logAnalysisService = new AgentLogAnalysisService(sentryAnalyzer, profileProvider);
         _auditState = new AgentAuditState();
         _resultFinalizer = new AgentResultFinalizer(_auditState, historyStore, scorecardBuilder, riskScorecardBuilder);
+        _singleRuleExplanationService = new SingleRuleExplanationService(
+            _scannerCoordinator,
+            _ruleEvaluationService,
+            _findingAssemblyService,
+            _resultComposer,
+            _auditState,
+            machineRole);
         _suppressionStore = suppressionStore;
-        _machineRole = machineRole;
         _historyStore = historyStore;
         _baselineStore = baselineStore;
     }
@@ -1168,76 +1174,7 @@ public sealed class SecurityAgent : IAgent
 
     private async Task<AgentResult> RunSingleRuleAsync(IRule rule, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-
-        var scannerResult = await _scannerCoordinator.RunAsync(ct);
-        var scanData = scannerResult.ScanData;
-        var warnings = scannerResult.Warnings.ToList();
-        var capabilityReport = _resultComposer.BuildCapabilityReport(scanData.Capabilities);
-
-        var evaluatedRule = _ruleEvaluationService.EvaluateRule(rule, scanData, ct);
-        warnings.AddRange(evaluatedRule.Warnings);
-
-        if (evaluatedRule.DisabledByPolicy)
-        {
-            _auditState.ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
-            return new AgentResult
-            {
-                Intent = AgentIntent.ExplainFinding,
-                AgentFindings = Array.Empty<Finding>(),
-                Warnings = warnings,
-                UtcTimestamp = DateTime.UtcNow,
-                Summary = $"Rule {rule.Id} is disabled by policy for {_machineRole}.",
-                RuleResults = new[] { evaluatedRule.RuleResult },
-                PassedCount = 1
-            };
-        }
-
-        var result = evaluatedRule.RuleResult;
-
-        var agentFindings = new List<Finding>();
-        if (!result.Passed && result.Status != RuleStatus.Crashed)
-        {
-            var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
-            var finding = new Finding
-            {
-                Category = result.Category,
-                Severity = result.Severity,
-                SourceHost = "localhost",
-                Target = result.Target,
-                ShortDescription = result.Description,
-                Details = explanation,
-                TimeRangeStart = DateTime.UtcNow,
-                TimeRangeEnd = DateTime.UtcNow,
-                RuleId = result.RuleId,
-                CisMappings = result.CisMappings
-            };
-            agentFindings.Add(finding);
-            _auditState.ReplaceLastFindings(new[] { (result.RuleId, finding) });
-        }
-
-        var summary = result.Status == RuleStatus.Crashed
-            ? $"Rule {rule.Id} could not be evaluated."
-            : agentFindings.Count > 0
-                ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
-                : $"Rule {rule.Id} passed — no issue to explain.";
-
-        var singleRuleResult = new AgentResult
-        {
-            Intent = AgentIntent.ExplainFinding,
-            AgentFindings = agentFindings,
-            Warnings = warnings,
-            UtcTimestamp = DateTime.UtcNow,
-            Summary = summary,
-            RuleResults = new[] { result },
-            PassedCount = result.Status == RuleStatus.Passed ? 1 : 0,
-            FailedCount = result.Status == RuleStatus.Failed ? 1 : 0,
-            CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0,
-            CapabilityReport = capabilityReport
-        };
-
-        _auditState.RememberResult(singleRuleResult);
-        return singleRuleResult;
+        return await _singleRuleExplanationService.ExplainAsync(rule, ct);
     }
 
     private static string GetHelpText() =>
