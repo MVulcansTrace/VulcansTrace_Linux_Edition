@@ -19,6 +19,7 @@ public sealed class SecurityAgent : IAgent
     private readonly ScannerCoordinator _scannerCoordinator;
     private readonly RuleEvaluationService _ruleEvaluationService;
     private readonly AgentResultComposer _resultComposer;
+    private readonly FindingAssemblyService _findingAssemblyService;
     private readonly IExplanationProvider _explanationProvider;
     private readonly SentryAnalyzer? _sentryAnalyzer;
     private readonly AnalysisProfileProvider? _profileProvider;
@@ -66,6 +67,7 @@ public sealed class SecurityAgent : IAgent
         _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
         _resultComposer = new AgentResultComposer();
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
+        _findingAssemblyService = new FindingAssemblyService(_explanationProvider, suppressionStore);
         _sentryAnalyzer = sentryAnalyzer;
         _profileProvider = profileProvider;
         _suppressionStore = suppressionStore;
@@ -179,68 +181,16 @@ public sealed class SecurityAgent : IAgent
         warnings.AddRange(evaluatedRules.Warnings);
 
         // Phase 3: Mark suppression status and convert rule failures to Findings
-        var agentFindings = new List<Finding>();
-        var historyEntries = new List<(string RuleId, Finding Finding)>();
-        var suppressedCount = 0;
+        var findingAssembly = _findingAssemblyService.Assemble(ruleResults);
+        var agentFindings = findingAssembly.AgentFindings;
+        var historyEntries = findingAssembly.HistoryEntries;
+        ruleResults = findingAssembly.RuleResults.ToList();
+        var suppressedCount = findingAssembly.SuppressedCount;
+        warnings.AddRange(findingAssembly.Warnings);
 
-        // Prune expired suppressions beyond the review retention window before checking.
-        _suppressionStore?.PruneExpired();
-
-        var processedResults = new List<RuleResult>(ruleResults.Count);
-        foreach (var result in ruleResults)
-        {
-            if (result.Passed)
-            {
-                processedResults.Add(result);
-                continue;
-            }
-
-            if (result.Status == RuleStatus.Crashed)
-            {
-                processedResults.Add(result);
-                continue;
-            }
-
-            var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
-            var finding = new Finding
-            {
-                Category = result.Category,
-                Severity = result.Severity,
-                SourceHost = "localhost",
-                Target = result.Target,
-                ShortDescription = result.Description,
-                Details = explanation,
-                TimeRangeStart = DateTime.UtcNow,
-                TimeRangeEnd = DateTime.UtcNow,
-                RuleId = result.RuleId,
-                CisMappings = result.CisMappings
-            };
-
-            // Check suppression
-            if (_suppressionStore != null && !string.IsNullOrEmpty(result.RuleId))
-            {
-                if (_suppressionStore.IsSuppressed(result.RuleId, result.Target, finding.Fingerprint))
-                {
-                    suppressedCount++;
-                    processedResults.Add(result with { Status = RuleStatus.Suppressed });
-                    continue;
-                }
-            }
-
-            agentFindings.Add(finding);
-            historyEntries.Add((result.RuleId, finding));
-            processedResults.Add(result);
-        }
-
-        ruleResults = processedResults;
         var passedCount = ruleResults.Count(r => r.Status == RuleStatus.Passed);
         var failedCount = ruleResults.Count(r => r.Status == RuleStatus.Failed);
         var crashedCount = ruleResults.Count(r => r.Status == RuleStatus.Crashed);
-
-        if (suppressedCount > 0)
-        {
-            warnings.Add($"{suppressedCount} finding(s) suppressed by user configuration.");
-        }
 
         // Phase 4: Optional log analysis
         AnalysisResult? logAnalysisResult = null;

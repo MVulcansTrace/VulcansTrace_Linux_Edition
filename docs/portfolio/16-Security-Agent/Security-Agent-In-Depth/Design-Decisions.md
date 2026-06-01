@@ -69,7 +69,7 @@ Copyable commands are intentionally scoped to the `How to verify` section. Sugge
 
 The same open port can mean different things on a laptop, a bastion host, a lab VM, or a development machine. `MachineRole`, `RulePolicy`, and `IContextualRule` keep that local context explicit instead of baking one global standard into every rule.
 
-`RuleEvaluationService` owns intent-based rule filtering, policy-disabled handling, contextual rule invocation, crash-to-result conversion, auto-pass policies, and severity overrides. `SecurityAgent` receives evaluated rule results plus warnings, then remains responsible for suppression, finding creation, scoring, and response assembly. This keeps policy mechanics testable without running the full agent pipeline.
+`RuleEvaluationService` owns intent-based rule filtering, policy-disabled handling, contextual rule invocation, crash-to-result conversion, auto-pass policies, and severity overrides. `SecurityAgent` receives evaluated rule results plus warnings, then passes them to `FindingAssemblyService`, which owns explanation lookup, finding creation, expired-suppression pruning, suppression status marking, and active finding history entries. This keeps policy mechanics and finding assembly testable without running the full agent pipeline.
 
 The default provider supplies conservative built-in role defaults for selected rules. The JSON policy store then overrides those defaults from `~/.config/VulcansTrace/policy.json`, merging user parameters over built-in parameters so local policy can adjust only the part it owns. Disabled rules are skipped, auto-pass policies turn known-acceptable failures into passed results, and severity overrides are applied before findings are created.
 
