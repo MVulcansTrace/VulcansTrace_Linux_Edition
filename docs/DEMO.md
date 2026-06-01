@@ -207,6 +207,30 @@ Scorecard rules:
 - **Suppressed** rules are excluded from the applicable total.
 - Multi-family rules count once per family in family scores, but the overall score is rule-level (no double-counting).
 
+## Risk Scorecard
+
+After any agent audit, view the aggregate risk scorecard:
+
+1. Run an audit: `Is my system secure?`
+2. Switch to the **Risk Score** tab.
+3. Review the grade badge:
+   - **A** (green) — score ≥90, Low risk
+   - **B** (blue) — score ≥80, Moderate risk
+   - **C** (yellow) — score ≥70, Elevated risk
+   - **D** (orange) — score ≥60, High risk
+   - **F** (red) — score <60, Severe risk
+4. Review the numeric score (0–100) and summary status.
+5. Review the **By Category** breakdown showing finding counts, average severity, and total deduction per category.
+6. Ask in chat: `What's my risk grade?` — the agent returns the scorecard summary without switching tabs.
+7. Export evidence — the signed ZIP includes `risk-scorecard.html` and `risk-scorecard.md` for manager handoff.
+
+Scoring rules:
+- Deduction per finding = `SeverityValue × 5 × AverageControlWeight`
+- Control weight defaults to 1.0; zero, negative, NaN, Infinity, and excessive weights fall back to 1.0
+- Info findings (severity = 0) do not contribute to the risk score
+- Total score = `max(0, 100 − TotalDeduction)`
+- Grade is computed from the raw score before rounding; display uses 1-decimal rounding
+
 ## Recurring Audit Scheduling — GUI
 
 1. Open the **Schedules** tab in the Avalonia UI.

@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-05-31
+Last updated: 2026-06-01
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -281,6 +281,22 @@ Last updated: 2026-05-31
 - Avalonia UI has a new **Compliance** tab with overall score badge, family DataGrid, and mini bar-chart trend visualization.
 - 42+ unit tests covering builder logic, `CisFamilyResolver`, formatters, ViewModel, and `ComplianceTrendAnalyzer`.
   - Code: `VulcansTrace.Linux.Core/Compliance/`, `VulcansTrace.Linux.Agent/Reports/ComplianceScorecardBuilder.cs`, `VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardHtmlFormatter.cs`, `VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardMarkdownFormatter.cs`, `VulcansTrace.Linux.Avalonia/Views/ComplianceScorecardView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs`, `VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/ComplianceScorecardViewModelTests.cs`, `VulcansTrace.Linux.Tests/Evidence/ComplianceScorecardFormatterTests.cs`
+
+### Risk Scorecard
+- Added `RiskScorecardBuilder` implementing `IRiskScorecardBuilder` for aggregate risk scoring.
+- Computes numeric score (0–100), letter grade (A–F), summary status, and per-category breakdown from agent findings.
+- Scoring formula: deduction per finding = `SeverityValue × 5 × AverageControlWeight`. Control weight is the average of `CisBenchmarkMapping.ControlWeight` values for the finding's CIS mappings (default 1.0).
+- Defense-in-depth guards: `ControlWeight` values that are ≤0, NaN, Infinity, or >1000.0 fall back to 1.0 to prevent silent scoring bypasses and numeric overflow.
+- Grade is computed from the raw score before rounding; display uses `Math.Round(..., 1, MidpointRounding.AwayFromZero)`.
+- Summary status mapping: A→Low, B→Moderate, C→Elevated, D→High, F→Severe (monotonic severity progression).
+- Only risk-relevant findings contribute; Info findings (severity = 0) are excluded from both the score and `TotalFindings`.
+- `AgentIntent.RiskScore` and `QueryParser` keywords (`risk score`, `risk grade`, `what's my risk`, `how risky`, `risk assessment`, `overall risk`) let users ask for their risk grade in chat.
+- `SecurityAgent` computes the scorecard automatically during audits via injected `IRiskScorecardBuilder` (defaults to `new RiskScorecardBuilder()` when not supplied).
+- `AgentReportGenerator` forwards `RiskScorecard` from `AgentResult` to `AnalysisResult`.
+- Evidence exports include `risk-scorecard.html` and `risk-scorecard.md` in the signed ZIP bundle.
+- Avalonia UI has a new **Risk Score** tab with color-coded grade badge, numeric score, summary status, and per-category DataGrid.
+- 25+ unit tests covering builder logic, grade boundaries, control-weight guards (zero, negative, max value), raw-score grading, category ordering, and ViewModel behavior.
+  - Code: `VulcansTrace.Linux.Core/RiskScorecard.cs`, `VulcansTrace.Linux.Core/CategoryRisk.cs`, `VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/IRiskScorecardBuilder.cs`, `VulcansTrace.Linux.Evidence/Formatters/RiskScorecardHtmlFormatter.cs`, `VulcansTrace.Linux.Evidence/Formatters/RiskScorecardMarkdownFormatter.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs`, `VulcansTrace.Linux.Tests/Agent/RiskScorecardBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/RiskScorecardViewModelTests.cs`
 
 ## 2) Profiles and Their Capabilities
 

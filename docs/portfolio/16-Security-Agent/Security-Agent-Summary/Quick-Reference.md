@@ -31,6 +31,7 @@
 | `SetBaseline` | `Set baseline` | Save the last audit as a known-good baseline snapshot |
 | `CheckDrift` | `Check drift` | Compare live config against the saved baseline; reports new and worsened findings |
 | `ShowBaseline` | `Show baseline` | Display the active baseline findings for the last audit intent |
+| `RiskScore` | `What's my risk grade?` | Returns the aggregate Risk Scorecard after an audit |
 | `Help` | `What can you do?` | Help text only |
 
 ---
@@ -49,6 +50,22 @@
 | Suppressed handling | Excluded from applicable denominator |
 | Multi-family rules | Counted once per family for family scores; rule-level for overall |
 | Export formats | `compliance-scorecard.html`, `compliance-scorecard.md` in signed ZIP |
+
+---
+
+## Risk Scorecard
+
+| Element | Detail |
+| --- | --- |
+| Overall score | 0–100 (100 = no risk), rounded to 1 decimal |
+| Grade | A (≥90), B (≥80), C (≥70), D (≥60), F (<60) |
+| Summary status | Low, Moderate, Elevated, High, Severe |
+| Category breakdown | Finding count, average severity, total deduction per category; ordered by deduction |
+| Scoring formula | `SeverityValue × 5 × AverageControlWeight` per finding |
+| Control weight | Average of `CisBenchmarkMapping.ControlWeight` (default 1.0; guards against ≤0, NaN, Infinity, >1000) |
+| Info findings | Excluded from score and count |
+| Grade computation | From raw score before rounding |
+| Export formats | `risk-scorecard.html`, `risk-scorecard.md` in signed ZIP |
 
 ---
 
@@ -134,6 +151,7 @@ User query
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
 | Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, crashed, and not-applicable check totals |
+| Risk Score tab | Shows aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score, summary status, and per-category breakdown |
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
 | Local policy | Applies built-in role defaults and JSON overrides for enabled state, auto-pass, severity, and contextual parameters |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |

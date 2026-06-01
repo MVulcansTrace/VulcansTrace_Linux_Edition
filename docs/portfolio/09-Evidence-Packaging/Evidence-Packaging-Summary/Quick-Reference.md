@@ -15,6 +15,8 @@
 | `suppressions.csv` | `CsvFormatter` | Active accepted-risk suppressions, included only when present |
 | `compliance-scorecard.html` | `ComplianceScorecardHtmlFormatter` | Manager-friendly HTML compliance scorecard (Pass/Warn/Fail per CIS family, overall score, trend) |
 | `compliance-scorecard.md` | `ComplianceScorecardMarkdownFormatter` | Markdown compliance scorecard for Git-based workflows |
+| `risk-scorecard.html` | `RiskScorecardHtmlFormatter` | Manager-friendly HTML risk scorecard (grade badge, numeric score, per-category breakdown) |
+| `risk-scorecard.md` | `RiskScorecardMarkdownFormatter` | Markdown risk scorecard for Git-based workflows |
 | `manifest.json` | (generated) | Per-file SHA-256 hashes, byte lengths, warnings, and creation timestamp |
 | `manifest.hmac` | (generated) | HMAC-SHA256 hex signature of `manifest.json` |
 

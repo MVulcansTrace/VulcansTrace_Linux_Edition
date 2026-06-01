@@ -209,4 +209,52 @@ public class AgentReportGeneratorTests
         Assert.Single(analysisResult.ActiveSuppressions);
         Assert.Equal("FW-002", analysisResult.ActiveSuppressions[0].RuleId);
     }
+
+    [Fact]
+    public void ToAnalysisResult_WithRiskScorecard_PreservesScorecard()
+    {
+        var scorecard = new RiskScorecard
+        {
+            NumericScore = 72.5,
+            LetterGrade = "C",
+            SummaryStatus = "Elevated",
+            TotalFindings = 3,
+            ByCategory = new[]
+            {
+                new CategoryRisk { Category = "Port", FindingCount = 2, TotalDeduction = 15.0, AverageSeverity = 3.0 },
+                new CategoryRisk { Category = "Firewall", FindingCount = 1, TotalDeduction = 12.5, AverageSeverity = 2.5 }
+            }
+        };
+
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>(),
+            RiskScorecard = scorecard
+        };
+
+        var analysisResult = _generator.ToAnalysisResult(agentResult);
+
+        Assert.NotNull(analysisResult.RiskScorecard);
+        Assert.Equal(72.5, analysisResult.RiskScorecard.NumericScore);
+        Assert.Equal("C", analysisResult.RiskScorecard.LetterGrade);
+        Assert.Equal("Elevated", analysisResult.RiskScorecard.SummaryStatus);
+        Assert.Equal(3, analysisResult.RiskScorecard.TotalFindings);
+        Assert.Equal(2, analysisResult.RiskScorecard.ByCategory.Count);
+        Assert.Equal("Port", analysisResult.RiskScorecard.ByCategory[0].Category);
+    }
+
+    [Fact]
+    public void ToAnalysisResult_WithoutRiskScorecard_SetsNull()
+    {
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>()
+        };
+
+        var analysisResult = _generator.ToAnalysisResult(agentResult);
+
+        Assert.Null(analysisResult.RiskScorecard);
+    }
 }

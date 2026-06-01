@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.RiskScorecardView"
+             x:DataType="vm:RiskScorecardViewModel">
+
+    <Design.DataContext>
+        <vm:RiskScorecardViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,*">
+        <!-- Overall grade -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16" IsVisible="{Binding HasData}">
+            <Border Background="{Binding GradeBackground}"
+                    BorderBrush="{Binding GradeColor}"
+                    BorderThickness="2"
+                    CornerRadius="12"
+                    Padding="24,16">
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding LetterGrade}"
+                               FontSize="48"
+                               FontWeight="Bold"
+                               Foreground="{Binding GradeColor}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding NumericScore, StringFormat={}{0:F1}}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{Binding GradeColor}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Text="Risk Score"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="#e2e8f0"/>
+                <TextBlock Text="Weighted by severity and CIS control importance"
+                           FontSize="12"
+                           Foreground="#94a3b8"/>
+                <TextBlock Text="{Binding SummaryStatus}"
+                           FontSize="12"
+                           Foreground="{Binding GradeColor}"
+                           FontWeight="SemiBold"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Empty state -->
+        <TextBlock Grid.Row="1"
+                   Text="Run an analysis to generate a risk scorecard."
+                   Foreground="#64748b"
+                   FontSize="12"
+                   Margin="0,4,0,8"
+                   IsVisible="{Binding !HasData}"/>
+
+        <!-- Category breakdown -->
+        <TextBlock Grid.Row="2"
+                   Text="Risk by Category"
+                   FontWeight="Bold"
+                   FontSize="14"
+                   Foreground="#e2e8f0"
+                   Margin="0,0,0,8"
+                   IsVisible="{Binding HasData}"/>
+
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding ByCategory}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  IsVisible="{Binding HasData}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="280" />
+                <DataGridTextColumn Header="Findings" Binding="{Binding FindingCount}" Width="90" />
+                <DataGridTextColumn Header="Avg Severity" Binding="{Binding AverageSeverity, StringFormat={}{0:F1}}" Width="110" />
+                <DataGridTextColumn Header="Deduction" Binding="{Binding TotalDeduction, StringFormat={}{0:F1}}" Width="100" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

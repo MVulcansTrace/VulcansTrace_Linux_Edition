@@ -74,6 +74,9 @@ public enum AgentIntent
     /// <summary>Show the current baseline for an intent.</summary>
     ShowBaseline,
 
+    /// <summary>Show the overall risk score and grade from the last audit.</summary>
+    RiskScore,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }

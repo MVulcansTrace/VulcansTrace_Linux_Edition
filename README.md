@@ -51,6 +51,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors. Included in the Avalonia UI and evidence exports.
+- **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction and is included in the Avalonia UI, agent chat, and evidence exports.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
@@ -169,6 +170,8 @@ The UI can export a signed ZIP evidence package containing:
 | `manifest.hmac` | HMAC-SHA256 signature over the manifest |
 | `compliance-scorecard.html` | Manager-friendly HTML compliance scorecard (Pass/Warn/Fail per CIS family, overall score, trend) |
 | `compliance-scorecard.md` | Markdown compliance scorecard for Git-based workflows |
+| `risk-scorecard.html` | Manager-friendly HTML risk scorecard (grade badge, numeric score, per-category breakdown) |
+| `risk-scorecard.md` | Markdown risk scorecard for Git-based workflows |
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
 

@@ -38,9 +38,10 @@ The Security Agent provides a parallel local posture path:
 5. Failed posture checks become `Finding` records with stable fingerprints, markdown-backed explanations, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
 6. Optional pasted firewall logs can be analyzed through `SentryAnalyzer`.
 7. `ComplianceScorecardBuilder` computes a formal CIS compliance scorecard from rule results: per-family pass/fail/warn scores, an overall rule-level percentage, and a trend over time using `IAuditHistoryStore`.
-8. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
-9. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
-10. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
+8. `RiskScorecardBuilder` computes an aggregate risk scorecard from agent findings: numeric score (0–100), letter grade (A–F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
+10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
+11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 
 The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
 
@@ -76,6 +77,7 @@ Notification services are pluggable:
 - `Finding`: immutable detector output with severity, time range, and a stable fingerprint for tracking the same issue across audits.
 - `AnalysisResult`: complete analysis output with entries, findings, warnings, and optional agent data-source capability context.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
+- `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
 
 ## Detection Layers
 

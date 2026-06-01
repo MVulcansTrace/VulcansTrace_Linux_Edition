@@ -22,7 +22,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 25: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, AutoFix, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
+| Agent intents | 26: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, AutoFix, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, Help |
 | CIS mapping coverage | 64 / 64 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
@@ -30,6 +30,9 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Auto-fix exit codes | 0=success/nothing to fix, 1=error/invalid input, 2=unsafe commands skipped, 3=apply/rollback failure. Audit exit code 2 (critical findings) is never masked. |
 | Compliance scorecard | Per-family Pass/Warn/Fail, overall rule-level percentage, trend over time (last 10 audits) |
 | Compliance thresholds | Pass ≥90%, Warn ≥80%, Fail <80% (named constants on `ComplianceScorecard`) |
+| Risk scorecard | Aggregate letter grade (A–F), numeric score (0–100), summary status, per-category breakdown ordered by total deduction |
+| Risk scoring formula | `SeverityValue × 5 × AverageControlWeight` per finding; Info findings excluded |
+| Risk grade thresholds | A ≥90, B ≥80, C ≥70, D ≥60, F <60 (named constants on `RiskScorecard`) |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
 | Explanation templates | 9 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, and interactive single-finding remediation cards with preconditions, backup/apply/rollback/verification commands and safety badges |
@@ -48,6 +51,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, active suppression notes, and CIS Benchmark mappings preserved in exported evidence
 - **Dual-layer compliance context** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical), giving auditors precise 1:1 traceability from a finding to the exact benchmark section it validates
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
+- **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) weighted by severity and CIS control importance, with per-category breakdown; available in agent chat and exported as HTML and Markdown in signed evidence bundles
 - **Auto-Fix with Dry-Run** — batch remediation with `--auto-fix --dry-run` for safe preview before change, policy-gated execution (Conservative/Standard/Aggressive), automatic rollback on failure, and clean exit codes that preserve critical-finding status
 
 ---
@@ -89,6 +93,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — UI command flow
 - [ComplianceScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/ComplianceScorecardBuilder.cs) — compliance scorecard computation
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding
+- [RiskScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs) — aggregate risk score computation
+- [RiskScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs) — risk score tab binding
 - [RemediationPlanBuilder.cs](../../../../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs) — builds per-rule remediation plans from explanations
 - [RemediationExecutor.cs](../../../../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs) — orchestrates backup, apply, rollback, and verify with policy enforcement
 - [AutoFixPolicy.cs](../../../../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs) — configurable command-safety permission levels
@@ -97,7 +103,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [RemediationConsoleFormatter.cs](../../../../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs) — `--dry-run` and `--auto-fix` console output
 - [RemediationPlanValidator.cs](../../../../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs) — validation before execution
 - [SecurityAgentTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs) — orchestration tests
-- [ComplianceScorecardBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs) — scorecard computation tests
+- [ComplianceScorecardBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs) — compliance scorecard computation tests
+- [RiskScorecardBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/RiskScorecardBuilderTests.cs) — risk scorecard computation tests
 - [ScannerParserFixtureTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs) — realistic command-output parser fixtures
 
 ---

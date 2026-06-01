@@ -701,6 +701,10 @@
                      AutomationProperties.AutomationId="ComplianceTab">
                 <views:ComplianceScorecardView DataContext="{Binding ComplianceScorecard}"/>
             </TabItem>
+            <TabItem Header="Risk"
+                     AutomationProperties.AutomationId="RiskTab">
+                <views:RiskScorecardView DataContext="{Binding RiskScorecard}"/>
+            </TabItem>
             <TabItem Header="Schedules"
                      AutomationProperties.AutomationId="SchedulesTab">
                 <views:ScheduleView DataContext="{Binding Schedules}"/>

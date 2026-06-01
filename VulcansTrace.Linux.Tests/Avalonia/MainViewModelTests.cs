@@ -226,7 +226,7 @@ also not a firewall line";
         var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, new RiskEscalator());
 
         var hasher = new IntegrityHasher();
-        var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter());
+        var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), null, null, null, null, new RiskScorecardHtmlFormatter(), new RiskScorecardMarkdownFormatter());
 
         return new MainViewModel(
             analyzer,

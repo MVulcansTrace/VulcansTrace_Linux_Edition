@@ -1575,6 +1575,36 @@ public class SecurityAgentTests
         }
     }
 
+    [Fact]
+    public async Task AskAsync_RiskScore_AfterAudit_ReturnsScorecard()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailCriticalRule(), new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var result = await agent.AskAsync("what's my risk grade", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.RiskScore, result.Intent);
+        Assert.NotNull(result.RiskScorecard);
+        Assert.Contains("Risk Grade:", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_RiskScore_WithoutContext_ReturnsGuidance()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("show risk score", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.RiskScore, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+    }
+
     private sealed class AlwaysFailHighRule : IRule
     {
         public string Id => "TEST-005";

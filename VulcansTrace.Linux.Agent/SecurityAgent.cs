@@ -27,6 +27,7 @@ public sealed class SecurityAgent : IAgent
     private readonly IAuditHistoryStore? _historyStore;
     private readonly IBaselineStore? _baselineStore;
     private readonly IComplianceScorecardBuilder? _scorecardBuilder;
+    private readonly IRiskScorecardBuilder? _riskScorecardBuilder;
     private readonly object _historyLock = new();
     private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
     private AgentResult? _lastResult;
@@ -46,6 +47,7 @@ public sealed class SecurityAgent : IAgent
     /// <param name="historyStore">Optional store for audit history used by follow-up queries.</param>
     /// <param name="baselineStore">Optional store for configuration baselines.</param>
     /// <param name="scorecardBuilder">Optional builder for CIS compliance scorecards.</param>
+    /// <param name="riskScorecardBuilder">Optional builder for risk scorecards.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -57,7 +59,8 @@ public sealed class SecurityAgent : IAgent
         IRulePolicyProvider? policyProvider = null,
         IAuditHistoryStore? historyStore = null,
         IBaselineStore? baselineStore = null,
-        IComplianceScorecardBuilder? scorecardBuilder = null)
+        IComplianceScorecardBuilder? scorecardBuilder = null,
+        IRiskScorecardBuilder? riskScorecardBuilder = null)
     {
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
@@ -70,6 +73,7 @@ public sealed class SecurityAgent : IAgent
         _historyStore = historyStore;
         _baselineStore = baselineStore;
         _scorecardBuilder = scorecardBuilder;
+        _riskScorecardBuilder = riskScorecardBuilder ?? new RiskScorecardBuilder();
     }
 
     /// <inheritdoc />
@@ -261,6 +265,7 @@ public sealed class SecurityAgent : IAgent
         ReplaceLastFindings(historyEntries);
 
         var scorecard = _scorecardBuilder?.Build(ruleResults, _historyStore, DateTime.UtcNow);
+        var riskScorecard = _riskScorecardBuilder?.Build(agentFindings, DateTime.UtcNow);
 
         _lastResult = new AgentResult
         {
@@ -276,7 +281,8 @@ public sealed class SecurityAgent : IAgent
             SuppressedCount = suppressedCount,
             CrashedCount = crashedCount,
             CapabilityReport = capabilityReport,
-            Scorecard = scorecard
+            Scorecard = scorecard,
+            RiskScorecard = riskScorecard
         };
 
         _lastAuditIntent = intent;
@@ -294,6 +300,7 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.SetBaseline => true,
         AgentIntent.CheckDrift => true,
         AgentIntent.ShowBaseline => true,
+        AgentIntent.RiskScore => true,
         _ => false
     };
 
@@ -312,6 +319,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.SetBaseline => HandleSetBaselineAsync(agentQuery, ct),
             AgentIntent.CheckDrift => HandleCheckDriftAsync(agentQuery, ct),
             AgentIntent.ShowBaseline => HandleShowBaselineAsync(agentQuery, ct),
+            AgentIntent.RiskScore => HandleRiskScoreAsync(ct),
             _ => Task.FromResult(new AgentResult
             {
                 Intent = agentQuery.Intent,
@@ -914,6 +922,55 @@ public sealed class SecurityAgent : IAgent
             AgentFindings = findings,
             Warnings = Array.Empty<string>(),
             Baseline = baseline
+        });
+    }
+
+    private Task<AgentResult> HandleRiskScoreAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_lastResult == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.RiskScore,
+                Summary = "Run an audit first, then ask for your risk score.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var risk = _lastResult.RiskScorecard;
+        if (risk == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.RiskScore,
+                Summary = "No risk scorecard available for the last audit.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var summary = $"**Risk Grade: {risk.LetterGrade}** ({risk.NumericScore:F1}) — {risk.SummaryStatus}\n" +
+            $"Risk-relevant findings: {risk.TotalFindings}";
+
+        if (risk.ByCategory.Count > 0)
+        {
+            summary += "\n\n**Top categories by deduction:**";
+            foreach (var cat in risk.ByCategory.Take(5))
+            {
+                summary += $"\n• {cat.Category}: {cat.FindingCount} finding(s), avg severity {cat.AverageSeverity:F1}, deduction {cat.TotalDeduction:F1}";
+            }
+        }
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.RiskScore,
+            Summary = summary,
+            AgentFindings = _lastResult.AgentFindings,
+            Warnings = _lastResult.Warnings,
+            RiskScorecard = risk
         });
     }
 
@@ -1549,6 +1606,7 @@ public sealed class SecurityAgent : IAgent
         "• \"What should I fix first?\"\n" +
         "• \"Fix FW-001\" — guided step-by-step remediation for a specific finding\n" +
         "• \"Which findings are suppressed?\"\n" +
+        "• \"What's my risk grade?\" — show the overall risk scorecard\n" +
         "\nBaseline & drift detection:\n" +
         "• \"Set baseline\" — save the last audit as a known-good snapshot\n" +
         "• \"Check drift\" — compare live config against the saved baseline\n" +

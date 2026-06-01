@@ -21,6 +21,7 @@ public sealed record Finding
     private string? _ruleId;
     private Guid? _id;
     private string? _fingerprint;
+    private IReadOnlyList<CisBenchmarkMapping> _cisMappings = Array.Empty<CisBenchmarkMapping>();
 
     /// <summary>
     /// Optional agent rule identifier (e.g., "FW-001", "PORT-003").
@@ -122,7 +123,11 @@ public sealed record Finding
     /// <summary>
     /// CIS Benchmark controls this finding maps to, explaining compliance context.
     /// </summary>
-    public IReadOnlyList<CisBenchmarkMapping> CisMappings { get; init; } = Array.Empty<CisBenchmarkMapping>();
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings
+    {
+        get => _cisMappings;
+        init => _cisMappings = value ?? throw new ArgumentNullException(nameof(CisMappings));
+    }
 
     private static string NormalizeNonEmpty(string value, string name)
     {

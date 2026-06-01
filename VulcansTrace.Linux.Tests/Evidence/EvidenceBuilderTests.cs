@@ -14,7 +14,7 @@ namespace VulcansTrace.Linux.Tests.Evidence;
 public class EvidenceBuilderTests
 {
     private static EvidenceBuilder CreateBuilder() =>
-        new(new IntegrityHasher(), new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), new JsonFormatter(), new StixFormatter());
+        new(new IntegrityHasher(), new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), new JsonFormatter(), new StixFormatter(), null, null, new RiskScorecardHtmlFormatter(), new RiskScorecardMarkdownFormatter());
 
     private static readonly byte[] DefaultKey = Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef");
 
@@ -680,6 +680,71 @@ public class EvidenceBuilderTests
 
         var names = zip.Entries.Select(e => e.FullName).ToArray();
         Assert.DoesNotContain("remediation.md", names);
+    }
+
+    [Fact]
+    public void Build_Includes_RiskScorecard_When_Present()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult() with
+        {
+            RiskScorecard = new RiskScorecard
+            {
+                NumericScore = 75.0,
+                LetterGrade = "C",
+                SummaryStatus = "High",
+                TotalFindings = 3,
+                ByCategory =
+                [
+                    new CategoryRisk { Category = "PortScan", FindingCount = 2, AverageSeverity = 3.0, TotalDeduction = 30.0 }
+                ]
+            }
+        };
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var zipBytes = builder.Build(result, logText, DefaultKey, timestamp);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("risk-scorecard.html", names);
+        Assert.Contains("risk-scorecard.md", names);
+
+        var htmlEntry = zip.GetEntry("risk-scorecard.html");
+        Assert.NotNull(htmlEntry);
+        using var htmlStream = htmlEntry!.Open();
+        using var htmlReader = new StreamReader(htmlStream, Encoding.UTF8);
+        var html = htmlReader.ReadToEnd();
+        Assert.Contains("Risk Scorecard", html);
+        Assert.Contains("C", html);
+
+        var mdEntry = zip.GetEntry("risk-scorecard.md");
+        Assert.NotNull(mdEntry);
+        using var mdStream = mdEntry!.Open();
+        using var mdReader = new StreamReader(mdStream, Encoding.UTF8);
+        var md = mdReader.ReadToEnd();
+        Assert.Contains("# Risk Scorecard", md);
+        Assert.Contains("C", md);
+    }
+
+    [Fact]
+    public void Build_Omits_RiskScorecard_When_Null()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult();
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var zipBytes = builder.Build(result, logText, DefaultKey, timestamp);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.DoesNotContain("risk-scorecard.html", names);
+        Assert.DoesNotContain("risk-scorecard.md", names);
     }
 
     private static byte[] TamperFileInZip(byte[] zipBytes, string targetEntry, Func<byte[], byte[]> tamper)

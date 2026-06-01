@@ -16,4 +16,11 @@ public sealed record CisBenchmarkMapping
 
     /// <summary>Optional: specific CIS Linux Benchmark reference (e.g. "CIS Ubuntu 24.04 LTS 5.2.7").</summary>
     public string? BenchmarkReference { get; init; }
+
+    /// <summary>
+    /// Optional weight multiplier for this control when calculating risk scores.
+    /// Higher values indicate greater importance (e.g. scored CIS items).
+    /// Defaults to 1.0 if not specified.
+    /// </summary>
+    public double ControlWeight { get; init; } = 1.0;
 }

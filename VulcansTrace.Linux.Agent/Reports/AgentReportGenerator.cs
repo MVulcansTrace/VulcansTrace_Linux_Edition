@@ -74,7 +74,8 @@ public sealed class AgentReportGenerator
             SuppressedCount = agentResult.SuppressedCount,
             ActiveSuppressions = activeSuppressions,
             CapabilityReport = agentResult.CapabilityReport,
-            Scorecard = agentResult.Scorecard
+            Scorecard = agentResult.Scorecard,
+            RiskScorecard = agentResult.RiskScorecard
         };
     }
 }

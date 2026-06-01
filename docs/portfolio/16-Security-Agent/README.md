@@ -32,7 +32,8 @@ Documentation is organized for two audiences:
 - **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, baseline set/drift/show actions, suppression review actions, cancellation, audit export, and guarded remediation preview export
 - **Dual-layer CIS Benchmark mapping** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical) for audit-ready compliance traceability
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors
-- **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, baseline store persistence, drift detection, agent orchestration, compliance scorecard computation, and CIS mapping flow-through across all execution paths
+- **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction in the Avalonia UI, agent chat, and evidence exports.
+- **Deterministic tests** — verifies intent parsing, scanner parser fixtures, rule behavior, explanations, reports, baseline store persistence, drift detection, agent orchestration, compliance scorecard computation, risk scorecard computation, and CIS mapping flow-through across all execution paths
 
 ## Implementation Evidence
 
@@ -72,5 +73,7 @@ Documentation is organized for two audiences:
 - [ProcessRunner.cs](../../../VulcansTrace.Linux.Agent/Remediation/ProcessRunner.cs) — safe shell command execution with stdin feeding and exception resilience
 - [RemediationConsoleFormatter.cs](../../../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs) — `--dry-run` and `--auto-fix` console output
 - [RemediationPlanValidator.cs](../../../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs) — validation before execution
-- [Agent tests](../../../VulcansTrace.Linux.Tests/Agent) — query, rule, explanation, report, and orchestration coverage
+- [RiskScorecardBuilder.cs](../../../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs) — aggregate risk score computation from findings
+- [RiskScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs) — risk score tab binding and grade-color mapping
+- [Agent tests](../../../VulcansTrace.Linux.Tests/Agent) — query, rule, explanation, report, risk scorecard, and orchestration coverage
 - [Evidence formatter tests](../../../VulcansTrace.Linux.Tests/Evidence) — rule ID preservation through CSV, JSON, Markdown, HTML, and STIX exports

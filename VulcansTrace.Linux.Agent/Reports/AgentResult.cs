@@ -58,4 +58,7 @@ public sealed record AgentResult
 
     /// <summary>CIS compliance scorecard with pass/fail/warn per control family and trend.</summary>
     public Core.Compliance.ComplianceScorecard? Scorecard { get; init; }
+
+    /// <summary>Risk scorecard aggregating findings into a graded numeric score.</summary>
+    public Core.RiskScorecard? RiskScorecard { get; init; }
 }

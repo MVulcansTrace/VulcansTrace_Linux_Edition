@@ -93,6 +93,9 @@ public sealed record AnalysisResult
     /// <summary>Optional CIS compliance scorecard generated from agent rule results.</summary>
     public Compliance.ComplianceScorecard? Scorecard { get; init; }
 
+    /// <summary>Optional risk scorecard aggregating findings into a graded score.</summary>
+    public RiskScorecard? RiskScorecard { get; init; }
+
     /// <summary>
     /// Gets the start of the time range covered by the analysis.
     /// When using <c>with</c> expressions to modify time range properties, set

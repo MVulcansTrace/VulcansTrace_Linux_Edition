@@ -29,6 +29,7 @@ Documentation is organized for two audiences:
 - **Platform-agnostic dialog abstraction** — IDialogService interface backed by AvaloniaDialogService adapter, enabling test-time substitution with no UI dependency
 - **Severity color scheme** — Critical (#ef4444), High (#f97316), Medium (#eab308), Low (#22c55e), Unknown (#64748b)
 - **Compliance tab** — CIS Compliance Scorecard with overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid, and mini bar-chart trend visualization
+- **Risk Score tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid
 - **Schedule management tab** — DataGrid of recurring audit schedules with Add/Edit/Delete/Run Now/Install Cron actions, cron status indicators, and selection preservation across refreshes
 - **Machine role dropdown** — hot-swap roles (Workstation, Server, LabBox, Router, DevMachine) without restarting the app
 
@@ -42,6 +43,7 @@ Documentation is organized for two audiences:
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — Security Agent chat, audit history, filtering, and export handoff
 - [ScheduleViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs) — recurring schedule management, cron status, selection preservation, and on-demand execution
 - [ComplianceScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization
+- [RiskScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs) — risk score tab binding and grade-color mapping
 - [ScheduleEditWindow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/ScheduleEditWindow.axaml) — schedule editor dialog
 - [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation
 - [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching

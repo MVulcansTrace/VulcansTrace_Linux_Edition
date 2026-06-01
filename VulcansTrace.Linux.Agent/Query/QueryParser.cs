@@ -34,6 +34,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "set baseline", "save baseline", "snapshot baseline", "mark as baseline", "known good" }, AgentIntent.SetBaseline, 3),
         (new[] { "drift", "check drift", "baseline drift", "deviated", "changed from baseline" }, AgentIntent.CheckDrift, 3),
         (new[] { "show baseline", "view baseline", "current baseline", "what is my baseline" }, AgentIntent.ShowBaseline, 3),
+        (new[] { "risk score", "risk grade", "what's my risk", "how risky", "risk assessment", "overall risk" }, AgentIntent.RiskScore, 2),
         (new[] { "help", "what can you do", "capabilities", "commands" }, AgentIntent.Help, 2),
     };
 

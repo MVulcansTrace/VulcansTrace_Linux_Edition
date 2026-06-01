@@ -36,6 +36,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
 | `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
 | `Show baseline` | `ShowBaseline` | Display the active baseline findings for the last audit intent |
+| `What's my risk grade?` | `RiskScore` | Returns the aggregate risk scorecard after an audit |
 | `Help` | `Help` | Returns supported agent capabilities |
 
 ## Data Sources
@@ -182,7 +183,8 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 11. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
 12. Baseline snapshots can be saved from any audit result. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display. Baselines are intent-scoped and persisted to the user config directory; the active baseline per intent is used by `CheckDrift` to compare live state against the known-good snapshot via `AuditDiffCalculator`.
 13. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-14. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, and active suppression notes when present.
+14. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0–100), letter grade (A–F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+15. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
 
@@ -219,6 +221,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
 - A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
 - A Compliance tab showing the CIS Compliance Scorecard with an overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid with score and status, and a mini bar-chart trend visualization of previous audits.
+- A Risk Score tab showing the aggregate Risk Scorecard with a color-coded grade badge (A–F), numeric score, summary status, and a per-category breakdown ordered by total deduction.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, and cron job checks.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
@@ -361,6 +364,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [PackageVulnerabilityRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [ComplianceScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs)
+- [RiskScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs)
+- [RiskScorecardBuilder.cs](../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)
 - [ComplianceScorecardBuilderTests.cs](../VulcansTrace.Linux.Tests/Agent/ComplianceScorecardBuilderTests.cs)
 - [ScannerParserFixtureTests.cs](../VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs)

@@ -61,7 +61,21 @@ public class JsonFormatter : IEvidenceFormatter
                 }).ToArray()
             }).ToArray(),
             ParseErrors = result.ParseErrors.ToArray(),
-            Warnings = result.Warnings.ToArray()
+            Warnings = result.Warnings.ToArray(),
+            RiskScorecard = result.RiskScorecard == null ? null : new RiskScorecardExportModel
+            {
+                NumericScore = result.RiskScorecard.NumericScore,
+                LetterGrade = result.RiskScorecard.LetterGrade,
+                SummaryStatus = result.RiskScorecard.SummaryStatus,
+                TotalFindings = result.RiskScorecard.TotalFindings,
+                ByCategory = result.RiskScorecard.ByCategory.Select(c => new CategoryRiskExportModel
+                {
+                    Category = c.Category,
+                    FindingCount = c.FindingCount,
+                    AverageSeverity = c.AverageSeverity,
+                    TotalDeduction = c.TotalDeduction
+                }).ToArray()
+            }
         };
 
         return JsonSerializer.Serialize(exportModel, jsonOptions);
@@ -85,6 +99,24 @@ public class JsonExportModel
     public FindingExportModel[] Findings { get; set; } = Array.Empty<FindingExportModel>();
     public string[] ParseErrors { get; set; } = Array.Empty<string>();
     public string[] Warnings { get; set; } = Array.Empty<string>();
+    public RiskScorecardExportModel? RiskScorecard { get; set; }
+}
+
+public class RiskScorecardExportModel
+{
+    public double NumericScore { get; set; }
+    public string LetterGrade { get; set; } = string.Empty;
+    public string SummaryStatus { get; set; } = string.Empty;
+    public int TotalFindings { get; set; }
+    public CategoryRiskExportModel[] ByCategory { get; set; } = Array.Empty<CategoryRiskExportModel>();
+}
+
+public class CategoryRiskExportModel
+{
+    public string Category { get; set; } = string.Empty;
+    public int FindingCount { get; set; }
+    public double AverageSeverity { get; set; }
+    public double TotalDeduction { get; set; }
 }
 
 public class ExportMetadata

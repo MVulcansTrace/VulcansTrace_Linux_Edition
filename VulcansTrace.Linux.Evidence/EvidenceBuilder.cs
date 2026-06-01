@@ -35,6 +35,8 @@ public sealed class EvidenceBuilder
     private readonly StixFormatter _stixFormatter;
     private readonly ComplianceScorecardHtmlFormatter? _scorecardHtmlFormatter;
     private readonly ComplianceScorecardMarkdownFormatter? _scorecardMarkdownFormatter;
+    private readonly RiskScorecardHtmlFormatter? _riskScorecardHtmlFormatter;
+    private readonly RiskScorecardMarkdownFormatter? _riskScorecardMarkdownFormatter;
     private static readonly DateTimeOffset ZipMinTimestamp = new DateTimeOffset(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     private static readonly DateTimeOffset ZipMaxTimestamp = new DateTimeOffset(new DateTime(2107, 12, 31, 23, 59, 59, DateTimeKind.Utc));
 
@@ -49,6 +51,8 @@ public sealed class EvidenceBuilder
     /// <param name="stixFormatter">Formatter for STIX output.</param>
     /// <param name="scorecardHtmlFormatter">Optional formatter for compliance scorecard HTML.</param>
     /// <param name="scorecardMarkdownFormatter">Optional formatter for compliance scorecard Markdown.</param>
+    /// <param name="riskScorecardHtmlFormatter">Optional formatter for risk scorecard HTML.</param>
+    /// <param name="riskScorecardMarkdownFormatter">Optional formatter for risk scorecard Markdown.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
@@ -57,7 +61,9 @@ public sealed class EvidenceBuilder
         JsonFormatter? jsonFormatter = null,
         StixFormatter? stixFormatter = null,
         ComplianceScorecardHtmlFormatter? scorecardHtmlFormatter = null,
-        ComplianceScorecardMarkdownFormatter? scorecardMarkdownFormatter = null)
+        ComplianceScorecardMarkdownFormatter? scorecardMarkdownFormatter = null,
+        RiskScorecardHtmlFormatter? riskScorecardHtmlFormatter = null,
+        RiskScorecardMarkdownFormatter? riskScorecardMarkdownFormatter = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -67,6 +73,8 @@ public sealed class EvidenceBuilder
         _stixFormatter = stixFormatter ?? new StixFormatter();
         _scorecardHtmlFormatter = scorecardHtmlFormatter;
         _scorecardMarkdownFormatter = scorecardMarkdownFormatter;
+        _riskScorecardHtmlFormatter = riskScorecardHtmlFormatter;
+        _riskScorecardMarkdownFormatter = riskScorecardMarkdownFormatter;
     }
 
     /// <summary>
@@ -148,6 +156,18 @@ public sealed class EvidenceBuilder
             if (_scorecardMarkdownFormatter != null)
             {
                 files["compliance-scorecard.md"] = Encoding.UTF8.GetBytes(_scorecardMarkdownFormatter.ToMarkdown(result.Scorecard));
+            }
+        }
+
+        if (result.RiskScorecard != null)
+        {
+            if (_riskScorecardHtmlFormatter != null)
+            {
+                files["risk-scorecard.html"] = Encoding.UTF8.GetBytes(_riskScorecardHtmlFormatter.ToHtml(result.RiskScorecard));
+            }
+            if (_riskScorecardMarkdownFormatter != null)
+            {
+                files["risk-scorecard.md"] = Encoding.UTF8.GetBytes(_riskScorecardMarkdownFormatter.ToMarkdown(result.RiskScorecard));
             }
         }
 

@@ -87,6 +87,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for CIS compliance scorecard.</summary>
     public ComplianceScorecardViewModel ComplianceScorecard { get; }
 
+    /// <summary>Gets the child ViewModel for risk scorecard.</summary>
+    public RiskScorecardViewModel RiskScorecard { get; }
+
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
 
@@ -334,6 +337,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Suppressions.Refresh();
         RuleCoverage = new RuleCoverageViewModel();
         ComplianceScorecard = new ComplianceScorecardViewModel();
+        RiskScorecard = new RiskScorecardViewModel();
         Schedules = new ScheduleViewModel(
             scheduleStore ?? new InMemoryScheduleStore(),
             auditHistoryStore,
@@ -443,6 +447,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        // Build risk scorecard for log analysis path (engine does not produce one)
+        var riskBuilder = new RiskScorecardBuilder();
+        result = result with { RiskScorecard = riskBuilder.Build(result.Findings) };
+
         _lastResult = result;
         var lastAnalysisTimestampUtc = result.TimeRangeEnd != DateTime.MinValue
             ? result.TimeRangeEnd
@@ -454,6 +462,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(_lastResult, logSnapshot, lastAnalysisTimestampUtc);
         Findings.LoadResults(result);
         Timeline.LoadAnalysisResult(result);
+        RiskScorecard.LoadScorecard(result.RiskScorecard);
 
         // Build summary text
         var total = Findings.FindingsCount;
@@ -498,6 +507,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.ClearEvidenceContext();
         Findings.Clear();
         Timeline.LoadAnalysisResult(null);
+        RiskScorecard.LoadScorecard(null);
 
         if (!string.IsNullOrWhiteSpace(summaryText))
         {
@@ -535,6 +545,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);
         ComplianceScorecard.LoadScorecard(agentResult.Scorecard);
+        RiskScorecard.LoadScorecard(agentResult.RiskScorecard);
         SummaryText = agentResult.Summary;
     }
 

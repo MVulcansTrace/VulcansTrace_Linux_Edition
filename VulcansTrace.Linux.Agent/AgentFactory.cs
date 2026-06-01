@@ -71,7 +71,9 @@ public static class AgentFactory
         var stixFormatter = new StixFormatter();
         var scorecardHtmlFormatter = new ComplianceScorecardHtmlFormatter();
         var scorecardMarkdownFormatter = new ComplianceScorecardMarkdownFormatter();
-        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter);
+        var riskScorecardHtmlFormatter = new RiskScorecardHtmlFormatter();
+        var riskScorecardMarkdownFormatter = new RiskScorecardMarkdownFormatter();
+        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter, riskScorecardHtmlFormatter, riskScorecardMarkdownFormatter);
 
         var scanners = new IScanner[]
         {
@@ -215,6 +217,7 @@ public static class AgentFactory
         }
 
         var scorecardBuilder = new ComplianceScorecardBuilder();
+        var riskScorecardBuilder = new RiskScorecardBuilder();
 
         var agent = new SecurityAgent(
             scanners,
@@ -227,7 +230,8 @@ public static class AgentFactory
             policyProvider,
             auditHistoryStore,
             baselineStore,
-            scorecardBuilder);
+            scorecardBuilder,
+            riskScorecardBuilder);
 
         var ruleCatalog = new RuleCatalog(rules);
         var notificationService = new NotifySendNotificationService();

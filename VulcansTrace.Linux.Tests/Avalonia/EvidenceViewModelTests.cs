@@ -137,7 +137,7 @@ public class EvidenceViewModelTests
     public async Task ExportEvidenceAsync_WhenSaveDialogCancelled_DoesNotBuildBundle()
     {
         var dialogService = new TestDialogService();
-        var brokenBuilder = new EvidenceBuilder(null!, null!, null!, null!);
+        var brokenBuilder = new EvidenceBuilder(null!, null!, null!, null!, null, null, null, null, null, null);
         var vm = new EvidenceViewModel(brokenBuilder, dialogService);
         var statuses = new List<string>();
         vm.StatusChanged += (_, status) => statuses.Add(status);
@@ -154,7 +154,7 @@ public class EvidenceViewModelTests
     private static EvidenceBuilder BuildEvidenceBuilder()
     {
         var hasher = new IntegrityHasher();
-        return new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter());
+        return new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), null, null, null, null, new RiskScorecardHtmlFormatter(), new RiskScorecardMarkdownFormatter());
     }
 
     private sealed class TestDialogService : IDialogService
