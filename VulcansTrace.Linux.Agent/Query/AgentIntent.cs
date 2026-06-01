@@ -41,6 +41,9 @@ public enum AgentIntent
     /// <summary>Focus on cron job entries, permissions, and suspicious scheduled tasks.</summary>
     CronJobCheck,
 
+    /// <summary>Focus on package vulnerabilities and pending security updates.</summary>
+    PackageVulnerabilityCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

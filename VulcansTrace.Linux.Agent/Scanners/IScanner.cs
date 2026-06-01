@@ -45,6 +45,7 @@ public sealed class ScanDataBuilder
     private LoginDefs? _loginDefs;
     private PamConfig? _pamConfig;
     private LoggingAuditConfig? _loggingAuditConfig;
+    private PackageVulnerabilityStatus? _packageVulnerabilityStatus;
 
     public string FirewallRaw
     {
@@ -158,6 +159,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _cronJobs.Add(entry); }
     }
 
+    public void SetPackageVulnerabilityStatus(PackageVulnerabilityStatus status)
+    {
+        lock (_lock) { _packageVulnerabilityStatus = status; }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -185,7 +191,8 @@ public sealed class ScanDataBuilder
                 LoginDefs = _loginDefs,
                 PamConfig = _pamConfig,
                 LoggingAudit = _loggingAuditConfig,
-                CronJobs = _cronJobs.ToArray()
+                CronJobs = _cronJobs.ToArray(),
+                PackageVulnerabilities = _packageVulnerabilityStatus
             };
         }
     }

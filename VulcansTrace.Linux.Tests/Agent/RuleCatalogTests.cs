@@ -68,7 +68,10 @@ public class RuleCatalogTests
         new LogRotationConfiguredRule(),
         new CentralForwardingConfiguredRule(),
         new AuditdPrivilegeEscalationMonitoringRule(),
-        new ForwardingUsesTcpRule()
+        new ForwardingUsesTcpRule(),
+        new SecurityUpdatesAvailableRule(),
+        new UnattendedUpgradesEnabledRule(),
+        new CriticalCvesPresentRule()
     };
 
     [Fact]
@@ -76,7 +79,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(61, catalog.Items.Count);
+        Assert.Equal(64, catalog.Items.Count);
     }
 
     [Fact]
@@ -108,6 +111,7 @@ public class RuleCatalogTests
     [InlineData("USER-0", 7)]
     [InlineData("LOG-0", 7)]
     [InlineData("CRON-0", 3)]
+    [InlineData("PKG-VULN-0", 3)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -132,7 +136,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(61, results.Count);
+        Assert.Equal(64, results.Count);
     }
 
     [Fact]
@@ -203,6 +207,8 @@ public class RuleCatalogTests
     [InlineData("LOG-005", "CIS 8.4")]
     [InlineData("LOG-006", "CIS 8.2")]
     [InlineData("LOG-007", "CIS 8.4")]
+    [InlineData("PKG-VULN-001", "CIS 1.9")]
+    [InlineData("PKG-VULN-002", "CIS 1.9")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());

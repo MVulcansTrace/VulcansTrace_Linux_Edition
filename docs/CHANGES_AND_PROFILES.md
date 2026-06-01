@@ -169,8 +169,24 @@ Last updated: 2026-05-31
 - 30+ new tests covering scanner parsing, word-boundary matching, setuid detection, tilde-user path detection, multiple-match reporting, and NotApplicable behavior.
 - Code: `VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/cron.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`
 
+### Security Agent — Package Vulnerability Scanning
+- Added `PackageVulnerabilityScanner` that enumerates installed packages via `dpkg-query`, detects pending security updates via `apt list --upgradeable` and `apt-cache policy` (classifying updates from security repositories), optionally enriches findings with specific CVE IDs when `debsecan` is installed, and checks `unattended-upgrades` configuration.
+- Added `InstalledPackage`, `VulnerablePackage`, and `PackageVulnerabilityStatus` records to `ScanData` with typed fields: `Name`, `Version`, `Architecture`, `InstalledVersion`, `AvailableVersion`, `IsSecurityUpdate`, `CveIds`, `Source`, `PackagesReadable`, `UnattendedUpgradesConfigured`, `UnattendedUpgradesEnabled`, `CveDataAvailable`.
+- Added 3 package vulnerability rules (`PKG-VULN-001` through `PKG-VULN-003`) with dual-layer CIS compliance mappings:
+  - `PKG-VULN-001` — Pending security updates should be applied promptly; severity escalates to `Critical` when 5+ security updates are pending (CIS 1.9)
+  - `PKG-VULN-002` — Automatic security updates via `unattended-upgrades` should be configured (CIS 1.9)
+  - `PKG-VULN-003` — Known CVEs affecting installed packages should be tracked and patched; returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable, preventing false confidence (no direct CIS mapping)
+- All package vulnerability rules return `NotApplicable` when package data is unreadable (dpkg-query failed or permission denied), matching the behavior of `LoggingAuditRules` and `CronJobRules`.
+- `AgentIntent.PackageVulnerabilityCheck` and `QueryParser` keywords (`package`, `vulnerability`, `cve`, `security update`, `apt`, `upgradeable`, `patch`) so users can ask "check package vulnerabilities".
+- Added `packagevulnerability.md` explanation template with remediation steps for all package vulnerability rules.
+- Scanner handles edge cases robustly: OCE during optional debsecan enrichment does not discard core dpkg/apt data; empty dpkg-query output on success is distinguished from command failure; per-package `apt-cache policy` failures emit warnings; `CheckUnattendedUpgrades` uses a simple line-scan parser instead of fragile block-state tracking.
+- CVEs for packages without upgradeable versions in configured repos are still reported (with `Source = "debsecan (fix may require repository reconfiguration)"`), preventing silent data loss.
+- Added `FindingCategories.PackageVulnerability` constant for consistency with other rule families.
+- 20+ new tests covering scanner parser fixtures (dpkg, apt, apt-cache policy, debsecan), rule behavior (NotApplicable on missing data, severity escalation, CVE availability gating), and query parser keyword matching.
+- Code: `VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/packagevulnerability.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Core/FindingCategories.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 61 agent rules now carry dual-layer CIS compliance mappings:
+- All 64 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

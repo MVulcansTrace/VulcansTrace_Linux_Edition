@@ -85,7 +85,8 @@ public static class AgentFactory
             new KernelHardeningScanner(),
             new UserAccountScanner(),
             new LoggingAuditScanner(),
-            new CronJobScanner()
+            new CronJobScanner(),
+            new PackageVulnerabilityScanner()
         };
 
         var rules = new IRule[]
@@ -150,7 +151,10 @@ public static class AgentFactory
             new LogRotationConfiguredRule(),
             new CentralForwardingConfiguredRule(),
             new AuditdPrivilegeEscalationMonitoringRule(),
-            new ForwardingUsesTcpRule()
+            new ForwardingUsesTcpRule(),
+            new SecurityUpdatesAvailableRule(),
+            new UnattendedUpgradesEnabledRule(),
+            new CriticalCvesPresentRule()
         };
 
         var explanationProvider = new ExplanationProvider();

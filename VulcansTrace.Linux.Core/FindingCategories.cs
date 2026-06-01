@@ -18,4 +18,5 @@ public static class FindingCategories
     public const string UserAccount = "UserAccount";
     public const string FilesystemAudit = "FilesystemAudit";
     public const string CronJob = "CronJob";
+    public const string PackageVulnerability = "PackageVulnerability";
 }

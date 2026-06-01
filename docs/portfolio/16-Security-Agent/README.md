@@ -16,9 +16,9 @@ Documentation is organized for two audiences:
 ## System Capabilities
 
 - **Natural-language intent parsing** — maps questions like "is my system secure?", "check my firewall", and "what ports are open?" into structured agent intents, plus deterministic follow-ups such as "what changed since the last audit?" and "what should I fix first?"
-- **Live host scanning** — collects firewall, port, service, SSH daemon configuration, file permissions, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, interface, route, connection state, logging service status, auditd rules, logrotate, central forwarding targets, and cron job entries through local Linux commands
+- **Live host scanning** — collects firewall, port, service, SSH daemon configuration, file permissions, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, interface, route, connection state, logging service status, auditd rules, logrotate, central forwarding targets, cron job entries, installed package inventory, pending security updates, and unattended-upgrades configuration through local Linux commands
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
-- **Rule-based posture checks** — evaluates firewall, port, service, SSH, file permission, kernel hardening, network, and cron job rules without external AI dependencies
+- **Rule-based posture checks** — evaluates firewall, port, service, SSH, file permission, kernel hardening, network, cron job, and package vulnerability rules without external AI dependencies
 - **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides; the Avalonia UI includes a role dropdown for hot-swapping without code changes
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
@@ -53,7 +53,8 @@ Documentation is organized for two audiences:
 - [UserAccountScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs) — local user account, shadow, password aging, and PAM configuration collection
 - [LoggingAuditScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs) — logging service status, auditd rules, logrotate, and central forwarding collection
 - [CronJobScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs) — cron job entry collection from system and user crontabs
-- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, filesystem audit, kernel hardening, user account, logging, and cron job checks
+- [PackageVulnerabilityScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs) — installed package enumeration, security update detection, and CVE enrichment
+- [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, filesystem audit, kernel hardening, user account, logging, cron job, and package vulnerability checks
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [BaselineEntry.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs) — baseline snapshot with original findings

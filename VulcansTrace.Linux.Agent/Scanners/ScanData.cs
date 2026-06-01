@@ -71,6 +71,69 @@ public sealed record ScanData
 
     /// <summary>Parsed cron job entries from system and user crontabs.</summary>
     public IReadOnlyList<CronJobEntry> CronJobs { get; init; } = Array.Empty<CronJobEntry>();
+
+    /// <summary>Package vulnerability status including installed packages and pending security updates.</summary>
+    public PackageVulnerabilityStatus? PackageVulnerabilities { get; init; }
+}
+
+/// <summary>An installed package parsed from dpkg-query.</summary>
+public sealed record InstalledPackage
+{
+    /// <summary>Package name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Installed version string.</summary>
+    public string Version { get; init; } = string.Empty;
+
+    /// <summary>Package architecture (e.g., amd64, arm64).</summary>
+    public string Architecture { get; init; } = string.Empty;
+}
+
+/// <summary>A package with a known pending update, optionally classified as a security update.</summary>
+public sealed record VulnerablePackage
+{
+    /// <summary>Package name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Currently installed version.</summary>
+    public string InstalledVersion { get; init; } = string.Empty;
+
+    /// <summary>Available updated version.</summary>
+    public string AvailableVersion { get; init; } = string.Empty;
+
+    /// <summary>Whether the available update comes from a security repository.</summary>
+    public bool IsSecurityUpdate { get; init; }
+
+    /// <summary>Associated CVE identifiers (if debsecan or similar enrichment is available).</summary>
+    public IReadOnlyList<string> CveIds { get; init; } = Array.Empty<string>();
+
+    /// <summary>Source repository or origin (e.g., "ubuntu-security", "debian-security").</summary>
+    public string Source { get; init; } = string.Empty;
+}
+
+/// <summary>Aggregated package vulnerability scanning results.</summary>
+public sealed record PackageVulnerabilityStatus
+{
+    /// <summary>Whether package data could be read.</summary>
+    public bool PackagesReadable { get; init; }
+
+    /// <summary>Warning or detail message if reading failed.</summary>
+    public string? ReadWarning { get; init; }
+
+    /// <summary>All installed packages.</summary>
+    public IReadOnlyList<InstalledPackage> InstalledPackages { get; init; } = Array.Empty<InstalledPackage>();
+
+    /// <summary>Packages with known pending updates affecting this system.</summary>
+    public IReadOnlyList<VulnerablePackage> VulnerablePackages { get; init; } = Array.Empty<VulnerablePackage>();
+
+    /// <summary>Whether unattended-upgrades configuration file exists.</summary>
+    public bool UnattendedUpgradesConfigured { get; init; }
+
+    /// <summary>Whether unattended-upgrades appears actively enabled.</summary>
+    public bool UnattendedUpgradesEnabled { get; init; }
+
+    /// <summary>Whether CVE enrichment data (e.g., from debsecan) was available during the scan.</summary>
+    public bool CveDataAvailable { get; init; }
 }
 
 /// <summary>A parsed cron job entry from system or user crontabs.</summary>

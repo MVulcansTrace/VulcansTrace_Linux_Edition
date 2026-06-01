@@ -1165,4 +1165,166 @@ public class ScannerParserFixtureTests
             c.SourceName.StartsWith("/var/spool/cron", StringComparison.OrdinalIgnoreCase));
         Assert.NotEmpty(cronCapabilities);
     }
+
+    // =====================================================================
+    // PackageVulnerabilityScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDpkgQueryLine_ValidLine_ReturnsPackage()
+    {
+        var result = PackageVulnerabilityScanner.ParseDpkgQueryLine("libc6\t2.31-0ubuntu9.14\tamd64");
+
+        Assert.NotNull(result);
+        Assert.Equal("libc6", result.Name);
+        Assert.Equal("2.31-0ubuntu9.14", result.Version);
+        Assert.Equal("amd64", result.Architecture);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDpkgQueryLine_MalformedLine_ReturnsNull()
+    {
+        var result = PackageVulnerabilityScanner.ParseDpkgQueryLine("libc6\t2.31");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDpkgQueryLine_EmptyLine_ReturnsNull()
+    {
+        var result = PackageVulnerabilityScanner.ParseDpkgQueryLine("");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptListUpgradeableLine_ValidLine_ReturnsParsed()
+    {
+        var result = PackageVulnerabilityScanner.ParseAptListUpgradeableLine(
+            "libc6/focal-security 2.31-0ubuntu9.16 amd64 [upgradable from: 2.31-0ubuntu9.14]");
+
+        Assert.NotNull(result);
+        Assert.Equal("libc6", result.Value.Name);
+        Assert.Equal("2.31-0ubuntu9.16", result.Value.Version);
+        Assert.Equal("amd64", result.Value.Arch);
+        Assert.Equal("2.31-0ubuntu9.14", result.Value.CurrentVersion);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptListUpgradeableLine_WithoutCurrentVersion_ReturnsParsed()
+    {
+        var result = PackageVulnerabilityScanner.ParseAptListUpgradeableLine(
+            "openssh-server/jammy-updates 1:8.9p1-3ubuntu0.10 amd64");
+
+        Assert.NotNull(result);
+        Assert.Equal("openssh-server", result.Value.Name);
+        Assert.Equal("1:8.9p1-3ubuntu0.10", result.Value.Version);
+        Assert.Equal("amd64", result.Value.Arch);
+        Assert.Null(result.Value.CurrentVersion);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptListUpgradeableLine_ListingHeader_ReturnsNull()
+    {
+        var result = PackageVulnerabilityScanner.ParseAptListUpgradeableLine(
+            "Listing... Done");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptListUpgradeableLine_EmptyInput_ReturnsNull()
+    {
+        var result = PackageVulnerabilityScanner.ParseAptListUpgradeableLine("");
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptCachePolicySecurity_SecurityOrigin_ReturnsTrue()
+    {
+        const string policy = """
+            libc6:
+              Installed: 2.31-0ubuntu9.14
+              Candidate: 2.31-0ubuntu9.16
+              Version table:
+                 2.31-0ubuntu9.16 500
+                    500 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 Packages
+                 2.31-0ubuntu9.16 500
+                    500 http://security.ubuntu.com/ubuntu focal-security/main amd64 Packages
+             *** 2.31-0ubuntu9.14 100
+                    100 /var/lib/dpkg/status
+            """;
+
+        var isSecurity = PackageVulnerabilityScanner.ParseAptCachePolicySecurity("2.31-0ubuntu9.16", policy, out var source);
+
+        Assert.True(isSecurity);
+        Assert.Contains("security", source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptCachePolicySecurity_NonSecurityOrigin_ReturnsFalse()
+    {
+        const string policy = """
+            libc6:
+              Installed: 2.31-0ubuntu9.14
+              Candidate: 2.31-0ubuntu9.16
+              Version table:
+                 2.31-0ubuntu9.16 500
+                    500 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 Packages
+             *** 2.31-0ubuntu9.14 100
+                    100 /var/lib/dpkg/status
+            """;
+
+        var isSecurity = PackageVulnerabilityScanner.ParseAptCachePolicySecurity("2.31-0ubuntu9.16", policy, out var source);
+
+        Assert.False(isSecurity);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseAptCachePolicySecurity_EmptyInput_ReturnsFalse()
+    {
+        var isSecurity = PackageVulnerabilityScanner.ParseAptCachePolicySecurity("1.0", "", out var source);
+        Assert.False(isSecurity);
+        Assert.Empty(source);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDebsecanOutput_WithCves_ReturnsMapping()
+    {
+        const string output = """
+            CVE-2023-1234 libfoo (fixed)
+            CVE-2023-5678 libfoo (fixed)
+            CVE-2023-9999 libbar (fixed; remotely exploitable, high urgency)
+            """;
+
+        var result = PackageVulnerabilityScanner.ParseDebsecanOutput(output);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains("libfoo", result.Keys);
+        Assert.Contains("libbar", result.Keys);
+        Assert.Equal(2, result["libfoo"].Count);
+        Assert.Contains("CVE-2023-1234", result["libfoo"]);
+        Assert.Contains("CVE-2023-5678", result["libfoo"]);
+        Assert.Single(result["libbar"]);
+        Assert.Contains("CVE-2023-9999", result["libbar"]);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDebsecanOutput_EmptyInput_ReturnsEmpty()
+    {
+        var result = PackageVulnerabilityScanner.ParseDebsecanOutput("");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void PackageVulnerabilityScanner_ParseDebsecanOutput_NonCveLines_Ignored()
+    {
+        const string output = """
+            Some header line
+            CVE-2023-1234 libfoo (fixed)
+            Another irrelevant line
+            """;
+
+        var result = PackageVulnerabilityScanner.ParseDebsecanOutput(output);
+
+        Assert.Single(result);
+        Assert.Single(result["libfoo"]);
+    }
 }

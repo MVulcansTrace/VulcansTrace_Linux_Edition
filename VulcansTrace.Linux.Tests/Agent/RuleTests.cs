@@ -2454,4 +2454,299 @@ public class RuleTests
             Assert.False(string.IsNullOrWhiteSpace(m.WhyItMatters));
         });
     }
+
+    // =====================================================================
+    // PackageVulnerabilityRules
+    // =====================================================================
+
+    [Fact]
+    public void SecurityUpdatesAvailableRule_NoUpdates_Passes()
+    {
+        var rule = new SecurityUpdatesAvailableRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                VulnerablePackages = Array.Empty<VulnerablePackage>()
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SecurityUpdatesAvailableRule_SecurityUpdate_Fails_WithHighSeverity()
+    {
+        var rule = new SecurityUpdatesAvailableRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                VulnerablePackages = new[]
+                {
+                    new VulnerablePackage
+                    {
+                        Name = "libc6",
+                        InstalledVersion = "2.31-0ubuntu9.14",
+                        AvailableVersion = "2.31-0ubuntu9.16",
+                        IsSecurityUpdate = true
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void SecurityUpdatesAvailableRule_ManyUpdates_Fails_WithCriticalSeverity()
+    {
+        var rule = new SecurityUpdatesAvailableRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                VulnerablePackages = Enumerable.Range(0, 5).Select(i => new VulnerablePackage
+                {
+                    Name = $"pkg{i}",
+                    InstalledVersion = "1.0",
+                    AvailableVersion = "1.1",
+                    IsSecurityUpdate = true
+                }).ToArray()
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SecurityUpdatesAvailableRule_NonSecurityUpdate_Passes()
+    {
+        var rule = new SecurityUpdatesAvailableRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                VulnerablePackages = new[]
+                {
+                    new VulnerablePackage
+                    {
+                        Name = "some-app",
+                        InstalledVersion = "1.0",
+                        AvailableVersion = "1.1",
+                        IsSecurityUpdate = false
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SecurityUpdatesAvailableRule_MissingData_NotApplicable()
+    {
+        var rule = new SecurityUpdatesAvailableRule();
+        var data = new ScanData();
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void UnattendedUpgradesEnabledRule_ConfiguredAndEnabled_Passes()
+    {
+        var rule = new UnattendedUpgradesEnabledRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                UnattendedUpgradesConfigured = true,
+                UnattendedUpgradesEnabled = true
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void UnattendedUpgradesEnabledRule_NotConfigured_Fails()
+    {
+        var rule = new UnattendedUpgradesEnabledRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                UnattendedUpgradesConfigured = false,
+                UnattendedUpgradesEnabled = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void UnattendedUpgradesEnabledRule_ConfiguredButDisabled_Fails()
+    {
+        var rule = new UnattendedUpgradesEnabledRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                UnattendedUpgradesConfigured = true,
+                UnattendedUpgradesEnabled = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_NoCves_Passes()
+    {
+        var rule = new CriticalCvesPresentRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                VulnerablePackages = Array.Empty<VulnerablePackage>()
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_CvesFound_Fails_WithCriticalSeverity()
+    {
+        var rule = new CriticalCvesPresentRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                CveDataAvailable = true,
+                VulnerablePackages = new[]
+                {
+                    new VulnerablePackage
+                    {
+                        Name = "libfoo",
+                        InstalledVersion = "1.0",
+                        AvailableVersion = "1.1",
+                        IsSecurityUpdate = true,
+                        CveIds = new[] { "CVE-2023-1234", "CVE-2023-5678" }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_MissingData_NotApplicable()
+    {
+        var rule = new CriticalCvesPresentRule();
+        var data = new ScanData();
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_CveDataUnavailable_NotApplicable()
+    {
+        var rule = new CriticalCvesPresentRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                CveDataAvailable = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_CveDataAvailable_NoCves_Passes()
+    {
+        var rule = new CriticalCvesPresentRule();
+        var data = new ScanData
+        {
+            PackageVulnerabilities = new PackageVulnerabilityStatus
+            {
+                PackagesReadable = true,
+                CveDataAvailable = true,
+                VulnerablePackages = Array.Empty<VulnerablePackage>()
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.Passed, result.Status);
+    }
+
+    [Theory]
+    [InlineData(typeof(SecurityUpdatesAvailableRule), "CIS 1.9")]
+    [InlineData(typeof(UnattendedUpgradesEnabledRule), "CIS 1.9")]
+    public void PackageVulnerabilityRules_HaveCisMappings(Type ruleType, string expectedControlId)
+    {
+        var rule = (IRule)Activator.CreateInstance(ruleType)!;
+
+        Assert.NotEmpty(rule.CisMappings);
+        Assert.Contains(rule.CisMappings, m => m.ControlId == expectedControlId);
+        Assert.All(rule.CisMappings, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.ControlName));
+            Assert.False(string.IsNullOrWhiteSpace(m.WhyItMatters));
+        });
+    }
+
+    [Fact]
+    public void CriticalCvesPresentRule_HasEmptyCisMappings_Intentionally()
+    {
+        var rule = new CriticalCvesPresentRule();
+
+        Assert.Empty(rule.CisMappings);
+    }
 }

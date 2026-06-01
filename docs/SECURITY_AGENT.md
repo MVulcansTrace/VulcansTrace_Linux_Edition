@@ -24,6 +24,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my user accounts` | `UserAccountCheck` | Reviews user accounts, password aging, PAM complexity, and shadow entries |
 | `Check my logging` | `LoggingAuditCheck` | Reviews rsyslog, journald, auditd, logrotate, and central forwarding configuration |
 | `Check my cron jobs` | `CronJobCheck` | Reviews cron entries for suspicious commands, world-writable scripts, and root jobs referencing user paths |
+| `Check package vulnerabilities` | `PackageVulnerabilityCheck` | Reviews installed packages for pending security updates and known CVEs |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -54,6 +55,7 @@ The agent reads local host state using common Linux tools:
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
 | `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | Checks logging service status, auditd rules, logrotate configuration, and central forwarding targets |
 | `CronJobScanner` | Reads `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/var/spool/cron/*`, `/etc/cron.daily/*`, `/etc/cron.hourly/*`, `/etc/cron.weekly/*`, `/etc/cron.monthly/*`; uses `stat` for script permissions | Parses system and user crontabs and cron script directories for scheduled job entries and script permissions |
+| `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, optionally `debsecan --format report --only-fixed`, `/etc/apt/apt.conf.d/50unattended-upgrades`, `/etc/apt/apt.conf.d/20auto-upgrades` | Enumerates installed packages, detects pending security updates from security repositories, enriches with CVE IDs when debsecan is available, and checks unattended-upgrades configuration |
 
 Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -153,6 +155,13 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Script files in `cron.daily`, `cron.hourly`, `cron.weekly`, and `cron.monthly` should not be world-writable. Setuid/setgid bits on cron scripts are escalated to `Critical` severity (`CRON-002`).
 - System crontab entries running as `root` should not reference non-root user directories (e.g., paths under `/home/` or `~username` expansions) (`CRON-003`).
 - All cron rules return `NotApplicable` when no cron data is available (requires root or cron files not present).
+
+### Package Vulnerability
+
+- Pending security updates from security repositories should be applied promptly. Severity escalates to `Critical` when 5 or more security updates are pending (`PKG-VULN-001`).
+- Automatic security updates via `unattended-upgrades` should be configured (`PKG-VULN-002`).
+- Known CVEs affecting installed packages should be tracked and patched. Returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable, preventing false confidence on systems without CVE data (`PKG-VULN-003`).
+- All package vulnerability rules return `NotApplicable` when package data is unreadable (dpkg-query failed or permission denied).
 
 ## How The Pipeline Works
 
@@ -294,8 +303,10 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | CRON-001 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | CRON-002 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | CRON-003 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
+| PKG-VULN-001 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
+| PKG-VULN-002 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
 
-The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable.
+The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003, PKG-VULN-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable. PKG-VULN-003 returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable.
 
 Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMappings`, and are attached to `Finding.CisMappings` in both the full audit and single-rule explain paths. Evidence exports preserve them in CSV, HTML, Markdown, JSON, and STIX formats.
 
@@ -335,9 +346,11 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [UserAccountScanner.cs](../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs)
 - [LoggingAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs)
 - [CronJobScanner.cs](../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs)
+- [PackageVulnerabilityScanner.cs](../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
 - [CronJobRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs)
+- [PackageVulnerabilityRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [ComplianceScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)
