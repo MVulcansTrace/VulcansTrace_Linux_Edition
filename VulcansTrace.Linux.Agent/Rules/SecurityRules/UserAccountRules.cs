@@ -490,3 +490,315 @@ public sealed class MissingHomeDirectoryRule : IRule
                && !shell.Equals("/usr/sbin/nologin", StringComparison.OrdinalIgnoreCase);
     }
 }
+
+/// <summary>
+/// USER-008: PAM faillock should be configured for account lockout and failed-login tracking.
+/// </summary>
+public sealed class PamFaillockConfiguredRule : IRule
+{
+    public string Id => "USER-008";
+    public string Category => FindingCategories.UserAccount;
+    public string Description => "PAM faillock should be configured for failed-login tracking and account lockout";
+    public string WhatItChecks => "Checks the auth PAM stack for pam_faillock.so with preauth and authfail, and verifies faillock.conf is present";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "pam" };
+    public Severity Severity => Severity.Medium;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.3",
+            ControlName = "Configure PAM",
+            WhyItMatters = "Without faillock, attackers can perform unlimited authentication attempts. Account lockout after a small number of failures is required by NIST 800-53 AC-7 and CIS benchmarks.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.3.2 — Ensure lockout for failed password attempts is configured"
+        }
+    };
+
+    public RuleResult Evaluate(ScanData data)
+    {
+        if (data.PamConfig is not { Readable: true } ||
+            (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+
+        // Use per-file data when available; fall back to flat RawLines for compatibility.
+        var filesToCheck = data.PamConfig.RawLinesByFile.Count > 0
+            ? data.PamConfig.RawLinesByFile
+            : new Dictionary<string, string[]> { ["merged"] = data.PamConfig.RawLines.ToArray() };
+
+        var authFilesWithLines = filesToCheck
+            .Where(kv => kv.Value.Any(l => l.TrimStart().StartsWith("auth", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (authFilesWithLines.Count == 0)
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+
+        var filesMissingFaillock = new List<string>();
+        foreach (var (filePath, lines) in authFilesWithLines)
+        {
+            var authLines = lines
+                .Where(l => l.TrimStart().StartsWith("auth", StringComparison.OrdinalIgnoreCase))
+                .Select(l => l.Trim().ToLowerInvariant())
+                .ToList();
+
+            var hasPreauth = authLines.Any(l => l.Contains("pam_faillock.so") && l.Contains("preauth"));
+            var hasAuthfail = authLines.Any(l => l.Contains("pam_faillock.so") && l.Contains("authfail"));
+
+            if (!hasPreauth || !hasAuthfail)
+            {
+                filesMissingFaillock.Add(filePath);
+            }
+        }
+
+        // Check faillock.conf specifically, not any file
+        var hasFaillockConf = data.PamConfig.RawLinesByFile.TryGetValue("/etc/security/faillock.conf", out var faillockLines)
+            ? faillockLines.Any(l =>
+            {
+                var trimmed = l.Trim().ToLowerInvariant();
+                return !trimmed.StartsWith('#') &&
+                       (trimmed.StartsWith("deny") || trimmed.StartsWith("unlock_time") || trimmed.StartsWith("fail_interval"));
+            })
+            : data.PamConfig.RawLines.Any(l =>
+            {
+                var trimmed = l.Trim().ToLowerInvariant();
+                // Fallback: require '=' to match key=value lines typical of faillock.conf,
+                // avoiding false positives on PAM module arguments.
+                return !trimmed.StartsWith('#') && trimmed.Contains('=') &&
+                       (trimmed.StartsWith("deny") || trimmed.StartsWith("unlock_time") || trimmed.StartsWith("fail_interval"));
+            });
+
+        if (filesMissingFaillock.Count == 0 && hasFaillockConf)
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+
+        var missing = new List<string>();
+        if (filesMissingFaillock.Count > 0)
+            missing.Add($"faillock preauth/authfail in {string.Join(", ", filesMissingFaillock)}");
+        if (!hasFaillockConf)
+            missing.Add("faillock.conf settings");
+
+        return RuleResult.Fail(Id, Category, Id, Description, Severity,
+            $"Missing: {string.Join("; ", missing)}",
+            new Dictionary<string, string>
+            {
+                ["missing"] = string.Join("; ", missing),
+                ["expected"] = "pam_faillock.so preauth and authfail in every auth stack, with faillock.conf"
+            }, CisMappings);
+    }
+}
+
+/// <summary>
+/// USER-009: PAM password quality should enforce detailed complexity (minlen, minclass, credits).
+/// </summary>
+public sealed class PamPasswordQualityDetailedRule : IRule
+{
+    public string Id => "USER-009";
+    public string Category => FindingCategories.UserAccount;
+    public string Description => "PAM password quality should enforce minimum length, character classes, and credit requirements";
+    public string WhatItChecks => "Checks pwquality.conf or PAM arguments for minlen >= 14, minclass >= 3, and at least one credit setting";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "pam" };
+    public Severity Severity => Severity.Medium;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.4",
+            ControlName = "Configure Password Policies",
+            WhyItMatters = "Weak passwords are the primary vector for brute-force and credential-guessing attacks. Enforcing length, diversity, and credit requirements raises the cost of attack exponentially.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.4.1 — Ensure password creation requirements are configured"
+        }
+    };
+
+    public RuleResult Evaluate(ScanData data)
+    {
+        if (data.PamConfig is not { Readable: true } ||
+            (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+
+        int? minlen = null;
+        int? minclass = null;
+        var hasCredit = false;
+
+        var linesToCheck = data.PamConfig.RawLinesByFile.Count > 0
+            ? data.PamConfig.RawLinesByFile.Values.SelectMany(v => v)
+            : data.PamConfig.RawLines;
+
+        // Note: last-value-wins semantics. The scanner orders pwquality.conf after PAM stack files,
+        // so settings in pwquality.conf take precedence over inline module arguments.
+        foreach (var raw in linesToCheck)
+        {
+            var line = raw.Trim().ToLowerInvariant();
+            if (line.StartsWith('#'))
+                continue;
+
+            // pwquality.conf style: key = value
+            if (line.StartsWith("minlen"))
+            {
+                var parts = line.Split(new[] { '=', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && int.TryParse(parts[1], out var v))
+                    minlen = v;
+            }
+            else if (line.StartsWith("minclass"))
+            {
+                var parts = line.Split(new[] { '=', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && int.TryParse(parts[1], out var v))
+                    minclass = v;
+            }
+            else if (line.StartsWith("dcredit") || line.StartsWith("ucredit") || line.StartsWith("lcredit") || line.StartsWith("ocredit"))
+            {
+                hasCredit = true;
+            }
+            // PAM module argument style
+            else if (line.Contains("pam_pwquality.so") || line.Contains("pam_cracklib.so"))
+            {
+                var args = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var arg in args)
+                {
+                    if (arg.StartsWith("minlen="))
+                    {
+                        if (int.TryParse(arg.Split('=')[1], out var v))
+                            minlen = v;
+                    }
+                    else if (arg.StartsWith("minclass="))
+                    {
+                        if (int.TryParse(arg.Split('=')[1], out var v))
+                            minclass = v;
+                    }
+                    else if (arg.StartsWith("dcredit=") || arg.StartsWith("ucredit=") || arg.StartsWith("lcredit=") || arg.StartsWith("ocredit="))
+                    {
+                        hasCredit = true;
+                    }
+                }
+            }
+        }
+
+        var violations = new List<string>();
+        var vars = new Dictionary<string, string>();
+
+        if (minlen is null or < 14)
+        {
+            violations.Add($"minlen = {minlen?.ToString() ?? "unset"} (expected >= 14)");
+            vars["minlen"] = minlen?.ToString() ?? "unset";
+        }
+
+        if (minclass is null or < 3)
+        {
+            violations.Add($"minclass = {minclass?.ToString() ?? "unset"} (expected >= 3)");
+            vars["minclass"] = minclass?.ToString() ?? "unset";
+        }
+
+        if (!hasCredit)
+        {
+            violations.Add("No credit settings (dcredit, ucredit, lcredit, ocredit) found");
+            vars["credits"] = "none";
+        }
+
+        if (violations.Count == 0)
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+
+        vars["violations"] = string.Join("; ", violations);
+
+        return RuleResult.Fail(Id, Category, Id, Description, Severity,
+            string.Join("; ", violations),
+            vars, CisMappings);
+    }
+}
+
+/// <summary>
+/// USER-010: PAM auth stack should have a required/requisite module before any sufficient module.
+/// </summary>
+public sealed class PamAuthRequiredRule : IRule
+{
+    public string Id => "USER-010";
+    public string Category => FindingCategories.UserAccount;
+    public string Description => "PAM auth stack should require at least one required or requisite module before sufficient modules";
+    public string WhatItChecks => "Checks that the auth PAM stack ordering prevents bypass by placing required/requisite before sufficient";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "pam" };
+    public Severity Severity => Severity.High;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.3",
+            ControlName = "Configure PAM",
+            WhyItMatters = "A sufficient module placed before required/requisite can short-circuit authentication, allowing bypass if the sufficient module succeeds. Proper ordering ensures every authentication path satisfies mandatory checks.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.3.1 — Ensure password hashing algorithm is configured"
+        }
+    };
+
+    public RuleResult Evaluate(ScanData data)
+    {
+        if (data.PamConfig is not { Readable: true } ||
+            (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+
+        // Check each file independently; fail if ANY file has sufficient before required.
+        var filesToCheck = data.PamConfig.RawLinesByFile.Count > 0
+            ? data.PamConfig.RawLinesByFile
+            : new Dictionary<string, string[]> { ["merged"] = data.PamConfig.RawLines.ToArray() };
+
+        foreach (var (filePath, lines) in filesToCheck)
+        {
+            var authLines = lines
+                .Where(l => l.TrimStart().StartsWith("auth", StringComparison.OrdinalIgnoreCase))
+                .Select(l => l.Trim().ToLowerInvariant())
+                .ToList();
+
+            if (authLines.Count == 0)
+                continue;
+
+            bool foundRequired = false;
+            bool sufficientBeforeRequired = false;
+
+            foreach (var line in authLines)
+            {
+                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 3)
+                    continue;
+
+                var control = parts[1];
+                if (IsMandatoryControl(control))
+                {
+                    foundRequired = true;
+                }
+                else if (control is "sufficient" && !foundRequired)
+                {
+                    sufficientBeforeRequired = true;
+                    break;
+                }
+            }
+
+            if (sufficientBeforeRequired)
+            {
+                return RuleResult.Fail(Id, Category, Id, Description, Severity,
+                    $"Auth stack in {filePath} has sufficient module before required/requisite",
+                    new Dictionary<string, string>
+                    {
+                        ["file"] = filePath,
+                        ["issue"] = "sufficient placed before required/requisite in auth stack",
+                        ["expected"] = "required or requisite module must appear before any sufficient module"
+                    }, CisMappings);
+            }
+        }
+
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+    }
+
+    private static bool IsMandatoryControl(string control)
+    {
+        if (control is "required" or "requisite" or "binding")
+            return true;
+
+        if (control.StartsWith("[", StringComparison.Ordinal))
+        {
+            // Bracketed controls are usually mandatory, but common permissive patterns
+            // like default=ignore or default=ok effectively make them optional.
+            var lower = control.ToLowerInvariant();
+            if (lower.Contains("default=ignore") || lower.Contains("default=ok"))
+                return false;
+            return true;
+        }
+
+        return false;
+    }
+}

@@ -20,7 +20,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "file permission", "permission", "permissions", "filepermission", "chmod", "chown", "shadow", "passwd" }, AgentIntent.FilePermissionCheck, 2),
         (new[] { "filesystem", "world-writable", "suid", "sgid", "sticky bit", "unowned", "tmp hardening" }, AgentIntent.FilesystemAuditCheck, 2),
         (new[] { "kernel", "sysctl", "hardening", "aslr", "secure boot", "module loading", "ip forward", "icmp redirect" }, AgentIntent.KernelCheck, 2),
-        (new[] { "user", "account", "password", "passwd", "shadow", "uid", "pam", "login.defs", "pwquality" }, AgentIntent.UserAccountCheck, 2),
+        (new[] { "user", "account", "password", "passwd", "shadow", "uid", "pam", "login.defs", "pwquality", "faillock", "lockout" }, AgentIntent.UserAccountCheck, 2),
         (new[] { "logging", "log", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "syslog" }, AgentIntent.LoggingAuditCheck, 2),
         (new[] { "cron", "crontab", "scheduled job", "cron job" }, AgentIntent.CronJobCheck, 2),
         (new[] { "package", "vulnerability", "cve", "security update", "apt", "upgradeable", "patch" }, AgentIntent.PackageVulnerabilityCheck, 2),

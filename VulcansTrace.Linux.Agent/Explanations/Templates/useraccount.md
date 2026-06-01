@@ -184,3 +184,114 @@
 **Confidence / caveat:** High confidence. NFS or automounted home directories may legitimately not be present during the scan.
 
 > These are suggestions only. Review commands before running them on your system.
+
+## USER-008
+
+**What we found:** {{missing}}.
+
+**Why this matters:** Without faillock, attackers can attempt passwords indefinitely. Account lockout after a small number of failures is a NIST 800-53 AC-7 and CIS requirement. Missing preauth/authfail means failed attempts are not tracked, and missing faillock.conf means lockout thresholds are not defined.
+
+**How to verify:**
+1. Check auth stack: `grep faillock /etc/pam.d/common-auth`
+2. Check faillock.conf: `cat /etc/security/faillock.conf`
+
+**Backup commands:**
+1. Back up PAM configs: `sudo cp /etc/pam.d/common-auth /etc/pam.d/common-auth.bak.$(date +%s)`
+2. Back up faillock.conf: `sudo cp /etc/security/faillock.conf /etc/security/faillock.conf.bak.$(date +%s)`
+
+**Suggested next action:**
+1. Add to `/etc/pam.d/common-auth` (before pam_unix.so):
+   ```
+   auth required pam_faillock.so preauth silent audit deny=5 unlock_time=900
+   auth [success=1 default=bad] pam_unix.so ...
+   auth [default=die] pam_faillock.so authfail audit deny=5 unlock_time=900
+   auth sufficient pam_faillock.so authsucc audit deny=5 unlock_time=900
+   ```
+2. Create or edit `/etc/security/faillock.conf`:
+   ```
+   deny = 5
+   unlock_time = 900
+   fail_interval = 900
+   ```
+3. For RHEL, edit `/etc/pam.d/system-auth` and `/etc/pam.d/password-auth` similarly.
+
+**Rollback commands:**
+1. Restore PAM backups: `sudo cp /etc/pam.d/common-auth.bak.* /etc/pam.d/common-auth`
+2. Restore faillock.conf: `sudo cp /etc/security/faillock.conf.bak.* /etc/security/faillock.conf`
+
+**Risk level:** MEDIUM
+
+**Confidence / caveat:** High confidence. Some systems use `pam_tally2` instead of `pam_faillock`; this rule targets modern distributions.
+
+> These are suggestions only. Review commands before running them on your system.
+
+## USER-009
+
+**What we found:** {{violations}}.
+
+**Why this matters:** Short or simple passwords are trivially cracked with dictionary and brute-force tools. Enforcing minimum length (14+), character-class diversity (3+), and credit requirements ensures passwords resist automated guessing.
+
+**How to verify:**
+1. Check pwquality.conf: `cat /etc/security/pwquality.conf`
+2. Check PAM password stack: `cat /etc/pam.d/common-password`
+
+**Backup commands:**
+1. Back up pwquality.conf: `sudo cp /etc/security/pwquality.conf /etc/security/pwquality.conf.bak.$(date +%s)`
+2. Back up PAM password config: `sudo cp /etc/pam.d/common-password /etc/pam.d/common-password.bak.$(date +%s)`
+
+**Suggested next action:**
+1. Edit `/etc/security/pwquality.conf`:
+   ```
+   minlen = 14
+   minclass = 3
+   dcredit = -1
+   ucredit = -1
+   lcredit = -1
+   ocredit = -1
+   ```
+2. Or update the PAM password line in `/etc/pam.d/common-password`:
+   ```
+   password requisite pam_pwquality.so try_first_pass retry=3 minlen=14 minclass=3 dcredit=-1 ucredit=-1 lcredit=-1 ocredit=-1
+   ```
+
+**Rollback commands:**
+1. Restore pwquality.conf: `sudo cp /etc/security/pwquality.conf.bak.* /etc/security/pwquality.conf`
+2. Restore PAM config: `sudo cp /etc/pam.d/common-password.bak.* /etc/pam.d/common-password`
+
+**Risk level:** MEDIUM
+
+**Confidence / caveat:** High confidence. Some environments may use centralized identity providers (LDAP/AD) that enforce their own password policies.
+
+> These are suggestions only. Review commands before running them on your system.
+
+## USER-010
+
+**What we found:** {{issue}}.
+
+**Why this matters:** In PAM, `sufficient` modules short-circuit the stack if they succeed. If placed before `required` or `requisite` modules, an attacker who satisfies the sufficient condition (e.g., a valid key) bypasses mandatory checks (e.g., account expiry, faillock). This is a classic authentication bypass risk.
+
+**How to verify:**
+1. Inspect the auth stack: `cat /etc/pam.d/common-auth`
+2. Look for lines starting with `auth sufficient` that appear before any `auth required` or `auth requisite`.
+
+**Backup commands:**
+1. Back up PAM config: `sudo cp /etc/pam.d/common-auth /etc/pam.d/common-auth.bak.$(date +%s)`
+
+**Suggested next action:**
+1. Reorder the auth stack so all `required` and `requisite` modules appear before any `sufficient` module.
+2. Example safe ordering:
+   ```
+   auth required pam_faillock.so preauth silent
+   auth requisite pam_pwquality.so retry=3
+   auth [success=1 default=bad] pam_unix.so
+   auth sufficient pam_faillock.so authsucc
+   ```
+
+**Rollback commands:**
+1. Restore the backup: `sudo cp /etc/pam.d/common-auth.bak.* /etc/pam.d/common-auth`
+
+**Risk level:** HIGH
+
+**Confidence / caveat:** High confidence. Some specialized PAM stacks (e.g., smartcard + OTP) may have intentionally complex ordering; review before changing.
+
+> These are suggestions only. Review commands before running them on your system.

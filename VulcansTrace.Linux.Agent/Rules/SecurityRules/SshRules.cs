@@ -291,3 +291,44 @@ public sealed class SshX11ForwardingRule : IRule, IContextualRule
         return RuleResult.Pass(Id, Category, "SSH-007", Description, CisMappings);
     }
 }
+
+/// <summary>
+/// SSH-008: UsePAM should be enabled to enforce local PAM policies (password quality, lockout, session).
+/// </summary>
+public sealed class SshUsePamRule : IRule
+{
+    public string Id => "SSH-008";
+    public string Category => "SSH";
+    public string Description => "SSH UsePAM should be enabled";
+    public string WhatItChecks => "Checks whether SSH daemon is configured to use PAM for authentication and session management";
+    public IReadOnlyList<string> SupportedDataSources => new[] { "/etc/ssh/sshd_config", "sshd -T" };
+    public Severity Severity => Severity.Medium;
+
+    public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
+    {
+        new CisBenchmarkMapping
+        {
+            ControlId = "CIS 5.2",
+            ControlName = "Configure SSH Server",
+            WhyItMatters = "Disabling UsePAM causes SSH to bypass local PAM policies including password quality, account lockout, and session logging. This creates a gap where users can authenticate with weaker credentials than the host policy requires.",
+            BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.20 — Ensure SSH PAM is enabled"
+        }
+    };
+
+    public RuleResult Evaluate(ScanData data)
+    {
+        if (data.SshConfig == null || !data.SshConfig.ConfigReadable)
+            return RuleResult.NotApplicable(Id, Category, "SSH-008", Description, CisMappings);
+
+        var value = data.SshConfig.UsePAM;
+        // OpenSSH defaults UsePAM to yes; only fail when explicitly disabled.
+        if (string.Equals(value, "no", StringComparison.OrdinalIgnoreCase))
+        {
+            return RuleResult.Fail(Id, Category, "SSH-008", Description, Severity,
+                "UsePAM no",
+                new Dictionary<string, string> { ["value"] = value ?? "no" }, CisMappings);
+        }
+
+        return RuleResult.Pass(Id, Category, "SSH-008", Description, CisMappings);
+    }
+}

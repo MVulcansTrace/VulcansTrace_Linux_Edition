@@ -33,6 +33,7 @@ public class RuleCatalogTests
         new SshEmptyPasswordsRule(),
         new SshPubkeyAuthenticationRule(),
         new SshX11ForwardingRule(),
+        new SshUsePamRule(),
         new ShadowPermissionRule(),
         new PasswdPermissionRule(),
         new SshHostKeyPermissionRule(),
@@ -54,6 +55,9 @@ public class RuleCatalogTests
         new EmptyPasswordRule(),
         new PasswordAgingRule(),
         new PamPasswordComplexityRule(),
+        new PamFaillockConfiguredRule(),
+        new PamPasswordQualityDetailedRule(),
+        new PamAuthRequiredRule(),
         new InactiveAccountsRule(),
         new DuplicateUidsRule(),
         new MissingHomeDirectoryRule(),
@@ -79,7 +83,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(64, catalog.Items.Count);
+        Assert.Equal(68, catalog.Items.Count);
     }
 
     [Fact]
@@ -104,11 +108,11 @@ public class RuleCatalogTests
     [InlineData("NET-0", 4)]
     [InlineData("PORT-0", 4)]
     [InlineData("SRV-0", 5)]
-    [InlineData("SSH-0", 7)]
+    [InlineData("SSH-0", 8)]
     [InlineData("FILE-0", 7)]
     [InlineData("FSYS-0", 5)]
     [InlineData("KERN-0", 7)]
-    [InlineData("USER-0", 7)]
+    [InlineData("USER-0", 10)]
     [InlineData("LOG-0", 7)]
     [InlineData("CRON-0", 3)]
     [InlineData("PKG-VULN-0", 3)]
@@ -136,7 +140,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(64, results.Count);
+        Assert.Equal(68, results.Count);
     }
 
     [Fact]
@@ -174,6 +178,7 @@ public class RuleCatalogTests
     [InlineData("SSH-005", "CIS 5.2")]
     [InlineData("SSH-006", "CIS 6.3")]
     [InlineData("SSH-007", "CIS 4.8")]
+    [InlineData("SSH-008", "CIS 5.2")]
     [InlineData("FILE-001", "CIS 6.1")]
     [InlineData("FILE-002", "CIS 6.1")]
     [InlineData("FILE-003", "CIS 5.2")]
@@ -200,6 +205,9 @@ public class RuleCatalogTests
     [InlineData("USER-005", "CIS 6.2")]
     [InlineData("USER-006", "CIS 6.2")]
     [InlineData("USER-007", "CIS 6.2")]
+    [InlineData("USER-008", "CIS 5.3")]
+    [InlineData("USER-009", "CIS 5.4")]
+    [InlineData("USER-010", "CIS 5.3")]
     [InlineData("LOG-001", "CIS 8.1")]
     [InlineData("LOG-002", "CIS 8.2")]
     [InlineData("LOG-003", "CIS 8.2")]

@@ -104,9 +104,9 @@ Last updated: 2026-05-31
 - Code: `VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/KernelHardeningRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/kernel.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
 
 ### Security Agent — User & Account Auditing
-- Added `UserAccountScanner` that reads `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configs (`common-password`, `system-auth`, `password-auth`, plus `/etc/security/pwquality.conf`). Note: only local files are scanned; LDAP/NIS/AD users are not covered.
+- Added `UserAccountScanner` that reads `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM password-stack configs (`common-password`, `system-auth`, `password-auth`, `/etc/security/pwquality.conf`), PAM auth-stack configs (`common-auth`, `/etc/pam.d/sshd`), and `/etc/security/faillock.conf`. Note: only local files are scanned; LDAP/NIS/AD users are not covered.
 - Added `UserAccount`, `ShadowEntry`, `LoginDefs`, and `PamConfig` records to `ScanData`.
-- Added 7 user account rules (`USER-001` through `USER-007`) with dual-layer CIS compliance mappings:
+- Added 10 user account rules (`USER-001` through `USER-010`) with dual-layer CIS compliance mappings:
   - `USER-001` — Only root should have UID 0 (CIS 6.2)
   - `USER-002` — Empty or unset password hashes flagged; locked interactive accounts flagged at lower severity (CIS 5.4)
   - `USER-003` — Password aging enforces `PASS_MAX_DAYS <= 90`, `PASS_MIN_DAYS >= 1`, `PASS_WARN_AGE >= 7`, plus per-user shadow checks (CIS 5.4)
@@ -114,8 +114,12 @@ Last updated: 2026-05-31
   - `USER-005` — Inactive or locked interactive accounts (UID >= 1000) with expired expiry dates flagged (CIS 6.2)
   - `USER-006` — Each UID should be unique (CIS 6.2)
   - `USER-007` — Regular interactive accounts should have an existing home directory (CIS 6.2)
+  - `USER-008` — PAM faillock must be configured in every auth stack (`preauth` + `authfail`) with a readable `faillock.conf` (CIS 5.3)
+  - `USER-009` — PAM password quality must enforce `minlen >= 14`, `minclass >= 3`, and credit requirements (`dcredit`, `ucredit`, `lcredit`, `ocredit`) (CIS 5.4)
+  - `USER-010` — PAM auth stack must place `required`/`requisite`/`binding` or bracketed controls before any `sufficient` module in every file (CIS 5.3)
 - `EmptyPasswordRule` returns `NotApplicable` when `/etc/shadow` is unreadable (non-root), matching `KERN-006` behavior.
 - `PamPasswordComplexityRule` only inspects PAM lines in the `password` management stack.
+- `PamAuthRequiredRule` evaluates auth stack ordering per-file using `PamConfig.RawLinesByFile`; fails if any single file has `sufficient` before mandatory controls.
 - `MissingHomeDirectoryRule` uses pre-collected `HomeDirectoryExists` from the scanner instead of calling `Directory.Exists()` at evaluation time.
 - Added `AgentIntent.UserAccountCheck` and `QueryParser` keywords so users can ask "check my user accounts".
 - Added `useraccount.md` explanation template with remediation steps for all user account rules.
@@ -185,8 +189,24 @@ Last updated: 2026-05-31
 - 20+ new tests covering scanner parser fixtures (dpkg, apt, apt-cache policy, debsecan), rule behavior (NotApplicable on missing data, severity escalation, CVE availability gating), and query parser keyword matching.
 - Code: `VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/packagevulnerability.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Core/FindingCategories.cs`
 
+### Security Agent — SSH Daemon Auditing
+- Added `SshConfigScanner` that reads `sshd -T` output (with fallback to `/etc/ssh/sshd_config` plus `Include` directives).
+- Added 8 SSH hardening rules (`SSH-001` through `SSH-008`) with dual-layer CIS compliance mappings:
+  - `SSH-001` — `PermitRootLogin` should be disabled or `prohibit-password` (CIS 5.4)
+  - `SSH-002` — `PasswordAuthentication` should be disabled (CIS 6.3)
+  - `SSH-003` — `MaxAuthTries` should be 4 or lower (CIS 6.3)
+  - `SSH-004` — SSH Protocol 1 should not be enabled (CIS 4.8)
+  - `SSH-005` — `PermitEmptyPasswords` should be disabled (CIS 5.2)
+  - `SSH-006` — `PubkeyAuthentication` should be enabled (CIS 6.3)
+  - `SSH-007` — `X11Forwarding` should be disabled on servers (CIS 4.8)
+  - `SSH-008` — `UsePAM` should be enabled to enforce local PAM policies (CIS 5.2)
+- `SshX11ForwardingRule` is role-aware: returns `Pass` on `Workstation` where X11 forwarding may be intentional.
+- Added `AgentIntent.SshCheck` and `QueryParser` keywords so users can ask "check my SSH".
+- Added `ssh.md` explanation template with remediation steps for all SSH rules.
+- Code: `VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/SshRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/ssh.md`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 64 agent rules now carry dual-layer CIS compliance mappings:
+- All 68 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

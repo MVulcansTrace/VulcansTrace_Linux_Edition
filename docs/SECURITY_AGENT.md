@@ -52,7 +52,7 @@ The agent reads local host state using common Linux tools:
 | `FilePermissionScanner` | `stat -c '%a %U %G %n'` | Reads permission bits, ownership, and existence of sensitive files and directories |
 | `FilesystemAuditScanner` | `find / -xdev … -exec stat …` | Discovers world-writable files, SUID/SGID binaries, unowned files, world-writable dirs without sticky bit, and /tmp mount options |
 | `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
-| `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
+| `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM password-stack configs (`common-password`, `system-auth`, `password-auth`), PAM auth-stack configs (`common-auth`, `/etc/pam.d/sshd`), `/etc/security/pwquality.conf`, `/etc/security/faillock.conf` | Reads local user accounts, shadow entries, password aging policy, PAM password-stack and auth-stack configuration, and faillock settings |
 | `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | Checks logging service status, auditd rules, logrotate configuration, and central forwarding targets |
 | `CronJobScanner` | Reads `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/var/spool/cron/*`, `/etc/cron.daily/*`, `/etc/cron.hourly/*`, `/etc/cron.weekly/*`, `/etc/cron.monthly/*`; uses `stat` for script permissions | Parses system and user crontabs and cron script directories for scheduled job entries and script permissions |
 | `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, optionally `debsecan --format report --only-fixed`, `/etc/apt/apt.conf.d/50unattended-upgrades`, `/etc/apt/apt.conf.d/20auto-upgrades` | Enumerates installed packages, detects pending security updates from security repositories, enriches with CVE IDs when debsecan is available, and checks unattended-upgrades configuration |
@@ -100,6 +100,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Empty passwords should not be permitted (`PermitEmptyPasswords`).
 - Public-key authentication should be enabled (`PubkeyAuthentication`).
 - X11 forwarding should be disabled on servers (`X11Forwarding`).
+- UsePAM should be enabled to enforce local PAM policies (`UsePAM`) (`SSH-008`).
 
 ### Kernel
 
@@ -138,6 +139,9 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Inactive or locked interactive accounts (UID >= 1000) with expired account expiry dates are flagged (`USER-005`).
 - Each UID should be unique (`USER-006`).
 - Regular interactive accounts (UID >= 1000) should have an existing home directory (`USER-007`).
+- PAM faillock must be configured in every auth stack (`preauth` + `authfail`) with a readable `faillock.conf` (`USER-008`).
+- PAM password quality must enforce `minlen >= 14`, `minclass >= 3`, and credit requirements (`dcredit`, `ucredit`, `lcredit`, `ocredit`) (`USER-009`).
+- PAM auth stack must place `required`/`requisite`/`binding` or bracketed controls before any `sufficient` module in every file (`USER-010`).
 
 ### Logging
 
@@ -263,6 +267,7 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | SSH-005 | CIS 5.2 — Use Unique Passwords | 5.2.9 — Ensure SSH PermitEmptyPasswords is disabled |
 | SSH-006 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.17 — Ensure SSH PubkeyAuthentication is enabled |
 | SSH-007 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 5.2.12 — Ensure SSH X11 forwarding is disabled |
+| SSH-008 | CIS 5.2 — Use Unique Passwords | 5.2.20 — Ensure SSH PAM is enabled |
 | FILE-001 | CIS 6.1 — Configure System File Permissions | 6.1.1 — Ensure permissions on /etc/shadow are configured |
 | FILE-002 | CIS 6.1 — Configure System File Permissions | 6.1.2 — Ensure permissions on /etc/passwd are configured |
 | FILE-003 | CIS 5.2 — Use Unique Passwords | 5.2.2 — Ensure permissions on SSH private host key files are configured |
@@ -282,6 +287,9 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | USER-005 | CIS 6.2 — Configure System Account Security | 6.2.5 — Ensure inactive accounts are locked or removed |
 | USER-006 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
 | USER-007 | CIS 6.2 — Configure System Account Security | 6.2.6 — Ensure all users' home directories exist |
+| USER-008 | CIS 5.3 — Configure PAM | 5.3.2 — Ensure lockout for failed password attempts is configured |
+| USER-009 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
+| USER-010 | CIS 5.3 — Configure PAM | 5.3.1 — Ensure password hashing algorithm is configured |
 | FW-001 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.3 / 3.5.2.3 — Ensure default deny firewall policy |
 | FW-002 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
 | FW-003 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled |

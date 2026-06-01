@@ -82,4 +82,17 @@ public sealed record RuleResult
             Description = description,
             CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
         };
+
+    /// <summary>Creates a not-applicable result (data source missing or unreadable).</summary>
+    public static RuleResult NotApplicable(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null) =>
+        new()
+        {
+            RuleId = ruleId,
+            Category = category,
+            Passed = true,
+            Status = RuleStatus.NotApplicable,
+            ExplanationKey = explanationKey,
+            Description = description,
+            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
+        };
 }

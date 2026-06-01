@@ -2749,4 +2749,465 @@ public class RuleTests
 
         Assert.Empty(rule.CisMappings);
     }
+
+    // =====================================================================
+    // PAM / Authentication Rules
+    // =====================================================================
+
+    [Fact]
+    public void PamFaillockConfiguredRule_CompleteConfig_Passes()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "auth required pam_faillock.so preauth silent audit deny=5 unlock_time=900",
+                    "auth [success=1 default=bad] pam_unix.so",
+                    "auth [default=die] pam_faillock.so authfail audit deny=5 unlock_time=900",
+                    "auth sufficient pam_faillock.so authsucc audit deny=5 unlock_time=900",
+                    "deny = 5",
+                    "unlock_time = 900"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamFaillockConfiguredRule_MissingAuthfail_Fails()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "auth required pam_faillock.so preauth silent audit deny=5 unlock_time=900",
+                    "auth [success=1 default=bad] pam_unix.so",
+                    "deny = 5"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("authfail", result.Target);
+    }
+
+    [Fact]
+    public void PamFaillockConfiguredRule_NoAuthLines_Passes()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[] { "password requisite pam_pwquality.so retry=3" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamFaillockConfiguredRule_MissingData_NotApplicable()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData { PamConfig = null };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void PamFaillockConfiguredRule_PerFile_MissingInOneFile_Fails()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = Array.Empty<string>(),
+                RawLinesByFile = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["/etc/pam.d/common-auth"] = new[]
+                    {
+                        "auth required pam_faillock.so preauth silent",
+                        "auth [default=die] pam_faillock.so authfail",
+                        "auth sufficient pam_unix.so"
+                    },
+                    ["/etc/pam.d/sshd"] = new[]
+                    {
+                        "auth required pam_unix.so",
+                        "auth sufficient pam_google_authenticator.so"
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("sshd", result.Target);
+    }
+
+    [Fact]
+    public void PamFaillockConfiguredRule_PerFile_FaillockConfOnly_ChecksSpecificFile()
+    {
+        var rule = new PamFaillockConfiguredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[] { "deny = 5", "auth required pam_faillock.so preauth" },
+                RawLinesByFile = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["/etc/security/faillock.conf"] = new[] { "deny = 5", "unlock_time = 900" },
+                    ["/etc/pam.d/common-auth"] = new[]
+                    {
+                        "auth required pam_faillock.so preauth silent",
+                        "auth [default=die] pam_faillock.so authfail"
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_AllSettings_Passes()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "minlen = 14",
+                    "minclass = 3",
+                    "dcredit = -1",
+                    "ucredit = -1"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_PamArgs_Passes()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "password requisite pam_pwquality.so try_first_pass retry=3 minlen=14 minclass=3 dcredit=-1 ucredit=-1 lcredit=-1 ocredit=-1"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_ShortMinlen_Fails()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "minlen = 8",
+                    "minclass = 3",
+                    "dcredit = -1"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("minlen", result.Target);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_LowMinclass_Fails()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "minlen = 14",
+                    "minclass = 2",
+                    "dcredit = -1"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("minclass", result.Target);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_NoCredits_Fails()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "minlen = 14",
+                    "minclass = 3"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("credit", result.Target);
+    }
+
+    [Fact]
+    public void PamPasswordQualityDetailedRule_MissingData_NotApplicable()
+    {
+        var rule = new PamPasswordQualityDetailedRule();
+        var data = new ScanData { PamConfig = null };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void SshUsePamRule_Enabled_Passes()
+    {
+        var rule = new SshUsePamRule();
+        var data = new ScanData
+        {
+            SshConfig = new SshConfig { ConfigReadable = true, UsePAM = "yes" }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshUsePamRule_Disabled_Fails()
+    {
+        var rule = new SshUsePamRule();
+        var data = new ScanData
+        {
+            SshConfig = new SshConfig { ConfigReadable = true, UsePAM = "no" }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SshUsePamRule_NotConfigured_Passes()
+    {
+        var rule = new SshUsePamRule();
+        var data = new ScanData
+        {
+            SshConfig = new SshConfig { ConfigReadable = true, UsePAM = null }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SshUsePamRule_ConfigUnreadable_NotApplicable()
+    {
+        var rule = new SshUsePamRule();
+        var data = new ScanData
+        {
+            SshConfig = new SshConfig { ConfigReadable = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_RequiredBeforeSufficient_Passes()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "auth required pam_faillock.so preauth silent",
+                    "auth [success=1 default=bad] pam_unix.so",
+                    "auth sufficient pam_faillock.so authsucc"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_SufficientBeforeRequired_Fails()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "auth sufficient pam_faillock.so authsucc",
+                    "auth required pam_faillock.so preauth silent",
+                    "auth [success=1 default=bad] pam_unix.so"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_BracketedControl_TreatedAsMandatory()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[]
+                {
+                    "auth [default=die] pam_faillock.so authfail",
+                    "auth sufficient pam_faillock.so authsucc"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_PerFile_SufficientBeforeRequired_Fails()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = Array.Empty<string>(),
+                RawLinesByFile = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["/etc/pam.d/common-auth"] = new[]
+                    {
+                        "auth required pam_faillock.so preauth silent",
+                        "auth sufficient pam_unix.so"
+                    },
+                    ["/etc/pam.d/sshd"] = new[]
+                    {
+                        "auth sufficient pam_google_authenticator.so",
+                        "auth required pam_unix.so"
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("sshd", result.Target);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_NoAuthLines_Passes()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData
+        {
+            PamConfig = new PamConfig
+            {
+                Readable = true,
+                RawLines = new[] { "password requisite pam_pwquality.so retry=3" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void PamAuthRequiredRule_MissingData_NotApplicable()
+    {
+        var rule = new PamAuthRequiredRule();
+        var data = new ScanData { PamConfig = null };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
 }

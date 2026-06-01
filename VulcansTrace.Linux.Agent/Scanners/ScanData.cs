@@ -433,4 +433,8 @@ public sealed record PamConfig
 {
     public bool Readable { get; init; }
     public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
+
+    /// <summary>Raw lines keyed by source file path (e.g. "/etc/pam.d/common-auth").</summary>
+    public IReadOnlyDictionary<string, string[]> RawLinesByFile { get; init; }
+        = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 }

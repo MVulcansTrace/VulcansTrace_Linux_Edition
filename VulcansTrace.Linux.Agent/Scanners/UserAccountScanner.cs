@@ -254,12 +254,16 @@ public sealed class UserAccountScanner : IScanner
         var pamPaths = new[]
         {
             "/etc/pam.d/common-password",
+            "/etc/pam.d/common-auth",
             "/etc/pam.d/system-auth",
             "/etc/pam.d/password-auth",
-            "/etc/security/pwquality.conf"
+            "/etc/pam.d/sshd",
+            "/etc/security/pwquality.conf",
+            "/etc/security/faillock.conf"
         };
 
         var allLines = new List<string>();
+        var linesByFile = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         var anyFound = false;
 
         foreach (var path in pamPaths)
@@ -272,6 +276,7 @@ public sealed class UserAccountScanner : IScanner
             {
                 var lines = await File.ReadAllLinesAsync(path, ct);
                 allLines.AddRange(lines);
+                linesByFile[path] = lines;
             }
             catch (UnauthorizedAccessException)
             {
@@ -294,10 +299,22 @@ public sealed class UserAccountScanner : IScanner
             return;
         }
 
+        if (allLines.Count == 0)
+        {
+            builder.AddCapability(new DataSourceCapability
+            {
+                SourceName = "pam",
+                Status = CapabilityStatus.PermissionLimited,
+                Detail = "PAM files exist but could not be read (permission denied or read errors)."
+            });
+            return;
+        }
+
         builder.SetPamConfig(new PamConfig
         {
-            Readable = allLines.Count > 0,
-            RawLines = allLines.ToArray()
+            Readable = true,
+            RawLines = allLines.ToArray(),
+            RawLinesByFile = linesByFile
         });
 
         builder.AddCapability(new DataSourceCapability

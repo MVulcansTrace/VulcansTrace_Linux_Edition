@@ -188,3 +188,29 @@
 **Confidence / caveat:** Moderate confidence. Workstations or jump hosts may legitimately need X11 forwarding; this rule is lenient on workstations.
 
 > These are suggestions only. Review commands before running them on your system.
+
+## SSH-008
+
+**What we found:** UsePAM is set to {{value}}.
+
+**Why this matters:** Disabling UsePAM causes SSH to bypass local PAM policies including password quality, account lockout, and session logging. This creates a gap where users can authenticate with weaker credentials than the host policy requires, and failed-login tracking is not enforced.
+
+**How to verify:**
+1. Check the current setting: `grep -i '^UsePAM' /etc/ssh/sshd_config`
+2. Or run: `sshd -T | grep -i usepam`
+
+**Backup commands:**
+1. Back up sshd_config: `sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak.$(date +%s)`
+
+**Suggested next action:**
+1. Edit `/etc/ssh/sshd_config` and set `UsePAM yes`.
+2. Restart SSH: `sudo systemctl restart sshd`
+
+**Rollback commands:**
+1. Restore the backup and restart SSH.
+
+**Risk level:** MEDIUM
+
+**Confidence / caveat:** High confidence. UsePAM is enabled by default in modern OpenSSH; explicit disabling is a deliberate (and risky) choice.
+
+> These are suggestions only. Review commands before running them on your system.
