@@ -51,6 +51,8 @@ Scanner warnings explain what went wrong; data-source capabilities explain what 
 
 Unknown is used when a fallback command was intentionally not checked because a preferred source already returned usable data. This avoids implying that a command is missing when the scanner simply did not need it.
 
+`AgentResultComposer` owns user-facing audit summaries and deterministic capability report formatting. Keeping those text-shaping rules outside `SecurityAgent` lets the agent focus on orchestration while summary wording, source ordering, deduplication, and detail truncation stay directly testable.
+
 ## Command Execution With Explicit Exit Status
 
 Scanner command helpers return stdout, stderr, and success status. They read stdout and stderr concurrently to avoid process deadlocks when a command writes enough stderr output to fill a pipe. Scanner failures are converted into warnings so a missing command or permission issue does not crash the whole audit.
