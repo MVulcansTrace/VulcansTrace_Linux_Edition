@@ -167,7 +167,7 @@ public class SecurityAgentTests
             new IRule[] { new AlwaysFailRule() },
             new ExplanationProvider());
 
-        // First run an audit to populate _lastFindings
+        // First run an audit to populate last finding state
         var auditResult = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
         Assert.Single(auditResult.AgentFindings);
 
@@ -706,7 +706,7 @@ public class SecurityAgentTests
             new ExplanationProvider(),
             historyStore: historyStore);
 
-        // Run audit to populate _lastResult
+        // Run audit to populate last result state
         await agent.AskAsync("audit everything", null, CancellationToken.None);
 
         // Ask follow-up
@@ -725,7 +725,7 @@ public class SecurityAgentTests
             new IRule[] { new AlwaysFailRule() },
             new ExplanationProvider());
 
-        // Run audit to populate _lastResult
+        // Run audit to populate last result state
         await agent.AskAsync("audit everything", null, CancellationToken.None);
 
         var result = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
@@ -841,7 +841,7 @@ public class SecurityAgentTests
         Assert.Equal(AgentIntent.FilterCategory, filterResult.Intent);
 
         // A subsequent ShowChanges should still report "no previous audit",
-        // proving the fallback RunAuditAsync didn't corrupt _lastResult.
+        // proving the fallback RunAuditAsync didn't corrupt last result state.
         var changesResult = await agent.AskAsync("what changed since the last audit", null, CancellationToken.None);
         Assert.Equal(AgentIntent.ShowChanges, changesResult.Intent);
         Assert.Contains("No previous audit", changesResult.Summary);

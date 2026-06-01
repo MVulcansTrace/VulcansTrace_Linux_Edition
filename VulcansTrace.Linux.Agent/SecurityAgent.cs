@@ -20,19 +20,14 @@ public sealed class SecurityAgent : IAgent
     private readonly RuleEvaluationService _ruleEvaluationService;
     private readonly AgentResultComposer _resultComposer;
     private readonly FindingAssemblyService _findingAssemblyService;
+    private readonly AgentLogAnalysisService _logAnalysisService;
+    private readonly AgentAuditState _auditState;
+    private readonly AgentResultFinalizer _resultFinalizer;
     private readonly IExplanationProvider _explanationProvider;
-    private readonly SentryAnalyzer? _sentryAnalyzer;
-    private readonly AnalysisProfileProvider? _profileProvider;
     private readonly ISuppressionStore? _suppressionStore;
     private readonly MachineRole _machineRole;
     private readonly IAuditHistoryStore? _historyStore;
     private readonly IBaselineStore? _baselineStore;
-    private readonly IComplianceScorecardBuilder? _scorecardBuilder;
-    private readonly IRiskScorecardBuilder? _riskScorecardBuilder;
-    private readonly object _historyLock = new();
-    private readonly List<(string RuleId, Finding Finding)> _lastFindings = new();
-    private AgentResult? _lastResult;
-    private AgentIntent _lastAuditIntent = AgentIntent.FullAudit;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -68,14 +63,13 @@ public sealed class SecurityAgent : IAgent
         _resultComposer = new AgentResultComposer();
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
         _findingAssemblyService = new FindingAssemblyService(_explanationProvider, suppressionStore);
-        _sentryAnalyzer = sentryAnalyzer;
-        _profileProvider = profileProvider;
+        _logAnalysisService = new AgentLogAnalysisService(sentryAnalyzer, profileProvider);
+        _auditState = new AgentAuditState();
+        _resultFinalizer = new AgentResultFinalizer(_auditState, historyStore, scorecardBuilder, riskScorecardBuilder);
         _suppressionStore = suppressionStore;
         _machineRole = machineRole;
         _historyStore = historyStore;
         _baselineStore = baselineStore;
-        _scorecardBuilder = scorecardBuilder;
-        _riskScorecardBuilder = riskScorecardBuilder ?? new RiskScorecardBuilder();
     }
 
     /// <inheritdoc />
@@ -193,50 +187,26 @@ public sealed class SecurityAgent : IAgent
         var crashedCount = ruleResults.Count(r => r.Status == RuleStatus.Crashed);
 
         // Phase 4: Optional log analysis
-        AnalysisResult? logAnalysisResult = null;
-        if (!string.IsNullOrWhiteSpace(rawLog) && _sentryAnalyzer != null && _profileProvider != null)
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                logAnalysisResult = await Task.Run(
-                    () => _sentryAnalyzer.Analyze(rawLog, IntensityLevel.Medium, ct),
-                    ct);
-            }
-            catch (Exception ex)
-            {
-                warnings.Add($"Log analysis failed: {ex.Message}");
-            }
-        }
+        var logAnalysis = await _logAnalysisService.AnalyzeAsync(rawLog, ct);
+        var logAnalysisResult = logAnalysis.AnalysisResult;
+        warnings.AddRange(logAnalysis.Warnings);
 
         // Phase 5: Build summary
         var summary = _resultComposer.BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount, crashedCount);
 
-        ReplaceLastFindings(historyEntries);
-
-        var scorecard = _scorecardBuilder?.Build(ruleResults, _historyStore, DateTime.UtcNow);
-        var riskScorecard = _riskScorecardBuilder?.Build(agentFindings, DateTime.UtcNow);
-
-        _lastResult = new AgentResult
-        {
-            Intent = intent,
-            AgentFindings = agentFindings,
-            LogAnalysisResult = logAnalysisResult,
-            Warnings = warnings,
-            UtcTimestamp = DateTime.UtcNow,
-            Summary = summary,
-            RuleResults = ruleResults,
-            PassedCount = passedCount,
-            FailedCount = failedCount,
-            SuppressedCount = suppressedCount,
-            CrashedCount = crashedCount,
-            CapabilityReport = capabilityReport,
-            Scorecard = scorecard,
-            RiskScorecard = riskScorecard
-        };
-
-        _lastAuditIntent = intent;
-        return _lastResult;
+        return _resultFinalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            intent,
+            agentFindings,
+            logAnalysisResult,
+            warnings,
+            summary,
+            ruleResults,
+            passedCount,
+            failedCount,
+            suppressedCount,
+            crashedCount,
+            capabilityReport,
+            historyEntries));
     }
 
     private static bool IsFollowUpIntent(AgentIntent intent) => intent switch
@@ -284,7 +254,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -311,7 +281,7 @@ public sealed class SecurityAgent : IAgent
         AuditHistoryEntry? previous = null;
         for (int i = 0; i < allHistory.Count; i++)
         {
-            if (allHistory[i].TimestampUtc != _lastResult.UtcTimestamp)
+            if (allHistory[i].TimestampUtc != _auditState.LastResult.UtcTimestamp)
             {
                 previous = allHistory[i];
                 break;
@@ -332,10 +302,10 @@ public sealed class SecurityAgent : IAgent
         var currentEntry = new AuditHistoryEntry
         {
             SnapshotId = Guid.NewGuid().ToString("N")[..8],
-            TimestampUtc = _lastResult.UtcTimestamp,
-            Intent = _lastResult.Intent,
-            TotalFindings = _lastResult.AgentFindings.Count,
-            SnapshotFindings = _lastResult.AgentFindings.Select(ToSnapshotFinding).ToList()
+            TimestampUtc = _auditState.LastResult.UtcTimestamp,
+            Intent = _auditState.LastResult.Intent,
+            TotalFindings = _auditState.LastResult.AgentFindings.Count,
+            SnapshotFindings = _auditState.LastResult.AgentFindings.Select(ToSnapshotFinding).ToList()
         };
 
         var diff = AuditDiffCalculator.Calculate(previous, currentEntry);
@@ -378,7 +348,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -389,7 +359,7 @@ public sealed class SecurityAgent : IAgent
             });
         }
 
-        var criticalHigh = _lastResult.AgentFindings.Where(f => f.Severity >= Severity.High).ToList();
+        var criticalHigh = _auditState.LastResult.AgentFindings.Where(f => f.Severity >= Severity.High).ToList();
 
         if (criticalHigh.Count == 0)
         {
@@ -426,13 +396,13 @@ public sealed class SecurityAgent : IAgent
 
         var category = agentQuery.TargetReference;
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             // Fallback: run a targeted audit for the inferred category
             var fallbackIntent = InferIntentFromCategory(category);
             if (fallbackIntent != AgentIntent.Help)
             {
-                var savedLastResult = _lastResult;
+                var savedLastResult = _auditState.LastResult;
                 try
                 {
                     var fallbackResult = await RunAuditAsync(fallbackIntent, null, ct);
@@ -440,7 +410,7 @@ public sealed class SecurityAgent : IAgent
                 }
                 finally
                 {
-                    _lastResult = savedLastResult;
+                    _auditState.RememberResult(savedLastResult);
                 }
             }
 
@@ -464,7 +434,7 @@ public sealed class SecurityAgent : IAgent
             };
         }
 
-        var filtered = _lastResult.AgentFindings
+        var filtered = _auditState.LastResult.AgentFindings
             .Where(f => f.Category.Contains(category, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
@@ -485,7 +455,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -496,7 +466,7 @@ public sealed class SecurityAgent : IAgent
             });
         }
 
-        if (_lastResult.AgentFindings.Count == 0)
+        if (_auditState.LastResult.AgentFindings.Count == 0)
         {
             return Task.FromResult(new AgentResult
             {
@@ -508,7 +478,7 @@ public sealed class SecurityAgent : IAgent
         }
 
         var builder = new RemediationPlanBuilder(_explanationProvider);
-        var plan = builder.Build(_lastResult.AgentFindings);
+        var plan = builder.Build(_auditState.LastResult.AgentFindings);
         var sorted = plan.Sections.OrderByDescending(s => ParseSeverityFromSummary(s.FindingSummary)).ToList();
         var sortedPlan = plan with { Sections = sorted };
 
@@ -532,7 +502,7 @@ public sealed class SecurityAgent : IAgent
         {
             Intent = AgentIntent.PrioritizeRemediation,
             Summary = string.Join("\n", parts),
-            AgentFindings = _lastResult.AgentFindings.OrderByDescending(f => f.Severity).ToList(),
+            AgentFindings = _auditState.LastResult.AgentFindings.OrderByDescending(f => f.Severity).ToList(),
             RemediationPlan = sortedPlan,
             Warnings = Array.Empty<string>()
         });
@@ -542,7 +512,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -565,7 +535,7 @@ public sealed class SecurityAgent : IAgent
             });
         }
 
-        var matched = FindPreviousFinding(reference);
+        var matched = _auditState.FindPreviousFinding(reference);
         if (matched == null)
         {
             return Task.FromResult(new AgentResult
@@ -674,7 +644,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -685,7 +655,7 @@ public sealed class SecurityAgent : IAgent
             });
         }
 
-        var suppressed = _lastResult.RuleResults.Where(r => r.Status == RuleStatus.Suppressed).ToList();
+        var suppressed = _auditState.LastResult.RuleResults.Where(r => r.Status == RuleStatus.Suppressed).ToList();
 
         if (suppressed.Count == 0)
         {
@@ -725,7 +695,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -749,18 +719,18 @@ public sealed class SecurityAgent : IAgent
 
         var name = !string.IsNullOrWhiteSpace(agentQuery.TargetReference)
             ? agentQuery.TargetReference
-            : $"{_lastAuditIntent}-{_lastResult.UtcTimestamp:yyyyMMdd-HHmmss}";
+            : $"{_auditState.LastAuditIntent}-{_auditState.LastResult.UtcTimestamp:yyyyMMdd-HHmmss}";
 
         var baselineId = Guid.NewGuid().ToString("N");
-        var findings = _lastResult.AgentFindings;
+        var findings = _auditState.LastResult.AgentFindings;
         var snapshotFindings = findings.Select(ToSnapshotFinding).ToList();
 
         var entry = new BaselineEntry
         {
             BaselineId = baselineId,
             Name = name,
-            CreatedUtc = _lastResult.UtcTimestamp,
-            Intent = _lastAuditIntent,
+            CreatedUtc = _auditState.LastResult.UtcTimestamp,
+            Intent = _auditState.LastAuditIntent,
             TotalFindings = findings.Count,
             CriticalCount = findings.Count(f => f.Severity == Severity.Critical),
             HighCount = findings.Count(f => f.Severity == Severity.High),
@@ -781,7 +751,7 @@ public sealed class SecurityAgent : IAgent
             warnings.Add(_baselineStore.PersistenceWarning);
         }
 
-        var summary = $"Baseline '{name}' saved for {_lastAuditIntent} with {findings.Count} finding(s).";
+        var summary = $"Baseline '{name}' saved for {_auditState.LastAuditIntent} with {findings.Count} finding(s).";
         if (findings.Count > 0)
         {
             summary += $" ({entry.CriticalCount} Critical, {entry.HighCount} High).";
@@ -800,14 +770,14 @@ public sealed class SecurityAgent : IAgent
     private async Task<AgentResult> HandleCheckDriftAsync(AgentQuery agentQuery, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        var intent = _auditState.LastResult?.Intent ?? AgentIntent.FullAudit;
         return await RunDriftCheckAsync(intent, null, ct);
     }
 
     private Task<AgentResult> HandleShowBaselineAsync(AgentQuery agentQuery, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var intent = _lastResult?.Intent ?? AgentIntent.FullAudit;
+        var intent = _auditState.LastResult?.Intent ?? AgentIntent.FullAudit;
         return ShowBaselineForIntentAsync(intent, ct);
     }
 
@@ -879,7 +849,7 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        if (_lastResult == null)
+        if (_auditState.LastResult == null)
         {
             return Task.FromResult(new AgentResult
             {
@@ -890,7 +860,7 @@ public sealed class SecurityAgent : IAgent
             });
         }
 
-        var risk = _lastResult.RiskScorecard;
+        var risk = _auditState.LastResult.RiskScorecard;
         if (risk == null)
         {
             return Task.FromResult(new AgentResult
@@ -918,8 +888,8 @@ public sealed class SecurityAgent : IAgent
         {
             Intent = AgentIntent.RiskScore,
             Summary = summary,
-            AgentFindings = _lastResult.AgentFindings,
-            Warnings = _lastResult.Warnings,
+            AgentFindings = _auditState.LastResult.AgentFindings,
+            Warnings = _auditState.LastResult.Warnings,
             RiskScorecard = risk
         });
     }
@@ -970,7 +940,7 @@ public sealed class SecurityAgent : IAgent
             };
         }
 
-        var savedLastResult = _lastResult;
+        var savedLastResult = _auditState.LastResult;
         try
         {
             var liveResult = await RunAuditAsync(intent, rawLog, ct);
@@ -1033,7 +1003,7 @@ public sealed class SecurityAgent : IAgent
         }
         finally
         {
-            _lastResult = savedLastResult;
+            _auditState.RememberResult(savedLastResult);
         }
     }
 
@@ -1163,7 +1133,7 @@ public sealed class SecurityAgent : IAgent
         if (!string.IsNullOrWhiteSpace(agentQuery.TargetReference))
         {
             var reference = agentQuery.TargetReference;
-            var matched = FindPreviousFinding(reference);
+            var matched = _auditState.FindPreviousFinding(reference);
 
             if (matched != null)
             {
@@ -1196,44 +1166,6 @@ public sealed class SecurityAgent : IAgent
         };
     }
 
-    private Finding? FindPreviousFinding(string reference)
-    {
-        lock (_historyLock)
-        {
-            foreach (var entry in _lastFindings)
-            {
-                if (entry.RuleId.Equals(reference, StringComparison.OrdinalIgnoreCase))
-                    return entry.Finding;
-            }
-
-            return _lastFindings
-                .Select(entry => entry.Finding)
-                .FirstOrDefault(finding => MatchesReference(finding, reference));
-        }
-    }
-
-    private void ReplaceLastFindings(IEnumerable<(string RuleId, Finding Finding)> findings)
-    {
-        lock (_historyLock)
-        {
-            _lastFindings.Clear();
-            _lastFindings.AddRange(findings);
-        }
-    }
-
-    private static bool MatchesReference(Finding finding, string reference)
-    {
-        if (finding.ShortDescription.Contains(reference, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (finding.Category.Contains(reference, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (finding.Details.Contains(reference, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (finding.Target.Contains(reference, StringComparison.OrdinalIgnoreCase))
-            return true;
-        return false;
-    }
-
     private async Task<AgentResult> RunSingleRuleAsync(IRule rule, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -1248,7 +1180,7 @@ public sealed class SecurityAgent : IAgent
 
         if (evaluatedRule.DisabledByPolicy)
         {
-            ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
+            _auditState.ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
             return new AgentResult
             {
                 Intent = AgentIntent.ExplainFinding,
@@ -1281,7 +1213,7 @@ public sealed class SecurityAgent : IAgent
                 CisMappings = result.CisMappings
             };
             agentFindings.Add(finding);
-            ReplaceLastFindings(new[] { (result.RuleId, finding) });
+            _auditState.ReplaceLastFindings(new[] { (result.RuleId, finding) });
         }
 
         var summary = result.Status == RuleStatus.Crashed
@@ -1290,7 +1222,7 @@ public sealed class SecurityAgent : IAgent
                 ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
                 : $"Rule {rule.Id} passed — no issue to explain.";
 
-        _lastResult = new AgentResult
+        var singleRuleResult = new AgentResult
         {
             Intent = AgentIntent.ExplainFinding,
             AgentFindings = agentFindings,
@@ -1304,7 +1236,8 @@ public sealed class SecurityAgent : IAgent
             CapabilityReport = capabilityReport
         };
 
-        return _lastResult;
+        _auditState.RememberResult(singleRuleResult);
+        return singleRuleResult;
     }
 
     private static string GetHelpText() =>

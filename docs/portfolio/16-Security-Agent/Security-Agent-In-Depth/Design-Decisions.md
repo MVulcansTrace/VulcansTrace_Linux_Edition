@@ -81,6 +81,10 @@ Accepted-risk suppressions use finding fingerprints when available, with legacy 
 
 `AgentReportGenerator` converts `AgentResult` into the same `AnalysisResult` type used by the log engine. That keeps the evidence pipeline, exports, and UI concepts aligned. Agent findings are not a parallel reporting universe; they can participate in the existing VulcansTrace workflow, including CSV, JSON, Markdown, HTML, and STIX evidence exports with agent rule IDs, fingerprints, and capability reports preserved when present. When active suppressions exist, evidence exports include suppression notes in Markdown/HTML and a `suppressions.csv` sidecar in the signed ZIP.
 
+`AgentLogAnalysisService` owns the optional raw-log path inside agent audits: it skips cleanly when logs or analyzer dependencies are absent, runs `SentryAnalyzer` with the medium profile when available, and converts analyzer failures into audit warnings. This keeps log-analysis availability decisions outside the main `SecurityAgent` pipeline.
+
+`AgentResultFinalizer` owns final audit result construction, compliance scorecard attachment, risk scorecard attachment, and updating `AgentAuditState`. `AgentAuditState` keeps the previous audit result, previous audit intent, and active finding lookup list used by follow-up questions. This keeps `SecurityAgent` from directly managing result memory while preserving the existing follow-up workflow.
+
 Agent audit results are also loaded into the shared findings grid. That makes the same selection, explanation, accepted-risk suppression, and evidence-export affordances work for both pasted-log analysis and live posture audits.
 
 ## UI As A Thin Control Shell
