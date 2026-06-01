@@ -16,7 +16,7 @@ namespace VulcansTrace.Linux.Agent;
 /// </summary>
 public sealed class SecurityAgent : IAgent
 {
-    private readonly IReadOnlyList<IScanner> _scanners;
+    private readonly ScannerCoordinator _scannerCoordinator;
     private readonly IReadOnlyList<IRule> _rules;
     private readonly IExplanationProvider _explanationProvider;
     private readonly SentryAnalyzer? _sentryAnalyzer;
@@ -62,7 +62,7 @@ public sealed class SecurityAgent : IAgent
         IComplianceScorecardBuilder? scorecardBuilder = null,
         IRiskScorecardBuilder? riskScorecardBuilder = null)
     {
-        _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
+        _scannerCoordinator = new ScannerCoordinator(scanners);
         _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
         _sentryAnalyzer = sentryAnalyzer;
@@ -165,23 +165,10 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        var builder = new ScanDataBuilder();
-        var warnings = new List<string>();
-
         // Phase 1: Run all scanners in parallel
-        var scanTasks = _scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
-        await Task.WhenAll(scanTasks);
-
-        foreach (var task in scanTasks)
-        {
-            if (task.Result is { Length: > 0 } scannerWarnings)
-            {
-                warnings.AddRange(scannerWarnings);
-            }
-        }
-
-        var scanData = builder.Build();
-        warnings.AddRange(scanData.Warnings);
+        var scannerResult = await _scannerCoordinator.RunAsync(ct);
+        var scanData = scannerResult.ScanData;
+        var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = BuildCapabilityReport(scanData.Capabilities);
 
         ct.ThrowIfCancellationRequested();
@@ -1343,22 +1330,9 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        var builder = new ScanDataBuilder();
-        var warnings = new List<string>();
-
-        var scanTasks = _scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
-        await Task.WhenAll(scanTasks);
-
-        foreach (var task in scanTasks)
-        {
-            if (task.Result is { Length: > 0 } scannerWarnings)
-            {
-                warnings.AddRange(scannerWarnings);
-            }
-        }
-
-        var scanData = builder.Build();
-        warnings.AddRange(scanData.Warnings);
+        var scannerResult = await _scannerCoordinator.RunAsync(ct);
+        var scanData = scannerResult.ScanData;
+        var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = BuildCapabilityReport(scanData.Capabilities);
 
         var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
@@ -1453,23 +1427,6 @@ public sealed class SecurityAgent : IAgent
     private static RuleResult CreatePolicyDisabledResult(IRule rule)
     {
         return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)", rule.CisMappings);
-    }
-
-    private static async Task<string[]> RunScannerSafelyAsync(IScanner scanner, ScanDataBuilder builder, CancellationToken ct)
-    {
-        try
-        {
-            await scanner.ScanAsync(builder, ct);
-            return Array.Empty<string>();
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            return new[] { $"Scanner '{scanner.Name}' failed: {ex.Message}" };
-        }
     }
 
     private IEnumerable<IRule> FilterRulesByIntent(AgentIntent intent)

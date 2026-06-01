@@ -41,7 +41,9 @@ Audit history stores the fingerprint with each snapshot finding. The diff calcul
 
 ## Thread-Safe Aggregation
 
-The agent runs scanners concurrently, so `ScanDataBuilder` protects mutation with a lock and returns immutable array snapshots in `Build()`. This keeps the scanner phase fast while avoiding races when different scanners add ports, services, routes, warnings, and firewall state.
+`ScannerCoordinator` owns concurrent scanner execution and warning consolidation, keeping `SecurityAgent` focused on the higher-level audit workflow. The agent still receives a single immutable scanner snapshot plus scanner warnings, but it no longer owns the `Task.WhenAll` orchestration details.
+
+Scanners populate a shared `ScanDataBuilder`, so `ScanDataBuilder` protects mutation with a lock and returns immutable array snapshots in `Build()`. This keeps the scanner phase fast while avoiding races when different scanners add ports, services, routes, warnings, and firewall state.
 
 ## Report Data-Source Capability Separately
 
