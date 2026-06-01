@@ -17,13 +17,12 @@ namespace VulcansTrace.Linux.Agent;
 public sealed class SecurityAgent : IAgent
 {
     private readonly ScannerCoordinator _scannerCoordinator;
-    private readonly IReadOnlyList<IRule> _rules;
+    private readonly RuleEvaluationService _ruleEvaluationService;
     private readonly IExplanationProvider _explanationProvider;
     private readonly SentryAnalyzer? _sentryAnalyzer;
     private readonly AnalysisProfileProvider? _profileProvider;
     private readonly ISuppressionStore? _suppressionStore;
     private readonly MachineRole _machineRole;
-    private readonly IRulePolicyProvider? _policyProvider;
     private readonly IAuditHistoryStore? _historyStore;
     private readonly IBaselineStore? _baselineStore;
     private readonly IComplianceScorecardBuilder? _scorecardBuilder;
@@ -63,13 +62,12 @@ public sealed class SecurityAgent : IAgent
         IRiskScorecardBuilder? riskScorecardBuilder = null)
     {
         _scannerCoordinator = new ScannerCoordinator(scanners);
-        _rules = rules?.ToList() ?? throw new ArgumentNullException(nameof(rules));
+        _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
         _sentryAnalyzer = sentryAnalyzer;
         _profileProvider = profileProvider;
         _suppressionStore = suppressionStore;
         _machineRole = machineRole;
-        _policyProvider = policyProvider;
         _historyStore = historyStore;
         _baselineStore = baselineStore;
         _scorecardBuilder = scorecardBuilder;
@@ -174,50 +172,9 @@ public sealed class SecurityAgent : IAgent
         ct.ThrowIfCancellationRequested();
 
         // Phase 2: Evaluate rules against scan data
-        var ruleResults = new List<RuleResult>();
-        var rulesToRun = FilterRulesByIntent(intent);
-
-        foreach (var rule in rulesToRun)
-        {
-            ct.ThrowIfCancellationRequested();
-            var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
-
-            if (policy?.Enabled == false)
-            {
-                ruleResults.Add(CreatePolicyDisabledResult(rule));
-                continue;
-            }
-
-            RuleResult result;
-            try
-            {
-                if (rule is IContextualRule contextualRule)
-                {
-                    result = contextualRule.Evaluate(scanData, new RuleEvaluationContext(_machineRole, policy));
-                }
-                else
-                {
-                    result = rule.Evaluate(scanData);
-                }
-            }
-            catch (Exception ex)
-            {
-                warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-                result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings);
-            }
-
-            if (!result.Passed && policy?.AutoPass == true)
-            {
-                result = result with { Passed = true, Status = RuleStatus.Passed };
-            }
-
-            if (policy?.SeverityOverride.HasValue == true && !result.Passed && result.Status != RuleStatus.Crashed)
-            {
-                result = result with { Severity = policy.SeverityOverride.Value };
-            }
-
-            ruleResults.Add(result);
-        }
+        var evaluatedRules = _ruleEvaluationService.EvaluateForIntent(intent, scanData, ct);
+        var ruleResults = evaluatedRules.RuleResults.ToList();
+        warnings.AddRange(evaluatedRules.Warnings);
 
         // Phase 3: Mark suppression status and convert rule failures to Findings
         var agentFindings = new List<Finding>();
@@ -1262,8 +1219,7 @@ public sealed class SecurityAgent : IAgent
             }
 
             // Try to find a matching rule and run it specifically
-            var matchingRule = _rules.FirstOrDefault(r =>
-                r.Id.Equals(reference, StringComparison.OrdinalIgnoreCase));
+            var matchingRule = _ruleEvaluationService.FindRuleById(reference);
 
             if (matchingRule != null)
             {
@@ -1335,10 +1291,11 @@ public sealed class SecurityAgent : IAgent
         var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = BuildCapabilityReport(scanData.Capabilities);
 
-        var policy = _policyProvider?.GetPolicy(rule.Id, _machineRole);
-        if (policy?.Enabled == false)
+        var evaluatedRule = _ruleEvaluationService.EvaluateRule(rule, scanData, ct);
+        warnings.AddRange(evaluatedRule.Warnings);
+
+        if (evaluatedRule.DisabledByPolicy)
         {
-            var disabledResult = CreatePolicyDisabledResult(rule);
             ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
             return new AgentResult
             {
@@ -1347,38 +1304,12 @@ public sealed class SecurityAgent : IAgent
                 Warnings = warnings,
                 UtcTimestamp = DateTime.UtcNow,
                 Summary = $"Rule {rule.Id} is disabled by policy for {_machineRole}.",
-                RuleResults = new[] { disabledResult },
+                RuleResults = new[] { evaluatedRule.RuleResult },
                 PassedCount = 1
             };
         }
 
-        RuleResult result;
-        try
-        {
-            if (rule is IContextualRule contextualRule)
-            {
-                result = contextualRule.Evaluate(scanData, new RuleEvaluationContext(_machineRole, policy));
-            }
-            else
-            {
-                result = rule.Evaluate(scanData);
-            }
-        }
-        catch (Exception ex)
-        {
-            warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings);
-        }
-
-        if (!result.Passed && policy?.AutoPass == true)
-        {
-            result = result with { Passed = true, Status = RuleStatus.Passed };
-        }
-
-        if (policy?.SeverityOverride.HasValue == true && !result.Passed && result.Status != RuleStatus.Crashed)
-        {
-            result = result with { Severity = policy.SeverityOverride.Value };
-        }
+        var result = evaluatedRule.RuleResult;
 
         var agentFindings = new List<Finding>();
         if (!result.Passed && result.Status != RuleStatus.Crashed)
@@ -1422,32 +1353,6 @@ public sealed class SecurityAgent : IAgent
         };
 
         return _lastResult;
-    }
-
-    private static RuleResult CreatePolicyDisabledResult(IRule rule)
-    {
-        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)", rule.CisMappings);
-    }
-
-    private IEnumerable<IRule> FilterRulesByIntent(AgentIntent intent)
-    {
-        return intent switch
-        {
-            AgentIntent.FullAudit => _rules,
-            AgentIntent.FirewallCheck => _rules.Where(r => r.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.NetworkCheck => _rules.Where(r => r.Category.Equals("Network", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.ServiceCheck => _rules.Where(r => r.Category.Equals("Service", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.PortCheck => _rules.Where(r => r.Category.Equals("Port", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.SshCheck => _rules.Where(r => r.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.FilePermissionCheck => _rules.Where(r => r.Category.Equals("FilePermission", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.FilesystemAuditCheck => _rules.Where(r => r.Category.Equals(FindingCategories.FilesystemAudit, StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.UserAccountCheck => _rules.Where(r => r.Category.Equals(FindingCategories.UserAccount, StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.LoggingAuditCheck => _rules.Where(r => r.Category.Equals("Logging", StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.CronJobCheck => _rules.Where(r => r.Category.Equals(FindingCategories.CronJob, StringComparison.OrdinalIgnoreCase)),
-            AgentIntent.PackageVulnerabilityCheck => _rules.Where(r => r.Category.Equals(FindingCategories.PackageVulnerability, StringComparison.OrdinalIgnoreCase)),
-            _ => Array.Empty<IRule>()
-        };
     }
 
     private static string BuildSummary(AgentIntent intent, List<Finding> findings, AnalysisResult? logResult, List<RuleResult> allResults, int suppressedCount = 0, int crashedCount = 0)
