@@ -82,6 +82,17 @@ public sealed class SecurityAgent : IAgent
         var parser = new QueryParser();
         var agentQuery = parser.Parse(query);
 
+        if (agentQuery.IsAmbiguous)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.Help,
+                Summary = BuildClarificationPrompt(agentQuery),
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
         if (agentQuery.Intent == AgentIntent.Help)
         {
             return new AgentResult
@@ -105,6 +116,49 @@ public sealed class SecurityAgent : IAgent
 
         return await RunAuditAsync(agentQuery.Intent, rawLog, ct);
     }
+
+    private static string BuildClarificationPrompt(AgentQuery query)
+    {
+        var intents = new[] { query.Intent }
+            .Concat(query.AlternativeIntents ?? Array.Empty<AgentIntent>())
+            .Distinct()
+            .Select(GetIntentDisplayName)
+            .ToList();
+
+        return intents.Count == 0
+            ? "I could read that a couple of ways. Please ask for a specific audit area, such as firewall, ports, SSH, services, network, or full audit."
+            : $"I could read that a couple of ways: {string.Join(", ", intents)}. Please ask for one specific audit area so I do not run the wrong check.";
+    }
+
+    private static string GetIntentDisplayName(AgentIntent intent) => intent switch
+    {
+        AgentIntent.FullAudit => "full audit",
+        AgentIntent.FirewallCheck => "firewall",
+        AgentIntent.NetworkCheck => "network",
+        AgentIntent.ServiceCheck => "services",
+        AgentIntent.PortCheck => "ports",
+        AgentIntent.SshCheck => "SSH",
+        AgentIntent.FilePermissionCheck => "file permissions",
+        AgentIntent.FilesystemAuditCheck => "filesystem audit",
+        AgentIntent.KernelCheck => "kernel hardening",
+        AgentIntent.UserAccountCheck => "user accounts",
+        AgentIntent.LoggingAuditCheck => "logging",
+        AgentIntent.CronJobCheck => "cron jobs",
+        AgentIntent.PackageVulnerabilityCheck => "package vulnerabilities",
+        AgentIntent.ExplainFinding => "explain a finding",
+        AgentIntent.ShowChanges => "audit changes",
+        AgentIntent.ExplainCritical => "critical finding explanation",
+        AgentIntent.FilterCategory => "filter findings",
+        AgentIntent.PrioritizeRemediation => "remediation priority",
+        AgentIntent.FixFinding => "guided remediation",
+        AgentIntent.ListSuppressed => "suppressed findings",
+        AgentIntent.SetBaseline => "set baseline",
+        AgentIntent.CheckDrift => "baseline drift",
+        AgentIntent.ShowBaseline => "show baseline",
+        AgentIntent.RiskScore => "risk score",
+        AgentIntent.Help => "help",
+        _ => intent.ToString()
+    };
 
     /// <inheritdoc />
     public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)

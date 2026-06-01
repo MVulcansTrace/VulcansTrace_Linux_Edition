@@ -27,6 +27,8 @@ That means rules can be tested with synthetic `ScanData` without depending on th
 
 `QueryParser` returns `AgentQuery`, not just `AgentIntent`. That lets the parser preserve a target reference such as `FW-001`, `PORT-002`, `firewall`, or `ssh` for later resolution. The agent can then decide whether to explain a cached finding, run one matching rule, or return guidance.
 
+The query also carries confidence and alternative intents. When a prompt ties between multiple audit areas, such as firewall versus ports, the agent asks the user to clarify instead of running the wrong scanner set with a confident-looking answer. Follow-up intents such as explanation, suppression, and remediation are not treated as audit-area ambiguity so natural phrases like "why is this critical?" still route directly.
+
 ## Cache Rule IDs With Findings
 
 `Finding` now carries an optional `RuleId` for agent-generated findings while remaining compatible with engine findings that do not have rule IDs. The agent also keeps a private history of `(RuleId, Finding)` pairs after audits. This makes follow-up prompts such as `explain FW-001` stable and lets evidence exports preserve the rule identifier without forcing the log-analysis engine to invent one.
@@ -50,6 +52,8 @@ Unknown is used when a fallback command was intentionally not checked because a 
 ## Command Execution With Explicit Exit Status
 
 Scanner command helpers return stdout, stderr, and success status. They read stdout and stderr concurrently to avoid process deadlocks when a command writes enough stderr output to fill a pipe. Scanner failures are converted into warnings so a missing command or permission issue does not crash the whole audit.
+
+Filesystem audit commands also enforce per-command budgets: a 60-second default timeout and a 1 MiB capture limit for stdout/stderr. Those limits prevent broad `find` scans on large hosts from consuming unbounded time or memory while preserving capability warnings when output is truncated or a command times out.
 
 ## Explain With Templates
 

@@ -38,6 +38,23 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task AskAsync_AmbiguousQuery_ReturnsClarificationWithoutScanning()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new ThrowingScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("check firewall ports", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.Empty(result.AgentFindings);
+        Assert.Contains("couple of ways", result.Summary);
+        Assert.Contains("firewall", result.Summary);
+        Assert.Contains("ports", result.Summary);
+    }
+
+    [Fact]
     public async Task RunAuditAsync_FirewallCheck_OnlyFirewallRulesRun()
     {
         var agent = CreateAgent();
@@ -449,6 +466,16 @@ public class SecurityAgentTests
         public Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingScanner : IScanner
+    {
+        public string Name => "Throwing";
+
+        public Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Scanner should not run for ambiguous queries.");
         }
     }
 

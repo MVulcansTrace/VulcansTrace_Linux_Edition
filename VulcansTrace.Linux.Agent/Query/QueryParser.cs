@@ -49,11 +49,12 @@ public sealed class QueryParser : IQueryParser
     public AgentQuery Parse(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return new AgentQuery(AgentIntent.Help);
+            return new AgentQuery(AgentIntent.Help, Confidence: 0.0);
 
         var normalized = query.ToLowerInvariant().Trim();
         var bestIntent = AgentIntent.Help;
         var bestScore = 0;
+        var scoredIntents = new Dictionary<AgentIntent, int>();
 
         foreach (var (keywords, intent, weight) in Patterns)
         {
@@ -66,6 +67,7 @@ public sealed class QueryParser : IQueryParser
                 }
             }
 
+            scoredIntents[intent] = score;
             if (score >= bestScore)
             {
                 bestScore = score;
@@ -73,9 +75,41 @@ public sealed class QueryParser : IQueryParser
             }
         }
 
+        if (bestScore == 0)
+        {
+            return new AgentQuery(AgentIntent.Help, Confidence: 0.0);
+        }
+
+        var alternatives = scoredIntents
+            .Where(pair => pair.Value == bestScore && pair.Key != bestIntent)
+            .Select(pair => pair.Key)
+            .ToList();
+        var totalMatchedScore = scoredIntents.Values.Where(score => score > 0).Sum();
+        var confidence = totalMatchedScore == 0 ? 0.0 : (double)bestScore / totalMatchedScore;
+        var tiedIntents = new[] { bestIntent }.Concat(alternatives).ToList();
+        var isAmbiguous = alternatives.Count > 0 && tiedIntents.All(IsAuditIntent);
+
         var targetReference = ExtractTargetReference(query, bestIntent);
-        return new AgentQuery(bestIntent, targetReference);
+        return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous);
     }
+
+    private static bool IsAuditIntent(AgentIntent intent) => intent switch
+    {
+        AgentIntent.FullAudit
+            or AgentIntent.FirewallCheck
+            or AgentIntent.NetworkCheck
+            or AgentIntent.ServiceCheck
+            or AgentIntent.PortCheck
+            or AgentIntent.SshCheck
+            or AgentIntent.FilePermissionCheck
+            or AgentIntent.FilesystemAuditCheck
+            or AgentIntent.KernelCheck
+            or AgentIntent.UserAccountCheck
+            or AgentIntent.LoggingAuditCheck
+            or AgentIntent.CronJobCheck
+            or AgentIntent.PackageVulnerabilityCheck => true,
+        _ => false
+    };
 
     private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
     {

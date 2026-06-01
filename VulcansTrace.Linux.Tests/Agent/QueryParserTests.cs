@@ -92,6 +92,7 @@ public class QueryParserTests
     {
         var result = _parser.Parse("tell me a joke");
         Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.Equal(0.0, result.Confidence);
     }
 
     [Fact]
@@ -204,5 +205,26 @@ public class QueryParserTests
         // "port" scores higher than filter keywords, so this is treated as a fresh port audit
         var result = _parser.Parse("just show port issues");
         Assert.Equal(AgentIntent.PortCheck, result.Intent);
+    }
+
+    [Fact]
+    public void Parse_AmbiguousQuery_ReturnsAlternativesAndLowConfidence()
+    {
+        var result = _parser.Parse("check firewall ports");
+
+        Assert.True(result.IsAmbiguous);
+        Assert.Equal(AgentIntent.PortCheck, result.Intent);
+        Assert.Contains(AgentIntent.FirewallCheck, result.AlternativeIntents ?? Array.Empty<AgentIntent>());
+        Assert.InRange(result.Confidence, 0.0, 1.0);
+    }
+
+    [Fact]
+    public void Parse_UnambiguousQuery_ReturnsNoAlternatives()
+    {
+        var result = _parser.Parse("check my firewall");
+
+        Assert.False(result.IsAmbiguous);
+        Assert.Empty(result.AlternativeIntents ?? Array.Empty<AgentIntent>());
+        Assert.Equal(1.0, result.Confidence);
     }
 }

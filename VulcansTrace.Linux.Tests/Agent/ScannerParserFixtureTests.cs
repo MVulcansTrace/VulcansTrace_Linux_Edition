@@ -820,6 +820,35 @@ public class ScannerParserFixtureTests
         Assert.Contains(data.Capabilities, c => c.SourceName == "findmnt-tmp");
     }
 
+    [Fact]
+    public async Task FilesystemAuditScanner_RunCommandAsync_TimesOutLongRunningCommand()
+    {
+        var scanner = new FilesystemAuditScanner(TimeSpan.FromMilliseconds(50));
+
+        var (_, stderr, success) = await scanner.RunCommandAsync(
+            "sh",
+            new[] { "-c", "sleep 1" },
+            CancellationToken.None);
+
+        Assert.False(success);
+        Assert.Contains("timed out", stderr, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task FilesystemAuditScanner_RunCommandAsync_TruncatesLargeOutput()
+    {
+        var scanner = new FilesystemAuditScanner(maxOutputChars: 12);
+
+        var (stdout, stderr, success) = await scanner.RunCommandAsync(
+            "sh",
+            new[] { "-c", "printf 'abcdefghijklmnopqrstuvwxyz'" },
+            CancellationToken.None);
+
+        Assert.True(success);
+        Assert.True(stdout?.Length <= 12);
+        Assert.Contains("truncated", stderr, StringComparison.OrdinalIgnoreCase);
+    }
+
     // =====================================================================
     // LoggingAuditScanner Fixtures
     // =====================================================================

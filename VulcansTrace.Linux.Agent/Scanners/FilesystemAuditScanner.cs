@@ -13,11 +13,30 @@ namespace VulcansTrace.Linux.Agent.Scanners;
 /// • Container overlay filesystems under /var/lib/docker/ are scanned as part of root filesystem.
 /// • Filenames containing newlines may break line-based parsing; this is a known edge case.
 /// • SUID whitelist is hardcoded; custom legitimate SUID binaries may trigger false positives.
-/// • No per-command timeout or output size limit; very large filesystems may consume significant
-///   memory until the find commands complete.
 /// </summary>
 public sealed class FilesystemAuditScanner : IScanner
 {
+    private const int DefaultMaxOutputChars = 1_048_576;
+    private static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromSeconds(60);
+    private readonly TimeSpan _commandTimeout;
+    private readonly int _maxOutputChars;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FilesystemAuditScanner"/> class.
+    /// </summary>
+    /// <param name="commandTimeout">Maximum runtime for each filesystem command. Defaults to 60 seconds.</param>
+    /// <param name="maxOutputChars">Maximum captured stdout or stderr characters per command. Defaults to 1 MiB.</param>
+    public FilesystemAuditScanner(TimeSpan? commandTimeout = null, int maxOutputChars = DefaultMaxOutputChars)
+    {
+        _commandTimeout = commandTimeout ?? DefaultCommandTimeout;
+        if (_commandTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(commandTimeout), "Command timeout must be positive.");
+        if (maxOutputChars <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxOutputChars), "Maximum output size must be positive.");
+
+        _maxOutputChars = maxOutputChars;
+    }
+
     /// <inheritdoc />
     public string Name => "FilesystemAudit";
 
@@ -46,7 +65,7 @@ public sealed class FilesystemAuditScanner : IScanner
         await Task.WhenAll(tasks);
     }
 
-    private static async Task ScanWorldWritableFilesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task ScanWorldWritableFilesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
         var (stdout, stderr, success) = await RunFindAsync(
             new[] { "/", "-xdev", "-type", "f", "-perm", "-002", "-exec", "stat", "-c", "%a %U %G %n", "{}", "+" },
@@ -85,7 +104,7 @@ public sealed class FilesystemAuditScanner : IScanner
         }
     }
 
-    private static async Task ScanSuidSgidBinariesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task ScanSuidSgidBinariesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
         var (stdout, stderr, success) = await RunFindAsync(
             new[] { "/", "-xdev", "(", "-perm", "-4000", "-o", "-perm", "-2000", ")", "-type", "f", "-exec", "stat", "-c", "%a %U %G %n", "{}", "+" },
@@ -133,7 +152,7 @@ public sealed class FilesystemAuditScanner : IScanner
         }
     }
 
-    private static async Task ScanUnownedFilesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task ScanUnownedFilesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
         var (stdout, stderr, success) = await RunFindAsync(
             new[] { "/", "-xdev", "(", "-nouser", "-o", "-nogroup", ")", "-type", "f", "-exec", "stat", "-c", "%a %U %G %n", "{}", "+" },
@@ -171,7 +190,7 @@ public sealed class FilesystemAuditScanner : IScanner
         }
     }
 
-    private static async Task ScanWorldWritableDirsNoStickyAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task ScanWorldWritableDirsNoStickyAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
         var (stdout, stderr, success) = await RunFindAsync(
             new[] { "/", "-xdev", "-type", "d", "-perm", "-002", "!", "-perm", "-1000", "-exec", "stat", "-c", "%a %U %G %n", "{}", "+" },
@@ -209,7 +228,7 @@ public sealed class FilesystemAuditScanner : IScanner
         }
     }
 
-    private static async Task ScanTmpMountAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task ScanTmpMountAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
         // First get the mount target to determine if /tmp is a separate partition
         var (targetOut, targetErr, targetSuccess) = await RunCommandAsync(
@@ -260,13 +279,13 @@ public sealed class FilesystemAuditScanner : IScanner
         return false;
     }
 
-    private static async Task<(string? Stdout, string? Stderr, bool Success)> RunFindAsync(
+    private async Task<(string? Stdout, string? Stderr, bool Success)> RunFindAsync(
         string[] args, CancellationToken ct)
     {
         return await RunCommandAsync("find", args, ct);
     }
 
-    private static async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(
+    internal async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(
         string fileName, string[] args, CancellationToken ct)
     {
         try
@@ -286,17 +305,60 @@ public sealed class FilesystemAuditScanner : IScanner
             if (process == null)
                 return (null, $"Failed to start '{fileName}'.", false);
 
+            var stdout = new System.Text.StringBuilder();
+            var stderr = new System.Text.StringBuilder();
+            var stdoutChars = 0;
+            var stderrChars = 0;
+            var stdoutTruncated = false;
+            var stderrTruncated = false;
+            var outputLock = new object();
+
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    AppendBounded(stdout, e.Data, ref stdoutChars, ref stdoutTruncated, _maxOutputChars, outputLock);
+                }
+            };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    AppendBounded(stderr, e.Data, ref stderrChars, ref stderrTruncated, _maxOutputChars, outputLock);
+                }
+            };
+
             await using (ct.Register(() =>
             {
                 try { process.Kill(); } catch { /* ignore */ }
             }))
             {
-                var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-                var stderrTask = process.StandardError.ReadToEndAsync(ct);
-                var exitTask = process.WaitForExitAsync(ct);
-                await Task.WhenAll(stdoutTask, stderrTask, exitTask);
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(_commandTimeout);
+
+                try
+                {
+                    await process.WaitForExitAsync(timeoutCts.Token);
+                    await Task.Delay(100, CancellationToken.None);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                    AppendLine(stderr, $"Command timed out after {_commandTimeout.TotalSeconds:0.#} seconds.", outputLock);
+                    return (stdout.ToString().Trim(), stderr.ToString().Trim(), false);
+                }
+
+                ct.ThrowIfCancellationRequested();
                 var success = process.ExitCode == 0;
-                return (stdoutTask.Result, stderrTask.Result, success);
+                if (stdoutTruncated)
+                    AppendLine(stderr, $"Standard output was truncated after {_maxOutputChars} characters.", outputLock);
+                if (stderrTruncated)
+                    AppendLine(stderr, $"Standard error was truncated after {_maxOutputChars} characters.", outputLock);
+
+                return (stdout.ToString().Trim(), stderr.ToString().Trim(), success);
             }
         }
         catch (OperationCanceledException)
@@ -306,6 +368,47 @@ public sealed class FilesystemAuditScanner : IScanner
         catch (Exception ex)
         {
             return (null, ex.Message, false);
+        }
+    }
+
+    private static void AppendBounded(
+        System.Text.StringBuilder builder,
+        string line,
+        ref int currentLength,
+        ref bool truncated,
+        int maxChars,
+        object syncRoot)
+    {
+        lock (syncRoot)
+        {
+            if (currentLength >= maxChars)
+            {
+                truncated = true;
+                return;
+            }
+
+            var remaining = maxChars - currentLength;
+            var text = line + Environment.NewLine;
+            if (text.Length > remaining)
+            {
+                builder.Append(text.AsSpan(0, remaining));
+                currentLength = maxChars;
+                truncated = true;
+                return;
+            }
+
+            builder.Append(text);
+            currentLength += text.Length;
+        }
+    }
+
+    private static void AppendLine(System.Text.StringBuilder builder, string line, object syncRoot)
+    {
+        lock (syncRoot)
+        {
+            if (builder.Length > 0)
+                builder.AppendLine();
+            builder.Append(line);
         }
     }
 }
