@@ -58,7 +58,14 @@ public class RuleCatalogTests
         new UnexpectedSuidSgidRule(),
         new UnownedFileRule(),
         new WorldWritableDirNoStickyRule(),
-        new TmpHardeningRule()
+        new TmpHardeningRule(),
+        new LoggingServiceActiveRule(),
+        new AuditdActiveRule(),
+        new AuditdRulesConfiguredRule(),
+        new LogRotationConfiguredRule(),
+        new CentralForwardingConfiguredRule(),
+        new AuditdPrivilegeEscalationMonitoringRule(),
+        new ForwardingUsesTcpRule()
     };
 
     [Fact]
@@ -66,7 +73,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(51, catalog.Items.Count);
+        Assert.Equal(58, catalog.Items.Count);
     }
 
     [Fact]
@@ -96,6 +103,7 @@ public class RuleCatalogTests
     [InlineData("FSYS-0", 5)]
     [InlineData("KERN-0", 7)]
     [InlineData("USER-0", 7)]
+    [InlineData("LOG-0", 7)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -120,7 +128,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(51, results.Count);
+        Assert.Equal(58, results.Count);
     }
 
     [Fact]
@@ -184,6 +192,13 @@ public class RuleCatalogTests
     [InlineData("USER-005", "CIS 6.2")]
     [InlineData("USER-006", "CIS 6.2")]
     [InlineData("USER-007", "CIS 6.2")]
+    [InlineData("LOG-001", "CIS 8.1")]
+    [InlineData("LOG-002", "CIS 8.2")]
+    [InlineData("LOG-003", "CIS 8.2")]
+    [InlineData("LOG-004", "CIS 8.3")]
+    [InlineData("LOG-005", "CIS 8.4")]
+    [InlineData("LOG-006", "CIS 8.2")]
+    [InlineData("LOG-007", "CIS 8.4")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());

@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -124,8 +124,27 @@ Last updated: 2026-05-30
 - Added `filesystemaudit.md` explanation template with remediation steps for all filesystem audit rules.
 - Code: `VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/FilesystemAuditRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/filesystemaudit.md`, `VulcansTrace.Linux.Agent/Scanners/ScanData.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`
 
+### Security Agent — Logging & Auditing
+- Added `LoggingAuditScanner` that checks rsyslog and journald service status, reads auditd rules via `auditctl -l` with fallback to `/etc/audit/audit.rules`, checks logrotate configuration, and detects central log forwarding via rsyslog (`@`/`@@` targets) and journald (`ForwardToSyslog=yes`).
+- Added `LoggingAuditConfig` record to `ScanData` with typed fields: `RsyslogActive`, `JournaldActive`, `AuditdActive`, `AuditdRulesConfigured`, `LogRotationConfigured`, `CentralForwardingConfigured`, `AuditdRules`, `ForwardingTargets`, `ReadWarning`.
+- Added 7 logging/audit rules (`LOG-001` through `LOG-007`) with dual-layer CIS compliance mappings:
+  - `LOG-001` — At least one system logging service (rsyslog or journald) should be active (CIS 8.1)
+  - `LOG-002` — auditd should be installed and active (CIS 8.2)
+  - `LOG-003` — auditd should have active rules monitoring key security events (CIS 8.2)
+  - `LOG-004` — Log rotation should be configured via logrotate (CIS 8.3)
+  - `LOG-005` — Central log forwarding should be configured (rsyslog remote or journald ForwardToSyslog); exempt on Workstation, DevMachine, LabBox, and Router (CIS 8.4)
+  - `LOG-006` — auditd should monitor privilege escalation syscalls (`setuid`, `setgid`, etc.) (CIS 8.2)
+  - `LOG-007` — Central forwarding should use TCP (`@@` target) rather than UDP (`@`) for reliability (CIS 8.4)
+- `LOG-003` and `LOG-006` return `NotApplicable` when `ReadWarning` is set (partial scanner failure such as permission denied) so they do not produce false negatives on incomplete data.
+- `IsForwardingTarget` filters rsyslog control directives (`@include`, `@version`, `@moduleLoad`, etc.) to prevent false positives.
+- `IsActualAuditdRule` distinguishes real audit rules (`-w`, `-a`, `-A`) from control directives (`-D`, `-b`, `-f`, etc.).
+- `CheckCentralForwarding` uses `HashSet<string>` for deduplication and supports both rsyslog config files and journald.conf.
+- Added `AgentIntent.LoggingAuditCheck` and `QueryParser` keywords (`logging`, `log`, `rsyslog`, `journald`, `auditd`, `logrotate`, `forwarding`, `syslog`) so users can ask "check my logging".
+- Added `loggingaudit.md` explanation template with remediation steps for all logging/audit rules.
+- Code: `VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/loggingaudit.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 51 agent rules now carry dual-layer CIS compliance mappings:
+- All 58 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

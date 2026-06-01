@@ -16,6 +16,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `FilesystemAuditScanner` knows how to run targeted `find` commands for world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, and `/tmp` mount options.
 - `KernelHardeningScanner` knows how to read `/proc/sys` parameters and Secure Boot state.
 - `UserAccountScanner` knows how to read `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configuration.
+- `LoggingAuditScanner` knows how to check logging service status, read auditd rules, verify logrotate configuration, and detect central forwarding targets.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.

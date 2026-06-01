@@ -16,6 +16,7 @@
 | `FilesystemAuditCheck` | `Check my filesystem` | Filesystem audit rules (world-writable files, SUID/SGID, unowned files, sticky bit, /tmp hardening) |
 | `KernelCheck` | `Check my kernel hardening` | Kernel and system hardening posture rules |
 | `UserAccountCheck` | `Check my user accounts` | User account, password aging, and PAM posture rules |
+| `LoggingAuditCheck` | `Check my logging` | rsyslog, journald, auditd, logrotate, and central forwarding posture rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
@@ -61,6 +62,7 @@
 | `FilesystemAuditScanner` | `find / -xdev … -exec stat …`, `findmnt /tmp` | `FilesystemAudits`, `TmpMountOptions`, `TmpMountTarget` |
 | `KernelHardeningScanner` | `/proc/sys/*` reads, `sysctl -a` fallback, `mokutil --sb-state` | `KernelParameters` |
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs, `/etc/security/pwquality.conf` | `UserAccounts`, `ShadowEntries`, `LoginDefs`, `PamConfig` |
+| `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | `LoggingAudit` |
 
 ---
 
@@ -77,8 +79,10 @@
 | FilesystemAudit | world-writable files, SUID/SGID binaries, unowned files, sticky-bit dirs, /tmp mount hardening | 5/5 rules mapped to CIS 1.1.2 / 6.1.9-12 + Ubuntu 1.1.2.x / 6.1.9-12 |
 | Kernel | ASLR, IP forwarding, ICMP redirects, source routing, module loading, Secure Boot, pointer exposure | 7/7 rules mapped to CIS 1.4 / 1.5 / 3.1 + Ubuntu 1.4.x / 1.5.x / 3.1.x |
 | UserAccount | UID 0 beyond root, empty passwords, password aging, PAM complexity, inactive accounts, duplicate UIDs, missing home directories | 7/7 rules mapped to CIS 5.4 / 6.2 + Ubuntu 5.4.x / 6.2.x |
+| Logging | rsyslog/journald active, auditd active, auditd rules configured, logrotate configured, central forwarding, privilege escalation monitoring, TCP forwarding | 7/7 rules mapped to CIS 8.1 / 8.2 / 8.3 / 8.4 + Ubuntu 4.1.x / 4.2.x / 4.3.x |
+| UserAccount | UID 0 beyond root, empty passwords, password aging, PAM complexity, inactive accounts, duplicate UIDs, missing home directories | 7/7 rules mapped to CIS 5.4 / 6.2 + Ubuntu 5.4.x / 6.2.x |
 
-All 51 rules carry dual-layer CIS mappings:
+All 58 rules carry dual-layer CIS mappings:
 - **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.2`, `CIS 6.3`, `CIS 13.3`
 - **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled`
 
@@ -119,7 +123,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |

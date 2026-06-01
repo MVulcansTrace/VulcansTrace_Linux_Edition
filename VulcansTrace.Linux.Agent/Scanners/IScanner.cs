@@ -43,6 +43,7 @@ public sealed class ScanDataBuilder
     private string _tmpMountTarget = string.Empty;
     private LoginDefs? _loginDefs;
     private PamConfig? _pamConfig;
+    private LoggingAuditConfig? _loggingAuditConfig;
 
     public string FirewallRaw
     {
@@ -146,6 +147,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _pamConfig = config; }
     }
 
+    public void SetLoggingAuditConfig(LoggingAuditConfig config)
+    {
+        lock (_lock) { _loggingAuditConfig = config; }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -171,7 +177,8 @@ public sealed class ScanDataBuilder
                 UserAccounts = _userAccounts.ToArray(),
                 ShadowEntries = _shadowEntries.ToArray(),
                 LoginDefs = _loginDefs,
-                PamConfig = _pamConfig
+                PamConfig = _pamConfig,
+                LoggingAudit = _loggingAuditConfig
             };
         }
     }

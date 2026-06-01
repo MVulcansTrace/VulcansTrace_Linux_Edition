@@ -22,6 +22,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my filesystem` | `FilesystemAuditCheck` | Reviews world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, and /tmp mount hardening |
 | `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
 | `Check my user accounts` | `UserAccountCheck` | Reviews user accounts, password aging, PAM complexity, and shadow entries |
+| `Check my logging` | `LoggingAuditCheck` | Reviews rsyslog, journald, auditd, logrotate, and central forwarding configuration |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -50,6 +51,7 @@ The agent reads local host state using common Linux tools:
 | `FilesystemAuditScanner` | `find / -xdev … -exec stat …` | Discovers world-writable files, SUID/SGID binaries, unowned files, world-writable dirs without sticky bit, and /tmp mount options |
 | `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
+| `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | Checks logging service status, auditd rules, logrotate configuration, and central forwarding targets |
 
 Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -133,6 +135,16 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - Each UID should be unique (`USER-006`).
 - Regular interactive accounts (UID >= 1000) should have an existing home directory (`USER-007`).
 
+### Logging
+
+- At least one system logging service (rsyslog or journald) should be active (`LOG-001`).
+- auditd should be installed and active (`LOG-002`).
+- auditd should have active rules monitoring key security events (`LOG-003`). Returns `NotApplicable` when auditd rules could not be read (permission denied).
+- Log rotation should be configured via logrotate (`LOG-004`).
+- Central log forwarding should be configured (rsyslog remote or journald `ForwardToSyslog`); exempt on Workstation, DevMachine, LabBox, and Router (`LOG-005`).
+- auditd should monitor privilege escalation syscalls (`setuid`, `setgid`, etc.) (`LOG-006`). Returns `NotApplicable` when auditd rules could not be read.
+- Central forwarding should use TCP (`@@` target) rather than UDP (`@`) for reliability (`LOG-007`).
+
 ## How The Pipeline Works
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
@@ -154,7 +166,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`, `Router`, and `DevMachine` profiles. Built-in defaults tune selected rules, and user JSON policies take precedence while inheriting built-in parameters that are not overridden.
 
-The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, `SSH-007`, and `KERN-005`.
+The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, `SSH-007`, `KERN-005`, and `LOG-005`.
 
 The Avalonia composition currently runs the agent as `Workstation`; other roles are available through the agent API and policy provider wiring until a role selector is added.
 
@@ -177,7 +189,7 @@ Explanations are rendered as structured sections: what was found, why it matters
 The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
 
 - Chat-style natural-language questions.
-- Quick-action buttons for full audit, firewall, ports, services, network, selected-finding explanation, and audit export.
+- Quick-action buttons for full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, selected-finding explanation, and audit export.
 - Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
@@ -262,6 +274,13 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | SRV-002 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.12 — Ensure FTP server is not installed |
 | SRV-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.16 — Ensure rsh server is not installed |
 | SRV-005 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.x — Ensure unnecessary services are removed or disabled |
+| LOG-001 | CIS 8.1 — Collect and Retain Audit Logs | 4.2.1 — Ensure rsyslog or journald is installed and active |
+| LOG-002 | CIS 8.2 — Collect Audit Logs | 4.1.1 — Ensure auditd is installed and active |
+| LOG-003 | CIS 8.2 — Collect Audit Logs | 4.1.x — Ensure audit rules are configured |
+| LOG-004 | CIS 8.3 — Collect Service Provider Logs | 4.3.x — Ensure logrotate is configured |
+| LOG-005 | CIS 8.4 — Collect Audit Log Details | 4.2.2.x — Ensure rsyslog is configured to send logs to a remote log host |
+| LOG-006 | CIS 8.2 — Collect Audit Logs | 4.1.x — Ensure audit rules monitor privilege escalation |
+| LOG-007 | CIS 8.4 — Collect Audit Log Details | 4.2.2.x — Ensure reliable log forwarding transport |
 
 The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable.
 
@@ -301,7 +320,9 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [FilesystemAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs)
 - [KernelHardeningScanner.cs](../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs)
 - [UserAccountScanner.cs](../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs)
+- [LoggingAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
+- [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [ComplianceScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)

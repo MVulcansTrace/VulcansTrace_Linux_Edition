@@ -924,7 +924,7 @@ public class RuleTests
     public void SecureBootEnabledRule_Disabled_Fails()
     {
         var rule = new SecureBootEnabledRule();
-        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = false } };
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, SecureBootEnabled = false } };
 
         var result = rule.Evaluate(data);
 
@@ -936,7 +936,7 @@ public class RuleTests
     public void SecureBootEnabledRule_Enabled_Passes()
     {
         var rule = new SecureBootEnabledRule();
-        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = true } };
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, SecureBootEnabled = true } };
 
         var result = rule.Evaluate(data);
 
@@ -1004,7 +1004,7 @@ public class RuleTests
     public void SecureBootEnabledRule_Null_ReturnsNotApplicable()
     {
         var rule = new SecureBootEnabledRule();
-        var data = new ScanData { KernelParameters = new KernelParameters { SecureBootEnabled = null } };
+        var data = new ScanData { KernelParameters = new KernelParameters { ParametersReadable = true, SecureBootEnabled = null } };
 
         var result = rule.Evaluate(data);
 
@@ -1491,6 +1491,13 @@ public class RuleTests
     [InlineData(typeof(InactiveAccountsRule), "CIS 6.2")]
     [InlineData(typeof(DuplicateUidsRule), "CIS 6.2")]
     [InlineData(typeof(MissingHomeDirectoryRule), "CIS 6.2")]
+    [InlineData(typeof(LoggingServiceActiveRule), "CIS 8.1")]
+    [InlineData(typeof(AuditdActiveRule), "CIS 8.2")]
+    [InlineData(typeof(AuditdRulesConfiguredRule), "CIS 8.2")]
+    [InlineData(typeof(LogRotationConfiguredRule), "CIS 8.3")]
+    [InlineData(typeof(CentralForwardingConfiguredRule), "CIS 8.4")]
+    [InlineData(typeof(AuditdPrivilegeEscalationMonitoringRule), "CIS 8.2")]
+    [InlineData(typeof(ForwardingUsesTcpRule), "CIS 8.4")]
     public void KeyRules_HaveCisMappings(Type ruleType, string expectedControlId)
     {
         var rule = (IRule)Activator.CreateInstance(ruleType)!;
@@ -1706,5 +1713,430 @@ public class RuleTests
         Assert.True(new UnownedFileRule().Evaluate(data).Passed);
         Assert.True(new WorldWritableDirNoStickyRule().Evaluate(data).Passed);
         Assert.True(new TmpHardeningRule().Evaluate(data).Passed);
+    }
+
+    // =====================================================================
+    // Logging & Audit Rules
+    // =====================================================================
+
+    [Fact]
+    public void LoggingServiceActiveRule_NoLoggingService_Fails()
+    {
+        var rule = new LoggingServiceActiveRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { RsyslogActive = false, JournaldActive = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void LoggingServiceActiveRule_RsyslogActive_Passes()
+    {
+        var rule = new LoggingServiceActiveRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { RsyslogActive = true, JournaldActive = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void LoggingServiceActiveRule_JournaldActive_Passes()
+    {
+        var rule = new LoggingServiceActiveRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { RsyslogActive = false, JournaldActive = true }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdActiveRule_Inactive_Fails()
+    {
+        var rule = new AuditdActiveRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void AuditdActiveRule_Active_Passes()
+    {
+        var rule = new AuditdActiveRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdRulesConfiguredRule_ActiveNoRules_Fails()
+    {
+        var rule = new AuditdRulesConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true, AuditdRulesConfigured = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void AuditdRulesConfiguredRule_ActiveWithRules_Passes()
+    {
+        var rule = new AuditdRulesConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true, AuditdRulesConfigured = true }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdRulesConfiguredRule_AuditdInactive_Passes()
+    {
+        var rule = new AuditdRulesConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = false, AuditdRulesConfigured = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void LogRotationConfiguredRule_Missing_Fails()
+    {
+        var rule = new LogRotationConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { LogRotationConfigured = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Low, result.Severity);
+    }
+
+    [Fact]
+    public void LogRotationConfiguredRule_Configured_Passes()
+    {
+        var rule = new LogRotationConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { LogRotationConfigured = true }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_ServerNoForwarding_Fails()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_ServerWithForwarding_Passes()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = true }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Server, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_WorkstationNoForwarding_Passes()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Workstation, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_DevMachineNoForwarding_Passes()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+        var context = new RuleEvaluationContext(MachineRole.DevMachine, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_LabBoxNoForwarding_Passes()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+        var context = new RuleEvaluationContext(MachineRole.LabBox, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_RouterNoForwarding_Passes()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+        var context = new RuleEvaluationContext(MachineRole.Router, null);
+
+        var result = rule.Evaluate(data, context);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void CentralForwardingConfiguredRule_NonContextualDefaultsToWorkstation()
+    {
+        var rule = new CentralForwardingConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { CentralForwardingConfigured = false }
+        };
+
+        // Non-contextual overload defaults to Workstation, which is exempt from forwarding.
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdPrivilegeEscalationMonitoringRule_NoRules_Passes()
+    {
+        var rule = new AuditdPrivilegeEscalationMonitoringRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true, AuditdRulesConfigured = false, AuditdRules = Array.Empty<string>() }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdPrivilegeEscalationMonitoringRule_HasPrivEsc_Passes()
+    {
+        var rule = new AuditdPrivilegeEscalationMonitoringRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig
+            {
+                
+                AuditdActive = true,
+                AuditdRulesConfigured = true,
+                AuditdRules = new[] { "-a always,exit -F arch=b64 -S setuid,setgid -k privilege_escalation" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void AuditdPrivilegeEscalationMonitoringRule_MissingPrivEsc_Fails()
+    {
+        var rule = new AuditdPrivilegeEscalationMonitoringRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig
+            {
+                
+                AuditdActive = true,
+                AuditdRulesConfigured = true,
+                AuditdRules = new[] { "-w /etc/passwd -p wa -k identity" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void ForwardingUsesTcpRule_AllTcp_Passes()
+    {
+        var rule = new ForwardingUsesTcpRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig
+            {
+                
+                CentralForwardingConfigured = true,
+                ForwardingTargets = new[] { "@@192.168.1.10:514", "@@logs.example.com" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void ForwardingUsesTcpRule_HasUdp_Fails()
+    {
+        var rule = new ForwardingUsesTcpRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig
+            {
+                
+                CentralForwardingConfigured = true,
+                ForwardingTargets = new[] { "@@192.168.1.10:514", "@192.168.1.11" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void ForwardingUsesTcpRule_NoForwarding_Passes()
+    {
+        var rule = new ForwardingUsesTcpRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig
+            {
+                
+                CentralForwardingConfigured = false,
+                ForwardingTargets = Array.Empty<string>()
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void LoggingAuditRules_MissingData_NotApplicable()
+    {
+        var data = new ScanData { LoggingAudit = null };
+
+        Assert.Equal(RuleStatus.NotApplicable, new LoggingServiceActiveRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new AuditdActiveRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new AuditdRulesConfiguredRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new LogRotationConfiguredRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new CentralForwardingConfiguredRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new AuditdPrivilegeEscalationMonitoringRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new ForwardingUsesTcpRule().Evaluate(data).Status);
+    }
+
+    [Fact]
+    public void AuditdRulesConfiguredRule_ReadWarning_NotApplicable()
+    {
+        var rule = new AuditdRulesConfiguredRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true, AuditdRulesConfigured = false, ReadWarning = "auditctl: permission denied" }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void AuditdPrivilegeEscalationMonitoringRule_ReadWarning_NotApplicable()
+    {
+        var rule = new AuditdPrivilegeEscalationMonitoringRule();
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { AuditdActive = true, AuditdRulesConfigured = true, AuditdRules = new[] { "-w /etc/passwd -p wa -k identity" }, ReadWarning = "auditctl: permission denied" }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void LoggingAuditRules_ReadWarning_NonAuditdRulesStillEvaluate()
+    {
+        // ReadWarning is specific to auditd rules. Other logging rules should still evaluate.
+        var data = new ScanData
+        {
+            LoggingAudit = new LoggingAuditConfig { RsyslogActive = false, JournaldActive = false, ReadWarning = "auditctl: permission denied" }
+        };
+
+        Assert.False(new LoggingServiceActiveRule().Evaluate(data).Passed);
+        Assert.False(new AuditdActiveRule().Evaluate(data).Passed);
+        Assert.False(new LogRotationConfiguredRule().Evaluate(data).Passed);
     }
 }

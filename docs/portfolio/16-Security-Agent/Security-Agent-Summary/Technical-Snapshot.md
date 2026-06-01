@@ -15,15 +15,15 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Metric | Value |
 | --- | --- |
 | Agent project | `VulcansTrace.Linux.Agent` |
-| Scanner types | 9: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount |
-| Rule categories | 9: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount |
+| Scanner types | 10: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit |
+| Rule categories | 10: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 21: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
-| CIS mapping coverage | 51 / 51 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
+| Agent intents | 22: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
+| CIS mapping coverage | 58 / 58 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Compliance scorecard | Per-family Pass/Warn/Fail, overall rule-level percentage, trend over time (last 10 audits) |
 | Compliance thresholds | Pass ≥90%, Warn ≥80%, Fail <80% (named constants on `ComplianceScorecard`) |
@@ -62,12 +62,14 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [FilesystemAuditScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/FilesystemAuditScanner.cs) — filesystem permission anomaly collection
 - [KernelHardeningScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs) — kernel and system hardening parameter collection
 - [UserAccountScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs) — local user account, shadow, password aging, and PAM configuration collection
+- [LoggingAuditScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs) — logging service status, auditd rules, logrotate, and central forwarding collection
 - [FirewallRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FirewallRules.cs) — firewall posture rules
 - [PortRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/PortRules.cs) — exposed-port rules
 - [ServiceRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/ServiceRules.cs) — service posture rules
 - [NetworkRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/NetworkRules.cs) — routing and connection rules
 - [FilePermissionRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FilePermissionRules.cs) — file permission posture rules
 - [FilesystemAuditRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FilesystemAuditRules.cs) — filesystem audit posture rules
+- [LoggingAuditRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs) — logging and audit posture rules
 - [DefaultRulePolicyProvider.cs](../../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and local override merge behavior
 - [JsonRulePolicyStore.cs](../../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — persisted rule policy store
 - [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding identity and fingerprints

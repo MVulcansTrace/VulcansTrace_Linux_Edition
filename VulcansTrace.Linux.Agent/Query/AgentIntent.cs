@@ -35,6 +35,9 @@ public enum AgentIntent
     /// <summary>Focus on user accounts, passwords, and PAM configuration.</summary>
     UserAccountCheck,
 
+    /// <summary>Focus on logging and auditing configuration (rsyslog, journald, auditd, logrotate, forwarding).</summary>
+    LoggingAuditCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

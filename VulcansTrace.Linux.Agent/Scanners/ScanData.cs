@@ -65,6 +65,40 @@ public sealed record ScanData
 
     /// <summary>PAM password configuration lines.</summary>
     public PamConfig? PamConfig { get; init; }
+
+    /// <summary>Logging and auditing configuration (rsyslog, journald, auditd, logrotate, forwarding).</summary>
+    public LoggingAuditConfig? LoggingAudit { get; init; }
+}
+
+/// <summary>Logging and auditing subsystem configuration.</summary>
+public sealed record LoggingAuditConfig
+{
+    /// <summary>Whether rsyslog service is active.</summary>
+    public bool RsyslogActive { get; init; }
+
+    /// <summary>Whether systemd-journald service is active.</summary>
+    public bool JournaldActive { get; init; }
+
+    /// <summary>Whether auditd service is active.</summary>
+    public bool AuditdActive { get; init; }
+
+    /// <summary>Whether auditd has active rules configured.</summary>
+    public bool AuditdRulesConfigured { get; init; }
+
+    /// <summary>Whether log rotation is configured.</summary>
+    public bool LogRotationConfigured { get; init; }
+
+    /// <summary>Whether central log forwarding is configured.</summary>
+    public bool CentralForwardingConfigured { get; init; }
+
+    /// <summary>Raw auditd rules found on the system.</summary>
+    public IReadOnlyList<string> AuditdRules { get; init; } = Array.Empty<string>();
+
+    /// <summary>Forwarding targets detected (e.g. "@@192.168.1.10:514").</summary>
+    public IReadOnlyList<string> ForwardingTargets { get; init; } = Array.Empty<string>();
+
+    /// <summary>Warning or detail message if reading failed.</summary>
+    public string? ReadWarning { get; init; }
 }
 
 /// <summary> Parsed SSH daemon configuration entry. </summary>

@@ -360,16 +360,37 @@ public class SecurityAgentTests
             new FilePermissionScanner(),
             new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
-            new UserAccountScanner()
+            new UserAccountScanner(),
+            new LoggingAuditScanner()
         };
 
         var rules = new IRule[]
         {
             new FirewallActiveRule(),
             new FirewallDefaultDropRule(),
-            new TelnetServiceRule(),
-            new SshServiceRule(),
+            new FirewallSshExposureRule(),
+            new FirewallStateTrackingRule(),
+            new FirewallIcmpRule(),
             new DefaultRouteRule(),
+            new SuspiciousConnectionsRule(),
+            new NetworkInterfaceUpRule(),
+            new LoopbackExposureRule(),
+            new TelnetServiceRule(),
+            new FtpServiceRule(),
+            new SshServiceRule(),
+            new LegacyRservicesRule(),
+            new UnnecessaryServicesRule(),
+            new SshNonDefaultPortRule(),
+            new WideOpenServicesRule(),
+            new DatabasePortExposureRule(),
+            new HighPortListeningRule(),
+            new SshPermitRootLoginRule(),
+            new SshPasswordAuthenticationRule(),
+            new SshMaxAuthTriesRule(),
+            new SshProtocolRule(),
+            new SshEmptyPasswordsRule(),
+            new SshPubkeyAuthenticationRule(),
+            new SshX11ForwardingRule(),
             new ShadowPermissionRule(),
             new PasswdPermissionRule(),
             new SshHostKeyPermissionRule(),
@@ -395,7 +416,14 @@ public class SecurityAgentTests
             new PamPasswordComplexityRule(),
             new InactiveAccountsRule(),
             new DuplicateUidsRule(),
-            new MissingHomeDirectoryRule()
+            new MissingHomeDirectoryRule(),
+            new LoggingServiceActiveRule(),
+            new AuditdActiveRule(),
+            new AuditdRulesConfiguredRule(),
+            new LogRotationConfiguredRule(),
+            new CentralForwardingConfiguredRule(),
+            new AuditdPrivilegeEscalationMonitoringRule(),
+            new ForwardingUsesTcpRule()
         };
 
         var explanationProvider = new ExplanationProvider();

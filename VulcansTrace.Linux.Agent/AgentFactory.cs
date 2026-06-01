@@ -82,7 +82,8 @@ public static class AgentFactory
             new FilePermissionScanner(),
             new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
-            new UserAccountScanner()
+            new UserAccountScanner(),
+            new LoggingAuditScanner()
         };
 
         var rules = new IRule[]
@@ -137,7 +138,14 @@ public static class AgentFactory
             new PamPasswordComplexityRule(),
             new InactiveAccountsRule(),
             new DuplicateUidsRule(),
-            new MissingHomeDirectoryRule()
+            new MissingHomeDirectoryRule(),
+            new LoggingServiceActiveRule(),
+            new AuditdActiveRule(),
+            new AuditdRulesConfiguredRule(),
+            new LogRotationConfiguredRule(),
+            new CentralForwardingConfiguredRule(),
+            new AuditdPrivilegeEscalationMonitoringRule(),
+            new ForwardingUsesTcpRule()
         };
 
         var explanationProvider = new ExplanationProvider();

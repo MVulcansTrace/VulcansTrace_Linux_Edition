@@ -1084,6 +1084,7 @@ public sealed class SecurityAgent : IAgent
         "filesystem" or "suid" or "sgid" or "world-writable" or "sticky" or "unowned" => AgentIntent.FilesystemAuditCheck,
         "kernel" => AgentIntent.KernelCheck,
         "user" or "useraccount" or "account" or "password" or "shadow" or "uid" or "pam" => AgentIntent.UserAccountCheck,
+        "logging" or "rsyslog" or "journald" or "audit" or "auditd" or "logrotate" or "forwarding" or "syslog" => AgentIntent.LoggingAuditCheck,
         _ => AgentIntent.Help
     };
 
@@ -1372,6 +1373,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.FilesystemAuditCheck => _rules.Where(r => r.Category.Equals(FindingCategories.FilesystemAudit, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.UserAccountCheck => _rules.Where(r => r.Category.Equals(FindingCategories.UserAccount, StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.LoggingAuditCheck => _rules.Where(r => r.Category.Equals("Logging", StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }
@@ -1395,6 +1397,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.FilesystemAuditCheck => "Filesystem audit check",
             AgentIntent.KernelCheck => "Kernel check",
             AgentIntent.UserAccountCheck => "User account check",
+            AgentIntent.LoggingAuditCheck => "Logging audit check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
@@ -1464,6 +1467,10 @@ public sealed class SecurityAgent : IAgent
             "ip route",
             "ss connections",
             "systemctl",
+            "systemctl logging services",
+            "auditd rules",
+            "logrotate",
+            "log forwarding",
             "sshd -T",
             "sshd_config",
             "stat"

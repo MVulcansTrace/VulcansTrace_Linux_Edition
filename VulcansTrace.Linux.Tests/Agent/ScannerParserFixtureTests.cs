@@ -819,4 +819,221 @@ public class ScannerParserFixtureTests
         Assert.Contains(data.Capabilities, c => c.SourceName == "find-world-writable-dirs");
         Assert.Contains(data.Capabilities, c => c.SourceName == "findmnt-tmp");
     }
+
+    // =====================================================================
+    // LoggingAuditScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public async Task LoggingAuditScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new LoggingAuditScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "systemctl logging services");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "auditd rules");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "logrotate");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "log forwarding");
+    }
+
+    [Fact]
+    public void LoggingAuditScanner_CheckLogRotation_SystemState_DoesNotThrow()
+    {
+        var result = LoggingAuditScanner.CheckLogRotation();
+        // Assert only that it returns a bool without throwing; actual value depends on host.
+        Assert.True(result || !result);
+    }
+
+    [Fact]
+    public void LoggingAuditScanner_CheckCentralForwarding_SystemState_DoesNotThrow()
+    {
+        var (configured, targets) = LoggingAuditScanner.CheckCentralForwarding();
+        Assert.NotNull(targets);
+        // Actual configured state depends on host.
+    }
+
+    [Theory]
+    [InlineData("@@192.168.1.1", true)]
+    [InlineData("@192.168.1.1", true)]
+    [InlineData("@@logs.example.com:514", true)]
+    [InlineData("@(o)192.168.1.1", true)]
+    [InlineData("@@(z9)192.168.1.1", true)]
+    [InlineData("@@[2001:db8::1]", true)]
+    [InlineData("*.*", false)]
+    [InlineData("normaltext", false)]
+    [InlineData("@", false)]
+    [InlineData("@@", false)]
+    [InlineData("@include", false)]
+    [InlineData("@INCLUDE", false)]
+    [InlineData("@@include", false)]
+    [InlineData("@version", false)]
+    [InlineData("@moduleLoad", false)]
+    [InlineData("@module", false)]
+    [InlineData("@begin", false)]
+    [InlineData("@end", false)]
+    [InlineData("@define", false)]
+    [InlineData("@ifdef", false)]
+    [InlineData("@ifndef", false)]
+    [InlineData("@else", false)]
+    [InlineData("@endif", false)]
+    public void LoggingAuditScanner_IsForwardingTarget_ValidatesCorrectly(string input, bool expected)
+    {
+        Assert.Equal(expected, LoggingAuditScanner.IsForwardingTarget(input));
+    }
+
+    [Theory]
+    [InlineData("-w /etc/passwd -p wa -k identity", true)]
+    [InlineData("-a always,exit -F arch=b64 -S sethostname -k system-locale", true)]
+    [InlineData("-A always,exit -F arch=b32 -S adjtimex -k time-change", true)]
+    [InlineData("-D", false)]
+    [InlineData("-b 8192", false)]
+    [InlineData("-f 1", false)]
+    [InlineData("-e 1", false)]
+    [InlineData("-r 0", false)]
+    [InlineData("-i", false)]
+    [InlineData("-s disable", false)]
+    [InlineData("-c", false)]
+    [InlineData("--loginuid-immutable", false)]
+    [InlineData("# -w /etc/shadow -p wa -k identity", false)]
+    [InlineData("", false)]
+    [InlineData("  ", false)]
+    public void LoggingAuditScanner_IsActualAuditdRule_DistinguishesRulesFromControls(string line, bool expected)
+    {
+        Assert.Equal(expected, LoggingAuditScanner.IsActualAuditdRule(line));
+    }
+
+    [Theory]
+    [InlineData("ForwardToSyslog=yes", true)]
+    [InlineData("ForwardToSyslog = yes", true)]
+    [InlineData("ForwardToSyslog= yes", true)]
+    [InlineData("ForwardToSyslog =yes", true)]
+    [InlineData("  ForwardToSyslog  =  yes  ", true)]
+    [InlineData("forwardtosyslog=yes", true)]
+    [InlineData("FORWARDTOSYSLOG=YES", true)]
+    [InlineData("ForwardToSyslog=no", false)]
+    [InlineData("ForwardToSyslog = no", false)]
+    [InlineData("ForwardToSyslog=auto", false)]
+    [InlineData("# ForwardToSyslog=yes", false)]
+    [InlineData("#ForwardToSyslog=yes", false)]
+    [InlineData("Storage=persistent", false)]
+    [InlineData("", false)]
+    [InlineData("  ", false)]
+    public void LoggingAuditScanner_IsJournaldForwardToSyslogEnabled_HandlesWhitespace(string line, bool expected)
+    {
+        Assert.Equal(expected, LoggingAuditScanner.IsJournaldForwardToSyslogEnabled(line));
+    }
+
+    [Fact]
+    public void LoggingAuditScanner_CheckCentralForwarding_NoDuplicateTargets()
+    {
+        var (_, targets) = LoggingAuditScanner.CheckCentralForwarding();
+        var distinct = targets.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        Assert.Equal(distinct.Count, targets.Count);
+    }
+
+    [Fact]
+    public async Task LoggingAuditScanner_ReadAuditdRulesAsync_SystemState_DoesNotThrow()
+    {
+        var (rules, ok, error) = await LoggingAuditScanner.ReadAuditdRulesAsync(CancellationToken.None);
+        Assert.NotNull(rules);
+        // ok and error depend on whether auditctl is installed and whether /etc/audit/audit.rules exists.
+    }
+
+    [Fact]
+    public void LoggingAuditScanner_CheckCentralForwarding_FiltersRsyslogDirectives()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var confPath = Path.Combine(tempDir, "50-default.conf");
+            File.WriteAllLines(confPath, new[]
+            {
+                "# Comment line",
+                "",
+                "@include /etc/rsyslog.d/*.conf",
+                "@version 2",
+                "@moduleLoad imudp",
+                "*.* @@192.168.1.1:514",
+                "mail.* @logs.example.com",
+                "*.* @@(z9)192.168.1.2"
+            });
+
+            var (configured, targets) = LoggingAuditScanner.CheckCentralForwarding(
+                new[] { confPath }, journaldConfPath: null);
+
+            Assert.True(configured);
+            Assert.DoesNotContain(targets, t => t.Contains("include", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(targets, t => t.Contains("version", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(targets, t => t.Contains("moduleLoad", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains("@@192.168.1.1:514", targets);
+            Assert.Contains("@logs.example.com", targets);
+            Assert.Contains("@@(z9)192.168.1.2", targets);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(new string[0], 0)] // completely empty file
+    [InlineData(new[] { "# comment", "", "  " }, 0)] // only comments/blank
+    [InlineData(new[] { "-D", "-b 8192", "-f 1", "# -w /etc/shadow -p wa -k identity" }, 0)] // only control directives
+    [InlineData(new[] { "-w /etc/passwd -p wa -k identity", "-a always,exit -F arch=b64 -S setuid -k privilege" }, 2)]
+    public async Task LoggingAuditScanner_ReadAuditdRulesFromFileAsync_VariousContents(string[] lines, int expectedCount)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"audit-test-{Guid.NewGuid()}.rules");
+        try
+        {
+            await File.WriteAllLinesAsync(tempFile, lines);
+            var (rules, ok, error) = await LoggingAuditScanner.ReadAuditdRulesFromFileAsync(tempFile, auditctlError: null, CancellationToken.None);
+            Assert.True(ok);
+            Assert.Null(error);
+            Assert.Equal(expectedCount, rules.Count);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task LoggingAuditScanner_ReadAuditdRulesFromFileAsync_MissingFile_ReturnsError()
+    {
+        var missingFile = Path.Combine(Path.GetTempPath(), $"missing-audit-{Guid.NewGuid()}.rules");
+        var (rules, ok, error) = await LoggingAuditScanner.ReadAuditdRulesFromFileAsync(missingFile, auditctlError: "auditctl: not found", CancellationToken.None);
+        Assert.False(ok);
+        Assert.NotNull(error);
+        Assert.Contains("not found", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(rules);
+    }
+
+    [Fact]
+    public void LoggingAuditScanner_CheckCentralForwarding_CommentedJournaldForwardToSyslog_Ignored()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"journald-test-{Guid.NewGuid()}.conf");
+        try
+        {
+            File.WriteAllLines(tempFile, new[]
+            {
+                "[Journal]",
+                "# ForwardToSyslog=yes",
+                "#ForwardToSyslog=yes",
+                "Storage=auto"
+            });
+
+            var (configured, targets) = LoggingAuditScanner.CheckCentralForwarding(
+                rsyslogPaths: Array.Empty<string>(), journaldConfPath: tempFile);
+
+            Assert.False(configured);
+            Assert.DoesNotContain(targets, t => t.Contains("journald", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
