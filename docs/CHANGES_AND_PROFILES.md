@@ -74,6 +74,19 @@ Last updated: 2026-05-31
 - Added 10 new tests covering intent parsing, target reference extraction, and all `HandleFixFindingAsync` code paths (no context, no reference, unknown reference, success, validation failure).
 - Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`
 
+### Security Agent — Batch Auto-Fix (CLI)
+- Added `--auto-fix`, `--dry-run`, `--yes`, `--allow-restart`, and `--allow-packages` flags to the CLI `audit` command.
+- `AutoFixPolicy` defines which `CommandSafety` levels are permitted for automatic execution (`Conservative`, `Standard`, `Aggressive` presets).
+- `RemediationPlanBuilder` constructs a plan from all findings; `RemediationPlanValidator` blocks sections lacking rollback guidance.
+- `RemediationExecutor` orchestrates backup → apply → verify sequentially, with automatic rollback on apply failure. Cancellation is checked before every command via `ExecuteCommandAsync`.
+- `ProcessRunner` feeds commands to bash via stdin instead of `-c "..."` to eliminate shell escaping vulnerabilities (newlines, quotes, backticks, `$()`).
+- `CommandSafetyClassifier` labels every extracted command by safety impact and structural patterns (sudo, chains, pipes, redirects, download-and-execute).
+- Exit codes combined: audit result (`0` or `2`) and auto-fix result (`0` or `3`) use `Math.Max`, so critical findings are never masked by successful auto-fix.
+- Scheduled audits (`schedule run`) also support `--auto-fix` flags when invoked manually.
+- Auto-fix services (`IProcessRunner`, `RemediationExecutor`, `RemediationPlanBuilder`) are wired into `AgentFactory` and `AgentServices` for centralized composition and testability.
+- 30+ new tests covering policy behavior, executor edge cases, rollback behavior, cancellation mid-execution, process runner timeout, console formatter output, and CLI flow integration.
+- Code: `VulcansTrace.Linux.Agent/Remediation/*.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Agent/AgentFactory.cs`, `VulcansTrace.Linux.Tests/Agent/Remediation/*`, `VulcansTrace.Linux.Tests/Cli/AutoFixCliTests.cs`
+
 ### Security Agent — Kernel and System Hardening
 - Added `KernelHardeningScanner` that reads 9 sysctl values directly from `/proc/sys/` (fast, no shell), with `sysctl -a` fallback for missing values, and checks Secure Boot via `mokutil --sb-state` with EFI variable fallback.
 - Added `KernelParameters` record to `ScanData` with typed fields: `RandomizeVaSpace`, `IpForwardIpv4/Ipv6`, `AcceptRedirectsIpv4/Ipv6`, `AcceptSourceRouteIpv4`, `ModulesDisabled`, `SecureBootEnabled`, `KptrRestrict`, `DmesgRestrict`.
@@ -156,7 +169,7 @@ Last updated: 2026-05-31
 ### Recurring Audit Scheduling
 - Headless CLI (`VulcansTrace.Linux.Cli`) with `audit` and `schedule` subcommands for running audits and managing recurring schedules without the desktop UI.
   - Commands: `list`, `add`, `edit`, `delete`, `enable`, `disable`, `run`, `install-cron`, `uninstall-cron`.
-  - Exit codes: 0 (success), 1 (error), 2 (success with critical findings).
+  - Exit codes: 0 (success), 1 (error), 2 (success with critical findings), 3 (auto-fix executed but some remediation commands failed).
   - Code: `VulcansTrace.Linux.Cli/Program.cs`
 - GUI Schedule Editor (`ScheduleView`) in the Avalonia UI with a DataGrid, Add/Edit/Delete/Run Now/Install Cron actions, and cron status indicators.
   - Code: `VulcansTrace.Linux.Avalonia/Views/ScheduleView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs`, `ScheduleEditWindow.axaml`

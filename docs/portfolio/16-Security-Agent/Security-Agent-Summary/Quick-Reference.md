@@ -24,6 +24,7 @@
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
 | `PrioritizeRemediation` | `What should I fix first?` | Severity-ordered remediation plan from the last audit |
 | `FixFinding` | `Fix FW-001` | Interactive, step-by-step guided remediation for a specific finding |
+| `AutoFix` | `Auto-fix my findings` | Batch auto-remediation with `--auto-fix`; supports `--dry-run` to preview, `--policy` (Conservative/Standard/Aggressive), `--allow-restart`, `--allow-packages`, and `--yes` to skip confirmation. Automatically skips risky commands missing rollback guidance. |
 | `ListSuppressed` | `Which findings are suppressed?` | List suppressed findings from the last audit |
 | `SetBaseline` | `Set baseline` | Save the last audit as a known-good baseline snapshot |
 | `CheckDrift` | `Check drift` | Compare live config against the saved baseline; reports new and worsened findings |
@@ -138,6 +139,7 @@ User query
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
 | Interactive Remediation | `fix FW-001` surfaces a chat card with preconditions, backup, apply, rollback, and verification commands — each with safety and structural badges. Plans are validated before display; missing rollback guidance for risky commands blocks the card |
+| Auto-Fix (CLI) | `--auto-fix` applies safe remediation commands in batch. `--dry-run` previews changes without execution. Policy gates determine which `CommandSafety` levels are permitted. Automatically rolls back on apply failure. Exit codes: 0=success, 1=error, 2=unsafe skipped, 3=apply/rollback failure. |
 
 ---
 
@@ -152,3 +154,4 @@ User query
 - Command safety labels are keyword-based classifications and should be reviewed before use.
 - The desktop UI currently uses the `Workstation` role until a role selector exists.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.
+- Auto-fix is CLI-only. The desktop UI does not yet expose batch remediation; use `fix <rule-id>` for interactive single-finding remediation in the UI.

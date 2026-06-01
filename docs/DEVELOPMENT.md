@@ -63,6 +63,17 @@ for the step-by-step HMAC signing key flow.
 9. Update `RuleCatalogTests.cs` if adding rules to the catalog.
 10. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
 
+## Making a Rule Auto-Fixable
+
+Auto-fix support is driven by the explanation template. If a rule's explanation includes `BackupCommands`, `ApplyCommands`, `RollbackCommands`, and `VerificationCommands`, the rule automatically becomes eligible for `--auto-fix` and `--dry-run`.
+
+- **ReadOnly** (`CommandSafety.ReadOnly`) commands are always permitted.
+- **ConfigChange** (`CommandSafety.ConfigChange`) commands are permitted under the `Standard` and `Aggressive` policies.
+- **ServiceRestart** and **PackageInstall** commands require `--allow-restart` / `--allow-packages` and the `Aggressive` policy.
+- **Destructive** and **Unknown** commands are never auto-executed.
+
+If `RollbackCommands` are missing for a risky command (`ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`), the section is skipped with exit code `2` and a clear warning. Always include rollback guidance for any state-mutating command.
+
 ## Packaging
 
 Build a self-contained CLI binary for distribution:

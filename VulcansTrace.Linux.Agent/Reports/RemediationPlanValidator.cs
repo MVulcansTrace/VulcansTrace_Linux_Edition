@@ -35,7 +35,10 @@ public static class RemediationPlanValidator
             : ValidationResult.Invalid(errors);
     }
 
-    private static bool RequiresRollbackGuardrail(CommandSafety safety)
+    /// <summary>
+    /// Determines whether the given safety classification requires explicit rollback guidance.
+    /// </summary>
+    public static bool RequiresRollbackGuardrail(CommandSafety safety)
     {
         return safety is CommandSafety.ConfigChange
             or CommandSafety.PackageInstall

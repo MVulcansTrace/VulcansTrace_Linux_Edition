@@ -107,7 +107,7 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 ## Interactive Remediation: Guided, Not Automated
 
-**Decision:** The agent can guide remediation for a specific finding (`fix FW-001`), but it never executes commands automatically.
+**Decision:** The agent can guide remediation for a specific finding (`fix FW-001`), and the CLI can execute safe fixes in batch mode (`--auto-fix`), but both are gated by explicit safety policies and never run destructive or unclassified commands without operator consent.
 
 **Rationale:**
 
@@ -115,9 +115,17 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 - A guided, step-by-step UX with explicit preconditions, backup commands, apply commands, rollback commands, and verification commands gives the operator full control.
 - Each command is labeled with the existing `CommandSafety` classification (`ReadOnly`, `ConfigChange`, `Destructive`, etc.) and structural badges (`SUDO`, `CHAIN`, `PIPE`, etc.) so the operator knows the blast radius before copying a command.
 - `RemediationPlanValidator` blocks the entire flow if risky or unclassified commands lack explicit rollback guidance. This prevents the UI from presenting a "safe" fix that has no undo path.
-- The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for single-finding interactive remediation, so both paths benefit from the same safety guardrails.
+- The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for both interactive and batch remediation, so all paths benefit from the same safety guardrails.
+- Batch auto-fix (`--auto-fix`) extends the interactive model to headless use cases:
+  - `AutoFixPolicy` defines what is permitted (`ReadOnly`, `ConfigChange`, and optionally `ServiceRestart`/`PackageInstall`).
+  - Destructive and unclassified commands are never auto-executed.
+  - Backup commands run before apply; backup failures abort the section.
+  - Apply failures trigger automatic rollback for that section.
+  - `--dry-run` previews the plan without executing anything.
+  - `--yes` skips confirmation; without it, the operator must type `yes`.
+  - Commands are fed to bash via stdin to avoid shell escaping bugs.
 
-**Trade-off:** The UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. A future "dry-run" executor could bridge this gap without changing the safety model.
+**Trade-off:** The interactive UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. The batch CLI path trades some control for automation, but only within the narrow safety envelope defined by `AutoFixPolicy` and `RemediationPlanValidator`.
 
 ## Not-Applicable Results For Hardware-Dependent Checks
 

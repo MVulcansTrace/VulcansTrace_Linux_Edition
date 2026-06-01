@@ -2,6 +2,7 @@ using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scheduling;
@@ -218,6 +219,9 @@ public static class AgentFactory
 
         var ruleCatalog = new RuleCatalog(rules);
         var notificationService = new NotifySendNotificationService();
+        var processRunner = new ProcessRunner();
+        var remediationExecutor = new RemediationExecutor(processRunner);
+        var remediationPlanBuilder = new RemediationPlanBuilder(explanationProvider);
 
         return new AgentServices
         {
@@ -231,7 +235,10 @@ public static class AgentFactory
             PolicyProvider = policyProvider,
             ProfileProvider = profileProvider,
             ScheduleStore = scheduleStore,
-            NotificationService = notificationService
+            NotificationService = notificationService,
+            ProcessRunner = processRunner,
+            RemediationExecutor = remediationExecutor,
+            RemediationPlanBuilder = remediationPlanBuilder
         };
     }
 }
@@ -275,6 +282,15 @@ public sealed record AgentServices : IDisposable
     /// <summary>Service for out-of-band notifications.</summary>
     public required INotificationService NotificationService { get; init; }
 
+    /// <summary>Process runner for executing shell commands.</summary>
+    public required IProcessRunner ProcessRunner { get; init; }
+
+    /// <summary>Orchestrates remediation plan execution.</summary>
+    public required RemediationExecutor RemediationExecutor { get; init; }
+
+    /// <summary>Builds remediation plans from findings.</summary>
+    public required RemediationPlanBuilder RemediationPlanBuilder { get; init; }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -287,5 +303,6 @@ public sealed record AgentServices : IDisposable
         (PolicyProvider as IDisposable)?.Dispose();
         (ScheduleStore as IDisposable)?.Dispose();
         (NotificationService as IDisposable)?.Dispose();
+        (ProcessRunner as IDisposable)?.Dispose();
     }
 }

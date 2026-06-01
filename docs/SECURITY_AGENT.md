@@ -208,6 +208,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
 - Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
 - **Interactive Remediation** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat.
+- **Batch Auto-Fix** (`--auto-fix` on the CLI) extends interactive remediation to headless batch mode. After an audit, the CLI can build a `RemediationPlan` for all findings, filter commands through a configurable `AutoFixPolicy`, execute backup/apply/verify phases sequentially, and automatically roll back a section if any apply command fails. `--dry-run` previews the plan without executing anything. The default policy permits `ReadOnly` verification and `ConfigChange` commands; `--allow-restart` and `--allow-packages` expand the policy; destructive and unclassified commands are never auto-executed.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
 ## Privacy And Safety
@@ -332,3 +333,10 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [IBaselineStore.cs](../VulcansTrace.Linux.Agent/Baselines/IBaselineStore.cs)
 - [JsonFileBaselineStore.cs](../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs)
 - [BaselineDiffResult.cs](../VulcansTrace.Linux.Agent/Baselines/BaselineDiffResult.cs)
+- [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
+- [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
+- [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)
+- [ProcessRunner.cs](../VulcansTrace.Linux.Agent/Remediation/ProcessRunner.cs)
+- [IProcessRunner.cs](../VulcansTrace.Linux.Agent/Remediation/IProcessRunner.cs)
+- [RemediationConsoleFormatter.cs](../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs)
+- [RemediationPlanValidator.cs](../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs)

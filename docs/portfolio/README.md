@@ -48,6 +48,7 @@ If you want the full end-to-end story, read in this order:
 - How the local Security Agent answers plain-English posture questions from live host state
 - How configuration baselines and drift detection turn point-in-time audits into continuous posture monitoring
 - How the CIS Compliance Scorecard turns raw rule results into manager-readable pass/fail/warn summaries with trend visualization
+- How batch auto-fix with dry-run preview and policy-gated execution bridges detection and safe remediation in the CLI
 - How the automated test suite supports confidence in the implementation
 
 ## How The Case Studies Are Organized

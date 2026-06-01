@@ -42,7 +42,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
-- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands and rollback visibility.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands and rollback visibility, plus batch auto-fix with dry-run preview for headless remediation.
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
 - Filesystem Auditing — hunts broadly for world-writable files outside expected paths, unexpected SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount hardening (`noexec`, `nosuid`, `nodev`).
 - User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, and missing home directories.
@@ -121,6 +121,19 @@ Run a headless audit via CLI:
 
 ```bash
 dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --role Server
+```
+
+Preview and apply automatic remediation after an audit:
+
+```bash
+# Dry-run: see what would change without executing
+dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --auto-fix --dry-run
+
+# Apply safe fixes with confirmation
+dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --auto-fix --yes
+
+# Also permit service restarts and package operations
+dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --auto-fix --yes --allow-restart --allow-packages
 ```
 
 Manage recurring schedules via CLI:

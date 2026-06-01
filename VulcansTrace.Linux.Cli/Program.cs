@@ -1,11 +1,17 @@
 using System.Net;
 using System.Net.Mail;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
+
+[assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
 
 namespace VulcansTrace.Linux.Cli;
 
@@ -102,7 +108,112 @@ public static class Program
             Console.WriteLine("  Notification sent.");
         }
 
-        return criticalCount > 0 ? 2 : 0;
+        var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
+        var auditExitCode = criticalCount > 0 ? 2 : 0;
+        return Math.Max(auditExitCode, autoFixExitCode);
+    }
+
+    internal static async Task<int> HandleAutoFixAsync(string[] args, AgentResult auditResult, AgentServices services, CancellationToken ct)
+    {
+        if (!HasFlag(args, "--auto-fix"))
+        {
+            return 0;
+        }
+
+        var dryRun = HasFlag(args, "--dry-run");
+        var yes = HasFlag(args, "--yes");
+        var allowRestart = HasFlag(args, "--allow-restart");
+        var allowPackages = HasFlag(args, "--allow-packages");
+
+        if (auditResult.AgentFindings.Count == 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Auto-fix: No findings to remediate.");
+            return 0;
+        }
+
+        var plan = services.RemediationPlanBuilder.Build(auditResult.AgentFindings);
+
+        var policy = AutoFixPolicy.Standard();
+        if (allowRestart)
+        {
+            policy = policy with { AllowServiceRestart = true };
+        }
+        if (allowPackages)
+        {
+            policy = policy with { AllowPackageInstall = true };
+        }
+
+        var validation = RemediationPlanValidator.Validate(plan);
+        if (dryRun)
+        {
+            Console.WriteLine();
+            if (!validation.IsValid)
+            {
+                Console.WriteLine("⚠️  VALIDATION WARNINGS:");
+                foreach (var err in validation.Errors)
+                {
+                    Console.WriteLine($"   • {err}");
+                }
+                Console.WriteLine();
+            }
+            var preview = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+            Console.WriteLine(preview);
+            return 0;
+        }
+
+        // Live run: show compact preview before confirmation
+        var permittedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => policy.IsPermitted(c.Safety)));
+        var blockedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => !policy.IsPermitted(c.Safety)));
+
+        Console.WriteLine();
+        Console.WriteLine("============================================");
+        Console.WriteLine("  AUTO-FIX CONFIRMATION REQUIRED");
+        Console.WriteLine("============================================");
+        Console.WriteLine($"Findings: {plan.TotalSections}");
+        Console.WriteLine($"Commands to execute: {permittedCount}");
+        Console.WriteLine($"Commands blocked by policy: {blockedCount}");
+        Console.WriteLine($"Policy: {policy.Describe()}");
+        Console.WriteLine();
+
+        if (permittedCount == 0)
+        {
+            Console.WriteLine("No commands are permitted under the current policy. Nothing to do.");
+            Console.WriteLine("Use --allow-restart or --allow-packages to expand the policy, or review findings manually.");
+            return 0;
+        }
+
+        if (!yes)
+        {
+            Console.Write("Type 'yes' to proceed with auto-fix, or anything else to cancel: ");
+            var response = Console.ReadLine()?.Trim();
+            if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Auto-fix cancelled by user.");
+                return 0;
+            }
+        }
+        else
+        {
+            Console.WriteLine("--yes flag set. Proceeding without interactive confirmation.");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Executing remediation plan...");
+
+        var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, ct);
+
+        var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
+        Console.WriteLine(output);
+
+        if (!executionResult.AllSucceeded)
+        {
+            Console.WriteLine("⚠️  Some remediation commands failed. Review the output above.");
+            return 3;
+        }
+
+        Console.WriteLine("✅ All permitted remediation commands completed successfully.");
+        return 0;
     }
 
     private static async Task<int> RunScheduleAsync(string[] args)
@@ -467,7 +578,9 @@ public static class Program
             }
         }
 
-        return criticalCount > 0 ? 2 : 0;
+        var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
+        var auditExitCode = criticalCount > 0 ? 2 : 0;
+        return Math.Max(auditExitCode, autoFixExitCode);
     }
 
     private static INotificationService CreateNotificationService(NotificationChannel channel)
@@ -551,7 +664,7 @@ public static class Program
         Console.WriteLine("VulcansTrace Linux Edition - CLI");
         Console.WriteLine();
         Console.WriteLine("Usage:");
-        Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>]");
+        Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>] [--auto-fix [--dry-run] [--yes] [--allow-restart] [--allow-packages]]");
         Console.WriteLine("  vulcanstrace schedule list");
         Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
         Console.WriteLine("  vulcanstrace schedule edit --id <id> [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>] [--notify-on-critical|--no-notify-on-critical] [--enabled|--disabled]");
@@ -572,6 +685,11 @@ public static class Program
         Console.WriteLine("  --output-dir <dir>         Directory to write scheduled audit JSON results");
         Console.WriteLine("  --enabled / --disabled     Toggle schedule state (edit only)");
         Console.WriteLine("  --exe-path <path>          Path to vulcanstrace binary for cron entries");
+        Console.WriteLine("  --auto-fix                 Enable automatic remediation of findings after audit");
+        Console.WriteLine("  --dry-run                  With --auto-fix: preview what would change without executing");
+        Console.WriteLine("  --yes                      With --auto-fix: skip interactive confirmation");
+        Console.WriteLine("  --allow-restart            With --auto-fix: permit service restart commands");
+        Console.WriteLine("  --allow-packages           With --auto-fix: permit package install/remove commands");
         Console.WriteLine();
         Console.WriteLine("Environment variables for Email channel:");
         Console.WriteLine("  VT_EMAIL_SMTP_HOST, VT_EMAIL_SMTP_PORT, VT_EMAIL_FROM, VT_EMAIL_TO, VT_EMAIL_USER, VT_EMAIL_PASS, VT_EMAIL_NO_SSL");
@@ -582,5 +700,6 @@ public static class Program
         Console.WriteLine("  0  Success (no critical findings)");
         Console.WriteLine("  1  Error");
         Console.WriteLine("  2  Success with critical findings");
+        Console.WriteLine("  3  Auto-fix executed but some commands failed");
     }
 }

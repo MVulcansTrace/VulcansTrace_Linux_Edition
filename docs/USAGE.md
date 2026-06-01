@@ -161,6 +161,40 @@ Exit codes:
 - `0` — success, no critical findings.
 - `1` — error.
 - `2` — success with critical findings.
+- `3` — auto-fix executed but some remediation commands failed.
+
+### Auto-Fix (Batch Remediation)
+
+The CLI can automatically remediate findings after an audit using the same safety infrastructure as interactive remediation:
+
+```bash
+# Preview what would change without executing anything
+vulcanstrace audit --intent FullAudit --auto-fix --dry-run
+
+# Apply safe fixes with interactive confirmation
+vulcanstrace audit --intent FullAudit --auto-fix
+
+# Skip confirmation and apply immediately
+vulcanstrace audit --intent FullAudit --auto-fix --yes
+
+# Expand the safety policy to permit service restarts
+vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-restart
+
+# Also permit package install/remove operations
+vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-packages
+```
+
+**Safety model:**
+- Commands are classified by safety impact (`ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, `Unknown`).
+- The default policy permits `ReadOnly` verification and `ConfigChange` commands only.
+- `--allow-restart` expands the policy to include service restarts.
+- `--allow-packages` expands the policy to include package installs/removals.
+- Destructive and unclassified commands are never executed automatically.
+- Sections lacking explicit rollback guidance are skipped.
+- Backup commands run before apply commands; if a backup fails, apply is aborted.
+- If an apply command fails, rollback commands for that section are executed automatically to restore consistency.
+- `--dry-run` builds and previews the full remediation plan without making any system changes.
+- The audit exit code (`2` for critical findings) is preserved even when auto-fix succeeds; `3` is returned only when auto-fix itself fails.
 
 ## Notifications
 

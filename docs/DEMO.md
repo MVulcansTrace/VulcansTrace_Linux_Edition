@@ -145,6 +145,36 @@ After running any audit, you can ask the agent to walk you through fixing a spec
 4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
 5. If the finding's explanation template lacks rollback guidance for risky commands, the plan is blocked for safety and the agent tells you why.
 
+## Security Agent — Auto-Fix (Batch Remediation)
+
+The headless CLI can automatically remediate multiple findings after an audit:
+
+1. Preview what would change without executing:
+   ```bash
+   vulcanstrace audit --intent FullAudit --auto-fix --dry-run
+   ```
+   The output shows which commands would execute, which would be skipped by policy, and any validation warnings.
+
+2. Apply safe fixes with confirmation:
+   ```bash
+   vulcanstrace audit --intent FullAudit --auto-fix --yes
+   ```
+   The executor runs backup commands first, then apply commands, then verification commands. If any apply command fails, rollback commands are executed automatically for that section.
+
+3. Expand the policy for broader fixes:
+   ```bash
+   vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-restart --allow-packages
+   ```
+
+**Safety behavior:**
+- Default policy allows `ReadOnly` and `ConfigChange` commands only.
+- `--allow-restart` permits service restarts; `--allow-packages` permits package operations.
+- Destructive and unclassified commands are never auto-executed.
+- Sections without explicit rollback guidance are skipped.
+- Backup failures abort the section to prevent unsafe changes.
+- Apply failures trigger automatic rollback for that section.
+- Critical findings still return exit code `2` even when auto-fix succeeds.
+
 ## CIS Compliance Scorecard
 
 After any agent audit, view the formal compliance scorecard:
@@ -209,6 +239,20 @@ vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
 # 0 = success, no critical findings
 # 1 = error
 # 2 = success with critical findings
+# 3 = auto-fix executed but some remediation commands failed
+```
+
+## Headless Audit with Auto-Fix
+
+```bash
+# Dry-run: preview what would change
+vulcanstrace audit --intent FullAudit --auto-fix --dry-run
+
+# Apply safe fixes after confirmation
+vulcanstrace audit --intent FullAudit --auto-fix --yes
+
+# Permit service restarts and package operations
+vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-restart --allow-packages
 ```
 
 ## Performance and Profiling

@@ -41,6 +41,21 @@ Notifications are sent only when **new** critical findings are detected, using f
 
 All notification failures are caught and logged to `stderr`; they do not affect audit execution or exit codes.
 
+## Auto-Fix Safety
+
+The CLI `--auto-fix` feature executes shell commands derived from explanation templates. Several guardrails are in place:
+
+- Commands are classified by safety impact before execution (`ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, `Unknown`).
+- The default policy permits `ReadOnly` verification and `ConfigChange` only; `--allow-restart` and `--allow-packages` expand the policy explicitly.
+- Destructive and unclassified commands are never executed automatically.
+- `RemediationPlanValidator` blocks sections where risky commands lack explicit rollback guidance.
+- Backup commands run before apply commands; backup failures abort the section.
+- If an apply command fails, rollback commands are executed automatically for that section.
+- Commands are fed to bash via stdin (not `-c` argument wrapping) to prevent shell escaping vulnerabilities.
+- `--dry-run` previews the full plan without executing anything.
+- `--yes` skips interactive confirmation; without it, the user must type `yes` to proceed.
+- Auto-fix is a client-side operation; no commands or results leave the local machine.
+
 ## Persistence
 
 Sensitive data is stored in the user's config directory (`~/.config/VulcansTrace/`):

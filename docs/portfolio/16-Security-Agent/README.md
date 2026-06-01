@@ -26,7 +26,7 @@ Documentation is organized for two audiences:
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, fingerprints, capability reports, and active suppression notes in evidence exports
-- **Deterministic follow-up questions** — operates on the last audit result without re-running scans: changes since last audit, critical/high explanations, category filtering, prioritized remediation, interactive single-finding remediation, and suppressed listing
+- **Deterministic follow-up questions** — operates on the last audit result without re-running scans: changes since last audit, critical/high explanations, category filtering, prioritized remediation, interactive single-finding remediation, suppressed listing, and batch headless auto-fix with dry-run preview and policy-gated execution
 - **Configuration baseline & drift detection** — saves a "known good" baseline per intent, compares live audits against it, and reports new and worsened findings as drift with narrative summaries; preserves original finding details for lossless baseline display
 - **Timed suppressions** — supports fingerprint-scoped 7-day, 30-day, 90-day, and permanent accepted-risk suppressions; expired suppressions stop applying immediately but remain reviewable for 30 days before pruning
 - **Avalonia chat panel** — exposes chat, quick actions, grouped and filterable findings, selected-finding explanations, privilege warnings, rule coverage totals, persistent selectable audit history diff with narrative summaries, baseline set/drift/show actions, suppression review actions, cancellation, audit export, and guarded remediation preview export
@@ -63,5 +63,11 @@ Documentation is organized for two audiences:
 - [AgentReportGenerator.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentReportGenerator.cs) — agent-to-analysis result adapter
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — chat panel ViewModel
 - [AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI
+- [RemediationPlanBuilder.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs) — builds per-rule remediation plans from explanations
+- [RemediationExecutor.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs) — orchestrates backup, apply, rollback, and verify with policy enforcement
+- [AutoFixPolicy.cs](../../../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs) — configurable command-safety permission levels
+- [ProcessRunner.cs](../../../VulcansTrace.Linux.Agent/Remediation/ProcessRunner.cs) — safe shell command execution with stdin feeding and exception resilience
+- [RemediationConsoleFormatter.cs](../../../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs) — `--dry-run` and `--auto-fix` console output
+- [RemediationPlanValidator.cs](../../../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs) — validation before execution
 - [Agent tests](../../../VulcansTrace.Linux.Tests/Agent) — query, rule, explanation, report, and orchestration coverage
 - [Evidence formatter tests](../../../VulcansTrace.Linux.Tests/Evidence) — rule ID preservation through CSV, JSON, Markdown, HTML, and STIX exports

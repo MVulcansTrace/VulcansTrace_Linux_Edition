@@ -42,6 +42,16 @@ The Security Agent provides a parallel local posture path:
 9. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 10. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 
+The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
+
+1. `RemediationPlanBuilder` constructs a `RemediationPlan` from agent `Finding` records by parsing explanation templates into structured sections.
+2. `CommandSafetyClassifier` analyzes each extracted command and labels it `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`.
+3. `AutoFixPolicy` defines which safety classifications are permitted for automatic execution (configurable via `--allow-restart` and `--allow-packages`).
+4. `RemediationPlanValidator` blocks sections where risky or unclassified commands lack explicit rollback guidance.
+5. `RemediationExecutor` orchestrates the execution: backup commands first, then apply commands, then verification commands. If an apply command fails, rollback commands are executed automatically. Cancellation is checked before every command.
+6. `ProcessRunner` executes shell commands via bash stdin (not `-c` argument wrapping) to avoid shell escaping vulnerabilities, with configurable timeout and cancellation support.
+7. `RemediationConsoleFormatter` renders dry-run previews and execution results for CLI output.
+
 The Scheduling layer provides recurring audit automation:
 
 1. `AuditSchedule` records define intent, cron expression, machine role, notification channel, and enabled state.
