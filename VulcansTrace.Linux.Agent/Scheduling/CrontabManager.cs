@@ -169,10 +169,8 @@ public sealed class CrontabManager
         // Remove any existing entry for this schedule
         RemoveLinesForSchedule(lines, schedule.Id);
 
-        // Add new entry (quote path to handle spaces)
-        var quotedPath = path.Contains(' ') ? $"'{path}'" : path;
         lines.Add($"{MarkerPrefix}{schedule.Id}");
-        lines.Add($"{schedule.CronExpression} {quotedPath} schedule run --id {schedule.Id}");
+        lines.Add($"{schedule.CronExpression} {BuildRunCommand(path, schedule.Id)}");
 
         // Remove trailing blank lines, then add exactly one
         while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[^1]))
@@ -232,15 +230,40 @@ public sealed class CrontabManager
                 {
                     lines.RemoveAt(i);
                     removed = true;
+
+                    if (i < lines.Count && IsScheduleRunCommand(lines[i], scheduleId))
+                    {
+                        lines.RemoveAt(i);
+                    }
                 }
             }
             // Independently remove the command line that references this schedule id
-            else if (trimmed.Contains($" schedule run --id {scheduleId}", StringComparison.OrdinalIgnoreCase))
+            else if (IsScheduleRunCommand(trimmed, scheduleId))
             {
                 lines.RemoveAt(i);
                 removed = true;
             }
         }
         return removed;
+    }
+
+    public static string BuildRunCommand(string exePath, string scheduleId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(exePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scheduleId);
+
+        return $"{ShellQuote(exePath)} schedule run --id {ShellQuote(scheduleId)}";
+    }
+
+    private static bool IsScheduleRunCommand(string line, string scheduleId)
+    {
+        var trimmed = line.Trim();
+        return trimmed.Contains($" schedule run --id {scheduleId}", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Contains($" schedule run --id {ShellQuote(scheduleId)}", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ShellQuote(string value)
+    {
+        return $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
     }
 }

@@ -52,16 +52,7 @@ public sealed class ProcessRunner : IProcessRunner
             };
         }
 
-        if (ct.IsCancellationRequested)
-        {
-            return new ProcessResult
-            {
-                Success = false,
-                ExitCode = -1,
-                StdOut = "",
-                StdErr = "Command was cancelled."
-            };
-        }
+        ct.ThrowIfCancellationRequested();
 
         using var process = new Process();
         process.StartInfo.FileName = "/bin/bash";
@@ -95,9 +86,9 @@ public sealed class ProcessRunner : IProcessRunner
             {
                 await process.WaitForExitAsync(cts.Token);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                try { process.Kill(); } catch { /* ignored */ }
+                try { process.Kill(entireProcessTree: true); } catch { /* ignored */ }
                 return new ProcessResult
                 {
                     Success = false,
@@ -106,6 +97,8 @@ public sealed class ProcessRunner : IProcessRunner
                     StdErr = (stderrBuilder.ToString() + "\nCommand timed out.").Trim()
                 };
             }
+
+            ct.ThrowIfCancellationRequested();
 
             // Give a small grace period for async streams to finish flushing
             await Task.Delay(100, CancellationToken.None);
@@ -118,6 +111,10 @@ public sealed class ProcessRunner : IProcessRunner
                 StdOut = stdoutBuilder.ToString().Trim(),
                 StdErr = stderrBuilder.ToString().Trim()
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

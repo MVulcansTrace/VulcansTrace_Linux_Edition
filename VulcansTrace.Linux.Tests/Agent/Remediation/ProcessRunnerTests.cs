@@ -39,16 +39,14 @@ public class ProcessRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_Cancellation_ReturnsFailure()
+    public async Task RunAsync_Cancellation_Throws()
     {
         var runner = new ProcessRunner();
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var result = await runner.RunAsync("echo hello", TimeSpan.FromSeconds(5), cts.Token);
-
-        Assert.False(result.Success);
-        Assert.Equal(-1, result.ExitCode);
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => runner.RunAsync("echo hello", TimeSpan.FromSeconds(5), cts.Token));
     }
 
     [Fact]

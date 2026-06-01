@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace VulcansTrace.Linux.Agent.Scanners;
 
 /// <summary>
@@ -191,43 +189,6 @@ public sealed class FirewallScanner : IScanner
     private static async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(
         string fileName, string[] args, CancellationToken ct)
     {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            foreach (var arg in args)
-                psi.ArgumentList.Add(arg);
-
-            using var process = Process.Start(psi);
-            if (process == null)
-                return (null, $"Failed to start '{fileName}'.", false);
-
-            await using (ct.Register(() =>
-            {
-                try { process.Kill(); } catch { /* ignore */ }
-            }))
-            {
-                var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-                var stderrTask = process.StandardError.ReadToEndAsync(ct);
-                var exitTask = process.WaitForExitAsync(ct);
-                await Task.WhenAll(stdoutTask, stderrTask, exitTask);
-                var success = process.ExitCode == 0;
-                return (stdoutTask.Result, stderrTask.Result, success);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            return (null, ex.Message, false);
-        }
+        return await ScannerCommandRunner.RunAsync(fileName, args, ct);
     }
 }

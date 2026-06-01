@@ -436,12 +436,12 @@ public static class Program
         if (schedule == null)
             return PrintError($"Schedule not found: {id}");
 
-        var exePath = ParseArg(args, "--exe-path", CrontabManager.DefaultExePath);
+        var exePath = ParseArg(args, "--exe-path", CrontabManager.DefaultExePath) ?? CrontabManager.DefaultExePath;
 
         CrontabManager.Install(schedule, exePath);
         Console.WriteLine($"Installed cron entry for schedule '{schedule.Name}' ({id}).");
         Console.WriteLine($"  Cron: {schedule.CronExpression}");
-        Console.WriteLine($"  Command: {exePath} schedule run --id {id}");
+        Console.WriteLine($"  Command: {CrontabManager.BuildRunCommand(exePath, id)}");
         return 0;
     }
 

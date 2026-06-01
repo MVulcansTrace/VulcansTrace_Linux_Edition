@@ -58,7 +58,7 @@ The agent reads local host state using common Linux tools:
 | `CronJobScanner` | Reads `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/var/spool/cron/*`, `/etc/cron.daily/*`, `/etc/cron.hourly/*`, `/etc/cron.weekly/*`, `/etc/cron.monthly/*`; uses `stat` for script permissions | Parses system and user crontabs and cron script directories for scheduled job entries and script permissions |
 | `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, optionally `debsecan --format report --only-fixed`, `/etc/apt/apt.conf.d/50unattended-upgrades`, `/etc/apt/apt.conf.d/20auto-upgrades` | Enumerates installed packages, detects pending security updates from security repositories, enriches with CVE IDs when debsecan is available, and checks unattended-upgrades configuration |
 
-Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
+Scanner failures are reported as warnings instead of crashing the agent. Scanner commands use a shared bounded runner with concurrent stdout/stderr capture, a 30-second default timeout, cancellation propagation, and 1 MiB stdout/stderr limits. `FilesystemAuditScanner` uses the same runner with a 60-second timeout for broader `find` scans. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
 ## Rule Coverage
 
@@ -170,7 +170,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 
 ## How The Pipeline Works
 
-1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
+1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent`, confidence, optional alternative intents, and optional target reference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
 2. `SecurityAgent` runs the required scanners with cancellation support.
 3. `ScanDataBuilder` collects scanner output and data-source capability status into a thread-safe snapshot.
 4. The rule policy provider resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`.

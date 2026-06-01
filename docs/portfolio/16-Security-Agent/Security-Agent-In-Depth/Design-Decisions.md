@@ -53,7 +53,7 @@ Unknown is used when a fallback command was intentionally not checked because a 
 
 Scanner command helpers return stdout, stderr, and success status. They read stdout and stderr concurrently to avoid process deadlocks when a command writes enough stderr output to fill a pipe. Scanner failures are converted into warnings so a missing command or permission issue does not crash the whole audit.
 
-Filesystem audit commands also enforce per-command budgets: a 60-second default timeout and a 1 MiB capture limit for stdout/stderr. Those limits prevent broad `find` scans on large hosts from consuming unbounded time or memory while preserving capability warnings when output is truncated or a command times out.
+Scanner commands run through a shared bounded command runner: a 30-second default timeout, cancellation propagation, process-tree kill on timeout, and a 1 MiB capture limit for stdout/stderr. Filesystem audit overrides the timeout to 60 seconds because broad `find` scans can legitimately take longer. These limits prevent local collection from consuming unbounded time or memory while preserving capability warnings when output is truncated or a command times out.
 
 ## Explain With Templates
 
