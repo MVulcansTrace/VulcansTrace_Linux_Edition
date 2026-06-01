@@ -15,15 +15,15 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Metric | Value |
 | --- | --- |
 | Agent project | `VulcansTrace.Linux.Agent` |
-| Scanner types | 10: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit |
-| Rule categories | 10: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging |
+| Scanner types | 11: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit, CronJob |
+| Rule categories | 11: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging, CronJob |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 23: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, AutoFix, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
-| CIS mapping coverage | 58 / 58 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
+| Agent intents | 24: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, AutoFix, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, Help |
+| CIS mapping coverage | 61 / 61 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
 | Command safety levels | 5: ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, Unknown |
@@ -31,7 +31,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Compliance scorecard | Per-family Pass/Warn/Fail, overall rule-level percentage, trend over time (last 10 audits) |
 | Compliance thresholds | Pass ≥90%, Warn ≥80%, Fail <80% (named constants on `ComplianceScorecard`) |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
-| Explanation templates | 7 embedded markdown files |
+| Explanation templates | 8 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, and interactive single-finding remediation cards with preconditions, backup/apply/rollback/verification commands and safety badges |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
@@ -67,6 +67,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [KernelHardeningScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs) — kernel and system hardening parameter collection
 - [UserAccountScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs) — local user account, shadow, password aging, and PAM configuration collection
 - [LoggingAuditScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs) — logging service status, auditd rules, logrotate, and central forwarding collection
+- [CronJobScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs) — cron job entry collection from system and user crontabs
 - [FirewallRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FirewallRules.cs) — firewall posture rules
 - [PortRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/PortRules.cs) — exposed-port rules
 - [ServiceRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/ServiceRules.cs) — service posture rules
@@ -74,6 +75,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [FilePermissionRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FilePermissionRules.cs) — file permission posture rules
 - [FilesystemAuditRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FilesystemAuditRules.cs) — filesystem audit posture rules
 - [LoggingAuditRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs) — logging and audit posture rules
+- [CronJobRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs) — cron job posture rules
 - [DefaultRulePolicyProvider.cs](../../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and local override merge behavior
 - [JsonRulePolicyStore.cs](../../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — persisted rule policy store
 - [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding identity and fingerprints

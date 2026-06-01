@@ -17,4 +17,5 @@ public static class FindingCategories
     public const string PrivilegeEscalation = "PrivilegeEscalation";
     public const string UserAccount = "UserAccount";
     public const string FilesystemAudit = "FilesystemAudit";
+    public const string CronJob = "CronJob";
 }

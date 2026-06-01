@@ -38,6 +38,9 @@ public enum AgentIntent
     /// <summary>Focus on logging and auditing configuration (rsyslog, journald, auditd, logrotate, forwarding).</summary>
     LoggingAuditCheck,
 
+    /// <summary>Focus on cron job entries, permissions, and suspicious scheduled tasks.</summary>
+    CronJobCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

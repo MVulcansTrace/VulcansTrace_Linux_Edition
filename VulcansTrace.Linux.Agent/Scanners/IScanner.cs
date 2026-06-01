@@ -34,6 +34,7 @@ public sealed class ScanDataBuilder
     private readonly List<DataSourceCapability> _capabilities = new();
     private readonly List<UserAccount> _userAccounts = new();
     private readonly List<ShadowEntry> _shadowEntries = new();
+    private readonly List<CronJobEntry> _cronJobs = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
@@ -152,6 +153,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _loggingAuditConfig = config; }
     }
 
+    public void AddCronJob(CronJobEntry entry)
+    {
+        lock (_lock) { _cronJobs.Add(entry); }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -178,7 +184,8 @@ public sealed class ScanDataBuilder
                 ShadowEntries = _shadowEntries.ToArray(),
                 LoginDefs = _loginDefs,
                 PamConfig = _pamConfig,
-                LoggingAudit = _loggingAuditConfig
+                LoggingAudit = _loggingAuditConfig,
+                CronJobs = _cronJobs.ToArray()
             };
         }
     }

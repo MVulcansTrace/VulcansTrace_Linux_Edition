@@ -22,6 +22,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "kernel", "sysctl", "hardening", "aslr", "secure boot", "module loading", "ip forward", "icmp redirect" }, AgentIntent.KernelCheck, 2),
         (new[] { "user", "account", "password", "passwd", "shadow", "uid", "pam", "login.defs", "pwquality" }, AgentIntent.UserAccountCheck, 2),
         (new[] { "logging", "log", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "syslog" }, AgentIntent.LoggingAuditCheck, 2),
+        (new[] { "cron", "crontab", "scheduled job", "cron job" }, AgentIntent.CronJobCheck, 2),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
         (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),

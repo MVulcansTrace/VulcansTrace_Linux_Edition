@@ -361,7 +361,8 @@ public class SecurityAgentTests
             new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
             new UserAccountScanner(),
-            new LoggingAuditScanner()
+            new LoggingAuditScanner(),
+            new CronJobScanner()
         };
 
         var rules = new IRule[]
@@ -397,6 +398,9 @@ public class SecurityAgentTests
             new RootSshDirectoryPermissionRule(),
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
+            new SuspiciousCronEntryRule(),
+            new WorldWritableCronScriptRule(),
+            new RootCronForNonRootUserRule(),
             new UserSshDirectoryPermissionRule(),
             new WorldWritableFileRule(),
             new UnexpectedSuidSgidRule(),

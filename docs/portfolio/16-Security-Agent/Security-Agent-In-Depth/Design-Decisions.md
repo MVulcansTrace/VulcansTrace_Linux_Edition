@@ -17,6 +17,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `KernelHardeningScanner` knows how to read `/proc/sys` parameters and Secure Boot state.
 - `UserAccountScanner` knows how to read `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, and PAM password-stack configuration.
 - `LoggingAuditScanner` knows how to check logging service status, read auditd rules, verify logrotate configuration, and detect central forwarding targets.
+- `CronJobScanner` knows how to read system and user crontabs (`/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`) and collect referenced script paths.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.

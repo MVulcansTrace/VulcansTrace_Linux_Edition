@@ -52,6 +52,17 @@ public sealed class ProcessRunner : IProcessRunner
             };
         }
 
+        if (ct.IsCancellationRequested)
+        {
+            return new ProcessResult
+            {
+                Success = false,
+                ExitCode = -1,
+                StdOut = "",
+                StdErr = "Command was cancelled."
+            };
+        }
+
         using var process = new Process();
         process.StartInfo.FileName = "/bin/bash";
         process.StartInfo.RedirectStandardInput = true;

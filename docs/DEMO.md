@@ -130,6 +130,19 @@ The Security Agent audits local user accounts, password aging, and PAM configura
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain USER-001`.
 
+## Security Agent — Cron Job Audit
+
+The Security Agent audits scheduled cron jobs for suspicious entries, dangerous script permissions, and privilege misuse without pasting a log:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my cron jobs`
+3. The agent runs `CronJobScanner` and evaluates rules for:
+   - Suspicious cron commands (reverse shells, network downloaders, temp paths, encoded payloads) (`CRON-001`)
+   - World-writable or setuid/setgid cron scripts (`CRON-002`)
+   - Root cron jobs that reference non-root user directories (`CRON-003`)
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain CRON-001`.
+
 ## Security Agent — Interactive Remediation
 
 After running any audit, you can ask the agent to walk you through fixing a specific finding:

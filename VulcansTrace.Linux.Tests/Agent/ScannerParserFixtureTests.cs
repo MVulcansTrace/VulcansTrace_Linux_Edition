@@ -1036,4 +1036,133 @@ public class ScannerParserFixtureTests
             File.Delete(tempFile);
         }
     }
+
+    // =====================================================================
+    // CronJobScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_SystemCrontab_ExtractsUserAndCommand()
+    {
+        var entry = CronJobScanner.ParseCronLine("0 5 * * * root /usr/bin/backup.sh", "/etc/crontab", isSystemCrontab: true);
+
+        Assert.NotNull(entry);
+        Assert.Equal("/etc/crontab", entry.SourceFile);
+        Assert.Equal("0 5 * * *", entry.Schedule);
+        Assert.Equal("root", entry.RunAsUser);
+        Assert.Equal("/usr/bin/backup.sh", entry.Command);
+        Assert.False(entry.IsScript);
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_UserCrontab_NoUserField()
+    {
+        var entry = CronJobScanner.ParseCronLine("*/10 * * * * /home/alice/check.sh", "/var/spool/cron/crontabs/alice", isSystemCrontab: false);
+
+        Assert.NotNull(entry);
+        Assert.Equal("/var/spool/cron/crontabs/alice", entry.SourceFile);
+        Assert.Equal("*/10 * * * *", entry.Schedule);
+        Assert.Null(entry.RunAsUser);
+        Assert.Equal("/home/alice/check.sh", entry.Command);
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_SpecialSchedule_Works()
+    {
+        var entry = CronJobScanner.ParseCronLine("@reboot root /opt/start.sh", "/etc/crontab", isSystemCrontab: true);
+
+        Assert.NotNull(entry);
+        Assert.Equal("@reboot", entry.Schedule);
+        Assert.Equal("root", entry.RunAsUser);
+        Assert.Equal("/opt/start.sh", entry.Command);
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_Empty_ReturnsNull()
+    {
+        var entry = CronJobScanner.ParseCronLine("", "/etc/crontab", isSystemCrontab: true);
+        Assert.Null(entry);
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_Comment_ReturnsNull()
+    {
+        var entry = CronJobScanner.ParseCronLine("# 0 5 * * * root /usr/bin/backup.sh", "/etc/crontab", isSystemCrontab: true);
+        Assert.Null(entry);
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCrontabLines_SkipsCommentsAndEnvVars()
+    {
+        var lines = new[]
+        {
+            "# System crontab",
+            "SHELL=/bin/bash",
+            "PATH=/usr/bin:/bin",
+            "",
+            "0 5 * * * root /usr/bin/backup.sh",
+            "MAILTO=admin@example.com",
+            "30 2 * * * root /opt/cleanup.py --verbose"
+        };
+
+        var entries = CronJobScanner.ParseCrontabLines(lines, "/etc/crontab", isSystemCrontab: true);
+
+        Assert.Equal(2, entries.Count);
+        Assert.Equal("0 5 * * *", entries[0].Schedule);
+        Assert.Equal("/usr/bin/backup.sh", entries[0].Command);
+        Assert.Equal("30 2 * * *", entries[1].Schedule);
+        Assert.Equal("root", entries[1].RunAsUser);
+        Assert.Equal("/opt/cleanup.py --verbose", entries[1].Command);
+    }
+
+    [Theory]
+    [InlineData("SHELL=/bin/bash", true)]
+    [InlineData("PATH=/usr/bin:/bin", true)]
+    [InlineData("MAILTO=\"\"", true)]
+    [InlineData("0 5 * * * root /bin/true", false)]
+    [InlineData("@reboot root /bin/true", false)]
+    [InlineData("*/5 * * * * /bin/true", false)]
+    public void CronJobScanner_IsEnvironmentVariableLine_DetectsCorrectly(string line, bool expected)
+    {
+        Assert.Equal(expected, CronJobScanner.IsEnvironmentVariableLine(line));
+    }
+
+    [Fact]
+    public void CronJobScanner_ParseCronLine_TabSeparated_Works()
+    {
+        var entry = CronJobScanner.ParseCronLine("0\t5\t*\t*\t*\troot\t/usr/bin/backup.sh", "/etc/crontab", isSystemCrontab: true);
+
+        Assert.NotNull(entry);
+        Assert.Equal("0 5 * * *", entry.Schedule);
+        Assert.Equal("root", entry.RunAsUser);
+        Assert.Equal("/usr/bin/backup.sh", entry.Command);
+    }
+
+    [Fact]
+    public async Task CronJobScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new CronJobScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c =>
+            c.SourceName.Equals("/etc/crontab", StringComparison.OrdinalIgnoreCase) ||
+            c.SourceName.Equals("/etc/cron.d", StringComparison.OrdinalIgnoreCase) ||
+            c.SourceName.StartsWith("/etc/cron", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task CronJobScanner_ScanAsync_CoversRhelPath()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new CronJobScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        // The scanner should attempt both Debian (/var/spool/cron/crontabs) and RHEL (/var/spool/cron) paths
+        var cronCapabilities = data.Capabilities.Where(c =>
+            c.SourceName.StartsWith("/var/spool/cron", StringComparison.OrdinalIgnoreCase));
+        Assert.NotEmpty(cronCapabilities);
+    }
 }

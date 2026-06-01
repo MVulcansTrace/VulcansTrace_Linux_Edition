@@ -46,6 +46,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
 - Filesystem Auditing — hunts broadly for world-writable files outside expected paths, unexpected SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount hardening (`noexec`, `nosuid`, `nodev`).
 - User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, and missing home directories.
+- Cron Job Auditing — checks cron entries for suspicious commands (reverse shells, network downloaders, temp paths), world-writable or setuid/setgid cron scripts, and root jobs referencing non-root user directories.
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.

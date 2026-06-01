@@ -1085,6 +1085,7 @@ public sealed class SecurityAgent : IAgent
         "kernel" => AgentIntent.KernelCheck,
         "user" or "useraccount" or "account" or "password" or "shadow" or "uid" or "pam" => AgentIntent.UserAccountCheck,
         "logging" or "rsyslog" or "journald" or "audit" or "auditd" or "logrotate" or "forwarding" or "syslog" => AgentIntent.LoggingAuditCheck,
+        "cron" or "crontab" or "scheduled" => AgentIntent.CronJobCheck,
         _ => AgentIntent.Help
     };
 
@@ -1374,6 +1375,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.KernelCheck => _rules.Where(r => r.Category.Equals("Kernel", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.UserAccountCheck => _rules.Where(r => r.Category.Equals(FindingCategories.UserAccount, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.LoggingAuditCheck => _rules.Where(r => r.Category.Equals("Logging", StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.CronJobCheck => _rules.Where(r => r.Category.Equals(FindingCategories.CronJob, StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }
@@ -1398,6 +1400,7 @@ public sealed class SecurityAgent : IAgent
             AgentIntent.KernelCheck => "Kernel check",
             AgentIntent.UserAccountCheck => "User account check",
             AgentIntent.LoggingAuditCheck => "Logging audit check",
+            AgentIntent.CronJobCheck => "Cron job check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"

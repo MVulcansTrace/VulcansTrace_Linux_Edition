@@ -39,6 +39,9 @@ public class RuleCatalogTests
         new RootSshDirectoryPermissionRule(),
         new CronDirectoryWorldWritableRule(),
         new CrontabPermissionRule(),
+        new SuspiciousCronEntryRule(),
+        new WorldWritableCronScriptRule(),
+        new RootCronForNonRootUserRule(),
         new UserSshDirectoryPermissionRule(),
         new AslrEnabledRule(),
         new IpForwardingDisabledRule(),
@@ -73,7 +76,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(58, catalog.Items.Count);
+        Assert.Equal(61, catalog.Items.Count);
     }
 
     [Fact]
@@ -104,6 +107,7 @@ public class RuleCatalogTests
     [InlineData("KERN-0", 7)]
     [InlineData("USER-0", 7)]
     [InlineData("LOG-0", 7)]
+    [InlineData("CRON-0", 3)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -128,7 +132,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(58, results.Count);
+        Assert.Equal(61, results.Count);
     }
 
     [Fact]

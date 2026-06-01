@@ -156,8 +156,21 @@ Last updated: 2026-05-31
 - Added `loggingaudit.md` explanation template with remediation steps for all logging/audit rules.
 - Code: `VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/loggingaudit.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
 
+### Security Agent — Cron Job Auditing
+- Added `CronJobScanner` that reads and parses system crontabs (`/etc/crontab`, `/etc/cron.d/*`), user crontabs (`/var/spool/cron/crontabs/*`, `/var/spool/cron/*` for RHEL/CentOS/Fedora), and cron script directories (`cron.daily`, `cron.hourly`, `cron.weekly`, `cron.monthly`). Uses `stat` for script permissions.
+- Added `CronJobEntry` record to `ScanData` with `SourceFile`, `Schedule`, `Command`, `RunAsUser`, `IsScript`, `ScriptPermissions`, `ScriptOwner`, and `ScriptGroup`.
+- Added 3 cron job rules (`CRON-001` through `CRON-003`) with dual-layer CIS compliance mappings:
+  - `CRON-001` — Suspicious cron commands (reverse shells, network downloaders, temp paths, encoded payloads). Uses word-boundary-aware pattern matching to reduce false positives (CIS 6.1)
+  - `CRON-002` — Cron scripts should not be world-writable; setuid/setgid bits escalated to `Critical` severity (CIS 6.1)
+  - `CRON-003` — Root cron jobs should not reference non-root user directories (`/home/` or `~username`) (CIS 6.2)
+- All cron rules return `NotApplicable` when no cron data is available.
+- `AgentIntent.CronJobCheck` and `QueryParser` keywords (`cron`, `crontab`, `scheduled job`, `cron job`) so users can ask "check my cron jobs".
+- Added `cron.md` explanation template with remediation steps for all cron job rules.
+- 30+ new tests covering scanner parsing, word-boundary matching, setuid detection, tilde-user path detection, multiple-match reporting, and NotApplicable behavior.
+- Code: `VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/cron.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 58 agent rules now carry dual-layer CIS compliance mappings:
+- All 61 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

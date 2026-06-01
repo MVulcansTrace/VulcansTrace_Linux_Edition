@@ -84,7 +84,8 @@ public static class AgentFactory
             new FilesystemAuditScanner(),
             new KernelHardeningScanner(),
             new UserAccountScanner(),
-            new LoggingAuditScanner()
+            new LoggingAuditScanner(),
+            new CronJobScanner()
         };
 
         var rules = new IRule[]
@@ -120,6 +121,9 @@ public static class AgentFactory
             new RootSshDirectoryPermissionRule(),
             new CronDirectoryWorldWritableRule(),
             new CrontabPermissionRule(),
+            new SuspiciousCronEntryRule(),
+            new WorldWritableCronScriptRule(),
+            new RootCronForNonRootUserRule(),
             new UserSshDirectoryPermissionRule(),
             new WorldWritableFileRule(),
             new UnexpectedSuidSgidRule(),

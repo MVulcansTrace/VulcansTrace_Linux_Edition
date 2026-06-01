@@ -68,6 +68,37 @@ public sealed record ScanData
 
     /// <summary>Logging and auditing configuration (rsyslog, journald, auditd, logrotate, forwarding).</summary>
     public LoggingAuditConfig? LoggingAudit { get; init; }
+
+    /// <summary>Parsed cron job entries from system and user crontabs.</summary>
+    public IReadOnlyList<CronJobEntry> CronJobs { get; init; } = Array.Empty<CronJobEntry>();
+}
+
+/// <summary>A parsed cron job entry from system or user crontabs.</summary>
+public sealed record CronJobEntry
+{
+    /// <summary>Absolute path to the source crontab file or script.</summary>
+    public string SourceFile { get; init; } = string.Empty;
+
+    /// <summary>Cron schedule expression or directory-derived frequency (e.g. "0 5 * * *", "@daily").</summary>
+    public string Schedule { get; init; } = string.Empty;
+
+    /// <summary>The command or script path to execute.</summary>
+    public string Command { get; init; } = string.Empty;
+
+    /// <summary>User the job runs as (system crontabs only).</summary>
+    public string? RunAsUser { get; init; }
+
+    /// <summary>True for executable scripts in cron.daily/hourly/weekly/monthly directories.</summary>
+    public bool IsScript { get; init; }
+
+    /// <summary>Octal permission mode for script files.</summary>
+    public string? ScriptPermissions { get; init; }
+
+    /// <summary>File owner for script files.</summary>
+    public string? ScriptOwner { get; init; }
+
+    /// <summary>File group for script files.</summary>
+    public string? ScriptGroup { get; init; }
 }
 
 /// <summary>Logging and auditing subsystem configuration.</summary>

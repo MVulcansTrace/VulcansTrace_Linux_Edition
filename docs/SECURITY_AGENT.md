@@ -23,6 +23,7 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
 | `Check my user accounts` | `UserAccountCheck` | Reviews user accounts, password aging, PAM complexity, and shadow entries |
 | `Check my logging` | `LoggingAuditCheck` | Reviews rsyslog, journald, auditd, logrotate, and central forwarding configuration |
+| `Check my cron jobs` | `CronJobCheck` | Reviews cron entries for suspicious commands, world-writable scripts, and root jobs referencing user paths |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -52,6 +53,7 @@ The agent reads local host state using common Linux tools:
 | `KernelHardeningScanner` | `/proc/sys/*` direct reads, fallback `sysctl -a`, `mokutil --sb-state` | Reads kernel parameters (ASLR, IP forwarding, ICMP redirects, source routing, module loading, pointer exposure) and Secure Boot status |
 | `UserAccountScanner` | `/etc/passwd`, `/etc/shadow`, `/etc/login.defs`, PAM configs (`common-password`, `system-auth`, `password-auth`), `/etc/security/pwquality.conf` | Reads local user accounts, shadow entries, password aging policy, and PAM password-stack configuration |
 | `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | Checks logging service status, auditd rules, logrotate configuration, and central forwarding targets |
+| `CronJobScanner` | Reads `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/var/spool/cron/*`, `/etc/cron.daily/*`, `/etc/cron.hourly/*`, `/etc/cron.weekly/*`, `/etc/cron.monthly/*`; uses `stat` for script permissions | Parses system and user crontabs and cron script directories for scheduled job entries and script permissions |
 
 Scanner failures are reported as warnings instead of crashing the agent. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -145,6 +147,13 @@ Scanner failures are reported as warnings instead of crashing the agent. Some co
 - auditd should monitor privilege escalation syscalls (`setuid`, `setgid`, etc.) (`LOG-006`). Returns `NotApplicable` when auditd rules could not be read.
 - Central forwarding should use TCP (`@@` target) rather than UDP (`@`) for reliability (`LOG-007`).
 
+### Cron Jobs
+
+- Cron entries should not contain suspicious commands such as reverse shells, network downloaders (`wget`, `curl`, `nc`), temporary paths (`/tmp/`, `/var/tmp/`, `/dev/shm/`), or encoded payloads (`python -c`, `perl -e`, etc.). Pattern matching uses word-boundary awareness to reduce false positives (`CRON-001`).
+- Script files in `cron.daily`, `cron.hourly`, `cron.weekly`, and `cron.monthly` should not be world-writable. Setuid/setgid bits on cron scripts are escalated to `Critical` severity (`CRON-002`).
+- System crontab entries running as `root` should not reference non-root user directories (e.g., paths under `/home/` or `~username` expansions) (`CRON-003`).
+- All cron rules return `NotApplicable` when no cron data is available (requires root or cron files not present).
+
 ## How The Pipeline Works
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent` and optional target reference.
@@ -189,7 +198,7 @@ Explanations are rendered as structured sections: what was found, why it matters
 The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
 
 - Chat-style natural-language questions.
-- Quick-action buttons for full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, selected-finding explanation, and audit export.
+- Quick-action buttons for full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, selected-finding explanation, and audit export.
 - Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
@@ -198,7 +207,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
 - A Compliance tab showing the CIS Compliance Scorecard with an overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid with score and status, and a mini bar-chart trend visualization of previous audits.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
-- Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, and kernel hardening checks.
+- Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, and cron job checks.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
@@ -282,6 +291,9 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | LOG-005 | CIS 8.4 — Collect Audit Log Details | 4.2.2.x — Ensure rsyslog is configured to send logs to a remote log host |
 | LOG-006 | CIS 8.2 — Collect Audit Logs | 4.1.x — Ensure audit rules monitor privilege escalation |
 | LOG-007 | CIS 8.4 — Collect Audit Log Details | 4.2.2.x — Ensure reliable log forwarding transport |
+| CRON-001 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
+| CRON-002 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
+| CRON-003 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
 
 The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable.
 
@@ -322,8 +334,10 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [KernelHardeningScanner.cs](../VulcansTrace.Linux.Agent/Scanners/KernelHardeningScanner.cs)
 - [UserAccountScanner.cs](../VulcansTrace.Linux.Agent/Scanners/UserAccountScanner.cs)
 - [LoggingAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs)
+- [CronJobScanner.cs](../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
+- [CronJobRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [ComplianceScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs)
 - [SecurityAgentTests.cs](../VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs)
