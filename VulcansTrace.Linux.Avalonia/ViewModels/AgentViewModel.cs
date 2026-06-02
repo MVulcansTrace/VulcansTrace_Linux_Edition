@@ -25,6 +25,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentResultPresenter _presenter;
     private readonly AgentHistoryCoordinator _historyCoordinator;
     private readonly AgentOperationRunner _operationRunner;
+    private readonly AgentQueryExecutor _queryExecutor;
 
     private string _userQuery = "";
     private string _logText = "";
@@ -288,6 +289,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             value => IsBusy = value,
             ClearPrivilegeWarning,
             AddAgentMessage);
+        _queryExecutor = new AgentQueryExecutor(() => _agent);
 
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
@@ -428,27 +430,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
-            AgentResult result;
-
-            // Quick-parse to see if this is an ExplainFinding intent with a UI-selected finding
-            var parsed = new QueryParser().Parse(query);
-            if (parsed.Intent == AgentIntent.ExplainFinding && string.IsNullOrWhiteSpace(parsed.TargetReference))
-            {
-                var selected = SelectedFindingProvider?.Invoke();
-                if (selected != null)
-                {
-                    result = await _agent.ExplainFindingAsync(selected, token);
-                }
-                else
-                {
-                    result = await _agent.AskAsync(query, LogText, token);
-                }
-            }
-            else
-            {
-                result = await _agent.AskAsync(query, LogText, token);
-            }
-
+            var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result));
