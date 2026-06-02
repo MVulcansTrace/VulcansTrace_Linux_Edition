@@ -26,16 +26,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentHistoryCoordinator _historyCoordinator;
     private readonly AgentOperationRunner _operationRunner;
     private readonly AgentQueryExecutor _queryExecutor;
+    private readonly AgentResultStateCoordinator _resultState;
 
     private string _userQuery = "";
     private string _logText = "";
     private bool _isBusy;
     private bool _hasPrivilegeWarning;
     private string _privilegeWarningText = "";
-    private AgentResult? _lastResult;
-    private bool _lastResultIsExportableAudit;
-    private bool _hasCompletedAudit;
-    private AgentIntent _lastAuditIntent = AgentIntent.FullAudit;
     private SeverityFilterOption? _selectedChatSeverityFilter;
     private string? _selectedChatCategoryFilter;
 
@@ -163,13 +160,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Gets the last agent result.</summary>
-    public AgentResult? LastResult => _lastResult;
+    public AgentResult? LastResult => _resultState.LastResult;
 
     /// <summary>Gets whether the selected UI finding can be explained now.</summary>
     public bool CanExplainSelected => !_isBusy && SelectedFindingProvider?.Invoke() != null;
 
     /// <summary>Gets whether the latest agent result is an audit that can be exported.</summary>
-    public bool CanExportAudit => !_isBusy && _lastResultIsExportableAudit;
+    public bool CanExportAudit => !_isBusy && _resultState.IsExportableAudit;
 
     /// <summary>Gets whether two audit snapshots are available for comparison.</summary>
     public bool CanCompareAudits => History.Count >= 2;
@@ -257,16 +254,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public void SetAgent(IAgent agent)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
-        _lastResult = null;
-        _lastResultIsExportableAudit = false;
-        _hasCompletedAudit = false;
-        _lastAuditIntent = AgentIntent.FullAudit;
-
-        OnPropertyChanged(nameof(LastResult));
-        OnPropertyChanged(nameof(CanExportAudit));
-        ExportAuditCommand.RaiseCanExecuteChanged();
-        ExportRemediationCommand.RaiseCanExecuteChanged();
-        SetBaselineCommand.RaiseCanExecuteChanged();
+        _resultState.Reset();
     }
 
     /// <summary>
@@ -290,6 +278,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             ClearPrivilegeWarning,
             AddAgentMessage);
         _queryExecutor = new AgentQueryExecutor(() => _agent);
+        _historyCoordinator = new AgentHistoryCoordinator(
+            historyStore,
+            History,
+            (text, isInfo) => _presenter.AddAgentMessage(text, isInfo),
+            () => Messages,
+            () =>
+            {
+                OnPropertyChanged(nameof(CanCompareAudits));
+                CompareAuditsCommand!.RaiseCanExecuteChanged();
+                CompareSelectedAuditsCommand!.RaiseCanExecuteChanged();
+            });
+        _resultState = new AgentResultStateCoordinator(
+            _historyCoordinator,
+            OnPropertyChanged,
+            RefreshResultCommands,
+            result => AuditCompleted?.Invoke(this, result));
 
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
@@ -356,7 +360,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         SetBaselineCommand = new AsyncRelayCommand(
             async _ => await SetBaselineAsync(),
-            _ => !_isBusy && _hasCompletedAudit,
+            _ => !_isBusy && _resultState.HasCompletedAudit,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         CheckDriftCommand = new AsyncRelayCommand(
@@ -370,18 +374,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
-
-        _historyCoordinator = new AgentHistoryCoordinator(
-            historyStore,
-            History,
-            (text, isInfo) => _presenter.AddAgentMessage(text, isInfo),
-            () => Messages,
-            () =>
-            {
-                OnPropertyChanged(nameof(CanCompareAudits));
-                CompareAuditsCommand.RaiseCanExecuteChanged();
-                CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
-            });
 
         _historyCoordinator.LoadExisting();
 
@@ -436,7 +428,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => PresentFindings(result));
 
             // Raise audit completion for audit intents so MainViewModel can sync evidence
-            if (IsAuditIntent(result.Intent))
+            if (AgentResultStateCoordinator.IsAuditIntent(result.Intent))
             {
                 PublishAuditCompleted(result);
             }
@@ -500,10 +492,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void SetLastResult(AgentResult result)
     {
-        _lastResult = result;
-        _lastResultIsExportableAudit = IsAuditIntent(result.Intent);
-        OnPropertyChanged(nameof(LastResult));
-        OnPropertyChanged(nameof(CanExportAudit));
+        _resultState.SetLastResult(result);
+    }
+
+    private void RefreshResultCommands()
+    {
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
         SetBaselineCommand.RaiseCanExecuteChanged();
@@ -511,15 +504,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void PublishAuditCompleted(AgentResult result)
     {
-        AuditCompleted?.Invoke(this, result);
-        _hasCompletedAudit = true;
-        _lastAuditIntent = result.Intent;
-        _lastResultIsExportableAudit = true;
-        OnPropertyChanged(nameof(CanExportAudit));
-        ExportAuditCommand.RaiseCanExecuteChanged();
-        ExportRemediationCommand.RaiseCanExecuteChanged();
-        SetBaselineCommand.RaiseCanExecuteChanged();
-        _historyCoordinator.AppendHistoryEntry(result);
+        _resultState.PublishAuditCompleted(result);
     }
 
     public void MarkLatestAuditExported()
@@ -527,19 +512,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _historyCoordinator.MarkLatestExported();
     }
 
-    private static bool IsAuditIntent(AgentIntent intent) =>
-        intent is AgentIntent.FullAudit
-            or AgentIntent.FirewallCheck
-            or AgentIntent.PortCheck
-            or AgentIntent.ServiceCheck
-            or AgentIntent.NetworkCheck
-            or AgentIntent.SshCheck
-            or AgentIntent.FilePermissionCheck
-            or AgentIntent.KernelCheck;
-
     private async Task SetBaselineAsync()
     {
-        if (_lastResult == null)
+        if (_resultState.LastResult == null)
         {
             AddAgentMessage("Run an audit first, then save it as a baseline.", true);
             return;
@@ -549,7 +524,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
-            // Pass empty name so the agent generates it from _lastAuditIntent,
+            // Pass empty name so the agent generates it from the last audit intent,
             // avoiding wrong intent (e.g. CheckDrift) in the name.
             var result = await _agent.SetBaselineAsync("", null, token);
             SetLastResult(result);
@@ -563,7 +538,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task CheckDriftAsync()
     {
-        var intent = _lastAuditIntent;
+        var intent = _resultState.LastAuditIntent;
         AddUserMessage($"Check drift ({intent})");
 
         await _operationRunner.RunAsync(async token =>
@@ -577,7 +552,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ShowBaselineAsync()
     {
-        var intent = _lastAuditIntent;
+        var intent = _resultState.LastAuditIntent;
         AddUserMessage("Show baseline");
 
         await _operationRunner.RunAsync(async token =>
@@ -591,7 +566,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void ExportRemediationPlan()
     {
-        if (_lastResult == null || _lastResult.AgentFindings.Count == 0)
+        var lastResult = _resultState.LastResult;
+        if (lastResult == null || lastResult.AgentFindings.Count == 0)
         {
             AddAgentMessage("No findings available to generate a remediation plan. Run an audit first.", true);
             return;
@@ -600,7 +576,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         try
         {
             var builder = new RemediationPlanBuilder(new ExplanationProvider());
-            var plan = builder.Build(_lastResult.AgentFindings);
+            var plan = builder.Build(lastResult.AgentFindings);
             var validation = RemediationPlanValidator.Validate(plan);
             if (!validation.IsValid)
             {
