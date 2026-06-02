@@ -4,6 +4,7 @@ using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -28,6 +29,7 @@ public sealed class SecurityAgent : IAgent
     private readonly BaselineDriftService _baselineDriftService;
     private readonly FindingExplanationService _findingExplanationService;
     private readonly AgentFollowUpService _followUpService;
+    private readonly GuidedRemediationService _guidedRemediationService;
     private readonly ISuppressionStore? _suppressionStore;
 
     /// <summary>
@@ -45,6 +47,7 @@ public sealed class SecurityAgent : IAgent
     /// <param name="baselineStore">Optional store for configuration baselines.</param>
     /// <param name="scorecardBuilder">Optional builder for CIS compliance scorecards.</param>
     /// <param name="riskScorecardBuilder">Optional builder for risk scorecards.</param>
+    /// <param name="sessionStore">Optional store for remediation sessions.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -57,7 +60,8 @@ public sealed class SecurityAgent : IAgent
         IAuditHistoryStore? historyStore = null,
         IBaselineStore? baselineStore = null,
         IComplianceScorecardBuilder? scorecardBuilder = null,
-        IRiskScorecardBuilder? riskScorecardBuilder = null)
+        IRiskScorecardBuilder? riskScorecardBuilder = null,
+        ISessionStore? sessionStore = null)
     {
         _scannerCoordinator = new ScannerCoordinator(scanners);
         _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
@@ -83,11 +87,17 @@ public sealed class SecurityAgent : IAgent
             _ruleEvaluationService,
             _explanationProvider,
             _singleRuleExplanationService);
+        _guidedRemediationService = new GuidedRemediationService(
+            _auditState,
+            new RemediationPlanBuilder(_explanationProvider),
+            sessionStore,
+            RunAuditAsync);
         _followUpService = new AgentFollowUpService(
             _auditState,
             _explanationProvider,
             historyStore,
             suppressionStore,
+            _guidedRemediationService,
             RunAuditAsync);
         _suppressionStore = suppressionStore;
     }
@@ -134,6 +144,16 @@ public sealed class SecurityAgent : IAgent
                 AgentIntent.ShowBaseline => await _baselineDriftService.ShowBaselineAsync(agentQuery, ct),
                 _ => await RunAuditAsync(agentQuery.Intent, rawLog, ct)
             };
+        }
+
+        if (agentQuery.Intent == AgentIntent.StartRemediation)
+        {
+            return await _guidedRemediationService.CreateSessionAsync(agentQuery.TargetReference ?? "", ct);
+        }
+
+        if (agentQuery.Intent == AgentIntent.VerifyRemediation)
+        {
+            return await _guidedRemediationService.RunVerificationAsync(agentQuery.TargetReference ?? "", ct);
         }
 
         if (IsFollowUpIntent(agentQuery.Intent))
@@ -183,6 +203,8 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.CheckDrift => "baseline drift",
         AgentIntent.ShowBaseline => "show baseline",
         AgentIntent.RiskScore => "risk score",
+        AgentIntent.StartRemediation => "start remediation",
+        AgentIntent.VerifyRemediation => "verify remediation",
         AgentIntent.Help => "help",
         _ => intent.ToString()
     };
@@ -286,6 +308,20 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
         return _findingExplanationService.ExplainFindingAsync(finding, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.CreateSessionAsync(findingReference, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.RunVerificationAsync(sessionId, ct);
     }
 
     private static string GetHelpText() =>

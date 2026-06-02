@@ -1,7 +1,9 @@
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 
@@ -9,12 +11,14 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentViewModelTests
 {
+    private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
+
     [Fact]
     public void NotifySelectedFindingChanged_RefreshesExplainSelectedState()
     {
         var selected = CreateFinding();
         var hasSelection = false;
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             SelectedFindingProvider = () => hasSelection ? selected : null
         };
@@ -38,7 +42,7 @@ public class AgentViewModelTests
     [Fact]
     public void SelectedChatCategoryFilter_AllCategories_KeepsFindingMessagesVisible()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore());
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
         var firewallMessage = new AgentMessageViewModel
         {
             Text = "Firewall finding",
@@ -72,7 +76,7 @@ public class AgentViewModelTests
     public async Task SendQueryCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
-        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "is my system secure?"
         };
@@ -88,7 +92,7 @@ public class AgentViewModelTests
     public async Task FullAuditCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
-        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore());
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder);
 
         vm.FullAuditCommand.Execute(null);
         await vm.FullAuditCommand.ExecutionTask;
@@ -101,7 +105,7 @@ public class AgentViewModelTests
     public async Task SendQueryCommand_TypedSshAudit_AppendsHistoryAndEnablesExport()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -119,7 +123,7 @@ public class AgentViewModelTests
     public async Task CheckDriftCommand_AfterShowBaseline_UsesLastAuditIntent()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -143,7 +147,7 @@ public class AgentViewModelTests
     [Fact]
     public void SetBaselineCommand_IsDisabledBeforeAudit()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore());
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
 
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
     }
@@ -151,7 +155,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetAgent_ClearsStaleAuditState()
     {
-        var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -172,7 +176,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check firewall"
         };
@@ -188,7 +192,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task CancelQueryCommand_CancelsActiveOperationAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check firewall"
         };
@@ -208,7 +212,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetBaselineCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -227,7 +231,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task CancelQueryCommand_CancelsActiveDriftOperationAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -250,7 +254,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task ShowBaselineCommand_SuppressesCapabilityPassedAndWarningSections()
     {
-        var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -274,7 +278,7 @@ public class AgentViewModelTests
     {
         var finding = CreateFinding();
         var agent = new ExplainFindingAgent(finding);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             SelectedFindingProvider = () => finding
         };
@@ -294,7 +298,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task ExplainSelectedCommand_NoSelection_AddsGuidanceMessage()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             SelectedFindingProvider = () => null
         };
@@ -310,7 +314,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetBaselineCommand_AfterAudit_DisplaysBaselineSummary()
     {
-        var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -334,7 +338,7 @@ public class AgentViewModelTests
     public async Task CheckDriftCommand_AfterAudit_DisplaysDriftResult()
     {
         var agent = new DriftResultAgent();
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "check ssh"
         };
@@ -351,6 +355,29 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, m => m.Text == "drift summary");
         Assert.DoesNotContain(vm.Messages, m => m.Text == "hidden capability report");
         Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task ExportSessionCommand_WithSessionResult_InvokesExportCallback()
+    {
+        var vm = new AgentViewModel(new SessionResultAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        {
+            UserQuery = "guided fix FW-001"
+        };
+        string? exported = null;
+        vm.RequestExportSession = markdown => exported = markdown;
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.CanExportSession);
+
+        vm.ExportSessionCommand.Execute(null);
+
+        Assert.NotNull(exported);
+        Assert.Contains("VulcansTrace Remediation Session Report", exported);
+        Assert.Contains("abc12345", exported);
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
@@ -412,6 +439,44 @@ public class AgentViewModelTests
                 Intent = AgentIntent.ShowBaseline,
                 Summary = "stub"
             });
+
+        public virtual Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "stub"
+            });
+
+        public virtual Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = "stub"
+            });
+    }
+
+    private sealed class SessionResultAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            var finding = CreateFinding();
+            var session = new RemediationSession
+            {
+                SessionId = "abc12345",
+                SourceFindings = new[] { finding },
+                RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+                StepStates = new Dictionary<string, RemediationStepState>(),
+                BlockedReasons = Array.Empty<string>()
+            };
+
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "session created",
+                AgentFindings = new[] { finding },
+                RemediationSession = session
+            });
+        }
     }
 
     private sealed class CapabilityReportAgent : IAgent
@@ -440,6 +505,12 @@ public class AgentViewModelTests
 
         public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.StartRemediation));
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
 
         private AgentResult CreateResult(AgentIntent intent) => new()
         {
@@ -484,6 +555,12 @@ public class AgentViewModelTests
             LastBaselineIntent = intent;
             return Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
         }
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.StartRemediation));
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
 
         private static AgentResult CreateResult(AgentIntent intent) => new()
         {

@@ -231,7 +231,7 @@ public class AgentFollowUpServiceTests
         Assert.Contains("Cannot guide remediation", result.Summary);
         Assert.Contains("safety", result.Summary);
         Assert.NotEmpty(result.Warnings);
-        Assert.NotNull(result.RemediationPlan);
+        Assert.Null(result.RemediationPlan);
     }
 
     [Fact]
@@ -363,11 +363,14 @@ public class AgentFollowUpServiceTests
         Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null,
         IExplanationProvider? explanationProvider = null)
     {
+        var planBuilder = new RemediationPlanBuilder(explanationProvider ?? new TestExplanationProvider());
+        var remediationService = new GuidedRemediationService(state, planBuilder);
         return new AgentFollowUpService(
             state,
             explanationProvider ?? new TestExplanationProvider(),
             historyStore,
             suppressionStore,
+            remediationService,
             runAudit ?? RunAuditShouldNotBeCalled);
     }
 

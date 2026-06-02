@@ -77,6 +77,12 @@ public enum AgentIntent
     /// <summary>Show the overall risk score and grade from the last audit.</summary>
     RiskScore,
 
+    /// <summary>Start a guided remediation session for one or more findings.</summary>
+    StartRemediation,
+
+    /// <summary>Run verification on an active remediation session.</summary>
+    VerifyRemediation,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }

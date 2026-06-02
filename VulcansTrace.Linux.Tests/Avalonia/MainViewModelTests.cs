@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
@@ -235,7 +236,8 @@ also not a firewall line";
             profileProvider,
             agent ?? new MockAgent(),
             suppressionStore ?? new InMemorySuppressionStore(),
-            new InMemoryAuditHistoryStore());
+            new InMemoryAuditHistoryStore(),
+            new RemediationPlanBuilder(new ExplanationProvider()));
     }
 
     private sealed class MockAgent : IAgent
@@ -301,6 +303,28 @@ also not a firewall line";
             {
                 Intent = AgentIntent.ShowBaseline,
                 Summary = "Mock baseline",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "Mock remediation session",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = "Mock verification",
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             });

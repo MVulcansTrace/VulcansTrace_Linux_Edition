@@ -125,16 +125,17 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 **Deduplication choice:** HTML and Markdown compliance-context sections previously grouped by `ControlId` and took `First()`, which hid differing `WhyItMatters` text when multiple rules mapped to the same control (e.g., all five firewall rules map to `CIS 4.5`). The dedup was changed to `Distinct()` on the full record so every unique rationale and benchmark reference is preserved.
 
-## Interactive Remediation: Guided, Not Automated
+## Remediation: Guided, Not Automated
 
-**Decision:** The agent can guide remediation for a specific finding (`fix FW-001`), and the CLI can execute safe fixes in batch mode (`--auto-fix`), but both are gated by explicit safety policies and never run destructive or unclassified commands without operator consent.
+**Decision:** The agent can preview remediation for a specific finding (`fix FW-001`), create a persisted guided remediation session (`remediate FW-001`), and execute safe fixes in batch mode (`--auto-fix`), but all paths are gated by explicit safety policies and never run destructive or unclassified commands without operator consent.
 
 **Rationale:**
 
 - Security tools that silently auto-remediate can break production access, drop SSH sessions, or disable services unexpectedly.
 - A guided, step-by-step UX with explicit preconditions, backup commands, apply commands, rollback commands, and verification commands gives the operator full control.
+- Persisted remediation sessions add a session ID, before snapshot, step state, verification result, and markdown export so a manual fix can become an auditable before/after workflow.
 - Each command is labeled with the existing `CommandSafety` classification (`ReadOnly`, `ConfigChange`, `Destructive`, etc.) and structural badges (`SUDO`, `CHAIN`, `PIPE`, etc.) so the operator knows the blast radius before copying a command.
-- `RemediationPlanValidator` blocks the entire flow if risky or unclassified commands lack explicit rollback guidance. This prevents the UI from presenting a "safe" fix that has no undo path.
+- `RemediationPlanValidator` blocks the command card if risky or unclassified commands lack explicit rollback guidance. Blocked sessions remain visible for auditability, but they do not expose copyable remediation commands and cannot be verified as completed remediation.
 - The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for both interactive and batch remediation, so all paths benefit from the same safety guardrails.
 - Batch auto-fix (`--auto-fix`) extends the interactive model to headless use cases:
   - `AutoFixPolicy` defines what is permitted (`ReadOnly`, `ConfigChange`, and optionally `ServiceRestart`/`PackageInstall`).
@@ -145,7 +146,7 @@ Baselines are user-designated "known good" snapshots, separate from the automati
   - `--yes` skips confirmation; without it, the operator must type `yes`.
   - Commands are fed to bash via stdin to avoid shell escaping bugs.
 
-**Trade-off:** The interactive UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. The batch CLI path trades some control for automation, but only within the narrow safety envelope defined by `AutoFixPolicy` and `RemediationPlanValidator`.
+**Trade-off:** The interactive/session UX requires the operator to manually copy and run each command. This is slower than one-click auto-fix, but it preserves accountability and prevents accidental outages. The batch CLI path trades some control for automation, but only within the narrow safety envelope defined by `AutoFixPolicy` and `RemediationPlanValidator`.
 
 ## Not-Applicable Results For Hardware-Dependent Checks
 

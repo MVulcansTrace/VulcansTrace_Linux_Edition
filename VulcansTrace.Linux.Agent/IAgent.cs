@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent;
@@ -60,4 +61,20 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the baseline findings.</returns>
     Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct);
+
+    /// <summary>
+    /// Starts a guided remediation session for the specified finding reference.
+    /// </summary>
+    /// <param name="findingReference">The finding ID or reference to remediate (e.g. "FW-001").</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the remediation session.</returns>
+    Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct);
+
+    /// <summary>
+    /// Runs verification on an active remediation session, re-auditing and producing a before/after diff.
+    /// </summary>
+    /// <param name="sessionId">The session ID to verify.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the verification diff.</returns>
+    Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct);
 }

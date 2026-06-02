@@ -7,6 +7,7 @@ using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -43,9 +44,19 @@ internal sealed class AgentResultPresenter
         if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
             AddAgentMessage(result.CapabilityReport, true);
 
-        if (result.Intent == AgentIntent.FixFinding && result.RemediationPlan?.Sections.Count == 1)
+        if (result.Intent == AgentIntent.FixFinding
+            && result.Warnings.Count == 0
+            && result.RemediationPlan?.Sections.Count == 1)
         {
             AddInteractiveRemediationMessage(result);
+        }
+        else if (result.Intent == AgentIntent.StartRemediation && result.RemediationSession != null)
+        {
+            AddSessionMessage(result);
+        }
+        else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
+        {
+            AddVerificationResultMessage(result);
         }
         else
         {
@@ -192,6 +203,46 @@ internal sealed class AgentResultPresenter
             Severity = severity,
             Timestamp = DateTime.Now,
             RemediationSection = section
+        });
+    }
+
+    private void AddSessionMessage(AgentResult result)
+    {
+        var session = result.RemediationSession!;
+        var section = session.RemediationPlan.Sections.FirstOrDefault();
+        var severity = section != null ? ParseSeverityFromSummary(section.FindingSummary) : Severity.Info;
+        var sectionIsBlocked = section != null
+            && session.StepStates.TryGetValue(section.RuleId, out var stepState)
+            && stepState == RemediationStepState.Blocked;
+
+        _messages.Add(new AgentMessageViewModel
+        {
+            Text = result.Summary,
+            Details = section != null && !sectionIsBlocked ? $"Risk: {section.RiskNote}" : "",
+            IsUser = false,
+            IsInfo = false,
+            Severity = severity,
+            Timestamp = DateTime.Now,
+            RemediationSection = sectionIsBlocked ? null : section,
+            SessionId = session.SessionId,
+            SessionStatus = session.Status
+        });
+    }
+
+    private void AddVerificationResultMessage(AgentResult result)
+    {
+        var session = result.RemediationSession!;
+        var v = session.VerificationResult;
+
+        _messages.Add(new AgentMessageViewModel
+        {
+            Text = result.Summary,
+            IsUser = false,
+            IsInfo = false,
+            Timestamp = DateTime.Now,
+            SessionId = session.SessionId,
+            SessionStatus = session.Status,
+            IsVerificationResult = true
         });
     }
 

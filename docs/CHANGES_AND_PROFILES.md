@@ -66,9 +66,9 @@ Last updated: 2026-06-01
 - Added `filepermission.md` explanation template with remediation steps for all file permission rules.
 - Code: `VulcansTrace.Linux.Agent/Scanners/FilePermissionScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/FilePermissionRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/filepermission.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`
 
-### Security Agent — Interactive Remediation
-- Added `AgentIntent.FixFinding` and `HandleFixFindingAsync` for guided, step-by-step remediation of a single finding.
-- `QueryParser` recognizes `fix FW-001`, `remediate PORT-002`, and `resolve SSH-003` with collision-safe keyword scoring (`fix ` requires a trailing space so `what should i fix` still routes to `PrioritizeRemediation`).
+### Security Agent — Interactive Remediation And Guided Sessions
+- Added `AgentIntent.FixFinding` and `HandleFixFindingAsync` for single-finding remediation previews.
+- `QueryParser` recognizes `fix FW-001` / `resolve SSH-003` for single-finding remediation previews and `remediate PORT-002` for persisted guided remediation sessions (`fix ` requires a trailing space so `what should i fix` still routes to `PrioritizeRemediation`).
 - `HandleFixFindingAsync` builds a single-section `RemediationPlan`, runs `RemediationPlanValidator` to block risky commands without rollback guidance, and returns an interactive remediation card.
 - UI renders preconditions, backup commands, apply commands, rollback commands, and verification commands with the same safety and structural badges used for verification commands.
 - Added 10 new tests covering intent parsing, target reference extraction, and all `HandleFixFindingAsync` code paths (no context, no reference, unknown reference, success, validation failure).

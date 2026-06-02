@@ -29,7 +29,9 @@ public sealed class QueryParser : IQueryParser
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
         (new[] { "only", "just show", "show me", "filter" }, AgentIntent.FilterCategory, 3),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
-        (new[] { "fix ", "remediate", "resolve" }, AgentIntent.FixFinding, 3),
+        (new[] { "fix ", "resolve" }, AgentIntent.FixFinding, 3),
+        (new[] { "remediation session", "start remediation", "guided fix", "walk me through", "remediate" }, AgentIntent.StartRemediation, 4),
+        (new[] { "verify remediation", "verify session", "check remediation", "did the fix work" }, AgentIntent.VerifyRemediation, 4),
         (new[] { "suppressed", "which are suppressed", "hidden findings", "silenced" }, AgentIntent.ListSuppressed, 2),
         (new[] { "set baseline", "save baseline", "snapshot baseline", "mark as baseline", "known good" }, AgentIntent.SetBaseline, 3),
         (new[] { "drift", "check drift", "baseline drift", "deviated", "changed from baseline" }, AgentIntent.CheckDrift, 3),
@@ -39,6 +41,7 @@ public sealed class QueryParser : IQueryParser
     };
 
     private static readonly Regex RuleIdPattern = new(@"[A-Za-z]{2,}-\d{3,}", RegexOptions.Compiled);
+    private static readonly Regex SessionIdPattern = new(@"\b[0-9a-fA-F]{8}\b", RegexOptions.Compiled);
 
     private static readonly string[] CategoryKeywords =
     {
@@ -113,8 +116,19 @@ public sealed class QueryParser : IQueryParser
 
     private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
     {
-        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory && intent != AgentIntent.FixFinding)
+        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory
+            && intent != AgentIntent.FixFinding && intent != AgentIntent.StartRemediation
+            && intent != AgentIntent.VerifyRemediation)
             return null;
+
+        if (intent == AgentIntent.VerifyRemediation)
+        {
+            var sessionMatch = SessionIdPattern.Match(rawQuery);
+            if (sessionMatch.Success)
+            {
+                return sessionMatch.Value;
+            }
+        }
 
         // Look for rule IDs like FW-001, PORT-002, etc.
         var ruleMatch = RuleIdPattern.Match(rawQuery);

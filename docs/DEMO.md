@@ -143,20 +143,22 @@ The Security Agent audits scheduled cron jobs for suspicious entries, dangerous 
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain CRON-001`.
 
-## Security Agent — Interactive Remediation
+## Security Agent — Remediation Preview And Sessions
 
-After running any audit, you can ask the agent to walk you through fixing a specific finding:
+After running any audit, you can ask the agent for either a single-finding remediation preview or a persisted guided session:
 
 1. Run an audit: `Check my firewall`
-2. When findings appear, type: `Fix FW-001`
-3. The agent returns an interactive remediation card with:
+2. When findings appear, type `Fix FW-001` for a preview, or `Remediate FW-001` to start a guided remediation session.
+3. The agent returns an interactive remediation card/session with:
    - **Preconditions** — checklist items such as "Root or sudo access" and "Console access available"
    - **Backup commands** — run these first to preserve state (e.g., `iptables-save`)
    - **Apply commands** — step-by-step fix commands, each with a safety badge
    - **Rollback commands** — how to undo if something goes wrong
    - **Verification commands** — confirm the fix worked
 4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
-5. If the finding's explanation template lacks rollback guidance for risky commands, the plan is blocked for safety and the agent tells you why.
+5. For sessions, click **Verify Remediation** or type `verify remediation <session-id>` after completing the manual steps. The agent re-runs the original audit intent and reports fixed, unchanged, new, and worsened findings.
+6. Use **Export Session** to save a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff.
+7. If the finding's explanation template lacks rollback guidance for risky commands, the plan/session is blocked for safety. Blocked sessions remain visible for auditability but do not expose copyable remediation commands or allow verification as completed remediation.
 
 ## Security Agent — Auto-Fix (Batch Remediation)
 

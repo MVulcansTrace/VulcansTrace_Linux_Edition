@@ -1,4 +1,5 @@
 using System.Text;
+using VulcansTrace.Linux.Agent.Sessions;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -139,6 +140,115 @@ public sealed class RemediationMarkdownFormatter
         sb.AppendLine("- [ ] Verification commands confirm the intended state.");
         sb.AppendLine("- [ ] Rollback plan is documented and accessible.");
         sb.AppendLine();
+
+        return sb.ToString();
+    }
+
+    public string FormatSession(RemediationSession session)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("# VulcansTrace Remediation Session Report");
+        sb.AppendLine();
+        sb.AppendLine($"> **Session ID:** {session.SessionId}");
+        sb.AppendLine($"> **Created:** {session.CreatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine($"> **Status:** {session.Status}");
+        sb.AppendLine();
+
+        if (session.BlockedReasons.Count > 0)
+        {
+            sb.AppendLine("## Blocked Steps");
+            sb.AppendLine();
+            foreach (var reason in session.BlockedReasons)
+            {
+                sb.AppendLine($"- {reason}");
+            }
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("## Step States");
+        sb.AppendLine();
+        foreach (var (ruleId, state) in session.StepStates)
+        {
+            sb.AppendLine($"- **{ruleId}:** {state}");
+        }
+        sb.AppendLine();
+
+        if (session.RemediationPlan.Sections.Count > 0)
+        {
+            sb.AppendLine("## Remediation Plan");
+            sb.AppendLine();
+            sb.Append(Format(session.RemediationPlan));
+        }
+
+        if (session.BeforeSnapshot != null)
+        {
+            sb.AppendLine("## Before Snapshot");
+            sb.AppendLine();
+            sb.AppendLine($"> **Captured:** {session.BeforeSnapshot.TimestampUtc:yyyy-MM-dd HH:mm:ss} UTC");
+            sb.AppendLine($"> **Intent:** {session.BeforeSnapshot.Intent}");
+            sb.AppendLine();
+            foreach (var f in session.BeforeSnapshot.Findings)
+            {
+                sb.AppendLine($"- [{f.RuleId}] [{f.Severity}] {f.ShortDescription}");
+            }
+            sb.AppendLine();
+        }
+
+        if (session.VerificationResult != null)
+        {
+            var v = session.VerificationResult;
+            sb.AppendLine("## Verification Result");
+            sb.AppendLine();
+            sb.AppendLine($"> **Verified at:** {v.VerifiedAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+            sb.AppendLine();
+            sb.AppendLine(v.DiffNarrative);
+            sb.AppendLine();
+
+            if (v.FixedFindings.Count > 0)
+            {
+                sb.AppendLine("### Fixed");
+                sb.AppendLine();
+                foreach (var f in v.FixedFindings)
+                {
+                    sb.AppendLine($"- ✓ [{f.RuleId}] {f.ShortDescription}");
+                }
+                sb.AppendLine();
+            }
+
+            if (v.UnchangedFindings.Count > 0)
+            {
+                sb.AppendLine("### Unchanged");
+                sb.AppendLine();
+                foreach (var f in v.UnchangedFindings)
+                {
+                    sb.AppendLine($"- [{f.RuleId}] {f.ShortDescription}");
+                }
+                sb.AppendLine();
+            }
+
+            if (v.NewFindings.Count > 0)
+            {
+                sb.AppendLine("### New Findings");
+                sb.AppendLine();
+                foreach (var f in v.NewFindings)
+                {
+                    sb.AppendLine($"- ⚠ [{f.RuleId}] {f.ShortDescription}");
+                }
+                sb.AppendLine();
+            }
+
+            if (v.WorsenedFindings.Count > 0)
+            {
+                sb.AppendLine("### Worsened");
+                sb.AppendLine();
+                foreach (var f in v.WorsenedFindings)
+                {
+                    sb.AppendLine($"- ✗ [{f.RuleId}] {f.OldSeverity} → {f.NewSeverity}: {f.ShortDescription}");
+                }
+                sb.AppendLine();
+            }
+        }
 
         return sb.ToString();
     }

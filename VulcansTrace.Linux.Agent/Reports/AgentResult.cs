@@ -1,11 +1,8 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Agent.Sessions;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
-/// <summary>
-/// The complete result of an agent audit operation.
-/// Wraps findings from live system rules and optional log analysis.
-/// </summary>
 public sealed record AgentResult
 {
     /// <summary>Findings produced by agent security rules.</summary>
@@ -61,4 +58,7 @@ public sealed record AgentResult
 
     /// <summary>Risk scorecard aggregating findings into a graded numeric score.</summary>
     public Core.RiskScorecard? RiskScorecard { get; init; }
+
+    /// <summary>Remediation session, populated for StartRemediation and VerifyRemediation intents.</summary>
+    public RemediationSession? RemediationSession { get; init; }
 }

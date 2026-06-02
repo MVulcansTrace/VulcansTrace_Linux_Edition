@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -13,12 +14,13 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentViewModelHistoryTests
 {
+    private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
     [Fact]
     public async Task History_Accumulates_On_Audit()
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         Assert.Empty(vm.History);
 
@@ -35,7 +37,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         for (int i = 0; i < 25; i++)
         {
@@ -50,7 +52,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         vm.LogText = "";
         await RunFullAuditAsync(vm);
@@ -69,7 +71,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         Assert.False(vm.CanCompareAudits);
         Assert.False(vm.CompareAuditsCommand.CanExecute(null));
@@ -90,7 +92,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         await RunFullAuditAsync(vm);
 
@@ -109,7 +111,7 @@ public class AgentViewModelHistoryTests
         store.Append(CreateHistoryEntry("snap-1"));
         store.Append(CreateHistoryEntry("snap-2"));
 
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         Assert.Equal(2, vm.History.Count);
         Assert.Equal("snap-2", vm.History[0].SnapshotId);
@@ -122,7 +124,7 @@ public class AgentViewModelHistoryTests
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore("Audit history persistence is unavailable.", maxEntries: 20);
 
-        var vm = new AgentViewModel(agent, store);
+        var vm = new AgentViewModel(agent, store, PlanBuilder);
 
         Assert.Contains(vm.Messages, message => message.Text == "Audit history persistence is unavailable." && message.IsInfo);
     }
@@ -207,6 +209,28 @@ public class AgentViewModelHistoryTests
             {
                 Intent = AgentIntent.ShowBaseline,
                 Summary = "Mock baseline",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "Mock remediation",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = "Mock verification",
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             });

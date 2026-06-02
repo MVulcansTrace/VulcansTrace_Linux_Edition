@@ -82,6 +82,10 @@ Documentation is organized for two audiences:
 - [AgentResultPresenter.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs) — chat rendering, grouped findings, filters, warnings, and remediation cards
 - [AgentHistoryCoordinator.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — persisted audit history refresh, comparisons, exported-state tracking, and persistence warnings
 - [AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI
+- [GuidedRemediationService.cs](../../../VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs) — remediation session lifecycle, blocked-state handling, verification, and before/after diffing
+- [RemediationSession.cs](../../../VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs) — remediation session model, step state, snapshots, and verification result
+- [JsonFileSessionStore.cs](../../../VulcansTrace.Linux.Agent/Sessions/JsonFileSessionStore.cs) — persisted remediation session store
+- [InMemorySessionStore.cs](../../../VulcansTrace.Linux.Agent/Sessions/InMemorySessionStore.cs) — session fallback store
 - [RemediationPlanBuilder.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs) — builds per-rule remediation plans from explanations
 - [RemediationExecutor.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs) — orchestrates backup, apply, rollback, and verify with policy enforcement
 - [AutoFixPolicy.cs](../../../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs) — configurable command-safety permission levels

@@ -7,6 +7,7 @@ using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Logging;
 using VulcansTrace.Linux.Core.Security;
@@ -216,6 +217,16 @@ public static class AgentFactory
             scheduleStore = new InMemoryScheduleStore("Schedule persistence is unavailable. Schedules will last only for this session.");
         }
 
+        ISessionStore sessionStore;
+        try
+        {
+            sessionStore = JsonFileSessionStore.CreateDefault();
+        }
+        catch
+        {
+            sessionStore = new InMemorySessionStore("Remediation session persistence is unavailable. Sessions will last only for this session.");
+        }
+
         var scorecardBuilder = new ComplianceScorecardBuilder();
         var riskScorecardBuilder = new RiskScorecardBuilder();
 
@@ -231,7 +242,8 @@ public static class AgentFactory
             auditHistoryStore,
             baselineStore,
             scorecardBuilder,
-            riskScorecardBuilder);
+            riskScorecardBuilder,
+            sessionStore);
 
         var ruleCatalog = new RuleCatalog(rules);
         var notificationService = new NotifySendNotificationService();
@@ -254,7 +266,8 @@ public static class AgentFactory
             NotificationService = notificationService,
             ProcessRunner = processRunner,
             RemediationExecutor = remediationExecutor,
-            RemediationPlanBuilder = remediationPlanBuilder
+            RemediationPlanBuilder = remediationPlanBuilder,
+            SessionStore = sessionStore
         };
     }
 }
@@ -307,6 +320,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Builds remediation plans from findings.</summary>
     public required RemediationPlanBuilder RemediationPlanBuilder { get; init; }
 
+    /// <summary>Store for remediation sessions.</summary>
+    public required ISessionStore SessionStore { get; init; }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -320,5 +336,6 @@ public sealed record AgentServices : IDisposable
         (ScheduleStore as IDisposable)?.Dispose();
         (NotificationService as IDisposable)?.Dispose();
         (ProcessRunner as IDisposable)?.Dispose();
+        (SessionStore as IDisposable)?.Dispose();
     }
 }

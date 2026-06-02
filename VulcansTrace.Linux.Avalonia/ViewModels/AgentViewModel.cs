@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
-using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -24,6 +23,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentOperationRunner _operationRunner;
     private readonly AgentQueryExecutor _queryExecutor;
     private readonly AgentResultStateCoordinator _resultState;
+    private readonly RemediationPlanBuilder _remediationPlanBuilder;
 
     private string _userQuery = "";
     private string _logText = "";
@@ -148,9 +148,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
                 ExportAuditCommand.RaiseCanExecuteChanged();
                 ExportRemediationCommand.RaiseCanExecuteChanged();
+                VerifySessionCommand.RaiseCanExecuteChanged();
+                ExportSessionCommand.RaiseCanExecuteChanged();
                 CompareAuditsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanExplainSelected));
                 OnPropertyChanged(nameof(CanExportAudit));
+                OnPropertyChanged(nameof(CanExportSession));
                 OnPropertyChanged(nameof(CanCompareAudits));
             }
         }
@@ -164,6 +167,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets whether the latest agent result is an audit that can be exported.</summary>
     public bool CanExportAudit => !_isBusy && _resultState.IsExportableAudit;
+
+    /// <summary>Gets whether the latest agent result has a remediation session report to export.</summary>
+    public bool CanExportSession => !_isBusy && _resultState.LastResult?.RemediationSession != null;
 
     /// <summary>Gets whether two audit snapshots are available for comparison.</summary>
     public bool CanCompareAudits => History.Count >= 2;
@@ -239,6 +245,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
     public RelayCommand ExportRemediationCommand { get; }
 
+    /// <summary>Gets the command to run verification on an active remediation session.</summary>
+    public AsyncRelayCommand VerifySessionCommand { get; }
+
+    /// <summary>Gets the command to export the current remediation session report.</summary>
+    public RelayCommand ExportSessionCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -250,6 +262,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// Set by the parent ViewModel to handle the save dialog.
     /// </summary>
     public Action<string>? RequestExportRemediation { get; set; }
+
+    /// <summary>
+    /// Callback invoked when the user requests a session report export.
+    /// Set by the parent ViewModel to handle the save dialog.
+    /// </summary>
+    public Action<string>? RequestExportSession { get; set; }
 
     /// <summary>
     /// Callback invoked when the user requests to show an audit diff.
@@ -273,10 +291,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="agent">The agent instance to use for queries.</param>
     /// <param name="historyStore">The store for persisting audit history.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
+        _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
         _presenter = new AgentResultPresenter(
             Messages,
             ChatCategoryFilters,
@@ -383,6 +402,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             async _ => await ShowBaselineAsync(),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        VerifySessionCommand = new AsyncRelayCommand(
+            async param => await VerifySessionAsync((param as string) ?? ""),
+            param => !_isBusy && !string.IsNullOrWhiteSpace(param as string),
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ExportSessionCommand = new RelayCommand(
+            _ => ExportSession(),
+            _ => !_isBusy && _resultState.LastResult?.RemediationSession != null);
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
 
@@ -498,7 +526,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
+        ExportSessionCommand.RaiseCanExecuteChanged();
         SetBaselineCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CanExportSession));
     }
 
     private void PublishAuditCompleted(AgentResult result)
@@ -564,6 +594,19 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         });
     }
 
+    private async Task VerifySessionAsync(string sessionId)
+    {
+        AddUserMessage($"Verify remediation session {sessionId}");
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.VerifyRemediationAsync(sessionId, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false));
+        });
+    }
+
     private void ExportRemediationPlan()
     {
         var lastResult = _resultState.LastResult;
@@ -575,8 +618,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var builder = new RemediationPlanBuilder(new ExplanationProvider());
-            var plan = builder.Build(lastResult.AgentFindings);
+            var plan = _remediationPlanBuilder.Build(lastResult.AgentFindings);
             var validation = RemediationPlanValidator.Validate(plan);
             if (!validation.IsValid)
             {
@@ -595,6 +637,27 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AddAgentMessage($"Failed to generate remediation plan: {ex.Message}", true);
+        }
+    }
+
+    private void ExportSession()
+    {
+        var session = _resultState.LastResult?.RemediationSession;
+        if (session == null)
+        {
+            AddAgentMessage("No active remediation session to export.", true);
+            return;
+        }
+
+        try
+        {
+            var formatter = new RemediationMarkdownFormatter();
+            var markdown = formatter.FormatSession(session);
+            RequestExportSession?.Invoke(markdown);
+        }
+        catch (Exception ex)
+        {
+            AddAgentMessage($"Failed to export session report: {ex.Message}", true);
         }
     }
 

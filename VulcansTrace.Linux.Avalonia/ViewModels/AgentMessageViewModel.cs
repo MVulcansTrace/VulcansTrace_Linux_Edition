@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -90,6 +91,46 @@ public sealed class AgentMessageViewModel : ViewModelBase
 
     /// <summary>Gets whether this message has verification commands to display.</summary>
     public bool HasVerificationCommands => _verificationCommands.Count > 0;
+
+    private string _sessionId = "";
+    private RemediationSessionStatus _sessionStatus;
+    private bool _isVerificationResult;
+
+    /// <summary>Gets or sets the remediation session ID for this message.</summary>
+    public string SessionId
+    {
+        get => _sessionId;
+        set
+        {
+            if (SetField(ref _sessionId, value))
+            {
+                OnPropertyChanged(nameof(HasActiveSession));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the session status.</summary>
+    public RemediationSessionStatus SessionStatus
+    {
+        get => _sessionStatus;
+        set
+        {
+            if (SetField(ref _sessionStatus, value))
+            {
+                OnPropertyChanged(nameof(HasActiveSession));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets whether this message represents a verification result.</summary>
+    public bool IsVerificationResult
+    {
+        get => _isVerificationResult;
+        set => SetField(ref _isVerificationResult, value);
+    }
+
+    /// <summary>Gets whether this message has an active session (can be verified).</summary>
+    public bool HasActiveSession => !string.IsNullOrEmpty(_sessionId) && _sessionStatus == RemediationSessionStatus.Active;
 
     /// <summary>Gets or sets the interactive remediation section for this message.</summary>
     public RemediationSection? RemediationSection

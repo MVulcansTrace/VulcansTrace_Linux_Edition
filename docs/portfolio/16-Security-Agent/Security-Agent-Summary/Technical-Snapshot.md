@@ -24,7 +24,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 26: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, AutoFix, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, Help |
+| Agent intents | 27: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, Help |
 | CIS mapping coverage | 64 / 64 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
@@ -110,6 +110,10 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding
 - [RiskScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs) — aggregate risk score computation
 - [RiskScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs) — risk score tab binding
+- [GuidedRemediationService.cs](../../../../VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs) — remediation session lifecycle, blocked-state handling, verification, and before/after diffing
+- [RemediationSession.cs](../../../../VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs) — remediation session model, step state, snapshots, and verification result
+- [JsonFileSessionStore.cs](../../../../VulcansTrace.Linux.Agent/Sessions/JsonFileSessionStore.cs) — persisted remediation session store
+- [InMemorySessionStore.cs](../../../../VulcansTrace.Linux.Agent/Sessions/InMemorySessionStore.cs) — session fallback store
 - [RemediationPlanBuilder.cs](../../../../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs) — builds per-rule remediation plans from explanations
 - [RemediationExecutor.cs](../../../../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs) — orchestrates backup, apply, rollback, and verify with policy enforcement
 - [AutoFixPolicy.cs](../../../../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs) — configurable command-safety permission levels

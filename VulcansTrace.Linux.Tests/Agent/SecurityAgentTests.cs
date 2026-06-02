@@ -895,7 +895,7 @@ public class SecurityAgentTests
     }
 
     [Fact]
-    public async Task AskAsync_FixFinding_WithoutReference_ReturnsGuidance()
+    public async Task AskAsync_StartRemediation_WithoutReference_ReturnsGuidance()
     {
         var agent = new SecurityAgent(
             new IScanner[] { new NoopScanner() },
@@ -905,8 +905,8 @@ public class SecurityAgentTests
         await agent.AskAsync("audit everything", null, CancellationToken.None);
         var result = await agent.AskAsync("remediate", null, CancellationToken.None);
 
-        Assert.Equal(AgentIntent.FixFinding, result.Intent);
-        Assert.Contains("specify which finding", result.Summary);
+        Assert.Equal(AgentIntent.StartRemediation, result.Intent);
+        Assert.Contains("specify", result.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -960,7 +960,7 @@ public class SecurityAgentTests
         var result = await agent.AskAsync("fix TEST-001", null, CancellationToken.None);
 
         Assert.Equal(AgentIntent.FixFinding, result.Intent);
-        Assert.NotNull(result.RemediationPlan);
+        Assert.Null(result.RemediationPlan);
         Assert.Contains("blocked for safety", result.Summary);
         Assert.NotEmpty(result.Warnings);
     }

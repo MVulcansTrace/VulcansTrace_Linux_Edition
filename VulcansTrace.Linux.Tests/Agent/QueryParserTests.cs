@@ -41,7 +41,9 @@ public class QueryParserTests
     [InlineData("what should I fix first", AgentIntent.PrioritizeRemediation)]
     [InlineData("remediation plan", AgentIntent.PrioritizeRemediation)]
     [InlineData("fix FW-001", AgentIntent.FixFinding)]
-    [InlineData("remediate PORT-002", AgentIntent.FixFinding)]
+    [InlineData("remediate PORT-002", AgentIntent.StartRemediation)]
+    [InlineData("guided fix FW-001", AgentIntent.StartRemediation)]
+    [InlineData("verify session abc12345", AgentIntent.VerifyRemediation)]
     [InlineData("resolve SSH-003", AgentIntent.FixFinding)]
     [InlineData("what should I fix", AgentIntent.PrioritizeRemediation)]
     [InlineData("which findings are suppressed", AgentIntent.ListSuppressed)]
@@ -132,7 +134,6 @@ public class QueryParserTests
 
     [Theory]
     [InlineData("fix FW-001", "FW-001")]
-    [InlineData("remediate port-002", "port-002")]
     [InlineData("resolve FILE-003", "FILE-003")]
     public void Parse_FixFinding_WithReference_ReturnsTargetReference(string query, string expectedReference)
     {
@@ -142,13 +143,38 @@ public class QueryParserTests
     }
 
     [Theory]
-    [InlineData("remediate")]
     [InlineData("resolve")]
     public void Parse_FixFinding_WithoutReference_ReturnsNullTargetReference(string query)
     {
         var result = _parser.Parse(query);
         Assert.Equal(AgentIntent.FixFinding, result.Intent);
         Assert.Null(result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("remediate port-002", "port-002")]
+    [InlineData("guided fix FW-001", "FW-001")]
+    public void Parse_StartRemediation_WithReference_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.StartRemediation, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_StartRemediation_WithoutReference_ReturnsNullTargetReference()
+    {
+        var result = _parser.Parse("remediate");
+        Assert.Equal(AgentIntent.StartRemediation, result.Intent);
+        Assert.Null(result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_VerifyRemediation_WithSessionId_ReturnsTargetReference()
+    {
+        var result = _parser.Parse("verify remediation abc12345");
+        Assert.Equal(AgentIntent.VerifyRemediation, result.Intent);
+        Assert.Equal("abc12345", result.TargetReference);
     }
 
     [Fact]

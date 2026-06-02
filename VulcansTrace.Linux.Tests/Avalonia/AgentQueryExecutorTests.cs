@@ -166,5 +166,11 @@ public class AgentQueryExecutorTests
 
         public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.ShowBaseline, Summary = "show baseline" });
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "remediation" });
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "verify" });
     }
 }

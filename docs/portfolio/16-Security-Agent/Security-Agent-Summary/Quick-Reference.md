@@ -25,8 +25,10 @@
 | `ExplainCritical` | `Why is this critical?` | Explain Critical/High findings from the last audit |
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
 | `PrioritizeRemediation` | `What should I fix first?` | Severity-ordered remediation plan from the last audit |
-| `FixFinding` | `Fix FW-001` | Interactive, step-by-step guided remediation for a specific finding |
-| `AutoFix` | `Auto-fix my findings` | Batch auto-remediation with `--auto-fix`; supports `--dry-run` to preview, `--policy` (Conservative/Standard/Aggressive), `--allow-restart`, `--allow-packages`, and `--yes` to skip confirmation. Automatically skips risky commands missing rollback guidance. |
+| `FixFinding` | `Fix FW-001` | Single-finding remediation preview when rollback guidance is present |
+| `StartRemediation` | `Remediate FW-001` | Persisted guided remediation session with before snapshot and step state |
+| `VerifyRemediation` | `Verify remediation abc12345` | Re-run the session's audit intent and report fixed, unchanged, new, and worsened findings |
+| Auto-Fix CLI | `--auto-fix` | Batch auto-remediation; supports `--dry-run` to preview, `--policy` (Conservative/Standard/Aggressive), `--allow-restart`, `--allow-packages`, and `--yes` to skip confirmation. Automatically skips risky commands missing rollback guidance. |
 | `ListSuppressed` | `Which findings are suppressed?` | List suppressed findings from the last audit |
 | `SetBaseline` | `Set baseline` | Save the last audit as a known-good baseline snapshot |
 | `CheckDrift` | `Check drift` | Compare live config against the saved baseline; reports new and worsened findings |
@@ -161,7 +163,9 @@ User query
 | Baseline & drift | Persists intent-scoped baselines to the user config directory. Set Baseline saves the last audit as known-good. Check Drift re-runs the audit and diffs against the active baseline. Show Baseline displays saved findings with original details, categories, and fingerprints preserved |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |
-| Interactive Remediation | `fix FW-001` surfaces a chat card with preconditions, backup, apply, rollback, and verification commands — each with safety and structural badges. Plans are validated before display; missing rollback guidance for risky commands blocks the card |
+| Export Session | Writes a markdown guided remediation session report with session status, step state, blocked reasons, before snapshot, remediation plan, and verification diff when present |
+| Interactive Remediation Preview | `fix FW-001` surfaces a chat card with preconditions, backup, apply, rollback, and verification commands — each with safety and structural badges. Plans are validated before display; missing rollback guidance for risky commands blocks the card |
+| Guided Remediation Session | `remediate FW-001` creates a persisted session. Active sessions can be verified; blocked sessions show safety reasons without exposing command cards |
 | Auto-Fix (CLI) | `--auto-fix` applies safe remediation commands in batch. `--dry-run` previews changes without execution. Policy gates determine which `CommandSafety` levels are permitted. Automatically rolls back on apply failure. Exit codes: 0=success, 1=error, 2=unsafe skipped, 3=apply/rollback failure. |
 
 ---

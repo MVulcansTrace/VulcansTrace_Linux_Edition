@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
-using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
@@ -28,6 +27,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly AnalysisProfileProvider _profileProvider;
     private readonly IDialogService _dialogService;
     private readonly ISuppressionStore _suppressionStore;
+    private readonly RemediationPlanBuilder _remediationPlanBuilder;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly EventHandler<string> _evidenceStatusHandler;
     private readonly EventHandler _evidenceExportCompletedHandler;
@@ -292,6 +292,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAgent agent,
         ISuppressionStore suppressionStore,
         IAuditHistoryStore auditHistoryStore,
+        RemediationPlanBuilder remediationPlanBuilder,
         IScheduleStore? scheduleStore = null,
         INotificationService? notificationService = null)
     {
@@ -299,6 +300,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _profileProvider = profileProvider;
         _dialogService = dialogService;
         _suppressionStore = suppressionStore;
+        _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
 
         // Initialize commands first (before setting properties that trigger RaiseCanExecuteChanged)
         AnalyzeCommand = new AsyncRelayCommand(
@@ -316,11 +318,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),
-            RequestExportRemediation = async markdown => await ExportRemediationPlanAsync(markdown)
+            RequestExportRemediation = async markdown => await ExportRemediationPlanAsync(markdown),
+            RequestExportSession = async markdown => await ExportSessionReportAsync(markdown)
         };
         Agent.AuditCompleted += OnAgentAuditCompleted;
         _findingsPropertyChangedHandler = OnFindingsPropertyChanged;
@@ -524,8 +527,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         string? remediationMarkdown = null;
         if (agentResult.AgentFindings.Count > 0)
         {
-            var planBuilder = new RemediationPlanBuilder(new ExplanationProvider());
-            var plan = planBuilder.Build(agentResult.AgentFindings);
+            var plan = _remediationPlanBuilder.Build(agentResult.AgentFindings);
             var validation = RemediationPlanValidator.Validate(plan);
             if (validation.IsValid)
             {
@@ -567,6 +569,27 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             SummaryText = $"Failed to export remediation plan: {ex.Message}";
+        }
+    }
+
+    private async Task ExportSessionReportAsync(string markdown)
+    {
+        var path = await _dialogService.ShowSaveFileDialogAsync(
+            "Export Session Report",
+            "Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            $"remediation-session-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
+
+        if (path == null)
+            return;
+
+        try
+        {
+            await File.WriteAllTextAsync(path, markdown);
+            SummaryText = $"Session report exported to {path}";
+        }
+        catch (Exception ex)
+        {
+            SummaryText = $"Failed to export session report: {ex.Message}";
         }
     }
 

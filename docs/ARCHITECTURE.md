@@ -95,6 +95,43 @@ Risk escalation correlations include (when both findings occur within a correlat
 - FlagAnomaly + PortScan -> Critical.
 - MacSpoofing + InterfaceHopping -> Critical.
 
+## Guided Remediation Sessions
+
+The guided remediation layer adds session-aware, manual-first remediation with before/after verification on top of the existing Auto-Fix pipeline.
+
+### Service Boundaries
+
+- `GuidedRemediationService` — owns session lifecycle, plan building, step tracking, verification, and before/after diffing. Created by `SecurityAgent` and receives `RemediationPlanBuilder` via constructor injection (not inline creation).
+- `AgentFollowUpService` — handles non-remediation follow-up queries only (`ShowChanges`, `ExplainCritical`, `FilterCategory`, `ListSuppressed`, `RiskScore`). Delegates `PrioritizeRemediation` and `FixFinding` intents to `GuidedRemediationService`.
+- `RemediationPlanBuilder` — plan generation from findings (existing). Always injected, never created inline.
+- `RemediationPlanValidator` — safety validation (existing).
+- `RemediationExecutor` — command execution (existing, CLI path only).
+
+### Session Model
+
+- `RemediationSession` composes the existing `RemediationPlan` rather than duplicating it.
+- `RemediationSessionStatus` tracks session lifecycle: `Active`, `Blocked`, `Completed`, `Verified`, `Cancelled`.
+- `RemediationStepState` tracks per-section completion: `Pending`, `InProgress`, `Completed`, `Skipped`, `Blocked`, `Failed`.
+- `AuditSnapshot` captures findings at session creation and after verification for before/after comparison.
+- `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`).
+- Blocked sessions remain persisted for auditability, but the UI does not expose remediation command cards for blocked steps and verification refuses blocked sessions.
+
+### ViewModel Boundaries
+
+- `AgentViewModel` — query dispatch, state, commands. Receives `RemediationPlanBuilder` via constructor for export (not created inline).
+- `AgentResultPresenter` — renders `AgentResult` to chat messages.
+- `AgentMessageViewModel` — individual message rendering, remediation/session state, and copyable command behavior.
+- `MainViewModel` — receives `RemediationPlanBuilder` via constructor for evidence export (not created inline).
+- `AgentView.axaml` — exposes Verify Remediation on active session cards and Export Session for the latest session result.
+
+### Intent Routing
+
+`SecurityAgent.AskAsync` dispatches intents:
+- Baseline intents (`SetBaseline`, `CheckDrift`, `ShowBaseline`) -> `BaselineDriftService`
+- Remediation intents (`PrioritizeRemediation`, `FixFinding`, `StartRemediation`, `VerifyRemediation`) -> `GuidedRemediationService`
+- Other follow-up intents -> `AgentFollowUpService`
+- Audit intents -> `RunAuditAsync` pipeline
+
 ## Logging
 
 Runtime logging is abstracted behind `ILogSink`. The UI uses `DiagnosticsLogSink` to emit to `System.Diagnostics.Trace`, while parsers and engine default to `NullLogSink` if no sink is provided.
