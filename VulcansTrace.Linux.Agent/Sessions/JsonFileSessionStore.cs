@@ -11,7 +11,8 @@ public sealed class JsonFileSessionStore : ISessionStore, IDisposable
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new UtcDateTimeJsonConverter() }
     };
 
     public JsonFileSessionStore(string filePath)

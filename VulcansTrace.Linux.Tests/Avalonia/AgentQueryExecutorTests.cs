@@ -172,5 +172,8 @@ public class AgentQueryExecutorTests
 
         public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "verify" });
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "exported" });
     }
 }

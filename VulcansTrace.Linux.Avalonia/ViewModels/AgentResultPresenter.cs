@@ -225,7 +225,8 @@ internal sealed class AgentResultPresenter
             Timestamp = DateTime.Now,
             RemediationSection = sectionIsBlocked ? null : section,
             SessionId = session.SessionId,
-            SessionStatus = session.Status
+            SessionStatus = session.Status,
+            SessionTimeline = session.Timeline
         });
     }
 
@@ -242,7 +243,8 @@ internal sealed class AgentResultPresenter
             Timestamp = DateTime.Now,
             SessionId = session.SessionId,
             SessionStatus = session.Status,
-            IsVerificationResult = true
+            IsVerificationResult = true,
+            SessionTimeline = session.Timeline
         });
     }
 

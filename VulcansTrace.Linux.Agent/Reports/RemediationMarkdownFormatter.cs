@@ -155,6 +155,21 @@ public sealed class RemediationMarkdownFormatter
         sb.AppendLine($"> **Status:** {session.Status}");
         sb.AppendLine();
 
+        if (session.Timeline.Count > 0)
+        {
+            sb.AppendLine("## Timeline");
+            sb.AppendLine();
+            foreach (var evt in session.Timeline)
+            {
+                sb.AppendLine($"- {evt.TimestampUtc:yyyy-MM-dd HH:mm:ss} UTC — {evt.Type}: {evt.Title}");
+                if (!string.IsNullOrWhiteSpace(evt.Details))
+                {
+                    sb.AppendLine($"  - {evt.Details}");
+                }
+            }
+            sb.AppendLine();
+        }
+
         if (session.BlockedReasons.Count > 0)
         {
             sb.AppendLine("## Blocked Steps");

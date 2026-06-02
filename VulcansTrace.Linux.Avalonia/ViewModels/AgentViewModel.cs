@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -249,7 +250,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public AsyncRelayCommand VerifySessionCommand { get; }
 
     /// <summary>Gets the command to export the current remediation session report.</summary>
-    public RelayCommand ExportSessionCommand { get; }
+    public AsyncRelayCommand ExportSessionCommand { get; }
 
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
@@ -265,9 +266,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Callback invoked when the user requests a session report export.
-    /// Set by the parent ViewModel to handle the save dialog.
+    /// Set by the parent ViewModel to handle the save dialog and report whether the file was written.
     /// </summary>
-    public Action<string>? RequestExportSession { get; set; }
+    public Func<string, Task<bool>>? RequestExportSession { get; set; }
 
     /// <summary>
     /// Callback invoked when the user requests to show an audit diff.
@@ -408,9 +409,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             param => !_isBusy && !string.IsNullOrWhiteSpace(param as string),
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
-        ExportSessionCommand = new RelayCommand(
-            _ => ExportSession(),
-            _ => !_isBusy && _resultState.LastResult?.RemediationSession != null);
+        ExportSessionCommand = new AsyncRelayCommand(
+            async _ => await ExportSessionAsync(),
+            _ => !_isBusy && _resultState.LastResult?.RemediationSession != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
 
@@ -640,7 +642,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void ExportSession()
+    private async Task ExportSessionAsync()
     {
         var session = _resultState.LastResult?.RemediationSession;
         if (session == null)
@@ -649,15 +651,40 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             var formatter = new RemediationMarkdownFormatter();
             var markdown = formatter.FormatSession(session);
-            RequestExportSession?.Invoke(markdown);
-        }
-        catch (Exception ex)
+
+            var exportCallback = RequestExportSession;
+            if (exportCallback == null)
+            {
+                AddAgentMessage("Session export is not available in this view.", true);
+                return;
+            }
+
+            var exported = await exportCallback(markdown);
+            if (!exported)
+            {
+                return;
+            }
+
+            var result = await _agent.MarkSessionExportedAsync(session.SessionId, token);
+            SetLastResult(result);
+
+            if (result.RemediationSession != null)
+            {
+                Dispatcher.UIThread.Post(() => UpdateSessionTimeline(result.RemediationSession));
+            }
+        });
+    }
+
+    private void UpdateSessionTimeline(RemediationSession session)
+    {
+        foreach (var message in Messages.Where(m => m.SessionId == session.SessionId))
         {
-            AddAgentMessage($"Failed to export session report: {ex.Message}", true);
+            message.SessionStatus = session.Status;
+            message.SessionTimeline = session.Timeline;
         }
     }
 

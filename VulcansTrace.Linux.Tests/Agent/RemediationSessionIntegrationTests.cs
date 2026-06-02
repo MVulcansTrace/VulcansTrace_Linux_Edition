@@ -115,6 +115,58 @@ public class RemediationSessionIntegrationTests
         Assert.Contains("FW-DANGER", markdown);
     }
 
+    [Fact]
+    public void JsonFileSessionStore_RoundTripsTimeline()
+    {
+        var tempPath = Path.GetTempFileName();
+        try
+        {
+            var store = new JsonFileSessionStore(tempPath);
+            var session = new RemediationSession
+            {
+                SessionId = "roundtrip1",
+                SourceFindings = Array.Empty<Finding>(),
+                RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+                StepStates = new Dictionary<string, RemediationStepState> { ["FW-001"] = RemediationStepState.Completed },
+                BlockedReasons = Array.Empty<string>(),
+                Timeline = new[]
+                {
+                    new RemediationSessionEvent
+                    {
+                        TimestampUtc = new DateTime(2026, 6, 2, 10, 0, 0, DateTimeKind.Utc),
+                        Type = RemediationSessionEventType.Created,
+                        Title = "Session started"
+                    },
+                    new RemediationSessionEvent
+                    {
+                        TimestampUtc = new DateTime(2026, 6, 2, 10, 5, 0, DateTimeKind.Utc),
+                        Type = RemediationSessionEventType.StepMarkedCompleted,
+                        Title = "FW-001 marked completed",
+                        RuleId = "FW-001"
+                    }
+                }
+            };
+
+            store.Save(session);
+            var loaded = store.Load("roundtrip1");
+
+            Assert.NotNull(loaded);
+            Assert.Equal(2, loaded.Timeline.Count);
+            Assert.Equal(RemediationSessionEventType.Created, loaded.Timeline[0].Type);
+            Assert.Equal("Session started", loaded.Timeline[0].Title);
+            Assert.Equal(new DateTime(2026, 6, 2, 10, 0, 0, DateTimeKind.Utc), loaded.Timeline[0].TimestampUtc);
+            Assert.Equal(DateTimeKind.Utc, loaded.Timeline[0].TimestampUtc.Kind);
+            Assert.Equal(RemediationSessionEventType.StepMarkedCompleted, loaded.Timeline[1].Type);
+            Assert.Equal("FW-001", loaded.Timeline[1].RuleId);
+            Assert.Equal(new DateTime(2026, 6, 2, 10, 5, 0, DateTimeKind.Utc), loaded.Timeline[1].TimestampUtc);
+            Assert.Equal(DateTimeKind.Utc, loaded.Timeline[1].TimestampUtc.Kind);
+        }
+        finally
+        {
+            File.Delete(tempPath);
+        }
+    }
+
     private static GuidedRemediationService CreateService(
         AgentAuditState state,
         InMemorySessionStore store,

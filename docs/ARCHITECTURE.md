@@ -110,11 +110,14 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 ### Session Model
 
 - `RemediationSession` composes the existing `RemediationPlan` rather than duplicating it.
-- `RemediationSessionStatus` tracks session lifecycle: `Active`, `Blocked`, `Completed`, `Verified`, `Cancelled`.
+- `RemediationSessionStatus` tracks session lifecycle: `Active`, `Blocked`, `Completed`, `Verified`.
 - `RemediationStepState` tracks per-section completion: `Pending`, `InProgress`, `Completed`, `Skipped`, `Blocked`, `Failed`.
 - `AuditSnapshot` captures findings at session creation and after verification for before/after comparison.
-- `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`).
+- `RemediationSessionEvent` records immutable timeline events: `Created`, `StepMarkedPending`, `StepMarkedInProgress`, `StepMarkedCompleted`, `StepMarkedSkipped`, `StepMarkedFailed`, `StepBlocked`, `VerificationStarted`, `VerificationCompleted`, `VerificationBlocked`, `VerificationFailed`, `Exported`.
+- `RemediationSessionEventType` enum defines the event kinds.
+- `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`). Both round-trip the timeline.
 - Blocked sessions remain persisted for auditability, but the UI does not expose remediation command cards for blocked steps and verification refuses blocked sessions.
+- Verification always records a terminal timeline event after `VerificationStarted`: `VerificationCompleted`, `VerificationBlocked`, or `VerificationFailed`. Session export records `Exported` only after the markdown report write succeeds.
 
 ### ViewModel Boundaries
 

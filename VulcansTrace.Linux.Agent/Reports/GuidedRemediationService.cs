@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -280,8 +281,20 @@ internal sealed class GuidedRemediationService
             StepStates = stepStates,
             BeforeSnapshot = beforeSnapshot,
             Status = isBlocked ? RemediationSessionStatus.Blocked : RemediationSessionStatus.Active,
-            BlockedReasons = blockedReasons
+            BlockedReasons = blockedReasons,
+            Timeline = Array.Empty<RemediationSessionEvent>()
         };
+
+        session = AppendEvent(session, RemediationSessionEventType.Created, $"Session started for {findingReference}");
+
+        foreach (var reason in blockedReasons)
+        {
+            var ruleId = ExtractRuleIdFromBlockedReason(reason);
+            var title = ruleId != null
+                ? $"{ruleId} requires rollback guidance"
+                : "Blocked step requires rollback guidance";
+            session = AppendEvent(session, RemediationSessionEventType.StepBlocked, title, ruleId, reason);
+        }
 
         _sessionStore?.Save(session);
 
@@ -313,6 +326,17 @@ internal sealed class GuidedRemediationService
             };
         }
 
+        if (!session.RemediationPlan.Sections.Any(s => s.RuleId == ruleId))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = $"Step **{ruleId}** does not exist in this session's remediation plan.",
+                AgentFindings = session.SourceFindings,
+                Warnings = Array.Empty<string>()
+            };
+        }
+
         var current = session.StepStates.GetValueOrDefault(ruleId);
         if (current == RemediationStepState.Blocked && state != RemediationStepState.Blocked)
         {
@@ -330,11 +354,24 @@ internal sealed class GuidedRemediationService
             [ruleId] = state
         };
 
+        var eventType = state switch
+        {
+            RemediationStepState.Pending => RemediationSessionEventType.StepMarkedPending,
+            RemediationStepState.InProgress => RemediationSessionEventType.StepMarkedInProgress,
+            RemediationStepState.Completed => RemediationSessionEventType.StepMarkedCompleted,
+            RemediationStepState.Skipped => RemediationSessionEventType.StepMarkedSkipped,
+            RemediationStepState.Blocked => RemediationSessionEventType.StepBlocked,
+            RemediationStepState.Failed => RemediationSessionEventType.StepMarkedFailed,
+            _ => RemediationSessionEventType.StepMarkedPending
+        };
+
+        var updatedSession = AppendEvent(session, eventType, $"{ruleId} marked {state.ToString().ToLowerInvariant()}", ruleId);
+
         var allCompleted = updatedSteps.Values.All(s => s is RemediationStepState.Completed or RemediationStepState.Skipped);
-        var updatedSession = session with
+        updatedSession = updatedSession with
         {
             StepStates = updatedSteps,
-            Status = allCompleted ? RemediationSessionStatus.Completed : session.Status
+            Status = allCompleted ? RemediationSessionStatus.Completed : updatedSession.Status
         };
 
         _sessionStore.Save(updatedSession);
@@ -382,6 +419,9 @@ internal sealed class GuidedRemediationService
 
         if (session.BeforeSnapshot == null)
         {
+            var blockedSnapshotSession = AppendEvent(session, RemediationSessionEventType.VerificationBlocked,
+                $"Session **{sessionId}** has no before snapshot to compare against.");
+            _sessionStore.Save(blockedSnapshotSession);
             return new AgentResult
             {
                 Intent = AgentIntent.VerifyRemediation,
@@ -393,6 +433,9 @@ internal sealed class GuidedRemediationService
 
         if (session.Status == RemediationSessionStatus.Blocked)
         {
+            var blockedSession = AppendEvent(session, RemediationSessionEventType.VerificationBlocked,
+                $"Session **{sessionId}** is blocked due to safety concerns and cannot be verified as a completed remediation.");
+            _sessionStore.Save(blockedSession);
             return new AgentResult
             {
                 Intent = AgentIntent.VerifyRemediation,
@@ -405,7 +448,11 @@ internal sealed class GuidedRemediationService
         var savedLastResult = _auditState.LastResult;
         try
         {
-            var auditResult = await _runAudit(session.BeforeSnapshot.Intent, null, ct);
+            session = AppendEvent(session, RemediationSessionEventType.VerificationStarted,
+                $"Verification started for session {sessionId}");
+            _sessionStore.Save(session);
+
+            var auditResult = await _runAudit(session.BeforeSnapshot!.Intent, null, ct);
             var afterSnapshot = CaptureSnapshot(auditResult);
 
             var beforeEntry = ToHistoryEntry(session.BeforeSnapshot);
@@ -422,7 +469,11 @@ internal sealed class GuidedRemediationService
                 VerifiedAtUtc = DateTime.UtcNow
             };
 
-            var updatedSession = session with
+            var updatedSession = AppendEvent(session, RemediationSessionEventType.VerificationCompleted,
+                $"{verificationResult.FixedFindings.Count} fixed, {verificationResult.UnchangedFindings.Count} unchanged, {verificationResult.NewFindings.Count} new, {verificationResult.WorsenedFindings.Count} worsened",
+                details: diff.Narrative);
+
+            updatedSession = updatedSession with
             {
                 AfterSnapshot = afterSnapshot,
                 VerificationResult = verificationResult,
@@ -433,10 +484,52 @@ internal sealed class GuidedRemediationService
 
             return BuildVerificationResult(updatedSession);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var failedSession = AppendEvent(session, RemediationSessionEventType.VerificationFailed,
+                $"Verification failed for session {sessionId}",
+                details: ex.Message);
+            _sessionStore.Save(failedSession);
+            throw;
+        }
         finally
         {
             _auditState.RememberResult(savedLastResult);
         }
+    }
+
+    public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_sessionStore == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = $"Session **{sessionId}** not found.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var updatedSession = AppendEvent(session, RemediationSessionEventType.Exported,
+            $"Session {sessionId} exported");
+        _sessionStore.Save(updatedSession);
+
+        return Task.FromResult(BuildSessionResult(updatedSession));
     }
 
     private static AuditSnapshot CaptureSnapshot(AgentResult result) => new()
@@ -596,6 +689,38 @@ internal sealed class GuidedRemediationService
             RemediationSession = session,
             Warnings = Array.Empty<string>()
         };
+    }
+
+    private static RemediationSession AppendEvent(
+        RemediationSession session,
+        RemediationSessionEventType type,
+        string title,
+        string? ruleId = null,
+        string? details = null)
+    {
+        var evt = new RemediationSessionEvent
+        {
+            TimestampUtc = DateTime.UtcNow,
+            Type = type,
+            Title = title,
+            RuleId = ruleId,
+            Details = details ?? ""
+        };
+        var updated = ((ImmutableList<RemediationSessionEvent>)session.Timeline).Add(evt);
+        return session with { Timeline = updated };
+    }
+
+    private static string? ExtractRuleIdFromBlockedReason(string reason)
+    {
+        if (reason.StartsWith('['))
+        {
+            var end = reason.IndexOf(']', 1);
+            if (end > 1)
+            {
+                return reason[1..end];
+            }
+        }
+        return null;
     }
 
     private static Severity ParseSeverityFromSummary(string summary)

@@ -200,4 +200,109 @@ public class RemediationMarkdownFormatterTests
         Assert.Contains("FW-001: [High] SSH exposed", result);
         Assert.Contains("sudo ufw allow 22", result);
     }
+
+    [Fact]
+    public void FormatSession_IncludesTimeline()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "timeline1",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = new DateTime(2026, 6, 2, 14, 22, 10, DateTimeKind.Utc),
+                    Type = RemediationSessionEventType.Created,
+                    Title = "Session started for FW-001"
+                },
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = new DateTime(2026, 6, 2, 14, 24, 1, DateTimeKind.Utc),
+                    Type = RemediationSessionEventType.StepMarkedCompleted,
+                    Title = "FW-001 marked completed",
+                    RuleId = "FW-001"
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("## Timeline", result);
+        Assert.Contains("2026-06-02 14:22:10 UTC — Created: Session started for FW-001", result);
+        Assert.Contains("2026-06-02 14:24:01 UTC — StepMarkedCompleted: FW-001 marked completed", result);
+    }
+
+    [Fact]
+    public void FormatSession_IncludesBlockedTimelineEvents()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "blocked1",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState> { ["FW-DANGER"] = RemediationStepState.Blocked },
+            BlockedReasons = new[] { "[FW-DANGER] No rollback guidance" },
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.StepBlocked,
+                    Title = "FW-DANGER requires rollback guidance",
+                    RuleId = "FW-DANGER",
+                    Details = "[FW-DANGER] No rollback guidance"
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("## Timeline", result);
+        Assert.Contains("StepBlocked: FW-DANGER requires rollback guidance", result);
+        Assert.Contains("[FW-DANGER] No rollback guidance", result);
+    }
+
+    [Fact]
+    public void FormatSession_IncludesVerificationTimelineEvents()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "verify1",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            VerificationResult = new SessionVerificationResult
+            {
+                FixedFindings = Array.Empty<AuditSnapshotFinding>(),
+                UnchangedFindings = Array.Empty<AuditSnapshotFinding>(),
+                NewFindings = Array.Empty<AuditSnapshotFinding>(),
+                WorsenedFindings = Array.Empty<SeverityChangeFinding>(),
+                DiffNarrative = "All clear."
+            },
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = new DateTime(2026, 6, 2, 14, 25, 33, DateTimeKind.Utc),
+                    Type = RemediationSessionEventType.VerificationCompleted,
+                    Title = "1 fixed, 0 unchanged, 0 new, 0 worsened",
+                    Details = "All clear."
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("## Timeline", result);
+        Assert.Contains("2026-06-02 14:25:33 UTC — VerificationCompleted: 1 fixed, 0 unchanged, 0 new, 0 worsened", result);
+        Assert.Contains("All clear.", result);
+    }
 }

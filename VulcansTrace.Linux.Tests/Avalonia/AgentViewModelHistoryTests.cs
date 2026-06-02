@@ -235,5 +235,16 @@ public class AgentViewModelHistoryTests
                 Warnings = Array.Empty<string>()
             });
         }
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "Mock export",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 }

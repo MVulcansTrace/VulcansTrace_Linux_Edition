@@ -77,4 +77,12 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the verification diff.</returns>
     Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct);
+
+    /// <summary>
+    /// Records that a remediation session was exported by appending an Exported timeline event.
+    /// </summary>
+    /// <param name="sessionId">The session ID that was exported.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the updated session.</returns>
+    Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct);
 }

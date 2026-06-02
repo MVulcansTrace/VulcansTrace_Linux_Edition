@@ -358,14 +358,19 @@ public class AgentViewModelTests
     }
 
     [Fact]
-    public async Task ExportSessionCommand_WithSessionResult_InvokesExportCallback()
+    public async Task ExportSessionCommand_WithSessionResult_InvokesExportCallbackAndRefreshesTimeline()
     {
-        var vm = new AgentViewModel(new SessionResultAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var agent = new SessionResultAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
         {
             UserQuery = "guided fix FW-001"
         };
         string? exported = null;
-        vm.RequestExportSession = markdown => exported = markdown;
+        vm.RequestExportSession = markdown =>
+        {
+            exported = markdown;
+            return Task.FromResult(true);
+        };
 
         vm.SendQueryCommand.Execute(null);
         await vm.SendQueryCommand.ExecutionTask;
@@ -374,10 +379,38 @@ public class AgentViewModelTests
         Assert.True(vm.CanExportSession);
 
         vm.ExportSessionCommand.Execute(null);
+        await vm.ExportSessionCommand.ExecutionTask;
+        FlushDispatcher();
 
         Assert.NotNull(exported);
         Assert.Contains("VulcansTrace Remediation Session Report", exported);
         Assert.Contains("abc12345", exported);
+        Assert.Equal(1, agent.MarkExportedCallCount);
+        Assert.Contains(vm.LastResult!.RemediationSession!.Timeline, e => e.Type == RemediationSessionEventType.Exported);
+        Assert.Contains(vm.Messages, m => m.SessionId == "abc12345"
+            && m.SessionTimeline.Any(e => e.Type == RemediationSessionEventType.Exported));
+    }
+
+    [Fact]
+    public async Task ExportSessionCommand_WhenSaveIsCancelled_DoesNotMarkSessionExported()
+    {
+        var agent = new SessionResultAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        {
+            UserQuery = "guided fix FW-001"
+        };
+        vm.RequestExportSession = _ => Task.FromResult(false);
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.ExportSessionCommand.Execute(null);
+        await vm.ExportSessionCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(0, agent.MarkExportedCallCount);
+        Assert.DoesNotContain(vm.LastResult!.RemediationSession!.Timeline, e => e.Type == RemediationSessionEventType.Exported);
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
@@ -453,28 +486,73 @@ public class AgentViewModelTests
                 Intent = AgentIntent.VerifyRemediation,
                 Summary = "stub"
             });
+
+        public virtual Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "stub"
+            });
     }
 
     private sealed class SessionResultAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        private readonly Finding _finding = CreateFinding();
+        private readonly RemediationSession _session;
+
+        public SessionResultAgent()
         {
-            var finding = CreateFinding();
-            var session = new RemediationSession
+            _session = new RemediationSession
             {
                 SessionId = "abc12345",
-                SourceFindings = new[] { finding },
+                SourceFindings = new[] { _finding },
                 RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
                 StepStates = new Dictionary<string, RemediationStepState>(),
-                BlockedReasons = Array.Empty<string>()
+                BlockedReasons = Array.Empty<string>(),
+                Timeline = new[]
+                {
+                    new RemediationSessionEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Type = RemediationSessionEventType.Created,
+                        Title = "Session started"
+                    }
+                }
+            };
+        }
+
+        public int MarkExportedCallCount { get; private set; }
+
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.StartRemediation,
+                Summary = "session created",
+                AgentFindings = new[] { _finding },
+                RemediationSession = _session
+            });
+        }
+
+        public override Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
+        {
+            MarkExportedCallCount++;
+            var exportedSession = _session with
+            {
+                Timeline = _session.Timeline.Append(new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.Exported,
+                    Title = $"Session {sessionId} exported"
+                }).ToArray()
             };
 
             return Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.StartRemediation,
-                Summary = "session created",
-                AgentFindings = new[] { finding },
-                RemediationSession = session
+                Summary = "session exported",
+                AgentFindings = new[] { _finding },
+                RemediationSession = exportedSession
             });
         }
     }
@@ -511,6 +589,9 @@ public class AgentViewModelTests
 
         public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.StartRemediation));
 
         private AgentResult CreateResult(AgentIntent intent) => new()
         {
@@ -561,6 +642,9 @@ public class AgentViewModelTests
 
         public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.StartRemediation));
 
         private static AgentResult CreateResult(AgentIntent intent) => new()
         {

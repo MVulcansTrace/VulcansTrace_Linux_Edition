@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -15,7 +16,23 @@ public sealed record RemediationSession
     public AuditSnapshot? AfterSnapshot { get; init; }
     public SessionVerificationResult? VerificationResult { get; init; }
     public RemediationSessionStatus Status { get; init; } = RemediationSessionStatus.Active;
-    public required IReadOnlyList<string> BlockedReasons { get; init; } = Array.Empty<string>();
+    private readonly IReadOnlyList<string> _blockedReasons = Array.Empty<string>();
+
+    public IReadOnlyList<string> BlockedReasons
+    {
+        get => _blockedReasons;
+        init => _blockedReasons = value ?? Array.Empty<string>();
+    }
+
+    private readonly ImmutableList<RemediationSessionEvent> _timeline = ImmutableList<RemediationSessionEvent>.Empty;
+
+    public IReadOnlyList<RemediationSessionEvent> Timeline
+    {
+        get => _timeline;
+        init => _timeline = value is ImmutableList<RemediationSessionEvent> immutable
+            ? immutable
+            : ImmutableList.CreateRange(value ?? Array.Empty<RemediationSessionEvent>());
+    }
 }
 
 public enum RemediationSessionStatus
@@ -23,8 +40,7 @@ public enum RemediationSessionStatus
     Active,
     Blocked,
     Completed,
-    Verified,
-    Cancelled
+    Verified
 }
 
 public enum RemediationStepState
@@ -35,6 +51,31 @@ public enum RemediationStepState
     Skipped,
     Blocked,
     Failed
+}
+
+public enum RemediationSessionEventType
+{
+    Created,
+    StepMarkedPending,
+    StepMarkedInProgress,
+    StepMarkedCompleted,
+    StepMarkedSkipped,
+    StepMarkedFailed,
+    StepBlocked,
+    VerificationStarted,
+    VerificationCompleted,
+    VerificationBlocked,
+    VerificationFailed,
+    Exported
+}
+
+public sealed record RemediationSessionEvent
+{
+    public required DateTime TimestampUtc { get; init; }
+    public required RemediationSessionEventType Type { get; init; }
+    public required string Title { get; init; }
+    public string Details { get; init; } = "";
+    public string? RuleId { get; init; }
 }
 
 public sealed record AuditSnapshot

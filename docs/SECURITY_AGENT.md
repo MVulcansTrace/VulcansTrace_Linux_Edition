@@ -31,15 +31,30 @@ The query parser maps natural-language prompts to structured intents:
 | `Why is this critical?` | `ExplainCritical` | Explain only Critical/High findings from the last audit |
 | `Show only firewall issues` | `FilterCategory` | Filter the last audit's findings by category (falls back to a fresh category audit when no context exists) |
 | `What should I fix first?` | `PrioritizeRemediation` | Build a severity-ordered remediation plan from the last audit |
-| `Fix FW-001` | `FixFinding` | Show a single-finding remediation preview when rollback guidance is present |
-| `Remediate FW-001` | `StartRemediation` | Start a persisted guided remediation session with step state and before snapshot |
-| `Verify remediation abc12345` | `VerifyRemediation` | Re-run the session's audit intent and produce a before/after remediation diff |
+| `Fix FW-001` | `FixFinding` | Show a single-finding remediation preview when rollback guidance is present. No session or timeline is created. |
+| `Remediate FW-001` | `StartRemediation` | Start a persisted guided remediation session with step state, before snapshot, and an immutable event timeline |
+| `Verify remediation abc12345` | `VerifyRemediation` | Re-run the session's audit intent and produce a before/after remediation diff. Adds `VerificationStarted` plus a terminal `VerificationCompleted`, `VerificationBlocked`, or `VerificationFailed` event to the session timeline |
 | `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
 | `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
 | `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
 | `Show baseline` | `ShowBaseline` | Display the active baseline findings for the last audit intent |
 | `What's my risk grade?` | `RiskScore` | Returns the aggregate risk scorecard after an audit |
 | `Help` | `Help` | Returns supported agent capabilities |
+
+## Session Timeline
+
+Guided remediation sessions (`remediate <finding>`) record an immutable event timeline for audit traceability:
+
+- **Created** — recorded when the session starts.
+- **StepMarkedPending / StepMarkedInProgress / StepMarkedCompleted / StepMarkedSkipped / StepMarkedFailed** — recorded when a step state changes.
+- **StepBlocked** — recorded for each blocked section at session creation.
+- **VerificationStarted** — recorded before the verification audit runs.
+- **VerificationCompleted** — recorded after the before/after diff is built, with counts of fixed/unchanged/new/worsened findings.
+- **VerificationBlocked** — recorded when verification is refused due to a missing before snapshot or a blocked session status.
+- **VerificationFailed** — recorded when the verification audit crashes after verification has started.
+- **Exported** — recorded only after **Export Session** successfully writes the markdown report. Cancelled or failed saves do not mutate the timeline.
+
+The timeline is visible in the Avalonia chat UI under the session card and is included in exported session markdown reports under a `## Timeline` section. After a successful export, the UI refreshes the current session timeline so the persisted `Exported` event is visible in chat.
 
 ## Data Sources
 
@@ -210,7 +225,7 @@ Explanations are rendered as structured sections: what was found, why it matters
 
 **Interactive Remediation Preview** — When a user asks `fix FW-001` after an audit, the agent builds a single-section `RemediationPlan` for that finding, runs `RemediationPlanValidator` to ensure risky or unclassified commands have explicit rollback guidance, and returns the plan as an interactive remediation card only when validation succeeds. The card surfaces preconditions as a checklist, backup commands, apply commands, rollback commands, and verification commands — each with the same safety and structural badges used for verification commands. If validation fails because rollback guidance is missing, the plan is blocked and the UI does not expose copyable apply/backup commands.
 
-**Guided Remediation Sessions** — When a user asks `remediate FW-001`, `guided fix FW-001`, or `start remediation FW-001`, the agent creates a persisted `RemediationSession` with a before snapshot, per-rule step state, and the generated remediation plan. Safe sessions show the same manual command workflow as the preview path plus a **Verify Remediation** action. Blocked sessions are marked `Blocked`, show the safety reasons, do not expose the command card, and cannot be verified as completed remediation. Verification (`verify remediation abc12345` or the session card button) re-runs the original audit intent, captures an after snapshot, and reports fixed, unchanged, new, and worsened findings. **Export Session** writes a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff when present.
+**Guided Remediation Sessions** — When a user asks `remediate FW-001`, `guided fix FW-001`, or `start remediation FW-001`, the agent creates a persisted `RemediationSession` with a before snapshot, per-rule step state, and the generated remediation plan. Safe sessions show the same manual command workflow as the preview path plus a **Verify Remediation** action. Blocked sessions are marked `Blocked`, show the safety reasons, do not expose the command card, and cannot be verified as completed remediation. Verification (`verify remediation abc12345` or the session card button) re-runs the original audit intent, captures an after snapshot, and reports fixed, unchanged, new, and worsened findings. If verification cannot run or crashes after starting, the session timeline records `VerificationBlocked` or `VerificationFailed` so the audit trail does not end at `VerificationStarted`. **Export Session** writes a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff when present; the `Exported` event is persisted only after the file write succeeds.
 
 ## UI Integration
 
@@ -237,7 +252,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Export Audit support that reuses the shared evidence export flow for the latest agent audit and includes active suppression notes when present.
 - Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
 - **Interactive Remediation Preview** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat without exposing copyable commands.
-- **Guided Remediation Sessions** (`remediate FW-001`) persist a manual remediation workflow with a before snapshot, step state, session ID, verification action, and markdown session export. Blocked sessions remain visible for auditability but do not expose the command card or allow verification as completed remediation.
+- **Guided Remediation Sessions** (`remediate FW-001`) persist a manual remediation workflow with a before snapshot, step state, session ID, verification action, immutable event timeline, and markdown session export. Blocked sessions remain visible for auditability but do not expose the command card or allow verification as completed remediation. Verification failures and successful report exports are recorded as terminal timeline events.
 - **Batch Auto-Fix** (`--auto-fix` on the CLI) extends interactive remediation to headless batch mode. After an audit, the CLI can build a `RemediationPlan` for all findings, filter commands through a configurable `AutoFixPolicy`, execute backup/apply/verify phases sequentially, and automatically roll back a section if any apply command fails. `--dry-run` previews the plan without executing anything. The default policy permits `ReadOnly` verification and `ConfigChange` commands; `--allow-restart` and `--allow-packages` expand the policy; destructive and unclassified commands are never auto-executed.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 

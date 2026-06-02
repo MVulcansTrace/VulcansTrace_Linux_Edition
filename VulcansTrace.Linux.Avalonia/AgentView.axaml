@@ -3,6 +3,7 @@
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
              xmlns:explanations="using:VulcansTrace.Linux.Agent.Explanations"
+             xmlns:sessions="using:VulcansTrace.Linux.Agent.Sessions"
              x:Class="VulcansTrace.Linux.Avalonia.AgentView"
              x:DataType="vm:AgentViewModel">
 
@@ -278,6 +279,32 @@
                                                     IsVisible="{Binding HasActiveSession}"
                                                     Command="{Binding $parent[ItemsControl].((vm:AgentViewModel)DataContext).VerifySessionCommand}"
                                                     CommandParameter="{Binding SessionId}"/>
+                                            <!-- Session Timeline -->
+                                            <StackPanel Orientation="Vertical"
+                                                        Margin="0,8,0,0"
+                                                        IsVisible="{Binding HasSessionTimeline}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Timeline:" FontSize="10" Foreground="#64748b" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding SessionTimeline}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="sessions:RemediationSessionEvent">
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <TextBlock Text="•" FontSize="11" Foreground="#94a3b8" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}"
+                                                                           FontSize="10" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="—" FontSize="10" Foreground="#64748b" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Type}" FontSize="10" Foreground="#94a3b8" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding Title}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

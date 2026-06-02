@@ -156,8 +156,8 @@ After running any audit, you can ask the agent for either a single-finding remed
    - **Rollback commands** — how to undo if something goes wrong
    - **Verification commands** — confirm the fix worked
 4. Review each command before copying and running it. Safety badges classify every command as `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`, plus structural warnings (`SUDO`, `CHAIN`, `PIPE`, `REDIR`, `DL-EXEC`).
-5. For sessions, click **Verify Remediation** or type `verify remediation <session-id>` after completing the manual steps. The agent re-runs the original audit intent and reports fixed, unchanged, new, and worsened findings.
-6. Use **Export Session** to save a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff.
+5. For sessions, click **Verify Remediation** or type `verify remediation <session-id>` after completing the manual steps. The agent re-runs the original audit intent and reports fixed, unchanged, new, and worsened findings. If verification is blocked or crashes after starting, the session timeline records that terminal outcome.
+6. Use **Export Session** to save a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff. The `Exported` timeline event is recorded only after the report is written successfully.
 7. If the finding's explanation template lacks rollback guidance for risky commands, the plan/session is blocked for safety. Blocked sessions remain visible for auditability but do not expose copyable remediation commands or allow verification as completed remediation.
 
 ## Security Agent — Auto-Fix (Batch Remediation)

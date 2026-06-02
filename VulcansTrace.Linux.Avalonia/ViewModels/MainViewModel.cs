@@ -572,7 +572,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task ExportSessionReportAsync(string markdown)
+    private async Task<bool> ExportSessionReportAsync(string markdown)
     {
         var path = await _dialogService.ShowSaveFileDialogAsync(
             "Export Session Report",
@@ -580,16 +580,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             $"remediation-session-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
 
         if (path == null)
-            return;
+            return false;
 
         try
         {
             await File.WriteAllTextAsync(path, markdown);
             SummaryText = $"Session report exported to {path}";
+            return true;
         }
         catch (Exception ex)
         {
             SummaryText = $"Failed to export session report: {ex.Message}";
+            return false;
         }
     }
 

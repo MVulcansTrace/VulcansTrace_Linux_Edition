@@ -282,6 +282,106 @@ public class AgentResultPresenterTests
     }
 
     [Fact]
+    public void PresentFindings_StartRemediation_IncludesTimeline()
+    {
+        var harness = new PresenterHarness();
+        var section = new RemediationSection
+        {
+            RuleId = "FW-001",
+            FindingSummary = "[High] SSH exposed",
+            RiskNote = "Remote access is exposed.",
+            Preconditions = Array.Empty<string>(),
+            ApplyCommands = Array.Empty<RemediationCommand>(),
+            RollbackCommands = Array.Empty<RemediationCommand>(),
+            VerificationCommands = Array.Empty<RemediationCommand>()
+        };
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = new[] { CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed") },
+            RemediationPlan = new RemediationPlan { Sections = new[] { section } },
+            StepStates = new Dictionary<string, RemediationStepState> { ["FW-001"] = RemediationStepState.Pending },
+            BlockedReasons = Array.Empty<string>(),
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.Created,
+                    Title = "Session started for FW-001"
+                }
+            }
+        };
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            Summary = "Session created",
+            RemediationPlan = session.RemediationPlan,
+            RemediationSession = session,
+            AgentFindings = session.SourceFindings
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.True(message.HasSessionTimeline);
+        Assert.Single(message.SessionTimeline);
+        Assert.Equal(RemediationSessionEventType.Created, message.SessionTimeline[0].Type);
+    }
+
+    [Fact]
+    public void PresentFindings_VerifyRemediation_IncludesUpdatedTimeline()
+    {
+        var harness = new PresenterHarness();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            Status = RemediationSessionStatus.Verified,
+            SourceFindings = new[] { CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed") },
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState> { ["FW-001"] = RemediationStepState.Completed },
+            VerificationResult = new SessionVerificationResult
+            {
+                FixedFindings = Array.Empty<AuditSnapshotFinding>(),
+                UnchangedFindings = Array.Empty<AuditSnapshotFinding>(),
+                NewFindings = Array.Empty<AuditSnapshotFinding>(),
+                WorsenedFindings = Array.Empty<SeverityChangeFinding>(),
+                DiffNarrative = "All clear."
+            },
+            BlockedReasons = Array.Empty<string>(),
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.Created,
+                    Title = "Session started for FW-001"
+                },
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.VerificationCompleted,
+                    Title = "1 fixed, 0 unchanged, 0 new, 0 worsened"
+                }
+            }
+        };
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.VerifyRemediation,
+            Summary = "Verification result",
+            RemediationSession = session,
+            AgentFindings = session.SourceFindings
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.True(message.HasSessionTimeline);
+        Assert.Equal(2, message.SessionTimeline.Count);
+        Assert.Equal(RemediationSessionEventType.VerificationCompleted, message.SessionTimeline[1].Type);
+    }
+
+    [Fact]
     public void AgentMessageViewModel_HasActiveSession_TrueOnlyWhenActive()
     {
         var msg = new AgentMessageViewModel { SessionId = "abc", SessionStatus = RemediationSessionStatus.Active };

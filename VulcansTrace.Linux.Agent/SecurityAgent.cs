@@ -324,6 +324,13 @@ public sealed class SecurityAgent : IAgent
         return _guidedRemediationService.RunVerificationAsync(sessionId, ct);
     }
 
+    /// <inheritdoc />
+    public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.MarkSessionExportedAsync(sessionId, ct);
+    }
+
     private static string GetHelpText() =>
         "I can help you audit your Linux system security. Try asking:\n" +
         "• \"Is my system secure?\" or \"Run a full audit\"\n" +

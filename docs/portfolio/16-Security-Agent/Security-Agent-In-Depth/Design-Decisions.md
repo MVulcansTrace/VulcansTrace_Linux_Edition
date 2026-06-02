@@ -133,7 +133,7 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 - Security tools that silently auto-remediate can break production access, drop SSH sessions, or disable services unexpectedly.
 - A guided, step-by-step UX with explicit preconditions, backup commands, apply commands, rollback commands, and verification commands gives the operator full control.
-- Persisted remediation sessions add a session ID, before snapshot, step state, verification result, and markdown export so a manual fix can become an auditable before/after workflow.
+- Persisted remediation sessions add a session ID, before snapshot, step state, immutable timeline, verification result, and markdown export so a manual fix can become an auditable before/after workflow. Verification failures and successful report exports are recorded explicitly instead of leaving ambiguous partial state.
 - Each command is labeled with the existing `CommandSafety` classification (`ReadOnly`, `ConfigChange`, `Destructive`, etc.) and structural badges (`SUDO`, `CHAIN`, `PIPE`, etc.) so the operator knows the blast radius before copying a command.
 - `RemediationPlanValidator` blocks the command card if risky or unclassified commands lack explicit rollback guidance. Blocked sessions remain visible for auditability, but they do not expose copyable remediation commands and cannot be verified as completed remediation.
 - The same `RemediationPlan` and `RemediationPlanBuilder` infrastructure used for the bulk export path is reused for both interactive and batch remediation, so all paths benefit from the same safety guardrails.

@@ -263,6 +263,43 @@ public class GuidedRemediationServiceTests
     }
 
     [Fact]
+    public async Task CreateSession_AddsCreatedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+
+        var saved = store.List()[0];
+        Assert.Single(saved.Timeline);
+        Assert.Equal(RemediationSessionEventType.Created, saved.Timeline[0].Type);
+        Assert.Contains("FW-001", saved.Timeline[0].Title);
+    }
+
+    [Fact]
+    public async Task CreateSession_BlockedStep_AddsStepBlockedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRiskyFindingWithoutRollback("FW-DANGER");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-DANGER", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-DANGER", CancellationToken.None);
+
+        var saved = store.List()[0];
+        Assert.Equal(2, saved.Timeline.Count);
+        Assert.Equal(RemediationSessionEventType.Created, saved.Timeline[0].Type);
+        Assert.Equal(RemediationSessionEventType.StepBlocked, saved.Timeline[1].Type);
+        Assert.Equal("FW-DANGER", saved.Timeline[1].RuleId);
+    }
+
+    [Fact]
     public async Task CreateSession_BlocksRiskySectionsWithoutRollback()
     {
         var state = new AgentAuditState();
@@ -319,6 +356,56 @@ public class GuidedRemediationServiceTests
         var updated = store.Load(sessionId);
         Assert.NotNull(updated);
         Assert.Equal(RemediationStepState.Completed, updated.StepStates["FW-001"]);
+    }
+
+    [Fact]
+    public async Task UpdateStepState_AddsStateChangeEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        service.UpdateStepState(sessionId, "FW-001", RemediationStepState.Completed);
+
+        var updated = store.Load(sessionId)!;
+        var stepEvent = Assert.Single(updated.Timeline, e => e.Type == RemediationSessionEventType.StepMarkedCompleted);
+        Assert.Equal("FW-001", stepEvent.RuleId);
+        Assert.Contains("completed", stepEvent.Title);
+    }
+
+    [Theory]
+    [InlineData(RemediationStepState.Pending, RemediationSessionEventType.StepMarkedPending, "pending")]
+    [InlineData(RemediationStepState.InProgress, RemediationSessionEventType.StepMarkedInProgress, "inprogress")]
+    [InlineData(RemediationStepState.Completed, RemediationSessionEventType.StepMarkedCompleted, "completed")]
+    [InlineData(RemediationStepState.Skipped, RemediationSessionEventType.StepMarkedSkipped, "skipped")]
+    [InlineData(RemediationStepState.Failed, RemediationSessionEventType.StepMarkedFailed, "failed")]
+    public async Task UpdateStepState_MapsEachStateToCorrectEventType(
+        RemediationStepState newState,
+        RemediationSessionEventType expectedEventType,
+        string expectedInTitle)
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        service.UpdateStepState(sessionId, "FW-001", newState);
+
+        var updated = store.Load(sessionId)!;
+        var stepEvent = Assert.Single(updated.Timeline, e => e.Type == expectedEventType);
+        Assert.Equal("FW-001", stepEvent.RuleId);
+        Assert.Contains(expectedInTitle, stepEvent.Title);
     }
 
     [Fact]
@@ -388,6 +475,74 @@ public class GuidedRemediationServiceTests
     }
 
     [Fact]
+    public async Task RunVerification_AddsVerificationCompletedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+
+        var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
+            runAudit: (intent, _, _) => Task.FromResult(afterResult));
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        await service.RunVerificationAsync(sessionId, CancellationToken.None);
+
+        var verified = store.Load(sessionId)!;
+        Assert.Contains(verified.Timeline, e => e.Type == RemediationSessionEventType.VerificationStarted);
+        Assert.Contains(verified.Timeline, e => e.Type == RemediationSessionEventType.VerificationCompleted);
+        var completedEvent = verified.Timeline.Single(e => e.Type == RemediationSessionEventType.VerificationCompleted);
+        Assert.Contains("fixed", completedEvent.Title);
+    }
+
+    [Fact]
+    public async Task RunVerification_BlockedSession_AddsVerificationBlockedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRiskyFindingWithoutRollback("FW-DANGER");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-DANGER", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
+            runAudit: (_, _, _) => Task.FromResult(new AgentResult { Intent = AgentIntent.FirewallCheck }));
+
+        await service.CreateSessionAsync("FW-DANGER", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        await service.RunVerificationAsync(sessionId, CancellationToken.None);
+
+        var blocked = store.Load(sessionId)!;
+        Assert.Contains(blocked.Timeline, e => e.Type == RemediationSessionEventType.VerificationBlocked);
+    }
+
+    [Fact]
+    public async Task RunVerification_WhenAuditThrows_AddsVerificationFailedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
+            runAudit: (_, _, _) => throw new InvalidOperationException("audit crashed"));
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RunVerificationAsync(sessionId, CancellationToken.None));
+
+        var failed = store.Load(sessionId)!;
+        Assert.Contains(failed.Timeline, e => e.Type == RemediationSessionEventType.VerificationStarted);
+        var failedEvent = Assert.Single(failed.Timeline, e => e.Type == RemediationSessionEventType.VerificationFailed);
+        Assert.Contains("audit crashed", failedEvent.Details);
+    }
+
+    [Fact]
     public async Task RunVerification_RestoresAuditState()
     {
         var state = new AgentAuditState();
@@ -452,6 +607,38 @@ public class GuidedRemediationServiceTests
         var service = CreateService(state, sessionStore: store);
 
         var result = service.UpdateStepState("nonexistent", "FW-001", RemediationStepState.Completed);
+
+        Assert.Contains("not found", result.Summary);
+    }
+
+    [Fact]
+    public async Task MarkSessionExported_AddsExportedEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = await service.MarkSessionExportedAsync(sessionId, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.StartRemediation, result.Intent);
+        var saved = store.Load(sessionId)!;
+        Assert.Contains(saved.Timeline, e => e.Type == RemediationSessionEventType.Exported);
+    }
+
+    [Fact]
+    public async Task MarkSessionExported_UnknownSession_ReturnsNotFound()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = await service.MarkSessionExportedAsync("nonexistent", CancellationToken.None);
 
         Assert.Contains("not found", result.Summary);
     }

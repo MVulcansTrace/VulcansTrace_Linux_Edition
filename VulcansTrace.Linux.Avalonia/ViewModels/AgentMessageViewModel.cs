@@ -129,6 +129,24 @@ public sealed class AgentMessageViewModel : ViewModelBase
         set => SetField(ref _isVerificationResult, value);
     }
 
+    private IReadOnlyList<RemediationSessionEvent> _sessionTimeline = Array.Empty<RemediationSessionEvent>();
+
+    /// <summary>Gets or sets the session timeline events for this message.</summary>
+    public IReadOnlyList<RemediationSessionEvent> SessionTimeline
+    {
+        get => _sessionTimeline;
+        set
+        {
+            if (SetField(ref _sessionTimeline, value))
+            {
+                OnPropertyChanged(nameof(HasSessionTimeline));
+            }
+        }
+    }
+
+    /// <summary>Gets whether this message has a session timeline to display.</summary>
+    public bool HasSessionTimeline => _sessionTimeline.Count > 0;
+
     /// <summary>Gets whether this message has an active session (can be verified).</summary>
     public bool HasActiveSession => !string.IsNullOrEmpty(_sessionId) && _sessionStatus == RemediationSessionStatus.Active;
 
