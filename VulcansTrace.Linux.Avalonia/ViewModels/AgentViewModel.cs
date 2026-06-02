@@ -25,7 +25,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentResultPresenter _presenter;
     private readonly AgentHistoryCoordinator _historyCoordinator;
     private readonly AgentOperationRunner _operationRunner;
-    private CancellationTokenSource? _cts;
 
     private string _userQuery = "";
     private string _logText = "";
@@ -402,7 +401,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public RelayCommand ExportRemediationCommand { get; }
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
-    private bool CanCancel() => _isBusy && (_operationRunner.CanCancel || (_cts != null && !_cts.IsCancellationRequested));
+    private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
 
     /// <summary>
     /// Notifies the agent panel that the host findings selection changed.
@@ -416,7 +415,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void CancelQuery()
     {
         _operationRunner.Cancel();
-        _cts?.Cancel();
     }
 
     private async Task SendQueryAsync()
@@ -566,14 +564,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
 
         AddUserMessage("Set baseline");
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             // Pass empty name so the agent generates it from _lastAuditIntent,
             // avoiding wrong intent (e.g. CheckDrift) in the name.
@@ -584,89 +576,35 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 AddAgentMessage(result.Summary, true);
             });
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private async Task CheckDriftAsync()
     {
         var intent = _lastAuditIntent;
         AddUserMessage($"Check drift ({intent})");
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.CheckDriftAsync(intent, null, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false));
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private async Task ShowBaselineAsync()
     {
         var intent = _lastAuditIntent;
         AddUserMessage("Show baseline");
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.GetBaselineAsync(intent, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false));
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private void ExportRemediationPlan()
@@ -732,9 +670,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _operationRunner.Dispose();
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 }
 

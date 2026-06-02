@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -141,6 +142,7 @@ public class AgentViewModelHistoryTests
     {
         vm.FullAuditCommand.Execute(null);
         await vm.FullAuditCommand.ExecutionTask;
+        Dispatcher.UIThread.RunJobs();
     }
 
     private sealed class MockHistoryAgent : IAgent

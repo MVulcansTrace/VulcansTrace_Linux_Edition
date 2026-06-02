@@ -205,6 +205,70 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, message => message.Text == "Query cancelled." && message.IsInfo);
     }
 
+    [Fact]
+    public async Task SetBaselineCommand_AgentError_AddsErrorMessageAndClearsBusyState()
+    {
+        var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.SetBaselineCommand.Execute(null);
+        await vm.SetBaselineCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains(vm.Messages, message => message.Text == "Agent error: baseline boom" && message.IsInfo);
+    }
+
+    [Fact]
+    public async Task CancelQueryCommand_CancelsActiveDriftOperationAndClearsBusyState()
+    {
+        var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.CheckDriftCommand.Execute(null);
+        Assert.True(vm.IsBusy);
+        Assert.True(vm.CancelQueryCommand.CanExecute(null));
+
+        vm.CancelQueryCommand.Execute(null);
+        await vm.CheckDriftCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains(vm.Messages, message => message.Text == "Query cancelled." && message.IsInfo);
+    }
+
+    [Fact]
+    public async Task ShowBaselineCommand_SuppressesCapabilityPassedAndWarningSections()
+    {
+        var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+        vm.Messages.Clear();
+
+        vm.ShowBaselineCommand.Execute(null);
+        await vm.ShowBaselineCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, message => message.Text == "baseline summary");
+        Assert.DoesNotContain(vm.Messages, message => message.Text == "hidden capability report");
+        Assert.DoesNotContain(vm.Messages, message => message.Text == "✓ 4 check(s) passed");
+        Assert.DoesNotContain(vm.Messages, message => message.Text.StartsWith("Warnings:"));
+    }
+
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     private static Finding CreateFinding() => new()
@@ -360,5 +424,59 @@ public class AgentViewModelTests
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new AgentResult { Intent = AgentIntent.Help, Summary = "unreachable" };
         }
+    }
+
+    private sealed class SetBaselineErrorAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SshCheck,
+                Summary = "audit",
+                UtcTimestamp = DateTime.UtcNow
+            });
+
+        public override Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        {
+            throw new InvalidOperationException("baseline boom");
+        }
+    }
+
+    private sealed class CancellableDriftAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SshCheck,
+                Summary = "audit",
+                UtcTimestamp = DateTime.UtcNow
+            });
+
+        public override async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "unreachable" };
+        }
+    }
+
+    private sealed class NoisyBaselineAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SshCheck,
+                Summary = "audit",
+                UtcTimestamp = DateTime.UtcNow
+            });
+
+        public override Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ShowBaseline,
+                Summary = "baseline summary",
+                CapabilityReport = "hidden capability report",
+                PassedCount = 4,
+                Warnings = new[] { "hidden warning" }
+            });
     }
 }
