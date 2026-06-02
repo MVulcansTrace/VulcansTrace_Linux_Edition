@@ -110,6 +110,180 @@ public class BaselineDriftServiceTests
         Assert.Contains("Part of baseline", shown.Details);
     }
 
+    [Fact]
+    public async Task SetBaselineAsync_NoLastResult_ReturnsGuidanceMessage()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemoryBaselineStore();
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline), CancellationToken.None);
+
+        Assert.Equal(AgentIntent.SetBaseline, result.Intent);
+        Assert.Contains("Run an audit first", result.Summary);
+        Assert.Empty(result.AgentFindings);
+        Assert.Empty(store.GetAll());
+    }
+
+    [Fact]
+    public async Task SetBaselineAsync_NullStore_ReturnsNotAvailableMessage()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateFinding("FW-001", "22/tcp", Severity.High);
+        var audit = new AgentResult
+        {
+            Intent = AgentIntent.FirewallCheck,
+            AgentFindings = new[] { finding }
+        };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var service = new BaselineDriftService(state, baselineStore: null, RunAuditShouldNotBeCalled);
+
+        var result = await service.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline), CancellationToken.None);
+
+        Assert.Equal(AgentIntent.SetBaseline, result.Intent);
+        Assert.Contains("Baseline storage is not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task SetBaselineAsync_AutoGeneratesNameWhenReferenceIsEmpty()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateFinding("FW-001", "22/tcp", Severity.High);
+        var audit = new AgentResult
+        {
+            Intent = AgentIntent.FirewallCheck,
+            UtcTimestamp = new DateTime(2026, 3, 1, 10, 30, 0, DateTimeKind.Utc),
+            AgentFindings = new[] { finding }
+        };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemoryBaselineStore();
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline), CancellationToken.None);
+
+        var baseline = Assert.Single(store.GetAll());
+        Assert.Contains("FirewallCheck", baseline.Name);
+        Assert.Contains("20260301-103000", baseline.Name);
+    }
+
+    [Fact]
+    public async Task RunDriftCheckAsync_NullStore_ReturnsNotAvailableMessage()
+    {
+        var state = new AgentAuditState();
+        var service = new BaselineDriftService(state, baselineStore: null, RunAuditShouldNotBeCalled);
+
+        var result = await service.RunDriftCheckAsync(AgentIntent.FirewallCheck, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.Contains("Baseline storage is not available", result.Summary);
+        Assert.Empty(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task RunDriftCheckAsync_NoActiveBaseline_ReturnsGuidanceMessage()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemoryBaselineStore();
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.RunDriftCheckAsync(AgentIntent.FirewallCheck, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.CheckDrift, result.Intent);
+        Assert.Contains("No baseline set for FirewallCheck", result.Summary);
+        Assert.Empty(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task RunDriftCheckAsync_AuditThrows_RestoresLastResult()
+    {
+        var state = new AgentAuditState();
+        var previousFinding = CreateFinding("PREV-001", "prev", Severity.Low);
+        var previousResult = new AgentResult
+        {
+            Intent = AgentIntent.FirewallCheck,
+            AgentFindings = new[] { previousFinding }
+        };
+        state.RememberAudit(previousResult, AgentIntent.FirewallCheck, new[] { ("PREV-001", previousFinding) });
+
+        var baseline = CreateBaseline(AgentIntent.FirewallCheck, previousFinding, DateTime.UtcNow);
+        var store = new InMemoryBaselineStore();
+        store.Save(baseline);
+        store.SetActive(baseline.BaselineId);
+
+        var service = new BaselineDriftService(
+            state, store,
+            (_, _, _) => throw new InvalidOperationException("audit failed"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RunDriftCheckAsync(AgentIntent.FirewallCheck, null, CancellationToken.None));
+
+        Assert.Same(previousResult, state.LastResult);
+    }
+
+    [Fact]
+    public async Task ShowBaselineForIntentAsync_NullStore_ReturnsNotAvailableMessage()
+    {
+        var state = new AgentAuditState();
+        var service = new BaselineDriftService(state, baselineStore: null, RunAuditShouldNotBeCalled);
+
+        var result = await service.ShowBaselineForIntentAsync(AgentIntent.FirewallCheck, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.Contains("Baseline storage is not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task ShowBaselineForIntentAsync_NoBaseline_ReturnsGuidanceMessage()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemoryBaselineStore();
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.ShowBaselineForIntentAsync(AgentIntent.FirewallCheck, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        Assert.Contains("No baseline set for FirewallCheck", result.Summary);
+    }
+
+    [Fact]
+    public async Task ShowBaselineForIntentAsync_EmptyOriginalFindings_FallsBackToSnapshotFindings()
+    {
+        var state = new AgentAuditState();
+        var snapshotFinding = new AuditSnapshotFinding
+        {
+            RuleId = "FW-001",
+            Target = "22/tcp",
+            Severity = "High",
+            ShortDescription = "SSH exposed",
+            Category = "Firewall",
+            Fingerprint = "fp-fw"
+        };
+        var baseline = new BaselineEntry
+        {
+            BaselineId = Guid.NewGuid().ToString("N"),
+            Name = "Snapshot-only baseline",
+            CreatedUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Intent = AgentIntent.FirewallCheck,
+            TotalFindings = 1,
+            HighCount = 1,
+            SnapshotFindings = new[] { snapshotFinding },
+            OriginalFindings = Array.Empty<Finding>()
+        };
+        var store = new InMemoryBaselineStore();
+        store.Save(baseline);
+        store.SetActive(baseline.BaselineId);
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.ShowBaselineForIntentAsync(AgentIntent.FirewallCheck, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowBaseline, result.Intent);
+        var shown = Assert.Single(result.AgentFindings);
+        Assert.Equal("FW-001", shown.RuleId);
+        Assert.Equal("Firewall", shown.Category);
+        Assert.Equal(Severity.High, shown.Severity);
+        Assert.Contains("Part of baseline", shown.Details);
+    }
+
     private static Task<AgentResult> RunAuditShouldNotBeCalled(AgentIntent intent, string? rawLog, CancellationToken ct)
     {
         throw new InvalidOperationException("RunAudit should not be called by this test.");

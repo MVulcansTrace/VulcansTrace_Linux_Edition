@@ -81,6 +81,7 @@ internal sealed class AgentHistoryCoordinator
 
     public void LoadExisting()
     {
+        _history.Clear();
         foreach (var entry in _historyStore.GetAll())
         {
             _history.Add(entry);

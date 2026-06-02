@@ -4,9 +4,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Input;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -230,6 +227,18 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to show the current baseline.</summary>
     public AsyncRelayCommand ShowBaselineCommand { get; }
 
+    /// <summary>Gets the command to compare the last two audits.</summary>
+    public RelayCommand CompareAuditsCommand { get; }
+
+    /// <summary>Gets the command to compare two selected audits.</summary>
+    public RelayCommand CompareSelectedAuditsCommand { get; }
+
+    /// <summary>Gets the command to clear chat filters.</summary>
+    public RelayCommand ClearChatFiltersCommand { get; }
+
+    /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
+    public RelayCommand ExportRemediationCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -249,8 +258,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public Action<AuditDiff>? ShowAuditDiffAction { get; set; }
 
     /// <summary>
-    /// Swaps the underlying agent implementation (used when machine role changes).
+    /// Swaps the underlying agent implementation (used when machine role changes)
+    /// and resets the cached result state.
     /// </summary>
+    /// <param name="agent">The new agent instance to use for queries.</param>
     public void SetAgent(IAgent agent)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
@@ -382,18 +393,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _historyCoordinator.ShowPersistenceWarningIfAny();
     }
 
-    /// <summary>Gets the command to compare the last two audits.</summary>
-    public RelayCommand CompareAuditsCommand { get; }
-
-    /// <summary>Gets the command to compare two selected audits.</summary>
-    public RelayCommand CompareSelectedAuditsCommand { get; }
-
-    /// <summary>Gets the command to clear chat filters.</summary>
-    public RelayCommand ClearChatFiltersCommand { get; }
-
-    /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
-    public RelayCommand ExportRemediationCommand { get; }
-
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
 
@@ -507,6 +506,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _resultState.PublishAuditCompleted(result);
     }
 
+    /// <summary>Marks the most recent audit history entry as exported.</summary>
     public void MarkLatestAuditExported()
     {
         _historyCoordinator.MarkLatestExported();
@@ -628,166 +628,5 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _operationRunner.Dispose();
-    }
-}
-
-/// <summary>
-/// Represents a single message in the agent chat panel.
-/// </summary>
-public sealed class AgentMessageViewModel : ViewModelBase
-{
-    private string _text = "";
-    private string _details = "";
-    private bool _isUser;
-    private bool _isInfo;
-    private bool _isVisible = true;
-    private Severity _severity;
-    private DateTime _timestamp;
-    private string _category = "";
-    private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
-    private RemediationSection? _remediationSection;
-
-    public string Text
-    {
-        get => _text;
-        set => SetField(ref _text, value);
-    }
-
-    public string Details
-    {
-        get => _details;
-        set => SetField(ref _details, value);
-    }
-
-    public bool IsUser
-    {
-        get => _isUser;
-        set => SetField(ref _isUser, value);
-    }
-
-    public bool IsInfo
-    {
-        get => _isInfo;
-        set => SetField(ref _isInfo, value);
-    }
-
-    public bool IsVisible
-    {
-        get => _isVisible;
-        set => SetField(ref _isVisible, value);
-    }
-
-    public string Category
-    {
-        get => _category;
-        set => SetField(ref _category, value);
-    }
-
-    public Severity Severity
-    {
-        get => _severity;
-        set => SetField(ref _severity, value);
-    }
-
-    public DateTime Timestamp
-    {
-        get => _timestamp;
-        set => SetField(ref _timestamp, value);
-    }
-
-    /// <summary>Gets or sets the verification commands that can be copied from this message.</summary>
-    public IReadOnlyList<CopyableCommand> VerificationCommands
-    {
-        get => _verificationCommands;
-        set => SetField(ref _verificationCommands, value);
-    }
-
-    /// <summary>Gets whether this message has verification commands to display.</summary>
-    public bool HasVerificationCommands => _verificationCommands.Count > 0;
-
-    /// <summary>Gets or sets the interactive remediation section for this message.</summary>
-    public RemediationSection? RemediationSection
-    {
-        get => _remediationSection;
-        set
-        {
-            if (SetField(ref _remediationSection, value))
-            {
-                OnPropertyChanged(nameof(HasRemediationSection));
-                OnPropertyChanged(nameof(HasPreconditions));
-                OnPropertyChanged(nameof(HasBackupCommands));
-                OnPropertyChanged(nameof(HasApplyCommands));
-                OnPropertyChanged(nameof(HasRollbackCommands));
-                OnPropertyChanged(nameof(HasRemediationVerificationCommands));
-                OnPropertyChanged(nameof(RemediationPreconditions));
-                OnPropertyChanged(nameof(RemediationBackupCommands));
-                OnPropertyChanged(nameof(RemediationApplyCommands));
-                OnPropertyChanged(nameof(RemediationRollbackCommands));
-                OnPropertyChanged(nameof(RemediationVerificationCommands));
-            }
-        }
-    }
-
-    /// <summary>Gets whether this message has an interactive remediation section.</summary>
-    public bool HasRemediationSection => _remediationSection != null;
-
-    /// <summary>Gets whether the remediation section has preconditions.</summary>
-    public bool HasPreconditions => _remediationSection?.Preconditions.Count > 0;
-
-    /// <summary>Gets whether the remediation section has backup commands.</summary>
-    public bool HasBackupCommands => _remediationSection?.BackupCommands.Count > 0;
-
-    /// <summary>Gets whether the remediation section has apply commands.</summary>
-    public bool HasApplyCommands => _remediationSection?.ApplyCommands.Count > 0;
-
-    /// <summary>Gets whether the remediation section has rollback commands.</summary>
-    public bool HasRollbackCommands => _remediationSection?.RollbackCommands.Count > 0;
-
-    /// <summary>Gets whether the remediation section has verification commands.</summary>
-    public bool HasRemediationVerificationCommands => _remediationSection?.VerificationCommands.Count > 0;
-
-    /// <summary>Gets the preconditions for the remediation.</summary>
-    public IReadOnlyList<string> RemediationPreconditions =>
-        _remediationSection?.Preconditions ?? Array.Empty<string>();
-
-    /// <summary>Gets the backup commands as copyable commands.</summary>
-    public IReadOnlyList<CopyableCommand> RemediationBackupCommands =>
-        ToCopyableCommands(_remediationSection?.BackupCommands);
-
-    /// <summary>Gets the apply commands as copyable commands.</summary>
-    public IReadOnlyList<CopyableCommand> RemediationApplyCommands =>
-        ToCopyableCommands(_remediationSection?.ApplyCommands);
-
-    /// <summary>Gets the rollback commands as copyable commands.</summary>
-    public IReadOnlyList<CopyableCommand> RemediationRollbackCommands =>
-        ToCopyableCommands(_remediationSection?.RollbackCommands);
-
-    /// <summary>Gets the verification commands as copyable commands.</summary>
-    public IReadOnlyList<CopyableCommand> RemediationVerificationCommands =>
-        ToCopyableCommands(_remediationSection?.VerificationCommands);
-
-    private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<RemediationCommand>? commands)
-    {
-        if (commands == null || commands.Count == 0)
-            return Array.Empty<CopyableCommand>();
-
-        return commands.Select(c => new CopyableCommand
-        {
-            DisplayText = c.Command,
-            FullCommand = c.Command,
-            Safety = c.Safety,
-            Analysis = c.Analysis
-        }).ToList();
-    }
-
-    /// <summary>
-    /// Copies the specified command text to the system clipboard.
-    /// </summary>
-    public void CopyCommandToClipboard(string commandText)
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
-        }
     }
 }

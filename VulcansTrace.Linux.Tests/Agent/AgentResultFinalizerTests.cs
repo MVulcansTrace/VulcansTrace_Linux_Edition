@@ -50,6 +50,136 @@ public class AgentResultFinalizerTests
         Assert.Same(finding, riskBuilder.ObservedFindings?[0]);
     }
 
+    [Fact]
+    public void FinalizeAudit_WithHistoryStore_PassesStoreToComplianceBuilder()
+    {
+        var auditState = new AgentAuditState();
+        var historyStore = new InMemoryAuditHistoryStore();
+        var complianceBuilder = new TestComplianceScorecardBuilder(new ComplianceScorecard());
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore, complianceBuilder, riskBuilder);
+
+        finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            Array.Empty<Finding>(),
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<(string, Finding)>()));
+
+        Assert.Same(historyStore, complianceBuilder.ObservedHistoryStore);
+    }
+
+    [Fact]
+    public void FinalizeAudit_NoComplianceBuilder_ProducesNullScorecard()
+    {
+        var auditState = new AgentAuditState();
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore: null, scorecardBuilder: null, riskBuilder);
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            Array.Empty<Finding>(),
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<(string, Finding)>()));
+
+        Assert.Null(result.Scorecard);
+    }
+
+    [Fact]
+    public void FinalizeAudit_EmptyFindings_ProducesEmptyResult()
+    {
+        var auditState = new AgentAuditState();
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore: null, scorecardBuilder: null, riskBuilder);
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            Array.Empty<Finding>(),
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "no findings",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<(string, Finding)>()));
+
+        Assert.Empty(result.AgentFindings);
+        Assert.Equal("no findings", result.Summary);
+        Assert.Null(auditState.FindPreviousFinding("anything"));
+    }
+
+    [Fact]
+    public void FinalizeAudit_WithLogAnalysisResult_PreservesItInResult()
+    {
+        var auditState = new AgentAuditState();
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore: null, scorecardBuilder: null, riskBuilder);
+        var logAnalysis = new AnalysisResult
+        {
+            TotalLines = 100,
+            ParsedLines = 90
+        };
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FirewallCheck,
+            Array.Empty<Finding>(),
+            logAnalysis,
+            Array.Empty<string>(),
+            "summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<(string, Finding)>()));
+
+        Assert.Same(logAnalysis, result.LogAnalysisResult);
+    }
+
+    [Fact]
+    public void FinalizeAudit_DifferentIntent_PreservedInResult()
+    {
+        var auditState = new AgentAuditState();
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore: null, scorecardBuilder: null, riskBuilder);
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.SshCheck,
+            Array.Empty<Finding>(),
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "ssh summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<(string, Finding)>()));
+
+        Assert.Equal(AgentIntent.SshCheck, result.Intent);
+        Assert.Equal(AgentIntent.SshCheck, auditState.LastAuditIntent);
+    }
+
     private static Finding CreateFinding()
     {
         var now = DateTime.UtcNow;
@@ -70,6 +200,7 @@ public class AgentResultFinalizerTests
     private sealed class TestComplianceScorecardBuilder(ComplianceScorecard scorecard) : IComplianceScorecardBuilder
     {
         public IReadOnlyList<RuleResult>? ObservedRuleResults { get; private set; }
+        public IAuditHistoryStore? ObservedHistoryStore { get; private set; }
 
         public ComplianceScorecard? Build(
             IReadOnlyList<RuleResult> ruleResults,
@@ -77,6 +208,7 @@ public class AgentResultFinalizerTests
             DateTime? timestamp = null)
         {
             ObservedRuleResults = ruleResults;
+            ObservedHistoryStore = historyStore;
             return scorecard;
         }
     }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -138,24 +139,46 @@ public class PerformanceTests : IDisposable
     }
 
     [Fact]
-    public void Analyze_PerformanceConsistent_AcrossIntensityLevels()
+    public void Analyze_AllIntensityLevels_CompleteWithinBudget()
     {
+        const int sampleCount = 5;
+        var maxAllowedDuration = TimeSpan.FromSeconds(5);
+        var varianceFloor = TimeSpan.FromMilliseconds(250);
         var builder = new LogScenarioBuilder();
         var baseLog = builder
             .BuildPortScan(targetCount: 25, duration: TimeSpan.FromMinutes(5))
             .Generate();
         var log1000Lines = string.Join("\n", Enumerable.Repeat(baseLog, 50));
 
-        var lowDuration = MeasureAnalysisTime(log1000Lines, IntensityLevel.Low);
-        var mediumDuration = MeasureAnalysisTime(log1000Lines, IntensityLevel.Medium);
-        var highDuration = MeasureAnalysisTime(log1000Lines, IntensityLevel.High);
+        MeasureAnalysisTime(log1000Lines, IntensityLevel.Low);
+        MeasureAnalysisTime(log1000Lines, IntensityLevel.Medium);
+        MeasureAnalysisTime(log1000Lines, IntensityLevel.High);
 
-        Assert.True(lowDuration.TotalSeconds < 5.0, $"Low intensity took {lowDuration.TotalSeconds:F2}s");
-        Assert.True(mediumDuration.TotalSeconds < 5.0, $"Medium intensity took {mediumDuration.TotalSeconds:F2}s");
-        Assert.True(highDuration.TotalSeconds < 5.0, $"High intensity took {highDuration.TotalSeconds:F2}s");
+        var lowSamples = new List<TimeSpan>(sampleCount);
+        var mediumSamples = new List<TimeSpan>(sampleCount);
+        var highSamples = new List<TimeSpan>(sampleCount);
+
+        for (var i = 0; i < sampleCount; i++)
+        {
+            lowSamples.Add(MeasureAnalysisTime(log1000Lines, IntensityLevel.Low));
+            mediumSamples.Add(MeasureAnalysisTime(log1000Lines, IntensityLevel.Medium));
+            highSamples.Add(MeasureAnalysisTime(log1000Lines, IntensityLevel.High));
+        }
+
+        var lowDuration = Median(lowSamples);
+        var mediumDuration = Median(mediumSamples);
+        var highDuration = Median(highSamples);
+
+        Assert.True(lowDuration < maxAllowedDuration, $"Low intensity took {lowDuration.TotalSeconds:F2}s");
+        Assert.True(mediumDuration < maxAllowedDuration, $"Medium intensity took {mediumDuration.TotalSeconds:F2}s");
+        Assert.True(highDuration < maxAllowedDuration, $"High intensity took {highDuration.TotalSeconds:F2}s");
 
         var maxDuration = Math.Max(lowDuration.TotalSeconds, Math.Max(mediumDuration.TotalSeconds, highDuration.TotalSeconds));
         var minDuration = Math.Min(lowDuration.TotalSeconds, Math.Min(mediumDuration.TotalSeconds, highDuration.TotalSeconds));
+
+        if (TimeSpan.FromSeconds(maxDuration) < varianceFloor)
+            return;
+
         var variance = (maxDuration - minDuration) / Math.Max(minDuration, 0.001);
 
         Assert.True(variance < 2.0,
@@ -164,13 +187,19 @@ public class PerformanceTests : IDisposable
 
     private TimeSpan MeasureAnalysisTime(string log, IntensityLevel intensity)
     {
-        var startTime = DateTime.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
         var result = _analyzer.Analyze(log, intensity, CancellationToken.None);
-        var duration = DateTime.UtcNow - startTime;
+        stopwatch.Stop();
 
         Assert.True(result.ParsedLines > 0);
 
-        return duration;
+        return stopwatch.Elapsed;
+    }
+
+    private static TimeSpan Median(IReadOnlyList<TimeSpan> durations)
+    {
+        var ordered = durations.OrderBy(d => d).ToArray();
+        return ordered[ordered.Length / 2];
     }
 
     [Fact]

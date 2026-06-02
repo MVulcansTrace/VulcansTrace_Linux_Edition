@@ -47,7 +47,7 @@ Scanners populate a shared `ScanDataBuilder`, so `ScanDataBuilder` protects muta
 
 ## Report Data-Source Capability Separately
 
-Scanner warnings explain what went wrong; data-source capabilities explain what evidence was actually available. Each scanner records command visibility as available, unavailable, permission-limited, or unknown. `SecurityAgent` turns those entries into a deterministic report so the UI and exported evidence can show whether posture conclusions came from full scanner visibility or from a limited local environment.
+Scanner warnings explain what went wrong; data-source capabilities explain what evidence was actually available. Each scanner records command visibility as available, unavailable, permission-limited, or unknown. `AgentResultComposer` turns those entries into a deterministic report so the UI and exported evidence can show whether posture conclusions came from full scanner visibility or from a limited local environment.
 
 Unknown is used when a fallback command was intentionally not checked because a preferred source already returned usable data. This avoids implying that a command is missing when the scanner simply did not need it.
 

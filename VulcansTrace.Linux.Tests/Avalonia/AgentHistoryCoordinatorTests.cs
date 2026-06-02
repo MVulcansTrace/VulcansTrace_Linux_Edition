@@ -163,6 +163,44 @@ public class AgentHistoryCoordinatorTests
         Assert.Single(harness.Messages, m => m.Text == "History persistence unavailable.");
     }
 
+    [Fact]
+    public void LoadExisting_CalledTwice_DoesNotDuplicateEntries()
+    {
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        store.Append(CreateHistoryEntry("snap-1", DateTime.UtcNow));
+        store.Append(CreateHistoryEntry("snap-2", DateTime.UtcNow.AddMinutes(-1)));
+        var harness = new CoordinatorHarness(store);
+
+        harness.Coordinator.LoadExisting();
+        harness.Coordinator.LoadExisting();
+
+        Assert.Equal(2, harness.History.Count);
+    }
+
+    [Fact]
+    public void LoadExisting_EmptyStore_ProducesEmptyHistory()
+    {
+        var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore());
+
+        harness.Coordinator.LoadExisting();
+
+        Assert.Empty(harness.History);
+        Assert.Equal(1, harness.HistoryChangedCount);
+    }
+
+    [Fact]
+    public void RefreshFromStore_WithEmptyStore_ClearsHistory()
+    {
+        var store = new InMemoryAuditHistoryStore(maxEntries: 20);
+        var harness = new CoordinatorHarness(store);
+        harness.History.Add(CreateHistoryEntry("stale", DateTime.UtcNow));
+
+        harness.Coordinator.RefreshFromStore();
+
+        Assert.Empty(harness.History);
+        Assert.Equal(1, harness.HistoryChangedCount);
+    }
+
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     private static AuditHistoryEntry CreateHistoryEntry(string snapshotId, DateTime timestamp) => new()

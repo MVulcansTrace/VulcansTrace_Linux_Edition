@@ -1,0 +1,196 @@
+using System.Collections.ObjectModel;
+using Avalonia.Threading;
+using VulcansTrace.Linux.Avalonia.ViewModels;
+
+namespace VulcansTrace.Linux.Tests.Avalonia;
+
+public class AgentOperationRunnerTests
+{
+    [Fact]
+    public async Task RunAsync_SetsBusyTrueThenFalse()
+    {
+        var busyStates = new List<bool>();
+        var runner = CreateRunner(setBusy: v => busyStates.Add(v));
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.Equal(new[] { true, false }, busyStates);
+    }
+
+    [Fact]
+    public async Task RunAsync_ClearsPrivilegeWarningBeforeRunning()
+    {
+        var clearCount = 0;
+        var runner = CreateRunner(clearPrivilegeWarning: () => clearCount++);
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.Equal(1, clearCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_Success_CompletesAndCanCancelIsFalse()
+    {
+        var runner = CreateRunner();
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.False(runner.CanCancel);
+    }
+
+    [Fact]
+    public async Task RunAsync_OperationCanceledException_PostsCancelledMessage()
+    {
+        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+
+        await runner.RunAsync(_ => throw new OperationCanceledException());
+        FlushDispatcher();
+
+        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo);
+    }
+
+    [Fact]
+    public async Task RunAsync_GenericException_PostsAgentErrorMessage()
+    {
+        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+
+        await runner.RunAsync(_ => throw new InvalidOperationException("something broke"));
+        FlushDispatcher();
+
+        Assert.Contains(messages, m => m.Text == "Agent error: something broke" && m.IsInfo);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExceptionStillClearsBusy()
+    {
+        var busyStates = new List<bool>();
+        var runner = CreateRunner(setBusy: v => busyStates.Add(v));
+
+        await runner.RunAsync(_ => throw new InvalidOperationException("fail"));
+        FlushDispatcher();
+
+        Assert.Equal(new[] { true, false }, busyStates);
+    }
+
+    [Fact]
+    public void CanCancel_FalseWhenNoOperationRunning()
+    {
+        var runner = CreateRunner();
+
+        Assert.False(runner.CanCancel);
+    }
+
+    [Fact]
+    public async Task Cancel_TriggersOperationCanceledException()
+    {
+        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+
+        var runTask = runner.RunAsync(async ct =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        });
+
+        Assert.True(runner.CanCancel);
+        runner.Cancel();
+        await runTask;
+        FlushDispatcher();
+
+        Assert.False(runner.CanCancel);
+        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo);
+    }
+
+    [Fact]
+    public async Task RunAsync_SecondRunDisposesPreviousCancellationTokenSource()
+    {
+        var runner = CreateRunner();
+        var firstRunCompleted = false;
+
+        var firstTask = runner.RunAsync(async ct =>
+        {
+            await Task.Delay(50, ct);
+            firstRunCompleted = true;
+        });
+
+        await firstTask;
+        FlushDispatcher();
+
+        Assert.True(firstRunCompleted);
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.False(runner.CanCancel);
+    }
+
+    [Fact]
+    public async Task Dispose_CancelsActiveOperation()
+    {
+        var runner = CreateRunner();
+        var runTask = runner.RunAsync(async ct =>
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        });
+
+        runner.Dispose();
+        await runTask;
+        FlushDispatcher();
+
+        Assert.False(runner.CanCancel);
+    }
+
+    [Fact]
+    public void Dispose_WhenNoOperationRunning_DoesNotThrow()
+    {
+        var runner = CreateRunner();
+
+        runner.Dispose();
+    }
+
+    [Fact]
+    public async Task RunAsync_NullOperation_ThrowsArgumentNullException()
+    {
+        var runner = CreateRunner();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.RunAsync(null!));
+    }
+
+    [Fact]
+    public void Constructor_NullSetBusy_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new AgentOperationRunner(null!, () => { }, (text, isInfo) => { }));
+    }
+
+    [Fact]
+    public void Constructor_NullClearPrivilegeWarning_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new AgentOperationRunner(_ => { }, null!, (text, isInfo) => { }));
+    }
+
+    [Fact]
+    public void Constructor_NullAddAgentMessage_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new AgentOperationRunner(_ => { }, () => { }, null!));
+    }
+
+    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+
+    private static AgentOperationRunner CreateRunner(
+        Action<bool>? setBusy = null,
+        Action? clearPrivilegeWarning = null,
+        Action<string, bool>? addAgentMessage = null)
+    {
+        return new AgentOperationRunner(
+            setBusy ?? (_ => { }),
+            clearPrivilegeWarning ?? (() => { }),
+            addAgentMessage ?? ((_, _) => { }));
+    }
+}

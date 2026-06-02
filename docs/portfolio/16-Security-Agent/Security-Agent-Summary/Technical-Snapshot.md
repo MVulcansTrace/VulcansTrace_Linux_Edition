@@ -102,6 +102,10 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [JsonFileBaselineStore.cs](../../../../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs) — persisted baseline store
 - [SuppressionEntry.cs](../../../../VulcansTrace.Linux.Agent/Rules/SuppressionEntry.cs) — fingerprint-scoped accepted-risk entries
 - [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — UI command flow
+- [AgentMessageViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs) — chat message and remediation-card state
+- [AgentOperationRunner.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs) — async operation lifecycle, cancellation, busy state, and error messaging
+- [AgentResultPresenter.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs) — chat rendering, grouped findings, filters, warnings, and remediation cards
+- [AgentHistoryCoordinator.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — persisted audit history refresh, comparison, and exported-state tracking
 - [ComplianceScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/ComplianceScorecardBuilder.cs) — compliance scorecard computation
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding
 - [RiskScorecardBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs) — aggregate risk score computation

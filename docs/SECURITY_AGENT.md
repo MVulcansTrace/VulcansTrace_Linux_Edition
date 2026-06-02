@@ -171,19 +171,19 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 ## How The Pipeline Works
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent`, confidence, optional alternative intents, and optional target reference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
-2. `SecurityAgent` runs the required scanners with cancellation support.
+2. `SecurityAgent` acts as the orchestration entry point and delegates scanner execution to `ScannerCoordinator`.
 3. `ScanDataBuilder` collects scanner output and data-source capability status into a thread-safe snapshot.
-4. The rule policy provider resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`.
-5. Rules matching the requested intent evaluate the snapshot, using contextual role parameters when they opt into `IContextualRule`.
-6. Disabled rules are skipped, auto-pass rules are downgraded to passed results, and severity overrides are applied before findings are created.
-7. Failed rules become `Finding` records with stable fingerprints derived from rule ID, category, source host, and target. Severity, timestamps, and description text are excluded so the same underlying issue can be tracked when its wording or severity changes.
-8. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
-9. `SecurityAgent` remembers generated findings with their originating rule IDs so follow-up questions like `explain FW-001` can resolve without relying on text matching.
-10. If raw log text is available, `SentryAnalyzer` can add log-derived findings.
-11. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
-12. Baseline snapshots can be saved from any audit result. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display. Baselines are intent-scoped and persisted to the user config directory; the active baseline per intent is used by `CheckDrift` to compare live state against the known-good snapshot via `AuditDiffCalculator`.
+4. `RuleEvaluationService` resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`, filters rules by intent, invokes contextual rules when they opt into `IContextualRule`, converts crashes into explicit rule results, and applies disabled, auto-pass, and severity override policy.
+5. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints derived from rule ID, category, source host, and target. Severity, timestamps, and description text are excluded so the same underlying issue can be tracked when its wording or severity changes.
+6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
+7. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
+8. `AgentResultComposer` builds user-facing audit summaries and deterministic data-source capability reports.
+9. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer` and adds log-derived findings when raw log text is available.
+10. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` so follow-up questions like `explain FW-001` can resolve without relying on text matching.
+11. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
+12. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
 13. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-14. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0–100), letter grade (A–F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+14. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
 15. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
@@ -346,6 +346,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [SecurityAgent.cs](../VulcansTrace.Linux.Agent/SecurityAgent.cs)
 - [QueryParser.cs](../VulcansTrace.Linux.Agent/Query/QueryParser.cs)
 - [ScanData.cs](../VulcansTrace.Linux.Agent/Scanners/ScanData.cs)
+- [ScannerCoordinator.cs](../VulcansTrace.Linux.Agent/Scanners/ScannerCoordinator.cs)
 - [FirewallScanner.cs](../VulcansTrace.Linux.Agent/Scanners/FirewallScanner.cs)
 - [PortScanner.cs](../VulcansTrace.Linux.Agent/Scanners/PortScanner.cs)
 - [ServiceScanner.cs](../VulcansTrace.Linux.Agent/Scanners/ServiceScanner.cs)
@@ -359,10 +360,22 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [CronJobScanner.cs](../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs)
 - [PackageVulnerabilityScanner.cs](../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
+- [RuleEvaluationService.cs](../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs)
+- [FindingAssemblyService.cs](../VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs)
+- [AgentResultComposer.cs](../VulcansTrace.Linux.Agent/Reports/AgentResultComposer.cs)
+- [AgentLogAnalysisService.cs](../VulcansTrace.Linux.Agent/Reports/AgentLogAnalysisService.cs)
+- [AgentResultFinalizer.cs](../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs)
+- [AgentFollowUpService.cs](../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs)
+- [FindingExplanationService.cs](../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs)
+- [SingleRuleExplanationService.cs](../VulcansTrace.Linux.Agent/Reports/SingleRuleExplanationService.cs)
 - [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
 - [CronJobRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs)
 - [PackageVulnerabilityRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
+- [AgentMessageViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs)
+- [AgentOperationRunner.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs)
+- [AgentResultPresenter.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs)
+- [AgentHistoryCoordinator.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs)
 - [ComplianceScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs)
 - [RiskScorecardViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs)
 - [RiskScorecardBuilder.cs](../VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs)

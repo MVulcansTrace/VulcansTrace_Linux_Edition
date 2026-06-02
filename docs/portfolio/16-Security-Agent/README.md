@@ -77,6 +77,10 @@ Documentation is organized for two audiences:
 - [ExplanationProvider.cs](../../../VulcansTrace.Linux.Agent/Explanations/ExplanationProvider.cs) — embedded markdown explanation loading
 - [AgentReportGenerator.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentReportGenerator.cs) — agent-to-analysis result adapter
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — chat panel ViewModel
+- [AgentMessageViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs) — chat message state, remediation-card state, and copy command behavior
+- [AgentOperationRunner.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs) — async operation lifecycle, cancellation, busy state, and error messaging
+- [AgentResultPresenter.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs) — chat rendering, grouped findings, filters, warnings, and remediation cards
+- [AgentHistoryCoordinator.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — persisted audit history refresh, comparisons, exported-state tracking, and persistence warnings
 - [AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI
 - [RemediationPlanBuilder.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs) — builds per-rule remediation plans from explanations
 - [RemediationExecutor.cs](../../../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs) — orchestrates backup, apply, rollback, and verify with policy enforcement

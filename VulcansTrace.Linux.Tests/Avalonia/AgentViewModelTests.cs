@@ -269,6 +269,90 @@ public class AgentViewModelTests
         Assert.DoesNotContain(vm.Messages, message => message.Text.StartsWith("Warnings:"));
     }
 
+    [Fact]
+    public async Task ExplainSelectedCommand_ExplainsFindingAndAddsMessages()
+    {
+        var finding = CreateFinding();
+        var agent = new ExplainFindingAgent(finding);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        {
+            SelectedFindingProvider = () => finding
+        };
+
+        Assert.True(vm.ExplainSelectedCommand.CanExecute(null));
+
+        vm.ExplainSelectedCommand.Execute(null);
+        await vm.ExplainSelectedCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == "Explain selected" && m.IsUser);
+        Assert.Contains(vm.Messages, m => m.Text == "explanation summary");
+        Assert.Contains(vm.Messages, m => m.Text.Contains("SSH exposed") && m.Severity == Severity.High);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task ExplainSelectedCommand_NoSelection_AddsGuidanceMessage()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore())
+        {
+            SelectedFindingProvider = () => null
+        };
+
+        vm.ExplainSelectedCommand.Execute(null);
+        await vm.ExplainSelectedCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == "No finding is selected. Select a finding from the list first." && m.IsInfo);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task SetBaselineCommand_AfterAudit_DisplaysBaselineSummary()
+    {
+        var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.SetBaselineCommand.CanExecute(null));
+        vm.Messages.Clear();
+
+        vm.SetBaselineCommand.Execute(null);
+        await vm.SetBaselineCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == "Set baseline" && m.IsUser);
+        Assert.Contains(vm.Messages, m => m.Text == "baseline saved" && m.IsInfo);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task CheckDriftCommand_AfterAudit_DisplaysDriftResult()
+    {
+        var agent = new DriftResultAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check ssh"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+        vm.Messages.Clear();
+
+        vm.CheckDriftCommand.Execute(null);
+        await vm.CheckDriftCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text.StartsWith("Check drift") && m.IsUser);
+        Assert.Contains(vm.Messages, m => m.Text == "drift summary");
+        Assert.DoesNotContain(vm.Messages, m => m.Text == "hidden capability report");
+        Assert.False(vm.IsBusy);
+    }
+
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     private static Finding CreateFinding() => new()
@@ -477,6 +561,62 @@ public class AgentViewModelTests
                 CapabilityReport = "hidden capability report",
                 PassedCount = 4,
                 Warnings = new[] { "hidden warning" }
+            });
+    }
+
+    private sealed class ExplainFindingAgent : StubAgent
+    {
+        private readonly Finding _finding;
+
+        public ExplainFindingAgent(Finding finding)
+        {
+            _finding = finding;
+        }
+
+        public override Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                Summary = "explanation summary",
+                AgentFindings = new[] { _finding }
+            });
+    }
+
+    private sealed class SetBaselineSuccessAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SshCheck,
+                Summary = "audit",
+                UtcTimestamp = DateTime.UtcNow
+            });
+
+        public override Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SetBaseline,
+                Summary = "baseline saved"
+            });
+    }
+
+    private sealed class DriftResultAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SshCheck,
+                Summary = "audit",
+                UtcTimestamp = DateTime.UtcNow
+            });
+
+        public override Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.CheckDrift,
+                Summary = "drift summary",
+                CapabilityReport = "hidden capability report",
+                PassedCount = 3
             });
     }
 }
