@@ -251,11 +251,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public Action<AuditDiff>? ShowAuditDiffAction { get; set; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AgentViewModel"/> class.
-    /// </summary>
-    /// <param name="agent">The agent instance to use for queries.</param>
-    /// <param name="historyStore">The store for persisting audit history.</param>
-    /// <summary>
     /// Swaps the underlying agent implementation (used when machine role changes).
     /// </summary>
     public void SetAgent(IAgent agent)
@@ -273,6 +268,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         SetBaselineCommand.RaiseCanExecuteChanged();
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AgentViewModel"/> class.
+    /// </summary>
+    /// <param name="agent">The agent instance to use for queries.</param>
+    /// <param name="historyStore">The store for persisting audit history.</param>
     public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
