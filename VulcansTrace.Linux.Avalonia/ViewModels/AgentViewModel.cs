@@ -21,10 +21,9 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// </summary>
 public sealed class AgentViewModel : ViewModelBase, IDisposable
 {
-    private const string AllCategoriesFilter = "All categories";
-
     private IAgent _agent;
-    private readonly IAuditHistoryStore _historyStore;
+    private readonly AgentResultPresenter _presenter;
+    private readonly AgentHistoryCoordinator _historyCoordinator;
     private CancellationTokenSource? _cts;
 
     private string _userQuery = "";
@@ -61,7 +60,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             if (SetField(ref _selectedChatSeverityFilter, value))
             {
-                ApplyChatFilters();
+                _presenter.ApplyChatFilters();
             }
         }
     }
@@ -77,7 +76,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             if (SetField(ref _selectedChatCategoryFilter, value))
             {
-                ApplyChatFilters();
+                _presenter.ApplyChatFilters();
             }
         }
     }
@@ -277,13 +276,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
-        _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
-
-        // Load persisted history
-        foreach (var entry in _historyStore.GetAll())
-        {
-            History.Add(entry);
-        }
+        ArgumentNullException.ThrowIfNull(historyStore);
+        _presenter = new AgentResultPresenter(
+            Messages,
+            ChatCategoryFilters,
+            () => _selectedChatSeverityFilter,
+            () => _selectedChatCategoryFilter,
+            v => HasPrivilegeWarning = v,
+            t => PrivilegeWarningText = t);
 
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
@@ -345,7 +345,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => CanCompareSelectedAudits);
 
         ClearChatFiltersCommand = new RelayCommand(
-            _ => ClearChatFilters(),
+            _ => { SelectedChatSeverityFilter = ChatSeverityFilters[0]; SelectedChatCategoryFilter = null; },
             _ => true);
 
         SetBaselineCommand = new AsyncRelayCommand(
@@ -365,9 +365,23 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
 
+        _historyCoordinator = new AgentHistoryCoordinator(
+            historyStore,
+            History,
+            (text, isInfo) => _presenter.AddAgentMessage(text, isInfo),
+            () => Messages,
+            () =>
+            {
+                OnPropertyChanged(nameof(CanCompareAudits));
+                CompareAuditsCommand.RaiseCanExecuteChanged();
+                CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
+            });
+
+        _historyCoordinator.LoadExisting();
+
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
-        AddHistoryPersistenceWarningIfAny();
+        _historyCoordinator.ShowPersistenceWarningIfAny();
     }
 
     /// <summary>Gets the command to compare the last two audits.</summary>
@@ -439,57 +453,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
-                    AddAgentMessage(result.CapabilityReport, true);
-
-                if (result.Intent == AgentIntent.FixFinding && result.RemediationPlan?.Sections.Count == 1)
-                {
-                    AddInteractiveRemediationMessage(result);
-                }
-                else
-                {
-                    AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-
-                    if (result.PassedCount > 0)
-                    {
-                        AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
-                    }
-
-                    if (result.AgentFindings.Count > 0)
-                    {
-                        AddAgentFindingGroupSummary(result.AgentFindings);
-
-                        // Populate category filters from current findings
-                        ChatCategoryFilters.Clear();
-                        ChatCategoryFilters.Add(AllCategoriesFilter);
-                        foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
-                        {
-                            ChatCategoryFilters.Add(cat);
-                        }
-
-                        var grouped = result.AgentFindings
-                            .GroupBy(f => f.Category)
-                            .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                            .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                            .ToList();
-
-                        foreach (var group in grouped)
-                        {
-                            AddAgentFindingGroup(group.Category, group.Findings);
-                        }
-                    }
-                }
-
-                if (result.Warnings.Count > 0)
-                {
-                    AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
-                    DetectPrivilegeWarning(result.Warnings);
-                }
-
-                ApplyChatFilters();
-            });
+            Dispatcher.UIThread.Post(() => PresentFindings(result));
 
             // Raise audit completion for audit intents so MainViewModel can sync evidence
             if (IsAuditIntent(result.Intent))
@@ -513,157 +477,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void AddUserMessage(string text)
-    {
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = text,
-            IsUser = true,
-            Timestamp = DateTime.Now
-        });
-    }
-
-    private void AddAgentMessage(string text, bool isInfo)
-    {
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = text,
-            IsUser = false,
-            IsInfo = isInfo,
-            Timestamp = DateTime.Now
-        });
-    }
-
-    private void AddAgentFinding(Finding finding)
-    {
-        var ruleIdPrefix = string.IsNullOrEmpty(finding.RuleId) ? "" : $"[{finding.RuleId}] ";
-
-        // Parse verification commands from the finding details markdown
-        var verificationCommands = VerificationCommandExtractor.ExtractHowToVerify(finding.Details);
-
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = $"{ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}",
-            Details = finding.Details,
-            IsUser = false,
-            IsInfo = false,
-            Severity = finding.Severity,
-            Timestamp = DateTime.Now,
-            VerificationCommands = verificationCommands
-        });
-    }
-
-    private void AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
-    {
-        var critical = findings.Count(f => f.Severity == Severity.Critical);
-        var high = findings.Count(f => f.Severity == Severity.High);
-        var medium = findings.Count(f => f.Severity == Severity.Medium);
-        var low = findings.Count(f => f.Severity == Severity.Low);
-        var info = findings.Count(f => f.Severity == Severity.Info);
-
-        var parts = new List<string>();
-        if (critical > 0) parts.Add($"{critical} Critical");
-        if (high > 0) parts.Add($"{high} High");
-        if (medium > 0) parts.Add($"{medium} Medium");
-        if (low > 0) parts.Add($"{low} Low");
-        if (info > 0) parts.Add($"{info} Info");
-
-        var summary = $"Findings: {string.Join(", ", parts)} ({findings.Count} total)";
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = summary,
-            IsUser = false,
-            IsInfo = true,
-            Timestamp = DateTime.Now
-        });
-    }
-
-    private void AddAgentFindingGroup(string category, IReadOnlyList<Finding> findings)
-    {
-        var highCritical = findings.Count(f => f.Severity >= Severity.High);
-        var header = highCritical > 0
-            ? $"[{category}] {findings.Count} finding(s) — {highCritical} High/Critical"
-            : $"[{category}] {findings.Count} finding(s)";
-
-        var details = new System.Text.StringBuilder();
-        foreach (var finding in findings)
-        {
-            var ruleIdPrefix = string.IsNullOrEmpty(finding.RuleId) ? "" : $"[{finding.RuleId}] ";
-            details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}");
-        }
-
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = header,
-            Details = details.ToString().TrimEnd(),
-            IsUser = false,
-            IsInfo = false,
-            Severity = findings.Max(f => f.Severity),
-            Timestamp = DateTime.Now,
-            Category = category
-        });
-    }
-
-    private void AddInteractiveRemediationMessage(AgentResult result)
-    {
-        var section = result.RemediationPlan!.Sections[0];
-        var severity = ParseSeverityFromSummary(section.FindingSummary);
-
-        Messages.Add(new AgentMessageViewModel
-        {
-            Text = result.Summary,
-            Details = $"Risk: {section.RiskNote}",
-            IsUser = false,
-            IsInfo = false,
-            Severity = severity,
-            Timestamp = DateTime.Now,
-            RemediationSection = section
-        });
-    }
-
-    private static Severity ParseSeverityFromSummary(string summary)
-    {
-        if (summary.Contains("Critical", StringComparison.OrdinalIgnoreCase)) return Severity.Critical;
-        if (summary.Contains("High", StringComparison.OrdinalIgnoreCase)) return Severity.High;
-        if (summary.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return Severity.Medium;
-        if (summary.Contains("Low", StringComparison.OrdinalIgnoreCase)) return Severity.Low;
-        return Severity.Info;
-    }
-
-    private void ApplyChatFilters()
-    {
-        foreach (var msg in Messages)
-        {
-            if (msg.IsUser || msg.IsInfo || string.IsNullOrEmpty(msg.Category))
-            {
-                msg.IsVisible = true;
-                continue;
-            }
-
-            var severityOk = true;
-            var categoryOk = true;
-
-            if (_selectedChatSeverityFilter != null)
-            {
-                if (_selectedChatSeverityFilter.MinSeverity == Severity.High && msg.Severity < Severity.High)
-                    severityOk = false;
-                if (_selectedChatSeverityFilter.MinSeverity == Severity.Critical && msg.Severity < Severity.Critical)
-                    severityOk = false;
-            }
-
-            if (!IsAllCategoryFilter(_selectedChatCategoryFilter) && !msg.Category.Equals(_selectedChatCategoryFilter, StringComparison.OrdinalIgnoreCase))
-                categoryOk = false;
-
-            msg.IsVisible = severityOk && categoryOk;
-        }
-    }
-
-    private void ClearChatFilters()
-    {
-        SelectedChatSeverityFilter = ChatSeverityFilters[0];
-        SelectedChatCategoryFilter = null;
-    }
-
     private async Task RunQuickAuditAsync(AgentIntent intent, string displayQuery)
     {
         AddUserMessage(displayQuery);
@@ -679,50 +492,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             var result = await _agent.RunAuditAsync(intent, LogText, token);
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (!string.IsNullOrWhiteSpace(result.CapabilityReport))
-                    AddAgentMessage(result.CapabilityReport, true);
-
-                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-
-                if (result.PassedCount > 0)
-                {
-                    AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
-                }
-
-                if (result.AgentFindings.Count > 0)
-                {
-                    AddAgentFindingGroupSummary(result.AgentFindings);
-
-                    // Populate category filters from current findings
-                    ChatCategoryFilters.Clear();
-                    ChatCategoryFilters.Add(AllCategoriesFilter);
-                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
-                    {
-                        ChatCategoryFilters.Add(cat);
-                    }
-
-                    var grouped = result.AgentFindings
-                        .GroupBy(f => f.Category)
-                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                        .ToList();
-
-                    foreach (var group in grouped)
-                    {
-                        AddAgentFindingGroup(group.Category, group.Findings);
-                    }
-                }
-
-                if (result.Warnings.Count > 0)
-                {
-                    AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
-                    DetectPrivilegeWarning(result.Warnings);
-                }
-
-                ApplyChatFilters();
-            });
+            Dispatcher.UIThread.Post(() => PresentFindings(result));
 
             PublishAuditCompleted(result);
         }
@@ -789,20 +559,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void DetectPrivilegeWarning(IReadOnlyList<string> warnings)
-    {
-        var privilegeWarning = warnings.FirstOrDefault(w =>
-            w.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
-            w.Contains("privilege", StringComparison.OrdinalIgnoreCase) ||
-            w.Contains("denied", StringComparison.OrdinalIgnoreCase) ||
-            w.Contains("elevated", StringComparison.OrdinalIgnoreCase));
+    private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
+        => _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
 
-        if (privilegeWarning != null)
-        {
-            HasPrivilegeWarning = true;
-            PrivilegeWarningText = "Some inspections are limited without elevated privileges. Process names, connection details, and service states may be hidden. Run with sudo for full visibility.";
-        }
-    }
+    private void AddUserMessage(string text) => _presenter.AddUserMessage(text);
+    private void AddAgentMessage(string text, bool isInfo) => _presenter.AddAgentMessage(text, isInfo);
+    private void AddAgentFinding(Finding finding) => _presenter.AddAgentFinding(finding);
 
     private void ClearPrivilegeWarning()
     {
@@ -831,81 +593,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
         SetBaselineCommand.RaiseCanExecuteChanged();
-        AppendHistoryEntry(result);
+        _historyCoordinator.AppendHistoryEntry(result);
     }
 
-    private void AppendHistoryEntry(AgentResult result)
-    {
-        var findings = result.AgentFindings;
-        var snapshotFindings = findings.Select(f => new AuditSnapshotFinding
-        {
-            RuleId = f.RuleId ?? "",
-            Target = f.Target,
-            Severity = f.Severity.ToString(),
-            ShortDescription = f.ShortDescription,
-            Fingerprint = f.Fingerprint
-        }).ToList();
-
-        var entry = new AuditHistoryEntry
-        {
-            SnapshotId = Guid.NewGuid().ToString("N")[..8],
-            TimestampUtc = result.UtcTimestamp,
-            Intent = result.Intent,
-            TotalFindings = findings.Count,
-            CriticalCount = findings.Count(f => f.Severity == Severity.Critical),
-            HighCount = findings.Count(f => f.Severity == Severity.High),
-            MediumCount = findings.Count(f => f.Severity == Severity.Medium),
-            LowCount = findings.Count(f => f.Severity == Severity.Low),
-            InfoCount = findings.Count(f => f.Severity == Severity.Info),
-            WarningCount = result.Warnings.Count,
-            Exported = false,
-            PassedCount = result.PassedCount,
-            FailedCount = result.FailedCount,
-            SuppressedCount = result.SuppressedCount,
-            CrashedCount = result.CrashedCount,
-            SnapshotFindings = snapshotFindings,
-            Scorecard = result.Scorecard
-        };
-
-        _historyStore.Append(entry);
-        RefreshHistoryFromStore();
-        Dispatcher.UIThread.Post(AddHistoryPersistenceWarningIfAny);
-    }
-
-    private void RefreshHistoryFromStore()
-    {
-        History.Clear();
-        foreach (var entry in _historyStore.GetAll())
-        {
-            History.Add(entry);
-        }
-
-        OnPropertyChanged(nameof(CanCompareAudits));
-        CompareAuditsCommand.RaiseCanExecuteChanged();
-        CompareSelectedAuditsCommand.RaiseCanExecuteChanged();
-    }
-
-    /// <summary>
-    /// Marks the latest audit history entry as exported.
-    /// </summary>
     public void MarkLatestAuditExported()
     {
-        if (History.Count == 0)
-            return;
-
-        var updated = History[0] with { Exported = true };
-        History[0] = updated;
-        _historyStore.Update(updated);
-        Dispatcher.UIThread.Post(AddHistoryPersistenceWarningIfAny);
-    }
-
-    private void AddHistoryPersistenceWarningIfAny()
-    {
-        var warning = _historyStore.PersistenceWarning;
-        if (string.IsNullOrWhiteSpace(warning) || Messages.Any(message => message.Text == warning))
-            return;
-
-        AddAgentMessage(warning, true);
+        _historyCoordinator.MarkLatestExported();
     }
 
     private static bool IsAuditIntent(AgentIntent intent) =>
@@ -917,10 +610,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             or AgentIntent.SshCheck
             or AgentIntent.FilePermissionCheck
             or AgentIntent.KernelCheck;
-
-    private static bool IsAllCategoryFilter(string? categoryFilter) =>
-        string.IsNullOrWhiteSpace(categoryFilter)
-            || categoryFilter.Equals(AllCategoriesFilter, StringComparison.OrdinalIgnoreCase);
 
     private async Task SetBaselineAsync()
     {
@@ -982,41 +671,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             var result = await _agent.CheckDriftAsync(intent, null, token);
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-
-                if (result.AgentFindings.Count > 0)
-                {
-                    AddAgentFindingGroupSummary(result.AgentFindings);
-
-                    ChatCategoryFilters.Clear();
-                    ChatCategoryFilters.Add(AllCategoriesFilter);
-                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
-                    {
-                        ChatCategoryFilters.Add(cat);
-                    }
-
-                    var grouped = result.AgentFindings
-                        .GroupBy(f => f.Category)
-                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                        .ToList();
-
-                    foreach (var group in grouped)
-                    {
-                        AddAgentFindingGroup(group.Category, group.Findings);
-                    }
-                }
-
-                if (result.Warnings.Count > 0)
-                {
-                    AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
-                    DetectPrivilegeWarning(result.Warnings);
-                }
-
-                ApplyChatFilters();
-            });
+            Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false));
         }
         catch (OperationCanceledException)
         {
@@ -1050,35 +705,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             var result = await _agent.GetBaselineAsync(intent, token);
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-
-                if (result.AgentFindings.Count > 0)
-                {
-                    AddAgentFindingGroupSummary(result.AgentFindings);
-
-                    ChatCategoryFilters.Clear();
-                    ChatCategoryFilters.Add(AllCategoriesFilter);
-                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
-                    {
-                        ChatCategoryFilters.Add(cat);
-                    }
-
-                    var grouped = result.AgentFindings
-                        .GroupBy(f => f.Category)
-                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                        .ToList();
-
-                    foreach (var group in grouped)
-                    {
-                        AddAgentFindingGroup(group.Category, group.Findings);
-                    }
-                }
-
-                ApplyChatFilters();
-            });
+            Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false));
         }
         catch (OperationCanceledException)
         {
