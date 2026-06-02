@@ -24,6 +24,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private IAgent _agent;
     private readonly AgentResultPresenter _presenter;
     private readonly AgentHistoryCoordinator _historyCoordinator;
+    private readonly AgentOperationRunner _operationRunner;
     private CancellationTokenSource? _cts;
 
     private string _userQuery = "";
@@ -284,6 +285,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             () => _selectedChatCategoryFilter,
             v => HasPrivilegeWarning = v,
             t => PrivilegeWarningText = t);
+        _operationRunner = new AgentOperationRunner(
+            value => IsBusy = value,
+            ClearPrivilegeWarning,
+            AddAgentMessage);
 
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
@@ -397,7 +402,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public RelayCommand ExportRemediationCommand { get; }
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
-    private bool CanCancel() => _isBusy && _cts != null && !_cts.IsCancellationRequested;
+    private bool CanCancel() => _isBusy && (_operationRunner.CanCancel || (_cts != null && !_cts.IsCancellationRequested));
 
     /// <summary>
     /// Notifies the agent panel that the host findings selection changed.
@@ -410,6 +415,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void CancelQuery()
     {
+        _operationRunner.Cancel();
         _cts?.Cancel();
     }
 
@@ -421,14 +427,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         AddUserMessage(query);
         UserQuery = string.Empty;
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             AgentResult result;
 
@@ -460,34 +460,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 PublishAuditCompleted(result);
             }
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private async Task RunQuickAuditAsync(AgentIntent intent, string displayQuery)
     {
         AddUserMessage(displayQuery);
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.RunAuditAsync(intent, LogText, token);
             SetLastResult(result);
@@ -495,21 +475,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => PresentFindings(result));
 
             PublishAuditCompleted(result);
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private async Task ExplainSelectedAsync()
@@ -522,14 +488,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
 
         AddUserMessage("Explain selected");
-        IsBusy = true;
-        ClearPrivilegeWarning();
 
-        _cts?.Dispose();
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
-
-        try
+        await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.ExplainFindingAsync(selected, token);
             SetLastResult(result);
@@ -542,21 +502,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     AddAgentFinding(finding);
                 }
             });
-        }
-        catch (OperationCanceledException)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage("Query cancelled.", true));
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => AddAgentMessage($"Agent error: {ex.Message}", true));
-        }
-        finally
-        {
-            Dispatcher.UIThread.Post(() => IsBusy = false);
-            _cts?.Dispose();
-            _cts = null;
-        }
+        });
     }
 
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
@@ -785,6 +731,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        _operationRunner.Dispose();
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;

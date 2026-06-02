@@ -169,6 +169,42 @@ public class AgentViewModelTests
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
+    {
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains(vm.Messages, message => message.Text == "Agent error: boom" && message.IsInfo);
+    }
+
+    [Fact]
+    public async Task CancelQueryCommand_CancelsActiveOperationAndClearsBusyState()
+    {
+        var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore())
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        Assert.True(vm.IsBusy);
+        Assert.True(vm.CancelQueryCommand.CanExecute(null));
+
+        vm.CancelQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains(vm.Messages, message => message.Text == "Query cancelled." && message.IsInfo);
+    }
+
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     private static Finding CreateFinding() => new()
@@ -184,23 +220,23 @@ public class AgentViewModelTests
         RuleId = "FW-001"
     };
 
-    private sealed class StubAgent : IAgent
+    private class StubAgent : IAgent
     {
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.Help,
                 Summary = "stub"
             });
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = intent,
                 Summary = "stub"
             });
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public virtual Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ExplainFinding,
@@ -208,21 +244,21 @@ public class AgentViewModelTests
                 AgentFindings = new[] { finding }
             });
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public virtual Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SetBaseline,
                 Summary = "stub"
             });
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.CheckDrift,
                 Summary = "stub"
             });
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public virtual Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ShowBaseline,
@@ -307,5 +343,22 @@ public class AgentViewModelTests
             Summary = "stub",
             UtcTimestamp = DateTime.UtcNow
         };
+    }
+
+    private sealed class ErrorAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            throw new InvalidOperationException("boom");
+        }
+    }
+
+    private sealed class CancellableAgent : StubAgent
+    {
+        public override async Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new AgentResult { Intent = AgentIntent.Help, Summary = "unreachable" };
+        }
     }
 }
