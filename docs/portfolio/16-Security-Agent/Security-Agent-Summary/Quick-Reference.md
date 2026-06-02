@@ -120,17 +120,17 @@ User query
   -> QueryParser
   -> AgentQuery (Intent + optional TargetReference)
   -> SecurityAgent
-  -> Scanners
+  -> ScannerCoordinator
   -> ScanDataBuilder / ScanData
-  -> Data-source capability report
-  -> Rule policy provider
-  -> Rules / contextual rules
-  -> Finding records
-  -> Finding fingerprints
-  -> ExplanationProvider
-  -> AgentResult
-  -> BaselineStore (optional save)
-  -> AuditDiffCalculator (drift comparison)
+  -> AgentResultComposer (data-source capability report)
+  -> RuleEvaluationService
+  -> Rule policy provider + rules / contextual rules
+  -> FindingAssemblyService
+  -> Finding records + stable fingerprints
+  -> AgentLogAnalysisService (optional pasted logs)
+  -> AgentResultFinalizer
+  -> AgentResult + AgentAuditState
+  -> AgentFollowUpService / FindingExplanationService / BaselineDriftService (follow-up paths)
   -> UI and/or AgentReportGenerator
 ```
 

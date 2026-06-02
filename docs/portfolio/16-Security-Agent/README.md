@@ -37,9 +37,10 @@ Documentation is organized for two audiences:
 
 ## Implementation Evidence
 
-- [SecurityAgent.cs](../../../VulcansTrace.Linux.Agent/SecurityAgent.cs) — scanner/rule/explanation/log-analysis orchestration
+- [SecurityAgent.cs](../../../VulcansTrace.Linux.Agent/SecurityAgent.cs) — thin agent orchestrator that delegates scanning, rule evaluation, finding assembly, follow-ups, baseline/drift, explanation, log-analysis, and result finalization
 - [IAgent.cs](../../../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface
 - [QueryParser.cs](../../../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — keyword-scored intent parser
+- [ScannerCoordinator.cs](../../../VulcansTrace.Linux.Agent/Scanners/ScannerCoordinator.cs) — concurrent scanner execution and warning aggregation
 - [ScanData.cs](../../../VulcansTrace.Linux.Agent/Scanners/ScanData.cs) — immutable scanner snapshot model
 - [DataSourceCapability.cs](../../../VulcansTrace.Linux.Agent/Scanners/DataSourceCapability.cs) — scanner data-source availability model
 - [IScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/IScanner.cs) — scanner contract and thread-safe `ScanDataBuilder`
@@ -56,8 +57,18 @@ Documentation is organized for two audiences:
 - [CronJobScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs) — cron job entry collection from system and user crontabs
 - [PackageVulnerabilityScanner.cs](../../../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs) — installed package enumeration, security update detection, and CVE enrichment
 - [SecurityRules](../../../VulcansTrace.Linux.Agent/Rules/SecurityRules) — firewall, network, service, port, SSH, file permission, filesystem audit, kernel hardening, user account, logging, cron job, and package vulnerability checks
+- [RuleEvaluationService.cs](../../../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs) — intent filtering, contextual rule evaluation, local policy handling, crash handling, auto-pass, and severity overrides
+- [FindingAssemblyService.cs](../../../VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs) — explanation lookup, finding creation, suppression checks, and active finding history entries
+- [AgentResultComposer.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentResultComposer.cs) — audit summary text and deterministic capability report formatting
+- [AgentLogAnalysisService.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentLogAnalysisService.cs) — optional pasted-log analysis bridge to `SentryAnalyzer`
+- [AgentResultFinalizer.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs) — final `AgentResult` construction, scorecard attachment, and audit-state updates
+- [AgentAuditState.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentAuditState.cs) — previous audit result, previous audit intent, and finding lookup state for follow-up questions
+- [AgentFollowUpService.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up question handlers
+- [FindingExplanationService.cs](../../../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs) — selected-finding and referenced-rule explanation flow
+- [SingleRuleExplanationService.cs](../../../VulcansTrace.Linux.Agent/Reports/SingleRuleExplanationService.cs) — explain-by-rule path for targeted single-rule checks
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
+- [BaselineDriftService.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineDriftService.cs) — baseline save, baseline display, and drift comparison workflow
 - [BaselineEntry.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineEntry.cs) — baseline snapshot with original findings
 - [IBaselineStore.cs](../../../VulcansTrace.Linux.Agent/Baselines/IBaselineStore.cs) — baseline storage contract
 - [JsonFileBaselineStore.cs](../../../VulcansTrace.Linux.Agent/Baselines/JsonFileBaselineStore.cs) — persisted baseline store

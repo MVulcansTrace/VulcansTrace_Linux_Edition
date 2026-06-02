@@ -24,6 +24,9 @@ Layer 3: Child ViewModels
          FindingsViewModel   -- filtering, search, parse errors
          EvidenceViewModel   -- export, signing key, file dialog
          TimelineViewModel   -- category grouping, normalization
+         AgentViewModel      -- Security Agent commands/state
+         AgentResultPresenter -- agent chat rendering/filtering
+         AgentHistoryCoordinator -- agent audit history persistence
 
 Layer 4: Dialog Abstraction
          IDialogService      -- platform-agnostic interface

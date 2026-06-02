@@ -38,10 +38,14 @@ LogNormalizer → 13 detectors (6 baseline + 5 Linux + 2 advanced)
 
 Agent scanners + rules + DefaultRulePolicyProvider(JsonRulePolicyStore)
   → SecurityAgent(MachineRole.Workstation)
+  → ScannerCoordinator / RuleEvaluationService / FindingAssemblyService
+  → AgentResultComposer / AgentLogAnalysisService / AgentResultFinalizer
 
 IntegrityHasher → 5 formatters → EvidenceBuilder
 
-AvaloniaDialogService(this) → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, stores)
+AgentResultPresenter + AgentHistoryCoordinator
+  → AgentViewModel(agent, stores)
+  → MainViewModel(analyzer, evidenceBuilder, dialogService, profileProvider, agent, stores)
 
 DataContext = viewModel
 ```

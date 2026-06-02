@@ -4,7 +4,9 @@
 
 ## Implementation Overview
 
-The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. The main orchestrator, `SecurityAgent`, parses the user's query into an `AgentQuery`, runs local scanners, records data-source capabilities, resolves role-aware policy, evaluates rules, converts failed checks into fingerprinted `Finding` records, fills human-readable markdown explanations, caches findings by originating rule ID for follow-up questions, and optionally includes firewall-log analysis through `SentryAnalyzer`.
+The Security Agent is a local assistant layer on top of VulcansTrace. It does not replace the log-analysis engine; it adds a host-posture audit path that can answer natural-language questions and inspect the live Linux system. `SecurityAgent` is now the entry point that parses the user's query into an `AgentQuery` and delegates the pipeline to focused services.
+
+`ScannerCoordinator` runs local scanners, `RuleEvaluationService` resolves role-aware policy and evaluates rules, and `FindingAssemblyService` converts failed checks into fingerprinted `Finding` records. `AgentResultComposer` formats summaries and capability reports, `AgentLogAnalysisService` optionally includes firewall-log analysis through `SentryAnalyzer`, and `AgentResultFinalizer` attaches scorecards while updating `AgentAuditState` for follow-up questions.
 
 The subsystem is deliberately deterministic and explainable. Each result can be traced to a scanner, a rule, and an explanation template rather than to opaque model output.
 
@@ -58,8 +60,17 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 
 ## Key Evidence
 
-- [SecurityAgent.cs](../../../../VulcansTrace.Linux.Agent/SecurityAgent.cs) — orchestration
+- [SecurityAgent.cs](../../../../VulcansTrace.Linux.Agent/SecurityAgent.cs) — thin orchestration entry point
 - [QueryParser.cs](../../../../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing
+- [ScannerCoordinator.cs](../../../../VulcansTrace.Linux.Agent/Scanners/ScannerCoordinator.cs) — concurrent scanner execution and warning aggregation
+- [RuleEvaluationService.cs](../../../../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs) — intent filtering, policy handling, contextual evaluation, crash handling, auto-pass, and severity overrides
+- [FindingAssemblyService.cs](../../../../VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs) — explanation lookup, finding creation, and suppression marking
+- [AgentResultComposer.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentResultComposer.cs) — summary and capability report composition
+- [AgentLogAnalysisService.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentLogAnalysisService.cs) — optional raw-log analysis bridge
+- [AgentResultFinalizer.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs) — result construction, scorecard attachment, and audit-state update
+- [AgentFollowUpService.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up workflows
+- [FindingExplanationService.cs](../../../../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs) — selected-finding and referenced-rule explanation workflow
+- [BaselineDriftService.cs](../../../../VulcansTrace.Linux.Agent/Baselines/BaselineDriftService.cs) — baseline save/show/drift workflow
 - [IScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/IScanner.cs) — thread-safe scanner aggregation
 - [DataSourceCapability.cs](../../../../VulcansTrace.Linux.Agent/Scanners/DataSourceCapability.cs) — data-source availability and permission status
 - [FirewallScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/FirewallScanner.cs) — firewall collection
