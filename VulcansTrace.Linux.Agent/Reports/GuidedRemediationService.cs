@@ -532,6 +532,154 @@ internal sealed class GuidedRemediationService
         return Task.FromResult(BuildSessionResult(updatedSession));
     }
 
+    public Task<AgentResult> ListSessionsAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_sessionStore == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var sessions = _sessionStore.List();
+        if (sessions.Count == 0)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "No remediation sessions found. Start one with \"remediate FW-001\".",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>(),
+                RemediationSessions = sessions
+            });
+        }
+
+        var parts = new List<string>
+        {
+            "**Remediation Sessions**",
+            ""
+        };
+
+        foreach (var session in sessions)
+        {
+            var findingSummary = session.RemediationPlan.Sections.FirstOrDefault()?.FindingSummary ?? "No summary";
+            parts.Add($"• **{session.SessionId}** — {session.Status} — {session.CreatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+            parts.Add($"  Finding: {findingSummary}");
+        }
+
+        parts.Add("");
+        parts.Add("To resume a session, say \"resume session <id>\".");
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ListRemediationSessions,
+            Summary = string.Join("\n", parts),
+            AgentFindings = Array.Empty<Finding>(),
+            Warnings = Array.Empty<string>(),
+            RemediationSessions = sessions
+        });
+    }
+
+    public Task<AgentResult> LoadSessionAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ResumeRemediation,
+                Summary = "Please specify which session to resume (e.g., **resume session abc12345**).",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        if (_sessionStore == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ResumeRemediation,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ResumeRemediation,
+                Summary = $"Session **{sessionId}** not found. Use \"list sessions\" to see available sessions.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var updatedSession = AppendEvent(session, RemediationSessionEventType.SessionResumed,
+            $"Session {sessionId} resumed");
+        _sessionStore.Save(updatedSession);
+
+        return Task.FromResult(BuildSessionResult(updatedSession, AgentIntent.ResumeRemediation));
+    }
+
+    public Task<AgentResult> DeleteSessionAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_sessionStore == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "Please specify which session to delete.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = $"Session **{sessionId}** not found.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        _sessionStore.Delete(sessionId);
+
+        return Task.FromResult(new AgentResult
+        {
+            Intent = AgentIntent.ListRemediationSessions,
+            Summary = $"Session **{sessionId}** deleted.",
+            AgentFindings = Array.Empty<Finding>(),
+            Warnings = Array.Empty<string>()
+        });
+    }
+
     private static AuditSnapshot CaptureSnapshot(AgentResult result) => new()
     {
         Findings = result.AgentFindings.Select(ToSnapshotFinding).ToList(),
@@ -567,7 +715,7 @@ internal sealed class GuidedRemediationService
         SnapshotFindings = snapshot.Findings.ToList()
     };
 
-    private static AgentResult BuildSessionResult(RemediationSession session)
+    private static AgentResult BuildSessionResult(RemediationSession session, AgentIntent intent = AgentIntent.StartRemediation)
     {
         var plan = session.RemediationPlan;
         var section = plan.Sections.FirstOrDefault();
@@ -629,7 +777,7 @@ internal sealed class GuidedRemediationService
 
         return new AgentResult
         {
-            Intent = AgentIntent.StartRemediation,
+            Intent = intent,
             Summary = string.Join("\n", summaryParts),
             AgentFindings = session.SourceFindings,
             RemediationPlan = plan,

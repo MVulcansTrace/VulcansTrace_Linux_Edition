@@ -493,6 +493,27 @@ public class AgentViewModelTests
                 Intent = AgentIntent.StartRemediation,
                 Summary = "stub"
             });
+
+        public virtual Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "stub"
+            });
+
+        public virtual Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ResumeRemediation,
+                Summary = "stub"
+            });
+
+        public virtual Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "stub"
+            });
     }
 
     private sealed class SessionResultAgent : StubAgent
@@ -593,6 +614,15 @@ public class AgentViewModelTests
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.StartRemediation));
 
+        public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
+
+        public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ResumeRemediation));
+
+        public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
+
         private AgentResult CreateResult(AgentIntent intent) => new()
         {
             Intent = intent,
@@ -645,6 +675,15 @@ public class AgentViewModelTests
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.StartRemediation));
+
+        public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
+
+        public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ResumeRemediation));
+
+        public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
 
         private static AgentResult CreateResult(AgentIntent intent) => new()
         {
@@ -759,6 +798,75 @@ public class AgentViewModelTests
                 Intent = AgentIntent.SetBaseline,
                 Summary = "baseline saved"
             });
+    }
+
+    [Fact]
+    public void Constructor_WithSessionStore_PopulatesSessions()
+    {
+        var store = new InMemorySessionStore();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        store.Save(session);
+
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, store);
+
+        Assert.Single(vm.Sessions);
+        Assert.Equal("abc12345", vm.Sessions[0].SessionId);
+    }
+
+    [Fact]
+    public void SetAgent_WithSessionStore_ReplacesSessionBrowserStore()
+    {
+        var firstStore = new InMemorySessionStore();
+        firstStore.Save(new RemediationSession
+        {
+            SessionId = "first111",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>()
+        });
+        var secondStore = new InMemorySessionStore();
+        secondStore.Save(new RemediationSession
+        {
+            SessionId = "second22",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>()
+        });
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, firstStore);
+
+        vm.SetAgent(new StubAgent(), secondStore);
+
+        Assert.Single(vm.Sessions);
+        Assert.Equal("second22", vm.Sessions[0].SessionId);
+        Assert.Null(vm.SelectedSession);
+    }
+
+    [Fact]
+    public void SelectedSession_Set_RaisesCanExecuteChanged()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
+        var resumed = false;
+        var deleted = false;
+        vm.ResumeSessionCommand.CanExecuteChanged += (_, _) => resumed = true;
+        vm.DeleteSessionCommand.CanExecuteChanged += (_, _) => deleted = true;
+
+        vm.SelectedSession = new RemediationSession
+        {
+            SessionId = "test",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+
+        Assert.True(resumed);
+        Assert.True(deleted);
     }
 
     private sealed class DriftResultAgent : StubAgent

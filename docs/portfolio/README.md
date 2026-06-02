@@ -50,6 +50,7 @@ If you want the full end-to-end story, read in this order:
 - How the CIS Compliance Scorecard turns raw rule results into manager-readable pass/fail/warn summaries with trend visualization
 - How the Risk Scorecard aggregates findings into a letter grade and numeric score weighted by severity and CIS control importance
 - How batch auto-fix with dry-run preview and policy-gated execution bridges detection and safe remediation in the CLI
+- How persisted remediation sessions can be resumed, browsed, and deleted through both the UI and natural-language chat commands
 - How the automated test suite supports confidence in the implementation
 
 ## How The Case Studies Are Organized

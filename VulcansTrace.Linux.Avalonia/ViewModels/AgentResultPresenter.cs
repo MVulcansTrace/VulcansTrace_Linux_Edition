@@ -54,9 +54,17 @@ internal sealed class AgentResultPresenter
         {
             AddSessionMessage(result);
         }
+        else if (result.Intent == AgentIntent.ResumeRemediation && result.RemediationSession != null)
+        {
+            AddSessionMessage(result);
+        }
         else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
         {
             AddVerificationResultMessage(result);
+        }
+        else if (result.Intent == AgentIntent.ListRemediationSessions)
+        {
+            AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0);
         }
         else
         {

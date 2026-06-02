@@ -42,6 +42,8 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Fix FW-001`
 - `Remediate FW-001`
 - `Verify remediation abc12345`
+- `List my sessions` / `Show sessions`
+- `Resume session abc12345`
 
 After an audit, you can also ask follow-up questions without re-running scans:
 
@@ -58,6 +60,8 @@ After an audit, you can also ask follow-up questions without re-running scans:
 - `Fix FW-001` — single-finding remediation preview when rollback guidance is present. No session or timeline is created.
 - `Remediate FW-001` — persisted guided remediation session with step tracking, timeline, verification, and export
 - `Verify remediation abc12345` — before/after verification for an active remediation session; blocked or failed verification is recorded in the session timeline
+- `List my sessions` / `Show sessions` — lists all persisted remediation sessions with ID, status, rule ID, and creation time
+- `Resume session abc12345` — reloads a previously saved remediation session into the chat panel for review or continued verification
 - `Which findings are suppressed?`
 - `What's my risk grade?` — returns the aggregate Risk Scorecard after an audit
 - `Risk score` — alias for the above
@@ -81,6 +85,8 @@ Agent chat findings can be filtered by severity and category without changing th
 **Interactive Remediation Preview** — When you type `fix FW-001` after an audit, the agent returns a single-finding remediation card when the finding's explanation includes enough rollback guidance. The card shows preconditions as a checklist, then backup commands (run these first to preserve state), apply commands (the step-by-step fix), rollback commands (if something goes wrong), and verification commands (confirm the fix worked). Every command carries the same safety and structural badges as verification commands. The agent validates the plan before displaying it: risky or unclassified commands without explicit rollback guidance are blocked for safety and the command card is not shown.
 
 **Guided Remediation Sessions** — When you type `remediate FW-001`, the agent creates a persisted manual session with a short session ID, a before snapshot, step state, an immutable event timeline, and a Verify Remediation button. The timeline records session creation, step state changes, blocked steps, verification lifecycle events, failed verification attempts, and successful report exports. After you complete the manual steps, click **Verify Remediation** or type `verify remediation <session-id>` to re-run the original audit intent and produce a before/after diff. Blocked sessions remain visible with their safety reasons and timeline but cannot be verified as completed remediation. Use **Export Session** to save a markdown report that includes the timeline for review or audit handoff; the export event is recorded only after the report is written successfully.
+
+**Remediation Session History Browser** — The Avalonia UI includes a **Remediation Sessions** expander below the audit history. It lists all persisted sessions with their ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel, or click **Delete** to remove it from the store. You can also type `list my sessions` or `show sessions` in chat to list sessions, and `resume session <id>` to load a specific session.
 
 The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings and as a capability report that is also included in Markdown and HTML evidence exports. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 
@@ -142,6 +148,23 @@ vulcanstrace schedule delete --id <schedule-id>
 ```
 
 Scheduled audits compare critical findings against the previous audit's fingerprints and only notify when **new** critical findings appear. This prevents alert fatigue from recurring known issues.
+
+### Remediation Session Management (CLI)
+
+The headless CLI can list, inspect, and delete persisted remediation sessions:
+
+```bash
+# List all sessions
+vulcanstrace session list
+
+# Show details for a specific session
+vulcanstrace session show --id <session-id>
+
+# Delete a session
+vulcanstrace session delete --id <session-id>
+```
+
+Sessions are persisted to `~/.config/VulcansTrace/remediation-sessions.json` when available, with an in-memory fallback.
 
 ### Cron Expression Format
 

@@ -10,6 +10,7 @@ using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -294,7 +295,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
         IScheduleStore? scheduleStore = null,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        ISessionStore? sessionStore = null)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -318,7 +320,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, sessionStore)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),

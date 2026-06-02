@@ -34,6 +34,8 @@ The query parser maps natural-language prompts to structured intents:
 | `Fix FW-001` | `FixFinding` | Show a single-finding remediation preview when rollback guidance is present. No session or timeline is created. |
 | `Remediate FW-001` | `StartRemediation` | Start a persisted guided remediation session with step state, before snapshot, and an immutable event timeline |
 | `Verify remediation abc12345` | `VerifyRemediation` | Re-run the session's audit intent and produce a before/after remediation diff. Adds `VerificationStarted` plus a terminal `VerificationCompleted`, `VerificationBlocked`, or `VerificationFailed` event to the session timeline |
+| `List my sessions` / `Show sessions` | `ListRemediationSessions` | List all persisted remediation sessions with ID, status, rule ID, and creation time |
+| `Resume session abc12345` | `ResumeRemediation` | Reload a previously saved remediation session into the chat panel for review or continued verification |
 | `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
 | `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
 | `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
@@ -53,6 +55,7 @@ Guided remediation sessions (`remediate <finding>`) record an immutable event ti
 - **VerificationBlocked** — recorded when verification is refused due to a missing before snapshot or a blocked session status.
 - **VerificationFailed** — recorded when the verification audit crashes after verification has started.
 - **Exported** — recorded only after **Export Session** successfully writes the markdown report. Cancelled or failed saves do not mutate the timeline.
+- **SessionResumed** — recorded when a session is loaded back into the UI via `ResumeRemediation` or the **Resume** button.
 
 The timeline is visible in the Avalonia chat UI under the session card and is included in exported session markdown reports under a `## Timeline` section. After a successful export, the UI refreshes the current session timeline so the persisted `Exported` event is visible in chat.
 
@@ -253,6 +256,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
 - **Interactive Remediation Preview** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat without exposing copyable commands.
 - **Guided Remediation Sessions** (`remediate FW-001`) persist a manual remediation workflow with a before snapshot, step state, session ID, verification action, immutable event timeline, and markdown session export. Blocked sessions remain visible for auditability but do not expose the command card or allow verification as completed remediation. Verification failures and successful report exports are recorded as terminal timeline events.
+- **Remediation Session History Browser** — A **Remediation Sessions** expander in the Avalonia UI lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel (records a `SessionResumed` timeline event), or click **Delete** to remove it from the store. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same functionality through natural language.
 - **Batch Auto-Fix** (`--auto-fix` on the CLI) extends interactive remediation to headless batch mode. After an audit, the CLI can build a `RemediationPlan` for all findings, filter commands through a configurable `AutoFixPolicy`, execute backup/apply/verify phases sequentially, and automatically roll back a section if any apply command fails. `--dry-run` previews the plan without executing anything. The default policy permits `ReadOnly` verification and `ConfigChange` commands; `--allow-restart` and `--allow-packages` expand the policy; destructive and unclassified commands are never auto-executed.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
@@ -411,6 +415,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [ISessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/ISessionStore.cs)
 - [JsonFileSessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/JsonFileSessionStore.cs)
 - [InMemorySessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/InMemorySessionStore.cs)
+- [IAgent.cs](../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface with `ListRemediationSessionsAsync`, `LoadRemediationSessionAsync`, and `DeleteRemediationSessionAsync`
+- [QueryParser.cs](../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing including `ListRemediationSessions` and `ResumeRemediation`
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
 - [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)

@@ -116,6 +116,39 @@ public class RemediationSessionIntegrationTests
     }
 
     [Fact]
+    public async Task FullFlow_Create_List_Resume_Verify()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
+        var service = CreateService(state, store, (intent, _, _) => Task.FromResult(afterResult));
+
+        // Create session
+        var createResult = await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        Assert.NotNull(createResult.RemediationSession);
+        var sessionId = createResult.RemediationSession!.SessionId;
+
+        // List sessions
+        var listResult = await service.ListSessionsAsync(CancellationToken.None);
+        Assert.Single(listResult.RemediationSessions);
+        Assert.Equal(sessionId, listResult.RemediationSessions[0].SessionId);
+
+        // Resume session
+        var resumeResult = await service.LoadSessionAsync(sessionId, CancellationToken.None);
+        Assert.NotNull(resumeResult.RemediationSession);
+        Assert.Equal(sessionId, resumeResult.RemediationSession!.SessionId);
+        Assert.Contains(resumeResult.RemediationSession.Timeline, e => e.Type == RemediationSessionEventType.SessionResumed);
+
+        // Verify session
+        var verifyResult = await service.RunVerificationAsync(sessionId, CancellationToken.None);
+        Assert.Equal(RemediationSessionStatus.Verified, verifyResult.RemediationSession!.Status);
+    }
+
+    [Fact]
     public void JsonFileSessionStore_RoundTripsTimeline()
     {
         var tempPath = Path.GetTempFileName();

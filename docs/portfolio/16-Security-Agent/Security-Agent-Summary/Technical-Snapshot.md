@@ -24,7 +24,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 27: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, Help |
+| Agent intents | 29: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
 | CIS mapping coverage | 64 / 64 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
@@ -55,6 +55,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) weighted by severity and CIS control importance, with per-category breakdown; available in agent chat and exported as HTML and Markdown in signed evidence bundles
 - **Auto-Fix with Dry-Run** — batch remediation with `--auto-fix --dry-run` for safe preview before change, policy-gated execution (Conservative/Standard/Aggressive), automatic rollback on failure, and clean exit codes that preserve critical-finding status
+- **Remediation Session History Browser** — persisted sessions can be listed, resumed, and deleted through both the Avalonia UI expander and natural-language chat commands, ensuring no remediation workflow is lost between app restarts
 
 ---
 

@@ -246,5 +246,38 @@ public class AgentViewModelHistoryTests
                 Warnings = Array.Empty<string>()
             });
         }
+
+        public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "Mock list",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ResumeRemediation,
+                Summary = "Mock resume",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ListRemediationSessions,
+                Summary = "Mock deleted",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 }

@@ -143,6 +143,21 @@ The Security Agent audits scheduled cron jobs for suspicious entries, dangerous 
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain CRON-001`.
 
+## Security Agent — Remediation Session History Browser
+
+The agent persists all guided remediation sessions so you can review, resume, or delete them later:
+
+1. Open the **Security Agent** panel in the UI.
+2. Expand the **Remediation Sessions** section below the audit history.
+3. The list shows every persisted session with its ID, status, rule ID, and creation time.
+4. Select a session and click **Resume** to reload it into the chat panel for review or verification.
+5. Click **Delete** to remove a session from the store.
+6. Alternatively, type in chat:
+   - `List my sessions` or `Show sessions` — lists all sessions
+   - `Resume session abc12345` — loads a specific session
+
+Sessions are persisted to `~/.config/VulcansTrace/remediation-sessions.json` when available, with an in-memory fallback.
+
 ## Security Agent — Remediation Preview And Sessions
 
 After running any audit, you can ask the agent for either a single-finding remediation preview or a persisted guided session:

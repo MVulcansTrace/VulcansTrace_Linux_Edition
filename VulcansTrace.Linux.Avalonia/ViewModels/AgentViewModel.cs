@@ -25,6 +25,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentQueryExecutor _queryExecutor;
     private readonly AgentResultStateCoordinator _resultState;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
+    private ISessionStore? _sessionStore;
 
     private string _userQuery = "";
     private string _logText = "";
@@ -33,12 +34,30 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _privilegeWarningText = "";
     private SeverityFilterOption? _selectedChatSeverityFilter;
     private string? _selectedChatCategoryFilter;
+    private RemediationSession? _selectedSession;
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
 
     /// <summary>Gets the collection of recent audit history entries.</summary>
     public ObservableCollection<AuditHistoryEntry> History { get; } = new();
+
+    /// <summary>Gets the collection of persisted remediation sessions.</summary>
+    public ObservableCollection<RemediationSession> Sessions { get; } = new();
+
+    /// <summary>Gets or sets the selected remediation session.</summary>
+    public RemediationSession? SelectedSession
+    {
+        get => _selectedSession;
+        set
+        {
+            if (SetField(ref _selectedSession, value))
+            {
+                ResumeSessionCommand.RaiseCanExecuteChanged();
+                DeleteSessionCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     /// <summary>Gets available severity filters for the chat.</summary>
     public ObservableCollection<SeverityFilterOption> ChatSeverityFilters { get; } = new()
@@ -252,6 +271,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to export the current remediation session report.</summary>
     public AsyncRelayCommand ExportSessionCommand { get; }
 
+    /// <summary>Gets the command to list persisted remediation sessions.</summary>
+    public AsyncRelayCommand ListSessionsCommand { get; }
+
+    /// <summary>Gets the command to resume the selected remediation session.</summary>
+    public AsyncRelayCommand ResumeSessionCommand { get; }
+
+    /// <summary>Gets the command to delete the selected remediation session.</summary>
+    public AsyncRelayCommand DeleteSessionCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -281,9 +309,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// and resets the cached result state.
     /// </summary>
     /// <param name="agent">The new agent instance to use for queries.</param>
-    public void SetAgent(IAgent agent)
+    /// <param name="sessionStore">The session store associated with the new agent.</param>
+    public void SetAgent(IAgent agent, ISessionStore? sessionStore = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
+        _sessionStore = sessionStore ?? _sessionStore;
+        SelectedSession = null;
+        RefreshSessions();
         _resultState.Reset();
     }
 
@@ -292,11 +324,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="agent">The agent instance to use for queries.</param>
     /// <param name="historyStore">The store for persisting audit history.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder)
+    /// <param name="remediationPlanBuilder">The plan builder for remediation exports.</param>
+    /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, ISessionStore? sessionStore = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
+        _sessionStore = sessionStore;
         _presenter = new AgentResultPresenter(
             Messages,
             ChatCategoryFilters,
@@ -414,7 +449,24 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => !_isBusy && _resultState.LastResult?.RemediationSession != null,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
+        ListSessionsCommand = new AsyncRelayCommand(
+            async _ => await ListSessionsAsync(),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ResumeSessionCommand = new AsyncRelayCommand(
+            async _ => await ResumeSessionAsync(),
+            _ => !_isBusy && _selectedSession != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        DeleteSessionCommand = new AsyncRelayCommand(
+            async _ => await DeleteSessionAsync(),
+            _ => !_isBusy && _selectedSession != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
+
+        RefreshSessions();
 
         _historyCoordinator.LoadExisting();
 
@@ -454,7 +506,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, token);
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() => PresentFindings(result));
+            Dispatcher.UIThread.Post(() =>
+            {
+                PresentFindings(result);
+                RefreshSessionsIfNeeded(result);
+            });
 
             // Raise audit completion for audit intents so MainViewModel can sync evidence
             if (AgentResultStateCoordinator.IsAuditIntent(result.Intent))
@@ -605,7 +661,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             var result = await _agent.VerifyRemediationAsync(sessionId, token);
             SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false));
+            Dispatcher.UIThread.Post(() =>
+            {
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
+                RefreshSessionsIfNeeded(result);
+            });
         });
     }
 
@@ -674,7 +734,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             if (result.RemediationSession != null)
             {
-                Dispatcher.UIThread.Post(() => UpdateSessionTimeline(result.RemediationSession));
+                Dispatcher.UIThread.Post(() =>
+                {
+                    UpdateSessionTimeline(result.RemediationSession);
+                    RefreshSessions();
+                });
             }
         });
     }
@@ -712,6 +776,88 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         var diff = AuditDiffCalculator.Calculate(SelectedBeforeEntry, SelectedAfterEntry);
         ShowAuditDiffAction?.Invoke(diff);
+    }
+
+    private void RefreshSessions()
+    {
+        if (_sessionStore == null) return;
+
+        Sessions.Clear();
+        foreach (var session in _sessionStore.List())
+        {
+            Sessions.Add(session);
+        }
+    }
+
+    private void RefreshSessionsIfNeeded(AgentResult result)
+    {
+        if (result.RemediationSession != null || result.RemediationSessions.Count > 0)
+        {
+            RefreshSessions();
+        }
+    }
+
+    private async Task ListSessionsAsync()
+    {
+        AddUserMessage("List sessions");
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.ListRemediationSessionsAsync(token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
+                RefreshSessions();
+            });
+        });
+    }
+
+    private async Task ResumeSessionAsync()
+    {
+        var session = _selectedSession;
+        if (session == null)
+        {
+            AddAgentMessage("Select a session from the Remediation Sessions list first.", true);
+            return;
+        }
+
+        AddUserMessage($"Resume session {session.SessionId}");
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.LoadRemediationSessionAsync(session.SessionId, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
+                RefreshSessionsIfNeeded(result);
+            });
+        });
+    }
+
+    private async Task DeleteSessionAsync()
+    {
+        var session = _selectedSession;
+        if (session == null)
+        {
+            AddAgentMessage("Select a session from the Remediation Sessions list first.", true);
+            return;
+        }
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.DeleteRemediationSessionAsync(session.SessionId, token);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                SelectedSession = null;
+                RefreshSessions();
+                AddAgentMessage(result.Summary, true);
+            });
+        });
     }
 
     /// <inheritdoc />

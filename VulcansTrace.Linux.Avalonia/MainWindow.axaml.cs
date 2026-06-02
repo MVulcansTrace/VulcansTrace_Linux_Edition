@@ -25,7 +25,7 @@ public partial class MainWindow : Window
 
         var services = AgentFactory.Create(MachineRole.Workstation);
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.ScheduleStore, services.NotificationService);
+        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.ScheduleStore, services.NotificationService, services.SessionStore);
         viewModel.RuleCatalog.LoadCatalog(services.RuleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {
@@ -47,7 +47,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainViewModel.SelectedMachineRole) && DataContext is MainViewModel vm)
         {
             var newServices = AgentFactory.Create(vm.SelectedMachineRole);
-            vm.Agent.SetAgent(newServices.Agent);
+            vm.Agent.SetAgent(newServices.Agent, newServices.SessionStore);
         }
     }
 

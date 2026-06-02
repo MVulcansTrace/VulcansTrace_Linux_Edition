@@ -101,7 +101,7 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 
 ### Service Boundaries
 
-- `GuidedRemediationService` — owns session lifecycle, plan building, step tracking, verification, and before/after diffing. Created by `SecurityAgent` and receives `RemediationPlanBuilder` via constructor injection (not inline creation).
+- `GuidedRemediationService` — owns session lifecycle, plan building, step tracking, verification, before/after diffing, and session store operations (`ListSessionsAsync`, `LoadSessionAsync`, `DeleteSessionAsync`). Created by `SecurityAgent` and receives `RemediationPlanBuilder` via constructor injection (not inline creation).
 - `AgentFollowUpService` — handles non-remediation follow-up queries only (`ShowChanges`, `ExplainCritical`, `FilterCategory`, `ListSuppressed`, `RiskScore`). Delegates `PrioritizeRemediation` and `FixFinding` intents to `GuidedRemediationService`.
 - `RemediationPlanBuilder` — plan generation from findings (existing). Always injected, never created inline.
 - `RemediationPlanValidator` — safety validation (existing).
@@ -113,7 +113,7 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 - `RemediationSessionStatus` tracks session lifecycle: `Active`, `Blocked`, `Completed`, `Verified`.
 - `RemediationStepState` tracks per-section completion: `Pending`, `InProgress`, `Completed`, `Skipped`, `Blocked`, `Failed`.
 - `AuditSnapshot` captures findings at session creation and after verification for before/after comparison.
-- `RemediationSessionEvent` records immutable timeline events: `Created`, `StepMarkedPending`, `StepMarkedInProgress`, `StepMarkedCompleted`, `StepMarkedSkipped`, `StepMarkedFailed`, `StepBlocked`, `VerificationStarted`, `VerificationCompleted`, `VerificationBlocked`, `VerificationFailed`, `Exported`.
+- `RemediationSessionEvent` records immutable timeline events: `Created`, `StepMarkedPending`, `StepMarkedInProgress`, `StepMarkedCompleted`, `StepMarkedSkipped`, `StepMarkedFailed`, `StepBlocked`, `VerificationStarted`, `VerificationCompleted`, `VerificationBlocked`, `VerificationFailed`, `Exported`, `SessionResumed`.
 - `RemediationSessionEventType` enum defines the event kinds.
 - `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`). Both round-trip the timeline.
 - Blocked sessions remain persisted for auditability, but the UI does not expose remediation command cards for blocked steps and verification refuses blocked sessions.
@@ -125,13 +125,13 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 - `AgentResultPresenter` — renders `AgentResult` to chat messages.
 - `AgentMessageViewModel` — individual message rendering, remediation/session state, and copyable command behavior.
 - `MainViewModel` — receives `RemediationPlanBuilder` via constructor for evidence export (not created inline).
-- `AgentView.axaml` — exposes Verify Remediation on active session cards and Export Session for the latest session result.
+- `AgentView.axaml` — exposes Verify Remediation on active session cards, Export Session for the latest session result, and a Remediation Sessions expander with List/Resume/Delete actions.
 
 ### Intent Routing
 
 `SecurityAgent.AskAsync` dispatches intents:
 - Baseline intents (`SetBaseline`, `CheckDrift`, `ShowBaseline`) -> `BaselineDriftService`
-- Remediation intents (`PrioritizeRemediation`, `FixFinding`, `StartRemediation`, `VerifyRemediation`) -> `GuidedRemediationService`
+- Remediation intents (`PrioritizeRemediation`, `FixFinding`, `StartRemediation`, `VerifyRemediation`, `ListRemediationSessions`, `ResumeRemediation`) -> `GuidedRemediationService`
 - Other follow-up intents -> `AgentFollowUpService`
 - Audit intents -> `RunAuditAsync` pipeline
 

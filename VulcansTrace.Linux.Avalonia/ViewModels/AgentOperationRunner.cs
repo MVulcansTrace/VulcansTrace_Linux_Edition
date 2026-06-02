@@ -46,17 +46,29 @@ internal sealed class AgentOperationRunner : IDisposable
         }
         catch (OperationCanceledException)
         {
-            Dispatcher.UIThread.Post(() => _addAgentMessage("Query cancelled.", true));
+            RunOnUiThread(() => _addAgentMessage("Query cancelled.", true));
         }
         catch (Exception ex)
         {
-            Dispatcher.UIThread.Post(() => _addAgentMessage($"Agent error: {ex.Message}", true));
+            RunOnUiThread(() => _addAgentMessage($"Agent error: {ex.Message}", true));
         }
         finally
         {
-            Dispatcher.UIThread.Post(() => _setBusy(false));
+            RunOnUiThread(() => _setBusy(false));
             _cts?.Dispose();
             _cts = null;
+        }
+    }
+
+    private static void RunOnUiThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
         }
     }
 

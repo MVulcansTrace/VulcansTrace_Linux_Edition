@@ -83,6 +83,12 @@ public enum AgentIntent
     /// <summary>Run verification on an active remediation session.</summary>
     VerifyRemediation,
 
+    /// <summary>List persisted remediation sessions.</summary>
+    ListRemediationSessions,
+
+    /// <summary>Resume a previously created remediation session.</summary>
+    ResumeRemediation,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }

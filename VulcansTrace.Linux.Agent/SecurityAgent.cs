@@ -156,6 +156,16 @@ public sealed class SecurityAgent : IAgent
             return await _guidedRemediationService.RunVerificationAsync(agentQuery.TargetReference ?? "", ct);
         }
 
+        if (agentQuery.Intent == AgentIntent.ListRemediationSessions)
+        {
+            return await _guidedRemediationService.ListSessionsAsync(ct);
+        }
+
+        if (agentQuery.Intent == AgentIntent.ResumeRemediation)
+        {
+            return await _guidedRemediationService.LoadSessionAsync(agentQuery.TargetReference ?? "", ct);
+        }
+
         if (IsFollowUpIntent(agentQuery.Intent))
         {
             return await _followUpService.HandleFollowUpAsync(agentQuery, ct);
@@ -205,6 +215,8 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.RiskScore => "risk score",
         AgentIntent.StartRemediation => "start remediation",
         AgentIntent.VerifyRemediation => "verify remediation",
+        AgentIntent.ListRemediationSessions => "list remediation sessions",
+        AgentIntent.ResumeRemediation => "resume remediation session",
         AgentIntent.Help => "help",
         _ => intent.ToString()
     };
@@ -331,6 +343,27 @@ public sealed class SecurityAgent : IAgent
         return _guidedRemediationService.MarkSessionExportedAsync(sessionId, ct);
     }
 
+    /// <inheritdoc />
+    public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.ListSessionsAsync(ct);
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.LoadSessionAsync(sessionId, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _guidedRemediationService.DeleteSessionAsync(sessionId, ct);
+    }
+
     private static string GetHelpText() =>
         "I can help you audit your Linux system security. Try asking:\n" +
         "• \"Is my system secure?\" or \"Run a full audit\"\n" +
@@ -355,4 +388,8 @@ public sealed class SecurityAgent : IAgent
         "\nBaseline & drift detection:\n" +
         "• \"Set baseline\" — save the last audit as a known-good snapshot\n" +
         "• \"Check drift\" — compare live config against the saved baseline\n" +
-        "• \"Show baseline\" — view the current baseline findings\n";}
+        "• \"Show baseline\" — view the current baseline findings\n" +
+        "\nRemediation session management:\n" +
+        "• \"List sessions\" — browse all persisted remediation sessions\n" +
+        "• \"Resume session <id>\" — reload a previous session to continue remediation\n" +
+        "• \"Verify session <id>\" — run before/after verification on a completed session\n";}

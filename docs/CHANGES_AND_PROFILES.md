@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -232,6 +232,17 @@ Last updated: 2026-06-01
   - Code: `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs`
 - Machine role picker dropdown in the Avalonia UI allows hot-swapping roles without code changes.
   - Code: `VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs`, `AgentViewModel.cs`
+
+### Security Agent — Remediation Session Resume / History Browser
+- Added `AgentIntent.ListRemediationSessions` and `AgentIntent.ResumeRemediation` with `QueryParser` support for `list my sessions`, `show sessions`, and `resume session <id>`.
+- `GuidedRemediationService` now exposes `ListSessionsAsync`, `LoadSessionAsync`, and `DeleteSessionAsync` for full session store lifecycle management.
+- `IAgent` interface extended with `ListRemediationSessionsAsync`, `LoadRemediationSessionAsync`, and `DeleteRemediationSessionAsync`.
+- `RemediationSessionEventType` expanded with `SessionResumed` for audit traceability when sessions are reopened.
+- Avalonia UI **Remediation Sessions** expander lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into chat, or **Delete** to remove it.
+- CLI adds `session list`, `session show`, and `session delete` subcommands for headless session management.
+- The session browser refreshes after session-producing operations so create, resume, verify, export, and delete actions stay visible without reopening the panel.
+- `BuildSessionResult` accepts an optional `intent` parameter so resumed sessions report `ResumeRemediation` instead of hardcoding `StartRemediation`.
+- Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs`
 
 ### Notifications
 - `NotifySendNotificationService` — Linux desktop notifications via `notify-send`.

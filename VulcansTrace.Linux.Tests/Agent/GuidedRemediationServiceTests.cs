@@ -643,6 +643,178 @@ public class GuidedRemediationServiceTests
         Assert.Contains("not found", result.Summary);
     }
 
+    [Fact]
+    public async Task ListSessionsAsync_EmptyStore_ReturnsEmptyMessage()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = await service.ListSessionsAsync(CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("No remediation sessions", result.Summary);
+        Assert.Empty(result.RemediationSessions);
+    }
+
+    [Fact]
+    public async Task ListSessionsAsync_WithSessions_ReturnsSessionsOrderedByDate()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+
+        var result = await service.ListSessionsAsync(CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Single(result.RemediationSessions);
+        Assert.Contains("Default policy is ACCEPT", result.Summary);
+    }
+
+    [Fact]
+    public async Task ListSessionsAsync_NoStore_ReturnsPersistenceUnavailable()
+    {
+        var state = new AgentAuditState();
+        var service = CreateService(state);
+
+        var result = await service.ListSessionsAsync(CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task LoadSessionAsync_ExistingSession_ReturnsSessionResult()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = await service.LoadSessionAsync(sessionId, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.NotNull(result.RemediationSession);
+        Assert.Equal(sessionId, result.RemediationSession!.SessionId);
+    }
+
+    [Fact]
+    public async Task LoadSessionAsync_UnknownSession_ReturnsNotFound()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = await service.LoadSessionAsync("nonexistent", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Contains("not found", result.Summary);
+    }
+
+    [Fact]
+    public async Task LoadSessionAsync_NoStore_ReturnsPersistenceUnavailable()
+    {
+        var state = new AgentAuditState();
+        var service = CreateService(state);
+
+        var result = await service.LoadSessionAsync("abc12345", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Contains("not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task LoadSessionAsync_AddsResumedEvent()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        await service.LoadSessionAsync(sessionId, CancellationToken.None);
+
+        var loaded = store.Load(sessionId)!;
+        Assert.Contains(loaded.Timeline, e => e.Type == RemediationSessionEventType.SessionResumed);
+        Assert.Contains("resumed", loaded.Timeline.Last().Title);
+    }
+
+    [Fact]
+    public async Task DeleteSessionAsync_ExistingSession_DeletesAndReturnsSuccess()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = await service.DeleteSessionAsync(sessionId, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("deleted", result.Summary);
+        Assert.Empty(store.List());
+    }
+
+    [Fact]
+    public async Task DeleteSessionAsync_UnknownSession_ReturnsNotFound()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = await service.DeleteSessionAsync("nonexistent", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("not found", result.Summary);
+    }
+
+    [Fact]
+    public async Task DeleteSessionAsync_NoStore_ReturnsPersistenceUnavailable()
+    {
+        var state = new AgentAuditState();
+        var service = CreateService(state);
+
+        var result = await service.DeleteSessionAsync("abc12345", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task DeleteSessionAsync_EmptyId_ReturnsPrompt()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = await service.DeleteSessionAsync("", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+        Assert.Contains("specify", result.Summary);
+    }
+
     private static GuidedRemediationService CreateService(
         AgentAuditState state,
         IExplanationProvider? explanationProvider = null,

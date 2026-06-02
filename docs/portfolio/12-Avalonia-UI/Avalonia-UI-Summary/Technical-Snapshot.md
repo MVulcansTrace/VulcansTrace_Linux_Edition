@@ -16,8 +16,9 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 | Dialog abstraction | 1 interface + 1 Avalonia adapter |
 | Avalonia test files | 10, covering main UI, agent UI, findings, evidence, suppressions, coverage, compliance scorecard, audit diff, and async commands |
 | Detectors wired in composition root | 13 (6 baseline + 5 Linux + 2 advanced) |
-| Agent stores wired in composition root | Suppressions, audit history, and rule policy JSON stores with in-memory fallbacks |
+| Agent stores wired in composition root | Suppressions, audit history, rule policy, and remediation session JSON stores with in-memory fallbacks |
 | Timeline severity colors | 5 (Critical=#ef4444, High=#f97316, Medium=#eab308, Low=#22c55e, Unknown=#64748b) |
+| Remediation session UI | Remediation Sessions expander with ListBox selection, Resume, and Delete actions; chat commands `list my sessions`, `show sessions`, `resume session <id>` |
 
 ---
 
@@ -29,6 +30,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - **Manual filtering (not CollectionView) gives full control** — FindingsViewModel rebuilds `FilteredItems` on every filter change, avoiding Avalonia CollectionView threading pitfalls
 - **Evidence export integrates the full packaging pipeline** — a single button click generates a 32-byte signing key, builds the ZIP archive, and writes it to disk through a save-file dialog
 - **Compliance tab surfaces formal CIS scorecard** — overall pass/warn/fail badge, per-family DataGrid, and trend bar chart make manager-readable compliance posture visible without leaving the app
+- **Remediation Sessions expander preserves workflow state** — analysts can resume or delete persisted guided remediation sessions without losing context between app restarts
 
 ---
 
@@ -40,6 +42,8 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - [EvidenceViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, key generation, clipboard
 - [TimelineViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, normalization, canvas height
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization
+- [AgentView.axaml](../../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI including Remediation Sessions expander
+- [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — Security Agent command/state coordinator with session list/resume/delete
 - [AvaloniaDialogService.cs](../../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native dialog adapter with UI-thread dispatch
 - [IDialogService.cs](../../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface
 - [MainViewModelTests.cs](../../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — command gating tests

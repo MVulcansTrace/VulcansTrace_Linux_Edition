@@ -66,7 +66,8 @@ public enum RemediationSessionEventType
     VerificationCompleted,
     VerificationBlocked,
     VerificationFailed,
-    Exported
+    Exported,
+    SessionResumed
 }
 
 public sealed record RemediationSessionEvent

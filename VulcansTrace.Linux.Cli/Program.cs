@@ -10,6 +10,7 @@ using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
+using VulcansTrace.Linux.Agent.Sessions;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
 
@@ -39,6 +40,7 @@ public static class Program
             {
                 "audit" => await RunAuditAsync(args),
                 "schedule" => await RunScheduleAsync(args),
+                "session" => await RunSessionAsync(args),
                 _ => PrintError($"Unknown command: {args[0]}")
             };
         }
@@ -583,6 +585,80 @@ public static class Program
         return Math.Max(auditExitCode, autoFixExitCode);
     }
 
+    private static async Task<int> RunSessionAsync(string[] args)
+    {
+        await Task.CompletedTask;
+
+        if (args.Length < 2)
+        {
+            return PrintError("Session subcommand required: list, show, delete");
+        }
+
+        var sub = args[1].ToLowerInvariant();
+        using var services = AgentFactory.Create();
+        var store = services.SessionStore;
+
+        switch (sub)
+        {
+            case "list":
+                return ListSessions(store);
+
+            case "show":
+            {
+                var id = ParseArg(args, "--id", null);
+                if (string.IsNullOrWhiteSpace(id))
+                    return PrintError("--id is required");
+
+                var session = store.Load(id);
+                if (session == null)
+                    return PrintError($"Session not found: {id}");
+
+                var formatter = new RemediationMarkdownFormatter();
+                Console.WriteLine(formatter.FormatSession(session));
+                return 0;
+            }
+
+            case "delete":
+            {
+                var id = ParseArg(args, "--id", null);
+                if (string.IsNullOrWhiteSpace(id))
+                    return PrintError("--id is required");
+
+                var result = await services.Agent.DeleteRemediationSessionAsync(id, CancellationToken.None);
+                if (result.Warnings.Count > 0 || result.Summary.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return PrintError(result.Summary);
+                }
+
+                Console.WriteLine(result.Summary);
+                return 0;
+            }
+
+            default:
+                return PrintError($"Unknown session subcommand: {sub}");
+        }
+    }
+
+    private static int ListSessions(ISessionStore store)
+    {
+        var sessions = store.List();
+        if (sessions.Count == 0)
+        {
+            Console.WriteLine("No remediation sessions found.");
+            return 0;
+        }
+
+        Console.WriteLine($"{"Session ID",-12} {"Status",-10} {"Created",-20} {"Finding"}");
+        Console.WriteLine(new string('-', 100));
+        foreach (var s in sessions)
+        {
+            var finding = s.RemediationPlan.Sections.FirstOrDefault()?.FindingSummary ?? "N/A";
+            var created = s.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss");
+            Console.WriteLine($"{s.SessionId,-12} {s.Status,-10} {created,-20} {finding}");
+        }
+        return 0;
+    }
+
     private static INotificationService CreateNotificationService(NotificationChannel channel)
     {
         return channel switch
@@ -674,6 +750,9 @@ public static class Program
         Console.WriteLine("  vulcanstrace schedule install-cron --id <id> [--exe-path <path>]");
         Console.WriteLine("  vulcanstrace schedule uninstall-cron --id <id>");
         Console.WriteLine("  vulcanstrace schedule run --id <id>");
+        Console.WriteLine("  vulcanstrace session list");
+        Console.WriteLine("  vulcanstrace session show --id <id>");
+        Console.WriteLine("  vulcanstrace session delete --id <id>");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");

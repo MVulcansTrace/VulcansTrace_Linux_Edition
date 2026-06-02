@@ -61,4 +61,7 @@ public sealed record AgentResult
 
     /// <summary>Remediation session, populated for StartRemediation and VerifyRemediation intents.</summary>
     public RemediationSession? RemediationSession { get; init; }
+
+    /// <summary>Persisted remediation sessions, populated for ListRemediationSessions intent.</summary>
+    public IReadOnlyList<RemediationSession> RemediationSessions { get; init; } = Array.Empty<RemediationSession>();
 }

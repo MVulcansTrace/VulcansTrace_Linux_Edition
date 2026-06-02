@@ -85,4 +85,27 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the updated session.</returns>
     Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct);
+
+    /// <summary>
+    /// Lists all persisted remediation sessions.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the list of sessions.</returns>
+    Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Loads a previously persisted remediation session by ID.
+    /// </summary>
+    /// <param name="sessionId">The session ID to load.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the session, or a not-found message.</returns>
+    Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes a persisted remediation session by ID.
+    /// </summary>
+    /// <param name="sessionId">The session ID to delete.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result confirming deletion or explaining why it could not be deleted.</returns>
+    Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct);
 }

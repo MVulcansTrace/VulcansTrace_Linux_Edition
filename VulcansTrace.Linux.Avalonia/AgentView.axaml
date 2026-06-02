@@ -121,7 +121,7 @@
                        Foreground="#fcd34d"/>
         </Border>
 
-        <Grid Grid.Row="2" RowDefinitions="Auto,*,Auto,Auto,Auto">
+        <Grid Grid.Row="2" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto">
             <!-- Chat filters -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="8,4,8,0">
                 <ComboBox ItemsSource="{Binding ChatSeverityFilters}"
@@ -508,6 +508,76 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </StackPanel>
+            </Expander>
+
+            <!-- Remediation sessions -->
+            <Expander Grid.Row="5"
+                      Header="Remediation Sessions"
+                      Margin="8,0,8,4"
+                      IsExpanded="False"
+                      Background="#0f172a"
+                      BorderBrush="#334155"
+                      BorderThickness="1"
+                      CornerRadius="6">
+                <StackPanel Orientation="Vertical" Margin="4" Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Refresh"
+                                FontSize="11"
+                                Padding="6,2"
+                                Command="{Binding ListSessionsCommand}"
+                                IsEnabled="{Binding !IsBusy}"/>
+                        <Button Content="Resume"
+                                FontSize="11"
+                                Padding="6,2"
+                                Command="{Binding ResumeSessionCommand}"/>
+                        <Button Content="Delete"
+                                FontSize="11"
+                                Padding="6,2"
+                                Command="{Binding DeleteSessionCommand}"/>
+                    </StackPanel>
+                    <ListBox ItemsSource="{Binding Sessions}"
+                             SelectedItem="{Binding SelectedSession}"
+                             MaxHeight="160"
+                             Background="Transparent"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="sessions:RemediationSession">
+                                <Border Background="#1e293b"
+                                        BorderBrush="#334155"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="6,4">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding SessionId}"
+                                                   Foreground="#e2e8f0"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding RemediationPlan.Sections[0].FindingSummary, FallbackValue='No summary'}"
+                                                   Foreground="#94a3b8"
+                                                   FontSize="10"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Status}"
+                                                   Foreground="#94a3b8"
+                                                   FontSize="10"
+                                                   Margin="8,0,8,0"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3"
+                                                   Text="{Binding CreatedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                                   Foreground="#64748b"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </StackPanel>
             </Expander>
         </Grid>

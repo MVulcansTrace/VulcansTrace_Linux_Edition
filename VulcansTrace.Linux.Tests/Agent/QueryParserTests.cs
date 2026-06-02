@@ -83,6 +83,13 @@ public class QueryParserTests
     [InlineData("help", AgentIntent.Help)]
     [InlineData("what can you do", AgentIntent.Help)]
     [InlineData("capabilities", AgentIntent.Help)]
+    [InlineData("list sessions", AgentIntent.ListRemediationSessions)]
+    [InlineData("show sessions", AgentIntent.ListRemediationSessions)]
+    [InlineData("session history", AgentIntent.ListRemediationSessions)]
+    [InlineData("my sessions", AgentIntent.ListRemediationSessions)]
+    [InlineData("resume session abc12345", AgentIntent.ResumeRemediation)]
+    [InlineData("continue session 1234abcd", AgentIntent.ResumeRemediation)]
+    [InlineData("open session deadbeef", AgentIntent.ResumeRemediation)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);
@@ -175,6 +182,25 @@ public class QueryParserTests
         var result = _parser.Parse("verify remediation abc12345");
         Assert.Equal(AgentIntent.VerifyRemediation, result.Intent);
         Assert.Equal("abc12345", result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("resume session abc12345", "abc12345")]
+    [InlineData("continue session 1234abcd", "1234abcd")]
+    [InlineData("open session deadbeef", "deadbeef")]
+    public void Parse_ResumeRemediation_WithSessionId_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_ResumeRemediation_WithoutSessionId_ReturnsNullTargetReference()
+    {
+        var result = _parser.Parse("resume session");
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Null(result.TargetReference);
     }
 
     [Fact]

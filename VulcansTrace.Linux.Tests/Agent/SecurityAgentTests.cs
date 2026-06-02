@@ -6,6 +6,7 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using Xunit;
 
@@ -963,6 +964,52 @@ public class SecurityAgentTests
         Assert.Null(result.RemediationPlan);
         Assert.Contains("blocked for safety", result.Summary);
         Assert.NotEmpty(result.Warnings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ListSessions_ReturnsListResult()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.AskAsync("list sessions", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+    }
+
+    [Fact]
+    public async Task AskAsync_ResumeSession_WithoutReference_ReturnsPrompt()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.AskAsync("resume session", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Contains("specify", result.Summary);
+    }
+
+    [Fact]
+    public async Task ListRemediationSessionsAsync_ReturnsResult()
+    {
+        var agent = CreateAgent();
+
+        var result = await agent.ListRemediationSessionsAsync(CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ListRemediationSessions, result.Intent);
+    }
+
+    [Fact]
+    public async Task LoadRemediationSessionAsync_UnknownSession_ReturnsNotFound()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: new InMemorySessionStore());
+
+        var result = await agent.LoadRemediationSessionAsync("nonexistent", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ResumeRemediation, result.Intent);
+        Assert.Contains("not found", result.Summary);
     }
 
     private sealed class CustomExplanationProvider(string markdown) : IExplanationProvider
