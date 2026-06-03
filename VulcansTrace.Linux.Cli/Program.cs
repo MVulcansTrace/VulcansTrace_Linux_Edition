@@ -178,6 +178,18 @@ public static class Program
         Console.WriteLine($"Policy: {policy.Describe()}");
         Console.WriteLine();
 
+        foreach (var section in plan.Sections.Where(s => s.ApplyCommands.Count > 0))
+        {
+            if (section.ImpactPreview != null)
+            {
+                Console.WriteLine($"  [{section.RuleId}]");
+                Console.WriteLine($"    Impact:  {section.ImpactPreview.ExpectedImpact}");
+                Console.WriteLine($"    Rollback: {section.ImpactPreview.RollbackPath}");
+                Console.WriteLine($"    Verify:  {section.ImpactPreview.VerificationCommand}");
+                Console.WriteLine();
+            }
+        }
+
         if (permittedCount == 0)
         {
             Console.WriteLine("No commands are permitted under the current policy. Nothing to do.");

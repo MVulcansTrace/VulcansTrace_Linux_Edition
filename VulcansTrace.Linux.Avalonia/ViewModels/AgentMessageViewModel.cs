@@ -169,6 +169,14 @@ public sealed class AgentMessageViewModel : ViewModelBase
                 OnPropertyChanged(nameof(RemediationApplyCommands));
                 OnPropertyChanged(nameof(RemediationRollbackCommands));
                 OnPropertyChanged(nameof(RemediationVerificationCommands));
+                OnPropertyChanged(nameof(HasImpactPreview));
+                OnPropertyChanged(nameof(ImpactPreviewExpectedImpact));
+                OnPropertyChanged(nameof(ImpactPreviewRollbackPath));
+                OnPropertyChanged(nameof(ImpactPreviewVerificationCommand));
+                OnPropertyChanged(nameof(IsRollbackPathCommand));
+                OnPropertyChanged(nameof(RollbackPathFontFamily));
+                OnPropertyChanged(nameof(IsImpactPreviewVerificationCommand));
+                OnPropertyChanged(nameof(ImpactPreviewVerificationFontFamily));
             }
         }
     }
@@ -210,6 +218,42 @@ public sealed class AgentMessageViewModel : ViewModelBase
     /// <summary>Gets the verification commands as copyable commands.</summary>
     public IReadOnlyList<CopyableCommand> RemediationVerificationCommands =>
         ToCopyableCommands(_remediationSection?.VerificationCommands);
+
+    /// <summary>Gets whether the remediation section has an impact preview.</summary>
+    public bool HasImpactPreview => _remediationSection?.ImpactPreview != null;
+
+    /// <summary>Gets the expected impact text from the impact preview.</summary>
+    public string ImpactPreviewExpectedImpact =>
+        _remediationSection?.ImpactPreview?.ExpectedImpact ?? string.Empty;
+
+    /// <summary>Gets the rollback path text from the impact preview.</summary>
+    public string ImpactPreviewRollbackPath =>
+        _remediationSection?.ImpactPreview?.RollbackPath ?? string.Empty;
+
+    /// <summary>Gets the verification command text from the impact preview.</summary>
+    public string ImpactPreviewVerificationCommand =>
+        _remediationSection?.ImpactPreview?.VerificationCommand ?? string.Empty;
+
+    /// <summary>Gets whether the impact preview verification text is an actual shell command.</summary>
+    public bool IsImpactPreviewVerificationCommand => _remediationSection?.ImpactPreview?.IsVerificationCommand == true;
+
+    /// <summary>
+    /// Gets whether the rollback path is an actual command (from RollbackCommands)
+    /// rather than a prose hint.
+    /// </summary>
+    public bool IsRollbackPathCommand => _remediationSection?.RollbackCommands.Count > 0;
+
+    /// <summary>
+    /// Gets the font family for the rollback path: monospace for commands,
+    /// default for prose hints.
+    /// </summary>
+    public string RollbackPathFontFamily => IsRollbackPathCommand ? "Consolas,Monospace" : "";
+
+    /// <summary>
+    /// Gets the font family for preview verification: monospace for commands,
+    /// default for prose fallbacks.
+    /// </summary>
+    public string ImpactPreviewVerificationFontFamily => IsImpactPreviewVerificationCommand ? "Consolas,Monospace" : "";
 
     private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<RemediationCommand>? commands)
     {

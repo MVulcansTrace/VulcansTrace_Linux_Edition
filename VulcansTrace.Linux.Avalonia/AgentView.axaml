@@ -228,6 +228,32 @@
                                                     </ItemsControl.ItemsPanel>
                                                 </ItemsControl>
                                             </StackPanel>
+                                            <!-- Impact Preview -->
+                                            <Border Background="#0f172a"
+                                                    BorderBrush="#334155"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,6"
+                                                    IsVisible="{Binding HasImpactPreview}">
+                                                <StackPanel Orientation="Vertical" Spacing="4">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="ℹ️" FontSize="10" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Impact Preview" FontSize="10" Foreground="#94a3b8" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Impact:" FontSize="10" Foreground="#f87171" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewExpectedImpact}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Rollback:" FontSize="10" Foreground="#4ade80" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewRollbackPath}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap" FontFamily="{Binding RollbackPathFontFamily}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Verify:" FontSize="10" Foreground="#60a5fa" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewVerificationCommand}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap" FontFamily="{Binding ImpactPreviewVerificationFontFamily}"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
                                             <!-- Apply Commands -->
                                             <StackPanel Orientation="Vertical"
                                                         IsVisible="{Binding HasApplyCommands}"

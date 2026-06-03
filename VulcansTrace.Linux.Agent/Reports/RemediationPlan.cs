@@ -52,6 +52,31 @@ public sealed record RemediationSection
     /// False when only generic category-based fallback hints are available.
     /// </summary>
     public bool HasExplicitRollbackGuidance { get; init; }
+
+    /// <summary>
+    /// Compact preview of expected impact, rollback path, and verification command
+    /// shown before the user copies or executes apply commands.
+    /// </summary>
+    public RemediationImpactPreview? ImpactPreview { get; init; }
+}
+
+/// <summary>
+/// A compact preview of expected impact, rollback path, and verification command
+/// for a single remediation section.
+/// </summary>
+public sealed record RemediationImpactPreview
+{
+    /// <summary>What will change when the apply commands are executed.</summary>
+    public string ExpectedImpact { get; init; } = string.Empty;
+
+    /// <summary>How to undo the remediation if something goes wrong.</summary>
+    public string RollbackPath { get; init; } = string.Empty;
+
+    /// <summary>Command to run to confirm the fix was applied correctly.</summary>
+    public string VerificationCommand { get; init; } = string.Empty;
+
+    /// <summary>True when <see cref="VerificationCommand"/> is an actual shell command.</summary>
+    public bool IsVerificationCommand { get; init; }
 }
 
 /// <summary>

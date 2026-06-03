@@ -294,4 +294,148 @@ public class RemediationPlanBuilderTests
         Assert.False(plan.Sections[0].HasExplicitRollbackGuidance);
         Assert.NotEmpty(plan.Sections[0].RollbackHints);
     }
+
+    [Fact]
+    public void Build_Populates_ImpactPreview_From_StructuredExplanation()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-IMP",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Impact preview test",
+            Target = "INPUT",
+            Details = @"**What was found:**
+Default INPUT policy is ACCEPT.
+
+**Why this matters:**
+All incoming traffic is allowed until explicit rules are added.
+
+**How to verify:**
+1. Check policy: `sudo iptables -L INPUT | head -n 1`
+
+**Rollback commands:**
+1. Revert: `sudo iptables -P INPUT ACCEPT`
+
+**Suggested next action:**
+1. Drop default: `sudo iptables -P INPUT DROP`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.Contains("Drop default.", preview.ExpectedImpact);
+        Assert.DoesNotContain("All incoming traffic is allowed", preview.ExpectedImpact);
+        Assert.Equal("sudo iptables -P INPUT ACCEPT", preview.RollbackPath);
+        Assert.Equal("sudo iptables -L INPUT | head -n 1", preview.VerificationCommand);
+        Assert.True(preview.IsVerificationCommand);
+    }
+
+    [Fact]
+    public void Build_ImpactPreview_Falls_Back_To_Generic_Rollback_When_None_Provided()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-FBK",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Fallback rollback test",
+            Target = "INPUT",
+            Details = @"**Suggested next action:**
+1. Change policy: `sudo iptables -P INPUT DROP`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.Contains("Revert iptables rules", preview.RollbackPath);
+    }
+
+    [Fact]
+    public void Build_ImpactPreview_Uses_VerificationCommand_From_HowToVerify()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-VER",
+            Category = "Firewall",
+            Severity = Severity.Medium,
+            ShortDescription = "Verification fallback test",
+            Target = "SSH/22",
+            Details = @"**How to verify:**
+1. Check: `sudo ss -tulnp | grep :22`
+
+**Suggested next action:**
+1. Do something: `echo test`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.Equal("sudo ss -tulnp | grep :22", preview.VerificationCommand);
+        Assert.True(preview.IsVerificationCommand);
+    }
+
+    [Fact]
+    public void Build_ImpactPreview_Keeps_ClassifierUnknown_VerificationCommand()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "PKG-VER",
+            Category = "Package",
+            Severity = Severity.High,
+            ShortDescription = "Unknown classifier verification test",
+            Target = "apt",
+            Details = @"**How to verify:**
+1. List upgradable packages: `apt list --upgradeable`
+
+**Suggested next action:**
+1. Update package lists: `sudo apt update`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.Equal("apt list --upgradeable", preview.VerificationCommand);
+        Assert.True(preview.IsVerificationCommand);
+    }
+
+    [Fact]
+    public void Build_ImpactPreview_Rejects_Prose_Backticks_As_VerificationCommand()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-PROSE",
+            Category = "Firewall",
+            Severity = Severity.Medium,
+            ShortDescription = "Prose backtick test",
+            Target = "INPUT",
+            Details = @"**How to verify:**
+The policy should show `DROP` and nothing else.
+
+**Suggested next action:**
+1. Do something: `echo test`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        // `DROP` is prose, not a shell command — fallback should be used
+        Assert.Equal("Run verification manually after applying.", preview.VerificationCommand);
+        Assert.False(preview.IsVerificationCommand);
+    }
 }

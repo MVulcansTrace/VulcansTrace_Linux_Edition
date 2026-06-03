@@ -165,6 +165,7 @@ After running any audit, you can ask the agent for either a single-finding remed
 1. Run an audit: `Check my firewall`
 2. When findings appear, type `Fix FW-001` for a preview, or `Remediate FW-001` to start a guided remediation session.
 3. The agent returns an interactive remediation card/session with:
+   - **Impact Preview** — a compact panel summarizing the expected impact, rollback path, and verification command before the detailed command lists
    - **Preconditions** — checklist items such as "Root or sudo access" and "Console access available"
    - **Backup commands** — run these first to preserve state (e.g., `iptables-save`)
    - **Apply commands** — step-by-step fix commands, each with a safety badge
@@ -183,7 +184,7 @@ The headless CLI can automatically remediate multiple findings after an audit:
    ```bash
    vulcanstrace audit --intent FullAudit --auto-fix --dry-run
    ```
-   The output shows which commands would execute, which would be skipped by policy, and any validation warnings.
+   The output shows an impact preview for each finding (expected impact, rollback path, and verification command), which commands would execute, which would be skipped by policy, and any validation warnings.
 
 2. Apply safe fixes with confirmation:
    ```bash

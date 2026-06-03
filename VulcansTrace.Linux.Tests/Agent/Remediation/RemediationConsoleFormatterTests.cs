@@ -203,4 +203,68 @@ public class RemediationConsoleFormatterTests
         Assert.Contains("line3", output);
         Assert.Contains("(2 more lines)", output);
     }
+
+    [Fact]
+    public void FormatDryRun_Includes_ImpactPreview_When_Present()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    HasExplicitRollbackGuidance = true,
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    },
+                    ImpactPreview = new RemediationImpactPreview
+                    {
+                        ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        RollbackPath = "sudo iptables -P INPUT ACCEPT",
+                        VerificationCommand = "sudo iptables -L INPUT | head -n 1"
+                    }
+                }
+            }
+        };
+        var policy = AutoFixPolicy.Standard();
+
+        var output = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+
+        Assert.Contains("→ Impact: Default INPUT policy will change to DROP.", output);
+        Assert.Contains("→ Rollback: sudo iptables -P INPUT ACCEPT", output);
+        Assert.Contains("→ Verify: sudo iptables -L INPUT | head -n 1", output);
+    }
+
+    [Fact]
+    public void FormatDryRun_Omits_ImpactPreview_When_Null()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    HasExplicitRollbackGuidance = true,
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+        var policy = AutoFixPolicy.Standard();
+
+        var output = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+
+        Assert.DoesNotContain("→ Impact:", output);
+        Assert.DoesNotContain("→ Rollback:", output);
+        Assert.DoesNotContain("→ Verify:", output);
+    }
 }

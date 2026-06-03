@@ -46,6 +46,21 @@ public sealed class RemediationMarkdownFormatter
             sb.AppendLine($"**Risk:** {section.RiskNote}");
             sb.AppendLine();
 
+            if (section.ImpactPreview != null)
+            {
+                sb.AppendLine("> **Impact Preview**");
+                sb.AppendLine($"> **Impact:** {section.ImpactPreview.ExpectedImpact}");
+                var rollbackFormatted = section.RollbackCommands.Count > 0
+                    ? $"`{section.ImpactPreview.RollbackPath}`"
+                    : section.ImpactPreview.RollbackPath;
+                var verificationFormatted = section.ImpactPreview.IsVerificationCommand
+                    ? $"`{section.ImpactPreview.VerificationCommand}`"
+                    : section.ImpactPreview.VerificationCommand;
+                sb.AppendLine($"> **Rollback:** {rollbackFormatted}");
+                sb.AppendLine($"> **Verify:** {verificationFormatted}");
+                sb.AppendLine();
+            }
+
             if (section.Preconditions.Count > 0)
             {
                 sb.AppendLine("### Preconditions");

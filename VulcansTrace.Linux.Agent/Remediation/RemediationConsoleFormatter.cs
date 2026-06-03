@@ -28,6 +28,13 @@ public static class RemediationConsoleFormatter
             sb.AppendLine($"[{i + 1}/{plan.TotalSections}] {section.RuleId}: {section.FindingSummary}");
             sb.AppendLine($"    Risk: {section.RiskNote}");
 
+            if (section.ImpactPreview != null)
+            {
+                sb.AppendLine($"    → Impact: {section.ImpactPreview.ExpectedImpact}");
+                sb.AppendLine($"    → Rollback: {section.ImpactPreview.RollbackPath}");
+                sb.AppendLine($"    → Verify: {section.ImpactPreview.VerificationCommand}");
+            }
+
             var permittedApply = section.ApplyCommands.Where(c => policy.IsPermitted(c.Safety)).ToList();
             var blockedApply = section.ApplyCommands.Where(c => !policy.IsPermitted(c.Safety)).ToList();
 

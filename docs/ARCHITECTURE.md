@@ -42,7 +42,7 @@ The Security Agent provides a parallel local posture path:
 9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
-- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links.
+- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, and verification command.
 
 The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
 

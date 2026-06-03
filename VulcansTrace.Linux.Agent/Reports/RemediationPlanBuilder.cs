@@ -59,6 +59,8 @@ public sealed class RemediationPlanBuilder
                 ? structured.Confidence
                 : $"{structured.Confidence} — {structured.Caveats}";
 
+        var impactPreview = BuildImpactPreview(structured, applyCommands, rollbackCommands, rollbackHints, verificationCommands);
+
         return new RemediationSection
         {
             RuleId = finding.RuleId!,
@@ -70,8 +72,133 @@ public sealed class RemediationPlanBuilder
             RollbackCommands = rollbackCommands,
             RollbackHints = rollbackHints,
             VerificationCommands = verificationCommands,
-            HasExplicitRollbackGuidance = hasExplicitRollbackGuidance
+            HasExplicitRollbackGuidance = hasExplicitRollbackGuidance,
+            ImpactPreview = impactPreview
         };
+    }
+
+    private static RemediationImpactPreview BuildImpactPreview(
+        StructuredExplanation structured,
+        IReadOnlyList<RemediationCommand> applyCommands,
+        IReadOnlyList<RemediationCommand> rollbackCommands,
+        IReadOnlyList<string> rollbackHints,
+        IReadOnlyList<RemediationCommand> verificationCommands)
+    {
+        var impactParts = ExtractActionSummaries(structured.SuggestedNextAction).ToList();
+        if (impactParts.Count == 0 && applyCommands.Count > 0)
+            impactParts.Add($"Run {applyCommands.Count} apply command(s) to remediate this finding.");
+        if (impactParts.Count == 0 && !string.IsNullOrWhiteSpace(structured.WhatWasFound))
+            impactParts.Add($"Remediate finding: {structured.WhatWasFound}");
+        if (!string.IsNullOrWhiteSpace(structured.Caveats))
+            impactParts.Add($"Caveats: {structured.Caveats}");
+
+        var expectedImpact = impactParts.Count > 0
+            ? string.Join(" ", impactParts.Take(3))
+            : "Review the apply commands for expected changes.";
+
+        var rollbackPath = rollbackCommands.Count > 0
+            ? rollbackCommands[0].Command
+            : rollbackHints.Count > 0
+                ? rollbackHints[0]
+                : "Document the change and keep a backup of original configuration.";
+
+        var verification = BuildVerificationPreview(structured.HowToVerify, verificationCommands);
+
+        return new RemediationImpactPreview
+        {
+            ExpectedImpact = expectedImpact,
+            RollbackPath = rollbackPath,
+            VerificationCommand = verification.Text,
+            IsVerificationCommand = verification.IsCommand
+        };
+    }
+
+    private static (string Text, bool IsCommand) BuildVerificationPreview(
+        string howToVerify,
+        IReadOnlyList<RemediationCommand> verificationCommands)
+    {
+        foreach (var command in verificationCommands)
+        {
+            if (IsExplicitVerificationStep(howToVerify, command.Command) || LooksLikeCommand(command))
+                return (command.Command, true);
+        }
+
+        var extractedCommand = ExtractFirstBacktickCommand(howToVerify);
+        return extractedCommand != null
+            ? (extractedCommand, true)
+            : ("Run verification manually after applying.", false);
+    }
+
+    private static bool IsExplicitVerificationStep(string markdown, string command)
+    {
+        if (string.IsNullOrWhiteSpace(markdown) || string.IsNullOrWhiteSpace(command))
+            return false;
+
+        var pattern = @"^\s*\d+\.\s*.*?`" + Regex.Escape(command) + @"`";
+        return Regex.IsMatch(markdown, pattern, RegexOptions.Multiline);
+    }
+
+    private static bool LooksLikeCommand(RemediationCommand cmd)
+    {
+        return cmd.Safety != CommandSafety.Unknown
+            || cmd.Analysis.RequiresSudo
+            || cmd.Analysis.HasChain
+            || cmd.Analysis.HasPipe
+            || cmd.Analysis.HasRedirect
+            || cmd.Analysis.DownloadsAndExecutes;
+    }
+
+    private static string? ExtractFirstBacktickCommand(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return null;
+
+        var match = Regex.Match(markdown, @"`([^`]+)`");
+        if (!match.Success)
+            return null;
+
+        var candidate = match.Groups[1].Value.Trim();
+        var analysis = CommandSafetyClassifier.Analyze(candidate);
+
+        // Reject prose wrapped in backticks (e.g. "The policy should show `DROP`").
+        // Only accept candidates that look like actual shell commands.
+        var looksLikeCommand = analysis.Safety != CommandSafety.Unknown
+            || analysis.RequiresSudo
+            || analysis.HasChain
+            || analysis.HasPipe
+            || analysis.HasRedirect
+            || analysis.DownloadsAndExecutes;
+
+        return looksLikeCommand ? candidate : null;
+    }
+
+    private static IEnumerable<string> ExtractActionSummaries(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            yield break;
+
+        foreach (var rawLine in markdown.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("```", StringComparison.Ordinal))
+                continue;
+
+            line = Regex.Replace(line, @"^\s*(?:\d+\.\s*|[-*]\s*)", string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var backtickMatch = Regex.Match(line, @"`([^`]+)`");
+            if (backtickMatch.Success)
+            {
+                var label = line[..backtickMatch.Index].Trim().TrimEnd(':');
+                yield return string.IsNullOrWhiteSpace(label)
+                    ? $"Run `{backtickMatch.Groups[1].Value.Trim()}`."
+                    : $"{label}.";
+                continue;
+            }
+
+            yield return line;
+        }
     }
 
     private static IReadOnlyList<string> ExtractPreconditions(string markdown)

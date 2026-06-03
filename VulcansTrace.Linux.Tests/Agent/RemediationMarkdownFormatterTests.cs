@@ -202,6 +202,142 @@ public class RemediationMarkdownFormatterTests
     }
 
     [Fact]
+    public void Format_IncludesImpactPreview()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    ImpactPreview = new RemediationImpactPreview
+                    {
+                        ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        RollbackPath = "sudo iptables -P INPUT ACCEPT",
+                        VerificationCommand = "sudo iptables -L INPUT | head -n 1",
+                        IsVerificationCommand = true
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    },
+                    RollbackCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT ACCEPT", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.Contains("**Impact Preview**", result);
+        Assert.Contains("**Impact:** Default INPUT policy will change to DROP.", result);
+        Assert.Contains("**Rollback:** `sudo iptables -P INPUT ACCEPT`", result);
+        Assert.Contains("**Verify:** `sudo iptables -L INPUT | head -n 1`", result);
+    }
+
+    [Fact]
+    public void Format_RollbackHint_NotWrappedInBackticks()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    ImpactPreview = new RemediationImpactPreview
+                    {
+                        ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        RollbackPath = "Revert iptables rules with -D instead of -A.",
+                        VerificationCommand = "sudo iptables -L INPUT | head -n 1",
+                        IsVerificationCommand = true
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    },
+                    RollbackCommands = Array.Empty<RemediationCommand>()
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.Contains("**Rollback:** Revert iptables rules with -D instead of -A.", result);
+        Assert.DoesNotContain("**Rollback:** `Revert iptables rules", result);
+    }
+
+    [Fact]
+    public void Format_VerificationFallback_NotWrappedInBackticks()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    ImpactPreview = new RemediationImpactPreview
+                    {
+                        ExpectedImpact = "Drop default.",
+                        RollbackPath = "Revert iptables rules with -D instead of -A.",
+                        VerificationCommand = "Run verification manually after applying.",
+                        IsVerificationCommand = false
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.Contains("**Verify:** Run verification manually after applying.", result);
+        Assert.DoesNotContain("**Verify:** `Run verification manually after applying.`", result);
+    }
+
+    [Fact]
+    public void Format_OmitsImpactPreview_WhenNull()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.DoesNotContain("**Impact Preview**", result);
+        Assert.DoesNotContain("**Impact:**", result);
+    }
+
+    [Fact]
     public void FormatSession_IncludesTimeline()
     {
         var session = new RemediationSession
