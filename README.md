@@ -52,6 +52,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors. Included in the Avalonia UI and evidence exports.
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction and is included in the Avalonia UI, agent chat, and evidence exports.
+- **Trace Map / Incident Graph** — interactive attack-chain visualization on the timeline canvas. Correlated findings are connected with directed edges (escalation, temporal sequence, same-host links). Click any finding to highlight its connected chain and read a narrative attack story. Supports category-based or host-based grouping. Performance guardrails suppress rendering when >100 edges are detected.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
@@ -80,6 +81,7 @@ Advanced detectors and correlation:
 - C2 channel detection
 - Privilege escalation indicators from suspicious admin-port access
 - Risk escalation for correlated findings such as Beaconing + LateralMovement, FlagAnomaly + PortScan, and MacSpoofing + InterfaceHopping
+- Trace Map correlation engine discovers directed attack chains across findings based on host grouping, time proximity, and known kill-chain pairs
 
 ## Quick Start
 
@@ -172,6 +174,8 @@ The UI can export a signed ZIP evidence package containing:
 | `compliance-scorecard.md` | Markdown compliance scorecard for Git-based workflows |
 | `risk-scorecard.html` | Manager-friendly HTML risk scorecard (grade badge, numeric score, per-category breakdown) |
 | `risk-scorecard.md` | Markdown risk scorecard for Git-based workflows |
+| `incident-story.md` | Human-readable attack-chain narrative when correlated findings are detected |
+| `trace-map.json` | Cytoscape.js-compatible JSON graph of findings and correlation edges |
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
 

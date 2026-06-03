@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Avalonia.Converters;
 
@@ -105,5 +106,22 @@ public sealed class BoolToForegroundConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
+    }
+}
+
+/// <summary>
+/// Converts <see cref="TimelineGroupMode"/> to/from boolean for a ToggleButton.
+/// True when mode is <see cref="TimelineGroupMode.Host"/>.
+/// </summary>
+public sealed class GroupModeToBoolConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is TimelineGroupMode.Host;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is true ? TimelineGroupMode.Host : TimelineGroupMode.Category;
     }
 }

@@ -30,3 +30,12 @@ dotnet run --project tools/TestAnalysis -- --verify evidence.zip --key <64-chara
 ```
 
 Verification fails if the manifest HMAC does not match, if any manifest-listed file is missing, or if a file hash no longer matches the manifest.
+
+## Trace Map files
+
+When correlated attack chains are detected, the evidence bundle also includes:
+
+- `incident-story.md` — human-readable narrative of attack chains and unconnected findings
+- `trace-map.json` — Cytoscape.js-compatible graph with findings as nodes and correlations as edges
+
+These files are listed in `manifest.json` and covered by the same HMAC signature as all other evidence files.

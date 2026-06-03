@@ -37,6 +37,8 @@ public sealed class EvidenceBuilder
     private readonly ComplianceScorecardMarkdownFormatter? _scorecardMarkdownFormatter;
     private readonly RiskScorecardHtmlFormatter? _riskScorecardHtmlFormatter;
     private readonly RiskScorecardMarkdownFormatter? _riskScorecardMarkdownFormatter;
+    private readonly TraceMapMarkdownFormatter? _traceMapMarkdownFormatter;
+    private readonly TraceMapJsonFormatter? _traceMapJsonFormatter;
     private static readonly DateTimeOffset ZipMinTimestamp = new DateTimeOffset(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     private static readonly DateTimeOffset ZipMaxTimestamp = new DateTimeOffset(new DateTime(2107, 12, 31, 23, 59, 59, DateTimeKind.Utc));
 
@@ -53,6 +55,8 @@ public sealed class EvidenceBuilder
     /// <param name="scorecardMarkdownFormatter">Optional formatter for compliance scorecard Markdown.</param>
     /// <param name="riskScorecardHtmlFormatter">Optional formatter for risk scorecard HTML.</param>
     /// <param name="riskScorecardMarkdownFormatter">Optional formatter for risk scorecard Markdown.</param>
+    /// <param name="traceMapMarkdownFormatter">Optional formatter for Trace Map incident story Markdown.</param>
+    /// <param name="traceMapJsonFormatter">Optional formatter for Trace Map Cytoscape JSON.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
@@ -63,7 +67,9 @@ public sealed class EvidenceBuilder
         ComplianceScorecardHtmlFormatter? scorecardHtmlFormatter = null,
         ComplianceScorecardMarkdownFormatter? scorecardMarkdownFormatter = null,
         RiskScorecardHtmlFormatter? riskScorecardHtmlFormatter = null,
-        RiskScorecardMarkdownFormatter? riskScorecardMarkdownFormatter = null)
+        RiskScorecardMarkdownFormatter? riskScorecardMarkdownFormatter = null,
+        TraceMapMarkdownFormatter? traceMapMarkdownFormatter = null,
+        TraceMapJsonFormatter? traceMapJsonFormatter = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -75,6 +81,8 @@ public sealed class EvidenceBuilder
         _scorecardMarkdownFormatter = scorecardMarkdownFormatter;
         _riskScorecardHtmlFormatter = riskScorecardHtmlFormatter;
         _riskScorecardMarkdownFormatter = riskScorecardMarkdownFormatter;
+        _traceMapMarkdownFormatter = traceMapMarkdownFormatter;
+        _traceMapJsonFormatter = traceMapJsonFormatter;
     }
 
     /// <summary>
@@ -85,12 +93,13 @@ public sealed class EvidenceBuilder
     /// <param name="signingKey">The secret key for HMAC signing.</param>
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
-    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, string? remediationPlanMarkdown = null)
+    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
         ArgumentNullException.ThrowIfNull(signingKey);
         var timestamp = analysisTimestampUtc ?? DateTime.UtcNow;
-        return Build(result, rawLog, signingKey, timestamp, CancellationToken.None, remediationPlanMarkdown);
+        return Build(result, rawLog, signingKey, timestamp, CancellationToken.None, remediationPlanMarkdown, traceMap);
     }
 
     /// <summary>
@@ -102,12 +111,13 @@ public sealed class EvidenceBuilder
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
     /// <returns>A task representing the async operation, containing the ZIP file bytes.</returns>
-    public Task<byte[]> BuildAsync(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, CancellationToken cancellationToken = default, string? remediationPlanMarkdown = null)
+    public Task<byte[]> BuildAsync(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, CancellationToken cancellationToken = default, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
         ArgumentNullException.ThrowIfNull(signingKey);
         var timestamp = analysisTimestampUtc ?? DateTime.UtcNow;
-        return Task.Run(() => Build(result, rawLog, signingKey, timestamp, cancellationToken, remediationPlanMarkdown), cancellationToken);
+        return Task.Run(() => Build(result, rawLog, signingKey, timestamp, cancellationToken, remediationPlanMarkdown, traceMap), cancellationToken);
     }
 
     /// <summary>
@@ -119,8 +129,9 @@ public sealed class EvidenceBuilder
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
-    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown = null)
+    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -168,6 +179,18 @@ public sealed class EvidenceBuilder
             if (_riskScorecardMarkdownFormatter != null)
             {
                 files["risk-scorecard.md"] = Encoding.UTF8.GetBytes(_riskScorecardMarkdownFormatter.ToMarkdown(result.RiskScorecard));
+            }
+        }
+
+        if (traceMap != null && traceMap.Edges.Count > 0)
+        {
+            if (_traceMapMarkdownFormatter != null)
+            {
+                files["incident-story.md"] = Encoding.UTF8.GetBytes(_traceMapMarkdownFormatter.ToMarkdown(traceMap.Findings, traceMap.Edges));
+            }
+            if (_traceMapJsonFormatter != null)
+            {
+                files["trace-map.json"] = Encoding.UTF8.GetBytes(_traceMapJsonFormatter.Format(traceMap.Findings, traceMap.Edges));
             }
         }
 

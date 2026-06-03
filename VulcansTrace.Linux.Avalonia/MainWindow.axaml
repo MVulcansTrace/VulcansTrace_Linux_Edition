@@ -26,6 +26,7 @@
         <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
         <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
         <conv:ReviewFilterLabelConverter x:Key="ReviewFilterLabelConverter" />
+        <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
     </Window.Resources>
 
     <Grid Margin="16">
@@ -426,12 +427,38 @@
             <TabItem Header="Timeline"
                      AutomationProperties.AutomationId="TimelineTab">
                 <ScrollViewer>
-                    <Grid RowDefinitions="Auto,*" ColumnDefinitions="150,*">
-                        <!-- Category labels column -->
-                        <Border Grid.Row="0" Grid.Column="0" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,1,1">
-                            <TextBlock Text="Categories" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="#e2e8f0"/>
+                    <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="150,*">
+                        <!-- Toolbar -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                    Orientation="Horizontal"
+                                    Background="#1e1e1e"
+                                    Margin="0">
+                            <ToggleButton x:Name="TraceMapToggle"
+                                          Content="Trace Map"
+                                          Margin="8,4"
+                                          Padding="8,2"
+                                          IsChecked="{Binding Timeline.IsTraceMapEnabled}"
+                                          Foreground="#e2e8f0"
+                                          Background="#333333"/>
+                            <ToggleButton x:Name="HostGroupToggle"
+                                          Content="Group by Host"
+                                          Margin="0,4,8,4"
+                                          Padding="8,2"
+                                          IsChecked="{Binding Timeline.GroupMode, Converter={StaticResource GroupModeToBoolConverter}}"
+                                          Foreground="#e2e8f0"
+                                          Background="#333333"
+                                          IsEnabled="{Binding Timeline.IsTraceMapEnabled}"/>
+                        </StackPanel>
+
+                        <!-- Category/Host labels column -->
+                        <Border Grid.Row="1" Grid.Column="0" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,1,1">
+                            <TextBlock Text="{Binding Timeline.RowHeaderLabel}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontWeight="Bold"
+                                       Foreground="#e2e8f0"/>
                         </Border>
-                        <Border Grid.Row="1" Grid.Column="0" BorderBrush="#333333" BorderThickness="0,0,1,0">
+                        <Border Grid.Row="2" Grid.Column="0" BorderBrush="#333333" BorderThickness="0,0,1,0">
                             <ItemsControl ItemsSource="{Binding Timeline.Categories}" Margin="4,6,4,6">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -452,18 +479,41 @@
                         </Border>
 
                         <!-- Timeline visualization area -->
-                        <Border Grid.Row="0" Grid.Column="1" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,0,1">
+                        <Border Grid.Row="1" Grid.Column="1" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,0,1">
                             <TextBlock Text="{Binding Timeline.TimeRangeLabel}"
                                        Margin="8,4"
                                        FontSize="12"
                                        Foreground="#94a3b8"/>
                         </Border>
-                        <Border Grid.Row="1" Grid.Column="1" Background="#1a1a1a" BorderBrush="#333333" BorderThickness="0">
-                            <Canvas x:Name="TimelineCanvas"
-                                    Background="#1a1a1a"
-                                    Height="{Binding Timeline.CanvasHeight}">
-                                <!-- Timeline bars will be drawn here -->
-                            </Canvas>
+                        <Border Grid.Row="2" Grid.Column="1" Background="#1a1a1a" BorderBrush="#333333" BorderThickness="0">
+                            <Grid>
+                                <Canvas x:Name="TimelineCanvas"
+                                        Background="#1a1a1a"
+                                        Height="{Binding Timeline.CanvasHeight}">
+                                    <!-- Timeline bars and edges will be drawn here -->
+                                </Canvas>
+                                <TextBlock Text="{Binding Timeline.SuppressionMessage}"
+                                           IsVisible="{Binding Timeline.IsEdgeRenderingSuppressed}"
+                                           VerticalAlignment="Bottom"
+                                           Margin="8,4"
+                                           FontSize="11"
+                                           Foreground="#fbbf24"
+                                           TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Narrative panel -->
+                        <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                Background="#1e1e1e"
+                                BorderBrush="#333333"
+                                BorderThickness="0,1,0,0"
+                                IsVisible="{Binding Timeline.IsNarrativeVisible}">
+                            <TextBlock Text="{Binding Timeline.SelectedChainNarrative}"
+                                       Margin="8,6"
+                                       FontSize="12"
+                                       Foreground="#94a3b8"
+                                       TextWrapping="Wrap"
+                                       FontStyle="Italic"/>
                         </Border>
                     </Grid>
                 </ScrollViewer>

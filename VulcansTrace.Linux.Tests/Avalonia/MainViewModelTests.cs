@@ -227,7 +227,19 @@ also not a firewall line";
         var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, new RiskEscalator());
 
         var hasher = new IntegrityHasher();
-        var evidenceBuilder = new EvidenceBuilder(hasher, new CsvFormatter(), new MarkdownFormatter(), new HtmlFormatter(), null, null, null, null, new RiskScorecardHtmlFormatter(), new RiskScorecardMarkdownFormatter());
+        var evidenceBuilder = new EvidenceBuilder(
+            hasher,
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            jsonFormatter: null,
+            stixFormatter: null,
+            scorecardHtmlFormatter: null,
+            scorecardMarkdownFormatter: null,
+            riskScorecardHtmlFormatter: new RiskScorecardHtmlFormatter(),
+            riskScorecardMarkdownFormatter: new RiskScorecardMarkdownFormatter(),
+            traceMapMarkdownFormatter: new TraceMapMarkdownFormatter(),
+            traceMapJsonFormatter: new TraceMapJsonFormatter());
 
         return new MainViewModel(
             analyzer,
@@ -237,7 +249,8 @@ also not a firewall line";
             agent ?? new MockAgent(),
             suppressionStore ?? new InMemorySuppressionStore(),
             new InMemoryAuditHistoryStore(),
-            new RemediationPlanBuilder(new ExplanationProvider()));
+            new RemediationPlanBuilder(new ExplanationProvider()),
+            new TraceMapCorrelator());
     }
 
     private sealed class MockAgent : IAgent

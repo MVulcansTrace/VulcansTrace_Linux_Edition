@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Avalonia.Services;
 
@@ -26,6 +27,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     private byte[]? _signingKeyBytes;
     private bool _isBusy;
     private AnalysisResult? _lastResult;
+    private TraceMapResult? _traceMapResult;
     private string _logSnapshot = "";
     private DateTime? _analysisTimestamp;
     private string? _remediationPlanMarkdown;
@@ -116,9 +118,11 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     /// <param name="logText">The raw log text snapshot.</param>
     /// <param name="timestamp">Optional analysis timestamp.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include in the bundle.</param>
-    public void SetEvidenceContext(AnalysisResult result, string logText, DateTime? timestamp, string? remediationPlanMarkdown = null)
+    /// <param name="traceMap">Optional Trace Map result to include in the bundle.</param>
+    public void SetEvidenceContext(AnalysisResult result, string logText, DateTime? timestamp, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
         _lastResult = result;
+        _traceMapResult = traceMap;
         _logSnapshot = logText;
         _analysisTimestamp = timestamp;
         _remediationPlanMarkdown = remediationPlanMarkdown;
@@ -129,6 +133,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     public void ClearEvidenceContext()
     {
         _lastResult = null;
+        _traceMapResult = null;
         _logSnapshot = string.Empty;
         _analysisTimestamp = null;
         _remediationPlanMarkdown = null;
@@ -209,7 +214,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             token.ThrowIfCancellationRequested();
             StatusChanged?.Invoke(this, "Building evidence bundle...");
             failureAction = "build evidence bundle";
-            zipBytes = await _evidenceBuilder.BuildAsync(result, log, signingKeyBytes, ts, token, _remediationPlanMarkdown);
+            zipBytes = await _evidenceBuilder.BuildAsync(result, log, signingKeyBytes, ts, token, _remediationPlanMarkdown, _traceMapResult);
 
             token.ThrowIfCancellationRequested();
             failureAction = "save file";

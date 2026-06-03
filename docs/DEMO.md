@@ -37,6 +37,8 @@ Click the "Analyze" button to process the log and detect security findings.
 
 - Check the **Findings** tab for detected threats
 - Switch to **Timeline** to visualize events over time with time-scaled bars per category
+- Toggle **Trace Map** to reveal directed correlation edges between related findings (dashed lines). Click any bar to highlight its connected attack chain — other findings dim. A narrative panel appears below the timeline describing the attack story
+- Toggle **Group by Host** to re-group the timeline Y-axis by source host instead of category
 - Review **Parse Errors** and **Warnings** tabs if needed
 - The top panel shows total findings, high/critical alerts, warnings, parse errors, skipped lines, and advisor tips
 
@@ -52,6 +54,8 @@ Click **Export Evidence** to generate a signed ZIP bundle containing:
 | `report.html` | Formatted HTML report |
 | `summary.md` | Markdown summary |
 | `log.txt` | Original raw log |
+| `incident-story.md` | Attack-chain narrative when correlated findings are detected |
+| `trace-map.json` | Cytoscape.js-compatible graph for import into network visualization tools |
 | `manifest.json` + `manifest.hmac` | HMAC integrity verification |
 
 ## Sample Attack Scenarios

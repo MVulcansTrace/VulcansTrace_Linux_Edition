@@ -747,6 +747,154 @@ public class EvidenceBuilderTests
         Assert.DoesNotContain("risk-scorecard.md", names);
     }
 
+    [Fact]
+    public void Build_WithTraceMap_IncludesIncidentStoryAndTraceMapJson()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            new JsonFormatter(),
+            new StixFormatter(),
+            null,
+            null,
+            new RiskScorecardHtmlFormatter(),
+            new RiskScorecardMarkdownFormatter(),
+            new TraceMapMarkdownFormatter(),
+            new TraceMapJsonFormatter());
+
+        var f1 = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(5),
+            ShortDescription = "Beaconing detected",
+            Severity = Severity.Medium
+        };
+        var f2 = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            SourceHost = "192.168.1.100",
+            Target = "internal",
+            TimeRangeStart = DateTime.UnixEpoch.AddMinutes(10),
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Severity = Severity.High
+        };
+
+        var result = new AnalysisResult
+        {
+            TotalLines = 2,
+            ParsedLines = 2,
+            Findings = new[] { f1, f2 },
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(15)
+        };
+
+        var traceMap = new TraceMapResult
+        {
+            Findings = result.Findings,
+            Edges = new[]
+            {
+                new CorrelationEdge(f1.Id, f2.Id, CorrelationType.EscalatesTo, "Beaconing escalated to lateral movement", CorrelationConfidence.High)
+            }
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, traceMap: traceMap);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("incident-story.md", names);
+        Assert.Contains("trace-map.json", names);
+
+        // Verify incident-story.md content
+        var storyEntry = zip.GetEntry("incident-story.md");
+        Assert.NotNull(storyEntry);
+        using (var stream = storyEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var story = reader.ReadToEnd();
+            Assert.Contains("# Incident Story — Trace Map", story);
+            Assert.Contains("Beaconing detected", story);
+            Assert.Contains("Lateral movement", story);
+            Assert.Contains("Beaconing escalated to lateral movement", story);
+        }
+
+        // Verify trace-map.json is valid Cytoscape JSON
+        var jsonEntry = zip.GetEntry("trace-map.json");
+        Assert.NotNull(jsonEntry);
+        using (var stream = jsonEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var json = reader.ReadToEnd();
+            var doc = JsonDocument.Parse(json);
+            var elements = doc.RootElement.GetProperty("elements");
+            var nodes = elements.GetProperty("nodes");
+            var edges = elements.GetProperty("edges");
+            Assert.Equal(2, nodes.GetArrayLength());
+            Assert.Equal(1, edges.GetArrayLength());
+
+            var edge = edges[0];
+            Assert.Equal(f1.Id.ToString("N"), edge.GetProperty("data").GetProperty("source").GetString());
+            Assert.Equal(f2.Id.ToString("N"), edge.GetProperty("data").GetProperty("target").GetString());
+            Assert.Equal("EscalatesTo", edge.GetProperty("data").GetProperty("type").GetString());
+        }
+
+        // Verify manifest lists both trace-map files
+        var manifestEntry = zip.GetEntry("manifest.json");
+        Assert.NotNull(manifestEntry);
+        using (var stream = manifestEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var manifest = JsonDocument.Parse(reader.ReadToEnd());
+            var fileNames = manifest.RootElement.GetProperty("files")
+                .EnumerateArray()
+                .Select(e => e.GetProperty("file").GetString())
+                .ToArray();
+            Assert.Contains("incident-story.md", fileNames);
+            Assert.Contains("trace-map.json", fileNames);
+        }
+    }
+
+    [Fact]
+    public void Build_WithEmptyTraceMapEdges_OmitsTraceMapFiles()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            jsonFormatter: null,
+            stixFormatter: null,
+            scorecardHtmlFormatter: null,
+            scorecardMarkdownFormatter: null,
+            riskScorecardHtmlFormatter: null,
+            riskScorecardMarkdownFormatter: null,
+            traceMapMarkdownFormatter: new TraceMapMarkdownFormatter(),
+            traceMapJsonFormatter: new TraceMapJsonFormatter());
+
+        var result = SingleFindingResult();
+        var traceMap = new TraceMapResult
+        {
+            Findings = result.Findings,
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, traceMap: traceMap);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.DoesNotContain("incident-story.md", names);
+        Assert.DoesNotContain("trace-map.json", names);
+    }
+
     private static byte[] TamperFileInZip(byte[] zipBytes, string targetEntry, Func<byte[], byte[]> tamper)
     {
         // Read all entries from the original ZIP

@@ -29,6 +29,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly ISuppressionStore _suppressionStore;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
+    private readonly TraceMapCorrelator _traceMapCorrelator;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly EventHandler<string> _evidenceStatusHandler;
     private readonly EventHandler _evidenceExportCompletedHandler;
@@ -294,6 +295,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ISuppressionStore suppressionStore,
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
+        TraceMapCorrelator traceMapCorrelator,
         IScheduleStore? scheduleStore = null,
         INotificationService? notificationService = null,
         ISessionStore? sessionStore = null)
@@ -303,6 +305,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _dialogService = dialogService;
         _suppressionStore = suppressionStore;
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
+        _traceMapCorrelator = traceMapCorrelator;
 
         // Initialize commands first (before setting properties that trigger RaiseCanExecuteChanged)
         AnalyzeCommand = new AsyncRelayCommand(
@@ -464,9 +467,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 : DateTime.UnixEpoch;
 
         // Delegate to child ViewModels
-        Evidence.SetEvidenceContext(_lastResult, logSnapshot, lastAnalysisTimestampUtc);
+        var traceMap = _traceMapCorrelator.Correlate(result.Findings);
+        Evidence.SetEvidenceContext(_lastResult, logSnapshot, lastAnalysisTimestampUtc, traceMap: traceMap);
         Findings.LoadResults(result);
-        Timeline.LoadAnalysisResult(result);
+        Timeline.LoadAnalysisResult(result, traceMap.Edges);
         RiskScorecard.LoadScorecard(result.RiskScorecard);
 
         // Build summary text
@@ -543,9 +547,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
         }
 
-        Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown);
+        var agentTraceMap = _traceMapCorrelator.Correlate(analysisResult.Findings);
+        Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown, agentTraceMap);
         Findings.LoadResults(analysisResult);
-        Timeline.LoadAnalysisResult(null);
+        Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);
         ComplianceScorecard.LoadScorecard(agentResult.Scorecard);

@@ -24,10 +24,11 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
    - Linux Deep Inspection detectors (Linux-specific signals).
    - Advanced threat detectors (C2 channels, privilege escalation).
 4. `RiskEscalator` increases severity when correlated signals are present.
-5. Overlapping Beaconing and C2Channel findings on the same source-destination tuple are deduplicated (C2Channel absorbs the Beaconing details).
-6. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`) and per-category cap (`MaxFindingsPerDetector`).
-7. `AnalysisResult` is returned with findings, warnings, parse errors, and time range metadata.
-8. The UI renders findings, and `EvidenceBuilder` optionally creates a signed bundle.
+5. `TraceMapCorrelator` discovers directed correlation edges between findings: escalation pairs (Beaconing→LateralMovement, FlagAnomaly→PortScan, MacSpoofing→InterfaceHopping), temporal sequences on the same host, and same-host cross-category links. Produces `TraceMapResult` containing the original findings plus `CorrelationEdge` records with confidence levels (High, Medium, Low) derived from time gap.
+6. Overlapping Beaconing and C2Channel findings on the same source-destination tuple are deduplicated (C2Channel absorbs the Beaconing details).
+7. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`) and per-category cap (`MaxFindingsPerDetector`).
+8. `AnalysisResult` is returned with findings, warnings, parse errors, and time range metadata.
+9. The UI renders findings (including timeline and Trace Map visualization), and `EvidenceBuilder` optionally creates a signed bundle.
 
 The Security Agent provides a parallel local posture path:
 
@@ -77,6 +78,10 @@ Notification services are pluggable:
 - `AnalysisProfile`: intensity-tuned thresholds for each detector.
 - `Finding`: immutable detector output with severity, time range, and a stable fingerprint for tracking the same issue across audits.
 - `AnalysisResult`: complete analysis output with entries, findings, warnings, and optional agent data-source capability context.
+- `TraceMapResult`: container for findings and their directed correlation edges (`CorrelationEdge`), produced by `TraceMapCorrelator`.
+- `CorrelationEdge`: directed edge between two findings (`FromFindingId`, `ToFindingId`, `CorrelationType`, `Narrative`, `CorrelationConfidence`).
+- `CorrelationType`: `EscalatesTo`, `SameHost`, or `TemporalSequence`.
+- `CorrelationConfidence`: `Low`, `Medium`, or `High`, derived from time gap between findings.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 - `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
 

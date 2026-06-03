@@ -74,7 +74,9 @@ public static class AgentFactory
         var scorecardMarkdownFormatter = new ComplianceScorecardMarkdownFormatter();
         var riskScorecardHtmlFormatter = new RiskScorecardHtmlFormatter();
         var riskScorecardMarkdownFormatter = new RiskScorecardMarkdownFormatter();
-        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter, riskScorecardHtmlFormatter, riskScorecardMarkdownFormatter);
+        var traceMapMarkdownFormatter = new TraceMapMarkdownFormatter();
+        var traceMapJsonFormatter = new TraceMapJsonFormatter();
+        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter, riskScorecardHtmlFormatter, riskScorecardMarkdownFormatter, traceMapMarkdownFormatter, traceMapJsonFormatter);
 
         var scanners = new IScanner[]
         {

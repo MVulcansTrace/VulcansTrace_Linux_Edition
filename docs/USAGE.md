@@ -12,7 +12,7 @@
 5. Click **Analyze** to generate findings.
 6. Review results:
    - **Findings tab** — searchable, filterable table of all detected threats. Use the search box and severity dropdown to narrow results.
-   - **Timeline tab** — visual timeline of findings by category.
+   - **Timeline tab** — visual timeline of findings by category. Toggle **Trace Map** to draw directed correlation edges between related findings (escalation, temporal sequence, same-host links). Toggle **Group by Host** to re-group the Y-axis by source host instead of category. Click any finding bar to highlight its connected attack chain; a narrative panel appears below the timeline describing the chain. If more than 100 edges are detected, interactive rendering is suppressed for performance — export the evidence bundle to review the full Trace Map.
    - **Parse Errors tab** — lines that could not be parsed.
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
    - **Compliance tab** — CIS Compliance Scorecard showing overall pass/warn/fail status, per-control-family breakdown, score percentage, and a trend chart of previous audits.
@@ -324,6 +324,8 @@ Exporting evidence produces a ZIP archive with:
 - `summary.md`
 - `log.txt`
 - `suppressions.csv` when active accepted-risk suppressions exist
+- `incident-story.md` — human-readable attack-chain narrative when correlated findings are detected
+- `trace-map.json` — Cytoscape.js-compatible JSON graph of findings and correlation edges
 - `manifest.json` — file hashes, skipped line count, and parse error details
 - `manifest.hmac` — HMAC-SHA256 signature for integrity verification
 

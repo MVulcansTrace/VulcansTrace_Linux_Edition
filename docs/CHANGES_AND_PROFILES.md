@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-02
+Last updated: 2026-06-03
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -23,6 +23,10 @@ Last updated: 2026-06-02
 - STIX 2.1 export rebuilt: now emits a STIX bundle with identity,
   observed-data, note objects, IP observables, and optional malware hints.
   - Code: `VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs`
+- Trace Map evidence export: when correlated findings are present, the signed ZIP bundle includes `incident-story.md` (human-readable attack-chain narrative) and `trace-map.json` (Cytoscape.js-compatible graph with nodes and edges).
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapMarkdownFormatter.cs`
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapJsonFormatter.cs`
+  - Code: `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`
 - Evidence bundle validation added to the CLI utility.
   - Code: `tools/TestAnalysis/Program.cs`
 
@@ -32,6 +36,12 @@ Last updated: 2026-06-02
   - Code: `VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs`
   - Code: `VulcansTrace.Linux.Avalonia/MainWindow.axaml`
   - Code: `VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs`
+- Trace Map / Incident Graph: interactive attack-chain visualization on the timeline canvas. Directed correlation edges (escalation, temporal sequence, same-host) are drawn between related findings. Click-to-highlight with BFS chain walking, narrative panel, host-based grouping toggle, and performance guardrail (>100 edges suppresses canvas rendering).
+  - Code: `VulcansTrace.Linux.Engine/TraceMapCorrelator.cs`
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs`
+  - Code: `VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs`
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapMarkdownFormatter.cs`
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapJsonFormatter.cs`
 - Dialogs: moved from FluentAvalonia ContentDialog to a native Avalonia Window.
   - Code: `VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs`
 
@@ -46,6 +56,12 @@ Last updated: 2026-06-02
   - Code: `VulcansTrace.Linux.Tests/Detectors/PrivilegeEscalationDetectorTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs`
+- Trace Map tests: correlator confidence levels, BFS chain walking, edge suppression threshold, narrative generation, deterministic edge IDs, JSON/Markdown formatter coverage, and E2E evidence bundle inclusion.
+  - Code: `VulcansTrace.Linux.Tests/Engine/TraceMapCorrelatorTests.cs`
+  - Code: `VulcansTrace.Linux.Tests/Avalonia/TimelineViewModelTraceMapTests.cs`
+  - Code: `VulcansTrace.Linux.Tests/Evidence/TraceMapJsonFormatterTests.cs`
+  - Code: `VulcansTrace.Linux.Tests/Evidence/TraceMapMarkdownFormatterTests.cs`
+  - Code: `VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs`
 - Expanded `iptables-attack.log` to reliably trigger visible PortScan findings
   at Medium and High intensity. Low still evaluates the scan, but standalone
   PortScan findings are hidden by the High/Critical visibility filter unless
