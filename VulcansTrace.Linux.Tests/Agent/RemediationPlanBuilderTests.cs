@@ -271,6 +271,8 @@ public class RemediationPlanBuilderTests
 
         Assert.Single(plan.Sections);
         Assert.True(plan.Sections[0].HasExplicitRollbackGuidance);
+        Assert.Equal(RemediationPreviewTextKind.ExplicitGuidance, plan.Sections[0].ImpactPreview?.RollbackPathKind);
+        Assert.Equal("Restore ACCEPT policy manually", plan.Sections[0].ImpactPreview?.RollbackPath);
     }
 
     [Fact]
@@ -327,11 +329,14 @@ All incoming traffic is allowed until explicit rules are added.
         Assert.Single(plan.Sections);
         var preview = plan.Sections[0].ImpactPreview;
         Assert.NotNull(preview);
-        Assert.Contains("Drop default.", preview.ExpectedImpact);
+        Assert.Contains("Applying this step will: Drop default.", preview.ExpectedImpact);
         Assert.DoesNotContain("All incoming traffic is allowed", preview.ExpectedImpact);
+        Assert.Equal(RemediationImpactSource.SuggestedAction, preview.ExpectedImpactSource);
         Assert.Equal("sudo iptables -P INPUT ACCEPT", preview.RollbackPath);
+        Assert.Equal(RemediationPreviewTextKind.Command, preview.RollbackPathKind);
         Assert.Equal("sudo iptables -L INPUT | head -n 1", preview.VerificationCommand);
         Assert.True(preview.IsVerificationCommand);
+        Assert.Equal(RemediationPreviewTextKind.Command, preview.VerificationKind);
     }
 
     [Fact]
@@ -355,6 +360,7 @@ All incoming traffic is allowed until explicit rules are added.
         var preview = plan.Sections[0].ImpactPreview;
         Assert.NotNull(preview);
         Assert.Contains("Revert iptables rules", preview.RollbackPath);
+        Assert.Equal(RemediationPreviewTextKind.GenericGuidance, preview.RollbackPathKind);
     }
 
     [Fact]
@@ -382,6 +388,7 @@ All incoming traffic is allowed until explicit rules are added.
         Assert.NotNull(preview);
         Assert.Equal("sudo ss -tulnp | grep :22", preview.VerificationCommand);
         Assert.True(preview.IsVerificationCommand);
+        Assert.Equal(RemediationPreviewTextKind.Command, preview.VerificationKind);
     }
 
     [Fact]
@@ -409,6 +416,7 @@ All incoming traffic is allowed until explicit rules are added.
         Assert.NotNull(preview);
         Assert.Equal("apt list --upgradeable", preview.VerificationCommand);
         Assert.True(preview.IsVerificationCommand);
+        Assert.Equal(RemediationPreviewTextKind.Command, preview.VerificationKind);
     }
 
     [Fact]
@@ -437,5 +445,6 @@ The policy should show `DROP` and nothing else.
         // `DROP` is prose, not a shell command — fallback should be used
         Assert.Equal("Run verification manually after applying.", preview.VerificationCommand);
         Assert.False(preview.IsVerificationCommand);
+        Assert.Equal(RemediationPreviewTextKind.ManualFallback, preview.VerificationKind);
     }
 }

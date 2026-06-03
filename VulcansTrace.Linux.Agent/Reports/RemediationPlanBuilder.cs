@@ -59,7 +59,13 @@ public sealed class RemediationPlanBuilder
                 ? structured.Confidence
                 : $"{structured.Confidence} — {structured.Caveats}";
 
-        var impactPreview = BuildImpactPreview(structured, applyCommands, rollbackCommands, rollbackHints, verificationCommands);
+        var impactPreview = BuildImpactPreview(
+            structured,
+            applyCommands,
+            rollbackCommands,
+            rollbackHints,
+            hasExplicitRollbackHints,
+            verificationCommands);
 
         return new RemediationSection
         {
@@ -82,51 +88,78 @@ public sealed class RemediationPlanBuilder
         IReadOnlyList<RemediationCommand> applyCommands,
         IReadOnlyList<RemediationCommand> rollbackCommands,
         IReadOnlyList<string> rollbackHints,
+        bool hasExplicitRollbackHints,
         IReadOnlyList<RemediationCommand> verificationCommands)
     {
-        var impactParts = ExtractActionSummaries(structured.SuggestedNextAction).ToList();
-        if (impactParts.Count == 0 && applyCommands.Count > 0)
-            impactParts.Add($"Run {applyCommands.Count} apply command(s) to remediate this finding.");
-        if (impactParts.Count == 0 && !string.IsNullOrWhiteSpace(structured.WhatWasFound))
-            impactParts.Add($"Remediate finding: {structured.WhatWasFound}");
-        if (!string.IsNullOrWhiteSpace(structured.Caveats))
-            impactParts.Add($"Caveats: {structured.Caveats}");
-
-        var expectedImpact = impactParts.Count > 0
-            ? string.Join(" ", impactParts.Take(3))
-            : "Review the apply commands for expected changes.";
-
-        var rollbackPath = rollbackCommands.Count > 0
-            ? rollbackCommands[0].Command
-            : rollbackHints.Count > 0
-                ? rollbackHints[0]
-                : "Document the change and keep a backup of original configuration.";
-
+        var expectedImpact = BuildExpectedImpact(structured, applyCommands);
+        var rollback = BuildRollbackPreview(rollbackCommands, rollbackHints, hasExplicitRollbackHints);
         var verification = BuildVerificationPreview(structured.HowToVerify, verificationCommands);
 
         return new RemediationImpactPreview
         {
-            ExpectedImpact = expectedImpact,
-            RollbackPath = rollbackPath,
+            ExpectedImpact = expectedImpact.Text,
+            ExpectedImpactSource = expectedImpact.Source,
+            RollbackPath = rollback.Text,
+            RollbackPathKind = rollback.Kind,
             VerificationCommand = verification.Text,
-            IsVerificationCommand = verification.IsCommand
+            IsVerificationCommand = verification.Kind == RemediationPreviewTextKind.Command,
+            VerificationKind = verification.Kind
         };
     }
 
-    private static (string Text, bool IsCommand) BuildVerificationPreview(
+    private static (string Text, RemediationImpactSource Source) BuildExpectedImpact(
+        StructuredExplanation structured,
+        IReadOnlyList<RemediationCommand> applyCommands)
+    {
+        var impactParts = ExtractActionSummaries(structured.SuggestedNextAction).Take(3).ToList();
+        if (!string.IsNullOrWhiteSpace(structured.Caveats))
+            impactParts.Add($"Caveats: {structured.Caveats}");
+
+        if (impactParts.Count > 0)
+            return ($"Applying this step will: {string.Join(" ", impactParts)}", RemediationImpactSource.SuggestedAction);
+
+        if (applyCommands.Count > 0)
+            return ($"Applying this step will run {applyCommands.Count} remediation command(s). Review each command before copying.", RemediationImpactSource.ApplyCommands);
+
+        if (!string.IsNullOrWhiteSpace(structured.WhatWasFound))
+            return ($"Applying this step should remediate: {structured.WhatWasFound}", RemediationImpactSource.Finding);
+
+        return ("Review the apply commands for expected changes.", RemediationImpactSource.Generic);
+    }
+
+    private static (string Text, RemediationPreviewTextKind Kind) BuildRollbackPreview(
+        IReadOnlyList<RemediationCommand> rollbackCommands,
+        IReadOnlyList<string> rollbackHints,
+        bool hasExplicitRollbackHints)
+    {
+        if (rollbackCommands.Count > 0)
+            return (rollbackCommands[0].Command, RemediationPreviewTextKind.Command);
+
+        if (rollbackHints.Count > 0)
+        {
+            var kind = hasExplicitRollbackHints
+                ? RemediationPreviewTextKind.ExplicitGuidance
+                : RemediationPreviewTextKind.GenericGuidance;
+            return (rollbackHints[0], kind);
+        }
+
+        return ("Document the change and keep a backup of original configuration.", RemediationPreviewTextKind.ManualFallback);
+    }
+
+    private static (string Text, RemediationPreviewTextKind Kind) BuildVerificationPreview(
         string howToVerify,
         IReadOnlyList<RemediationCommand> verificationCommands)
     {
         foreach (var command in verificationCommands)
         {
             if (IsExplicitVerificationStep(howToVerify, command.Command) || LooksLikeCommand(command))
-                return (command.Command, true);
+                return (command.Command, RemediationPreviewTextKind.Command);
         }
 
         var extractedCommand = ExtractFirstBacktickCommand(howToVerify);
         return extractedCommand != null
-            ? (extractedCommand, true)
-            : ("Run verification manually after applying.", false);
+            ? (extractedCommand, RemediationPreviewTextKind.Command)
+            : ("Run verification manually after applying.", RemediationPreviewTextKind.ManualFallback);
     }
 
     private static bool IsExplicitVerificationStep(string markdown, string command)

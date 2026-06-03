@@ -50,10 +50,10 @@ public sealed class RemediationMarkdownFormatter
             {
                 sb.AppendLine("> **Impact Preview**");
                 sb.AppendLine($"> **Impact:** {section.ImpactPreview.ExpectedImpact}");
-                var rollbackFormatted = section.RollbackCommands.Count > 0
+                var rollbackFormatted = section.ImpactPreview.RollbackPathKind == RemediationPreviewTextKind.Command
                     ? $"`{section.ImpactPreview.RollbackPath}`"
                     : section.ImpactPreview.RollbackPath;
-                var verificationFormatted = section.ImpactPreview.IsVerificationCommand
+                var verificationFormatted = section.ImpactPreview.VerificationKind == RemediationPreviewTextKind.Command
                     ? $"`{section.ImpactPreview.VerificationCommand}`"
                     : section.ImpactPreview.VerificationCommand;
                 sb.AppendLine($"> **Rollback:** {rollbackFormatted}");

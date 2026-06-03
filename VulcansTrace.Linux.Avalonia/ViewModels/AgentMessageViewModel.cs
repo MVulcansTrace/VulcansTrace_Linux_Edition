@@ -177,6 +177,9 @@ public sealed class AgentMessageViewModel : ViewModelBase
                 OnPropertyChanged(nameof(RollbackPathFontFamily));
                 OnPropertyChanged(nameof(IsImpactPreviewVerificationCommand));
                 OnPropertyChanged(nameof(ImpactPreviewVerificationFontFamily));
+                OnPropertyChanged(nameof(ImpactPreviewExpectedImpactSource));
+                OnPropertyChanged(nameof(ImpactPreviewRollbackPathKind));
+                OnPropertyChanged(nameof(ImpactPreviewVerificationKind));
             }
         }
     }
@@ -235,13 +238,25 @@ public sealed class AgentMessageViewModel : ViewModelBase
         _remediationSection?.ImpactPreview?.VerificationCommand ?? string.Empty;
 
     /// <summary>Gets whether the impact preview verification text is an actual shell command.</summary>
-    public bool IsImpactPreviewVerificationCommand => _remediationSection?.ImpactPreview?.IsVerificationCommand == true;
+    public bool IsImpactPreviewVerificationCommand => _remediationSection?.ImpactPreview?.VerificationKind == RemediationPreviewTextKind.Command;
+
+    /// <summary>Gets where the impact preview expected impact text came from.</summary>
+    public RemediationImpactSource ImpactPreviewExpectedImpactSource =>
+        _remediationSection?.ImpactPreview?.ExpectedImpactSource ?? RemediationImpactSource.Generic;
+
+    /// <summary>Gets the kind of rollback path shown in the impact preview.</summary>
+    public RemediationPreviewTextKind ImpactPreviewRollbackPathKind =>
+        _remediationSection?.ImpactPreview?.RollbackPathKind ?? RemediationPreviewTextKind.ManualFallback;
+
+    /// <summary>Gets the kind of verification text shown in the impact preview.</summary>
+    public RemediationPreviewTextKind ImpactPreviewVerificationKind =>
+        _remediationSection?.ImpactPreview?.VerificationKind ?? RemediationPreviewTextKind.ManualFallback;
 
     /// <summary>
     /// Gets whether the rollback path is an actual command (from RollbackCommands)
     /// rather than a prose hint.
     /// </summary>
-    public bool IsRollbackPathCommand => _remediationSection?.RollbackCommands.Count > 0;
+    public bool IsRollbackPathCommand => _remediationSection?.ImpactPreview?.RollbackPathKind == RemediationPreviewTextKind.Command;
 
     /// <summary>
     /// Gets the font family for the rollback path: monospace for commands,

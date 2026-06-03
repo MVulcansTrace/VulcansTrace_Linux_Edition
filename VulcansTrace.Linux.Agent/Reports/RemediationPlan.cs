@@ -69,14 +69,59 @@ public sealed record RemediationImpactPreview
     /// <summary>What will change when the apply commands are executed.</summary>
     public string ExpectedImpact { get; init; } = string.Empty;
 
+    /// <summary>Where the expected impact text came from.</summary>
+    public RemediationImpactSource ExpectedImpactSource { get; init; } = RemediationImpactSource.Generic;
+
     /// <summary>How to undo the remediation if something goes wrong.</summary>
     public string RollbackPath { get; init; } = string.Empty;
+
+    /// <summary>Whether the rollback path is a command, explicit hint, generic hint, or fallback text.</summary>
+    public RemediationPreviewTextKind RollbackPathKind { get; init; } = RemediationPreviewTextKind.ManualFallback;
 
     /// <summary>Command to run to confirm the fix was applied correctly.</summary>
     public string VerificationCommand { get; init; } = string.Empty;
 
     /// <summary>True when <see cref="VerificationCommand"/> is an actual shell command.</summary>
     public bool IsVerificationCommand { get; init; }
+
+    /// <summary>Whether the verification text is a command or fallback guidance.</summary>
+    public RemediationPreviewTextKind VerificationKind { get; init; } = RemediationPreviewTextKind.ManualFallback;
+}
+
+/// <summary>
+/// Indicates where the expected impact text in a remediation preview came from.
+/// </summary>
+public enum RemediationImpactSource
+{
+    /// <summary>Impact was summarized from the suggested apply action text.</summary>
+    SuggestedAction,
+
+    /// <summary>Impact was inferred only from the number of apply commands.</summary>
+    ApplyCommands,
+
+    /// <summary>Impact fell back to the finding summary/details.</summary>
+    Finding,
+
+    /// <summary>Impact is generic fallback text.</summary>
+    Generic
+}
+
+/// <summary>
+/// Indicates how a compact preview text should be interpreted by renderers.
+/// </summary>
+public enum RemediationPreviewTextKind
+{
+    /// <summary>The text is an executable shell command.</summary>
+    Command,
+
+    /// <summary>The text is explicit prose guidance from the remediation explanation.</summary>
+    ExplicitGuidance,
+
+    /// <summary>The text is generated category-based fallback guidance.</summary>
+    GenericGuidance,
+
+    /// <summary>The text is manual fallback guidance because no better preview data was available.</summary>
+    ManualFallback
 }
 
 /// <summary>

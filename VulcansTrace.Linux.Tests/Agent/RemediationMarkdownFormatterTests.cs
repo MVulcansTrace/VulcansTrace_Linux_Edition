@@ -216,9 +216,12 @@ public class RemediationMarkdownFormatterTests
                     ImpactPreview = new RemediationImpactPreview
                     {
                         ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
                         RollbackPath = "sudo iptables -P INPUT ACCEPT",
+                        RollbackPathKind = RemediationPreviewTextKind.Command,
                         VerificationCommand = "sudo iptables -L INPUT | head -n 1",
-                        IsVerificationCommand = true
+                        IsVerificationCommand = true,
+                        VerificationKind = RemediationPreviewTextKind.Command
                     },
                     ApplyCommands = new[]
                     {
@@ -256,9 +259,12 @@ public class RemediationMarkdownFormatterTests
                     ImpactPreview = new RemediationImpactPreview
                     {
                         ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
                         RollbackPath = "Revert iptables rules with -D instead of -A.",
+                        RollbackPathKind = RemediationPreviewTextKind.GenericGuidance,
                         VerificationCommand = "sudo iptables -L INPUT | head -n 1",
-                        IsVerificationCommand = true
+                        IsVerificationCommand = true,
+                        VerificationKind = RemediationPreviewTextKind.Command
                     },
                     ApplyCommands = new[]
                     {
@@ -291,9 +297,12 @@ public class RemediationMarkdownFormatterTests
                     ImpactPreview = new RemediationImpactPreview
                     {
                         ExpectedImpact = "Drop default.",
+                        ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
                         RollbackPath = "Revert iptables rules with -D instead of -A.",
+                        RollbackPathKind = RemediationPreviewTextKind.GenericGuidance,
                         VerificationCommand = "Run verification manually after applying.",
-                        IsVerificationCommand = false
+                        IsVerificationCommand = false,
+                        VerificationKind = RemediationPreviewTextKind.ManualFallback
                     },
                     ApplyCommands = new[]
                     {

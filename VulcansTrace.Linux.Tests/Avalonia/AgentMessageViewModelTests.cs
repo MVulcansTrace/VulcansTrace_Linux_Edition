@@ -18,9 +18,12 @@ public class AgentMessageViewModelTests
             ImpactPreview = new RemediationImpactPreview
             {
                 ExpectedImpact = "SSH will be restricted to 10.0.0.5.",
+                ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
                 RollbackPath = "sudo ufw delete allow from 10.0.0.5 to any port 22",
+                RollbackPathKind = RemediationPreviewTextKind.Command,
                 VerificationCommand = "sudo ufw status",
-                IsVerificationCommand = true
+                IsVerificationCommand = true,
+                VerificationKind = RemediationPreviewTextKind.Command
             },
             ApplyCommands = new[]
             {
@@ -40,6 +43,9 @@ public class AgentMessageViewModelTests
         Assert.Equal("sudo ufw status", msg.ImpactPreviewVerificationCommand);
         Assert.True(msg.IsImpactPreviewVerificationCommand);
         Assert.Equal("Consolas,Monospace", msg.ImpactPreviewVerificationFontFamily);
+        Assert.Equal(RemediationImpactSource.SuggestedAction, msg.ImpactPreviewExpectedImpactSource);
+        Assert.Equal(RemediationPreviewTextKind.Command, msg.ImpactPreviewRollbackPathKind);
+        Assert.Equal(RemediationPreviewTextKind.Command, msg.ImpactPreviewVerificationKind);
     }
 
     [Fact]
@@ -53,6 +59,9 @@ public class AgentMessageViewModelTests
         Assert.Equal(string.Empty, msg.ImpactPreviewVerificationCommand);
         Assert.False(msg.IsImpactPreviewVerificationCommand);
         Assert.Equal(string.Empty, msg.ImpactPreviewVerificationFontFamily);
+        Assert.Equal(RemediationImpactSource.Generic, msg.ImpactPreviewExpectedImpactSource);
+        Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewRollbackPathKind);
+        Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewVerificationKind);
     }
 
     [Fact]
@@ -73,6 +82,9 @@ public class AgentMessageViewModelTests
         Assert.Equal(string.Empty, msg.ImpactPreviewVerificationCommand);
         Assert.False(msg.IsImpactPreviewVerificationCommand);
         Assert.Equal(string.Empty, msg.ImpactPreviewVerificationFontFamily);
+        Assert.Equal(RemediationImpactSource.Generic, msg.ImpactPreviewExpectedImpactSource);
+        Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewRollbackPathKind);
+        Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewVerificationKind);
     }
 
     [Fact]
@@ -83,9 +95,10 @@ public class AgentMessageViewModelTests
             RuleId = "FW-001",
             FindingSummary = "[High] SSH exposed",
             RiskNote = "Remote access is exposed.",
-            RollbackCommands = new[]
+            ImpactPreview = new RemediationImpactPreview
             {
-                new RemediationCommand { Command = "sudo ufw delete allow from 10.0.0.5 to any port 22", Safety = CommandSafety.ConfigChange }
+                RollbackPath = "sudo ufw delete allow from 10.0.0.5 to any port 22",
+                RollbackPathKind = RemediationPreviewTextKind.Command
             }
         };
 
@@ -103,7 +116,11 @@ public class AgentMessageViewModelTests
             RuleId = "FW-001",
             FindingSummary = "[High] SSH exposed",
             RiskNote = "Remote access is exposed.",
-            RollbackHints = new[] { "Revert iptables rules with -D instead of -A." }
+            ImpactPreview = new RemediationImpactPreview
+            {
+                RollbackPath = "Revert iptables rules with -D instead of -A.",
+                RollbackPathKind = RemediationPreviewTextKind.GenericGuidance
+            }
         };
 
         var msg = new AgentMessageViewModel { RemediationSection = section };
