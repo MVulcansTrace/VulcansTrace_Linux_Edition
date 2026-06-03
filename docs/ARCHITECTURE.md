@@ -42,6 +42,7 @@ The Security Agent provides a parallel local posture path:
 9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
+- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links.
 
 The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
 
@@ -113,9 +114,10 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 - `RemediationSessionStatus` tracks session lifecycle: `Active`, `Blocked`, `Completed`, `Verified`.
 - `RemediationStepState` tracks per-section completion: `Pending`, `InProgress`, `Completed`, `Skipped`, `Blocked`, `Failed`.
 - `AuditSnapshot` captures findings at session creation and after verification for before/after comparison.
-- `RemediationSessionEvent` records immutable timeline events: `Created`, `StepMarkedPending`, `StepMarkedInProgress`, `StepMarkedCompleted`, `StepMarkedSkipped`, `StepMarkedFailed`, `StepBlocked`, `VerificationStarted`, `VerificationCompleted`, `VerificationBlocked`, `VerificationFailed`, `Exported`, `SessionResumed`.
+- `RemediationSessionEvent` records immutable timeline events: `Created`, `StepMarkedPending`, `StepMarkedInProgress`, `StepMarkedCompleted`, `StepMarkedSkipped`, `StepMarkedFailed`, `StepBlocked`, `VerificationStarted`, `VerificationCompleted`, `VerificationBlocked`, `VerificationFailed`, `Exported`, `SessionResumed`, `SessionNoteAdded`, `StepNoteAdded`.
+- `SessionNote` captures append-only notes with `Text`, `CreatedAtUtc`, optional `RuleId` (null for session notes), and `EvidenceLinks` — a list of evidence references extracted from bracket (`[ref]`) or backtick (`` `ref` ``) syntax in the note text. The syntax is stripped from the stored text so notes remain readable while preserving traceable references.
 - `RemediationSessionEventType` enum defines the event kinds.
-- `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`). Both round-trip the timeline.
+- `ISessionStore` follows the existing store pattern (`JsonFileSessionStore` + `InMemorySessionStore`). Both round-trip the timeline and session notes.
 - Blocked sessions remain persisted for auditability, but the UI does not expose remediation command cards for blocked steps and verification refuses blocked sessions.
 - Verification always records a terminal timeline event after `VerificationStarted`: `VerificationCompleted`, `VerificationBlocked`, or `VerificationFailed`. Session export records `Exported` only after the markdown report write succeeds.
 

@@ -33,6 +33,16 @@ public sealed record RemediationSession
             ? immutable
             : ImmutableList.CreateRange(value ?? Array.Empty<RemediationSessionEvent>());
     }
+
+    private readonly ImmutableList<SessionNote> _notes = ImmutableList<SessionNote>.Empty;
+
+    public IReadOnlyList<SessionNote> Notes
+    {
+        get => _notes;
+        init => _notes = value is ImmutableList<SessionNote> immutable
+            ? immutable
+            : ImmutableList.CreateRange(value ?? Array.Empty<SessionNote>());
+    }
 }
 
 public enum RemediationSessionStatus
@@ -67,7 +77,9 @@ public enum RemediationSessionEventType
     VerificationBlocked,
     VerificationFailed,
     Exported,
-    SessionResumed
+    SessionResumed,
+    SessionNoteAdded,
+    StepNoteAdded
 }
 
 public sealed record RemediationSessionEvent
@@ -77,6 +89,23 @@ public sealed record RemediationSessionEvent
     public required string Title { get; init; }
     public string Details { get; init; } = "";
     public string? RuleId { get; init; }
+}
+
+public sealed record SessionNote
+{
+    public required string Text { get; init; }
+    public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
+    public string? RuleId { get; init; }
+
+    private readonly ImmutableList<string> _evidenceLinks = ImmutableList<string>.Empty;
+
+    public IReadOnlyList<string> EvidenceLinks
+    {
+        get => _evidenceLinks;
+        init => _evidenceLinks = value is ImmutableList<string> immutable
+            ? immutable
+            : ImmutableList.CreateRange(value ?? Array.Empty<string>());
+    }
 }
 
 public sealed record AuditSnapshot

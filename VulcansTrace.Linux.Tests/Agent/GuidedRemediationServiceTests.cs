@@ -815,6 +815,184 @@ public class GuidedRemediationServiceTests
         Assert.Contains("specify", result.Summary);
     }
 
+    [Fact]
+    public async Task AddSessionNote_ExistingSession_AddsNoteAndTimelineEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = service.AddSessionNote(sessionId, "Changed firewall policy after confirming console access.");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        var saved = store.Load(sessionId)!;
+        Assert.Single(saved.Notes);
+        Assert.Equal("Changed firewall policy after confirming console access.", saved.Notes[0].Text);
+        Assert.Null(saved.Notes[0].RuleId);
+        Assert.Contains(saved.Timeline, e => e.Type == RemediationSessionEventType.SessionNoteAdded);
+    }
+
+    [Fact]
+    public void AddSessionNote_UnknownSession_ReturnsNotFound()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, sessionStore: store);
+
+        var result = service.AddSessionNote("nonexistent", "Some note");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Contains("not found", result.Summary);
+    }
+
+    [Fact]
+    public void AddSessionNote_NoStore_ReturnsPersistenceUnavailable()
+    {
+        var state = new AgentAuditState();
+        var service = CreateService(state);
+
+        var result = service.AddSessionNote("abc12345", "Some note");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Contains("not available", result.Summary);
+    }
+
+    [Fact]
+    public async Task AddStepNote_ExistingStep_AddsNoteAndTimelineEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = service.AddStepNote(sessionId, "FW-001", "Backup saved to /tmp/fw-2026-06-02.rules.");
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        var saved = store.Load(sessionId)!;
+        Assert.Single(saved.Notes);
+        Assert.Equal("Backup saved to /tmp/fw-2026-06-02.rules.", saved.Notes[0].Text);
+        Assert.Equal("FW-001", saved.Notes[0].RuleId);
+        Assert.Contains(saved.Timeline, e => e.Type == RemediationSessionEventType.StepNoteAdded);
+    }
+
+    [Fact]
+    public async Task AddStepNote_UnknownStep_ReturnsError()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var result = service.AddStepNote(sessionId, "UNKNOWN-999", "Some note");
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Contains("does not exist", result.Summary);
+    }
+
+    [Fact]
+    public async Task AddStepNote_EvidenceLinks_Persisted()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        var links = new[] { "/tmp/fw-2026-06-02.rules", "iptables -L -n" };
+        var result = service.AddStepNote(sessionId, "FW-001", "Backup and verify completed.", links);
+
+        var saved = store.Load(sessionId)!;
+        var note = Assert.Single(saved.Notes);
+        Assert.Equal(2, note.EvidenceLinks.Count);
+        Assert.Contains("/tmp/fw-2026-06-02.rules", note.EvidenceLinks);
+        Assert.Contains("iptables -L -n", note.EvidenceLinks);
+        var timelineEvent = Assert.Single(saved.Timeline, e => e.Type == RemediationSessionEventType.StepNoteAdded);
+        Assert.Contains("iptables -L -n", timelineEvent.Details);
+    }
+
+    [Fact]
+    public async Task AddStepNote_MutableEvidenceLinks_CopiesLinks()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+        var links = new List<string> { "/tmp/fw.rules" };
+
+        service.AddStepNote(sessionId, "FW-001", "Backup completed.", links);
+        links.Add("/tmp/mutated-after-save.rules");
+
+        var saved = store.Load(sessionId)!;
+        var note = Assert.Single(saved.Notes);
+        Assert.Single(note.EvidenceLinks);
+        Assert.Equal("/tmp/fw.rules", note.EvidenceLinks[0]);
+    }
+
+    [Fact]
+    public void AddStepNote_EmptyRuleId_ReturnsPrompt()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        var result = service.AddStepNote("abc12345", "", "Some note");
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Contains("specify", result.Summary);
+    }
+
+    [Fact]
+    public async Task AddStepNote_EmptyRuleId_DoesNotCreateStepNoteEvent()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        // Directly call AddSessionNote with empty ruleId — should create SessionNoteAdded, not StepNoteAdded
+        var result = service.AddSessionNote(sessionId, "Note with no ruleId");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        var saved = store.Load(sessionId)!;
+        var note = Assert.Single(saved.Notes);
+        Assert.Null(note.RuleId);
+        Assert.Contains(saved.Timeline, e => e.Type == RemediationSessionEventType.SessionNoteAdded);
+        Assert.DoesNotContain(saved.Timeline, e => e.Type == RemediationSessionEventType.StepNoteAdded);
+    }
+
     private static GuidedRemediationService CreateService(
         AgentAuditState state,
         IExplanationProvider? explanationProvider = null,

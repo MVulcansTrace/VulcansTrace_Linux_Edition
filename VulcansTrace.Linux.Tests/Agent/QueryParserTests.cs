@@ -90,6 +90,10 @@ public class QueryParserTests
     [InlineData("resume session abc12345", AgentIntent.ResumeRemediation)]
     [InlineData("continue session 1234abcd", AgentIntent.ResumeRemediation)]
     [InlineData("open session deadbeef", AgentIntent.ResumeRemediation)]
+    [InlineData("add note to session abc12345 changed firewall policy", AgentIntent.AddSessionNote)]
+    [InlineData("session note abc12345 confirmed console access", AgentIntent.AddSessionNote)]
+    [InlineData("note for step FW-001 backup saved", AgentIntent.AddStepNote)]
+    [InlineData("step note FW-001 applied fix", AgentIntent.AddStepNote)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);
@@ -203,6 +207,34 @@ public class QueryParserTests
         Assert.Null(result.TargetReference);
     }
 
+    [Theory]
+    [InlineData("add note to session abc12345 changed firewall policy", "abc12345")]
+    [InlineData("session note deadbeef confirmed console access", "deadbeef")]
+    public void Parse_AddSessionNote_WithSessionId_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("note for step FW-001 abc12345 backup saved", "abc12345")]
+    [InlineData("step note TEST-001 deadbeef applied fix", "deadbeef")]
+    public void Parse_AddStepNote_WithSessionId_ReturnsSessionIdAsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_AddStepNote_WithoutSessionId_ReturnsRuleIdAsTargetReference()
+    {
+        var result = _parser.Parse("note for step FW-001 backup saved");
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Equal("FW-001", result.TargetReference);
+    }
+
     [Fact]
     public void Parse_FixKeywordAlone_ReturnsHelp()
     {
@@ -278,5 +310,54 @@ public class QueryParserTests
         Assert.False(result.IsAmbiguous);
         Assert.Empty(result.AlternativeIntents ?? Array.Empty<AgentIntent>());
         Assert.Equal(1.0, result.Confidence);
+    }
+
+    [Fact]
+    public void Parse_AddSessionNote_ReturnsHighConfidence()
+    {
+        // Use a query with minimal competing keywords
+        var result = _parser.Parse("add note changed policy");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.True(result.Confidence >= 0.5);
+        Assert.False(result.IsAmbiguous);
+        Assert.Empty(result.AlternativeIntents ?? Array.Empty<AgentIntent>());
+    }
+
+    [Fact]
+    public void Parse_AddStepNote_ReturnsHighConfidence()
+    {
+        var result = _parser.Parse("note for step FW-001 abc12345 backup saved");
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.True(result.Confidence >= 0.5);
+        Assert.False(result.IsAmbiguous);
+        Assert.Empty(result.AlternativeIntents ?? Array.Empty<AgentIntent>());
+    }
+
+    [Fact]
+    public void Parse_AddNoteKeywords_DoNotCollideWithNoteIntents()
+    {
+        // "note" alone should NOT match AddSessionNote (no keywords match)
+        var result = _parser.Parse("note");
+        Assert.Equal(AgentIntent.Help, result.Intent);
+
+        // "session" contains "ss" which matches PortCheck — verify it does NOT match AddSessionNote
+        var sessionResult = _parser.Parse("session");
+        Assert.NotEqual(AgentIntent.AddSessionNote, sessionResult.Intent);
+        Assert.NotEqual(AgentIntent.AddStepNote, sessionResult.Intent);
+
+        // "step" alone should match Help (no strong match)
+        var stepResult = _parser.Parse("step");
+        Assert.Equal(AgentIntent.Help, stepResult.Intent);
+    }
+
+    [Fact]
+    public void Parse_AddSessionNote_WithoutSessionId_ReturnsNullTargetReference()
+    {
+        var result = _parser.Parse("add note changed policy");
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Null(result.TargetReference);
     }
 }

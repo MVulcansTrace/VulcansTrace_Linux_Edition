@@ -373,6 +373,28 @@ also not a firewall line";
                 Warnings = Array.Empty<string>()
             });
         }
+
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = "Mock session note",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "Mock step note",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
     }
 
     private sealed class TestDialogService : IDialogService

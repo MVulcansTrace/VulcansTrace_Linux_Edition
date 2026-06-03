@@ -66,6 +66,11 @@ internal sealed class AgentResultPresenter
         {
             AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0);
         }
+        else if ((result.Intent == AgentIntent.AddSessionNote || result.Intent == AgentIntent.AddStepNote)
+            && result.RemediationSession != null)
+        {
+            AddNoteConfirmationMessage(result);
+        }
         else
         {
             AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
@@ -252,6 +257,35 @@ internal sealed class AgentResultPresenter
             SessionId = session.SessionId,
             SessionStatus = session.Status,
             IsVerificationResult = true,
+            SessionTimeline = session.Timeline
+        });
+    }
+
+    private void AddNoteConfirmationMessage(AgentResult result)
+    {
+        var session = result.RemediationSession!;
+        var note = session.Notes.LastOrDefault();
+        if (note == null)
+        {
+            AddAgentMessage(result.Summary, true);
+            return;
+        }
+
+        var location = string.IsNullOrEmpty(note.RuleId)
+            ? $"session {session.SessionId}"
+            : $"step {note.RuleId} in session {session.SessionId}";
+        var evidenceHint = note.EvidenceLinks.Count > 0
+            ? $" ({note.EvidenceLinks.Count} evidence link(s))"
+            : "";
+
+        _messages.Add(new AgentMessageViewModel
+        {
+            Text = $"Note added to {location}{evidenceHint}: {note.Text}",
+            IsUser = false,
+            IsInfo = true,
+            Timestamp = DateTime.Now,
+            SessionId = session.SessionId,
+            SessionStatus = session.Status,
             SessionTimeline = session.Timeline
         });
     }

@@ -1012,6 +1012,235 @@ public class SecurityAgentTests
         Assert.Contains("not found", result.Summary);
     }
 
+    [Fact]
+    public async Task AskAsync_AddStepNote_SessionIdAppearsTwice_OnlyFirstOccurrenceRemoved()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        // Session ID appears twice; only the first should be stripped
+        var query = $"note for step TEST-001 {sessionId} checked config for {sessionId} compatibility";
+        var result = await agent.AskAsync(query, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        Assert.Equal("checked config for " + sessionId + " compatibility", note.Text);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddStepNote_HexWordInBody_NotConsumedAsSessionId()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        // A hex word (deadbeef) appears in the note body; it must NOT be consumed as the session ID
+        var query = $"note for step TEST-001 {sessionId} patched deadbeef CVE";
+        var result = await agent.AskAsync(query, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        Assert.Equal("patched deadbeef CVE", note.Text);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddSessionNote_EvidenceSyntax_StrippedFromNoteText()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var query = $"add note to session {sessionId} Backup saved to [/tmp/backup.rules] and ran `iptables -L`";
+        var result = await agent.AskAsync(query, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        // Brackets and backticks stripped from note text
+        Assert.Equal("Backup saved to /tmp/backup.rules and ran iptables -L", note.Text);
+        // Evidence links captured separately
+        Assert.Contains("/tmp/backup.rules", note.EvidenceLinks);
+        Assert.Contains("iptables -L", note.EvidenceLinks);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddStepNote_EvidenceSyntax_StrippedFromNoteText()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var query = $"note for step TEST-001 {sessionId} Verified with `ss -tlnp` and saved to [/tmp/netstat.log]";
+        var result = await agent.AskAsync(query, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        Assert.Equal("Verified with ss -tlnp and saved to /tmp/netstat.log", note.Text);
+        Assert.Contains("ss -tlnp", note.EvidenceLinks);
+        Assert.Contains("/tmp/netstat.log", note.EvidenceLinks);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddSessionNote_WithoutSessionId_ReturnsPrompt()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: new InMemorySessionStore());
+
+        var result = await agent.AskAsync("add note some text here", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Contains("specify", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddSessionNote_UnknownSession_ReturnsNotFound()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: new InMemorySessionStore());
+
+        var result = await agent.AskAsync("add note to session deadbeef unknown session", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Contains("not found", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddStepNote_WithoutSessionId_ReturnsPrompt()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: new InMemorySessionStore());
+
+        var result = await agent.AskAsync("note for step TEST-001 some text", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Contains("specify", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddStepNote_UnknownStep_ReturnsError()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var result = await agent.AskAsync($"note for step NONEXISTENT {sessionId} some text", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        Assert.Contains("does not exist", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddSessionNote_ToSessionPrefix_StripsPrefixCorrectly()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var result = await agent.AskAsync($"add note to session {sessionId} confirmed console access", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        Assert.Equal("confirmed console access", note.Text);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddStepNote_InSessionPrefix_StripsPrefixCorrectly()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var result = await agent.AskAsync($"note for step TEST-001 in session {sessionId} backup complete", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddStepNote, result.Intent);
+        var savedSession = store.Load(sessionId)!;
+        var note = Assert.Single(savedSession.Notes);
+        Assert.Equal("backup complete", note.Text);
+    }
+
+    [Fact]
+    public async Task AskAsync_AddSessionNote_EmptyNoteText_ReturnsError()
+    {
+        var store = new InMemorySessionStore();
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: store);
+
+        await agent.AskAsync("audit everything", null, CancellationToken.None);
+        var sessionResult = await agent.AskAsync("remediate TEST-001", null, CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        var result = await agent.AskAsync($"add note {sessionId}", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
+        Assert.Contains("empty", result.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class CustomExplanationProvider(string markdown) : IExplanationProvider
     {
         public string GetExplanation(string key, IReadOnlyDictionary<string, string> variables) => markdown;

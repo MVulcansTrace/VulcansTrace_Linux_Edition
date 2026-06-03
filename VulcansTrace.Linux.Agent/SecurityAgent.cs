@@ -166,6 +166,18 @@ public sealed class SecurityAgent : IAgent
             return await _guidedRemediationService.LoadSessionAsync(agentQuery.TargetReference ?? "", ct);
         }
 
+        if (agentQuery.Intent == AgentIntent.AddSessionNote)
+        {
+            var (sessionId, noteText, links) = ParseSessionNoteQuery(query, agentQuery);
+            return await AddSessionNoteAsync(sessionId, noteText, links, ct);
+        }
+
+        if (agentQuery.Intent == AgentIntent.AddStepNote)
+        {
+            var (sessionId, ruleId, noteText, links) = ParseStepNoteQuery(query, agentQuery);
+            return await AddStepNoteAsync(sessionId, ruleId, noteText, links, ct);
+        }
+
         if (IsFollowUpIntent(agentQuery.Intent))
         {
             return await _followUpService.HandleFollowUpAsync(agentQuery, ct);
@@ -217,6 +229,8 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.VerifyRemediation => "verify remediation",
         AgentIntent.ListRemediationSessions => "list remediation sessions",
         AgentIntent.ResumeRemediation => "resume remediation session",
+        AgentIntent.AddSessionNote => "add session note",
+        AgentIntent.AddStepNote => "add step note",
         AgentIntent.Help => "help",
         _ => intent.ToString()
     };
@@ -364,6 +378,142 @@ public sealed class SecurityAgent : IAgent
         return _guidedRemediationService.DeleteSessionAsync(sessionId, ct);
     }
 
+    /// <inheritdoc />
+    public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(_guidedRemediationService.AddSessionNote(sessionId, text, evidenceLinks));
+    }
+
+    /// <inheritdoc />
+    public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(_guidedRemediationService.AddStepNote(sessionId, ruleId, text, evidenceLinks));
+    }
+
+    private static (string SessionId, string NoteText, IReadOnlyList<string>? Links) ParseSessionNoteQuery(string rawQuery, AgentQuery agentQuery)
+    {
+        var sessionId = agentQuery.TargetReference ?? "";
+        var noteText = rawQuery;
+        var links = new List<string>();
+
+        // Strip common keyword prefixes
+        var prefixes = new[] { "add note", "session note", "write note" };
+        foreach (var prefix in prefixes)
+        {
+            if (noteText.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                noteText = noteText[prefix.Length..].Trim();
+                break;
+            }
+        }
+
+        // If session ID is embedded in the text, strip it
+        if (!string.IsNullOrEmpty(sessionId) && noteText.StartsWith(sessionId, StringComparison.OrdinalIgnoreCase))
+        {
+            noteText = noteText[sessionId.Length..].Trim();
+        }
+        else if (noteText.StartsWith("to session ", StringComparison.OrdinalIgnoreCase))
+        {
+            var afterPrefix = noteText["to session ".Length..].Trim();
+            var firstSpace = afterPrefix.IndexOf(' ');
+            if (firstSpace > 0)
+            {
+                sessionId = afterPrefix[..firstSpace];
+                noteText = afterPrefix[(firstSpace + 1)..].Trim();
+            }
+        }
+
+        // Extract evidence links from bracketed or quoted paths
+        noteText = ExtractEvidenceLinks(noteText, links);
+
+        return (sessionId, noteText, links.Count > 0 ? links : null);
+    }
+
+    private static (string SessionId, string RuleId, string NoteText, IReadOnlyList<string>? Links) ParseStepNoteQuery(string rawQuery, AgentQuery agentQuery)
+    {
+        // TargetReference may be the session ID (8 hex chars) or the rule ID when no session ID is present
+        var possibleTarget = agentQuery.TargetReference ?? "";
+        var isSessionId = System.Text.RegularExpressions.Regex.IsMatch(possibleTarget, @"^[0-9a-fA-F]{8}$");
+        var sessionId = isSessionId ? possibleTarget : "";
+        var ruleId = "";
+        var noteText = rawQuery;
+        var links = new List<string>();
+
+        var prefixes = new[] { "note for step", "step note", "add step note" };
+        foreach (var prefix in prefixes)
+        {
+            if (noteText.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                noteText = noteText[prefix.Length..].Trim();
+                break;
+            }
+        }
+
+        // Rule ID is the first token after the prefix
+        var firstSpace = noteText.IndexOf(' ');
+        if (firstSpace > 0)
+        {
+            ruleId = noteText[..firstSpace];
+            noteText = noteText[(firstSpace + 1)..].Trim();
+        }
+        else if (!string.IsNullOrEmpty(noteText))
+        {
+            // Single token remaining — could be rule ID if no session ID was parsed
+            ruleId = noteText;
+            noteText = "";
+        }
+
+        // Strip the session ID only if it appears as the next token (constrained position)
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            if (noteText.StartsWith(sessionId, StringComparison.OrdinalIgnoreCase))
+            {
+                noteText = noteText[sessionId.Length..].Trim();
+            }
+            else if (noteText.StartsWith("in session ", StringComparison.OrdinalIgnoreCase))
+            {
+                var afterPrefix = noteText["in session ".Length..].Trim();
+                if (afterPrefix.StartsWith(sessionId, StringComparison.OrdinalIgnoreCase))
+                {
+                    noteText = afterPrefix[sessionId.Length..].Trim();
+                }
+            }
+        }
+
+        noteText = ExtractEvidenceLinks(noteText, links);
+
+        return (sessionId, ruleId, noteText, links.Count > 0 ? links : null);
+    }
+
+    private static string ExtractEvidenceLinks(string text, List<string> links)
+    {
+        // Replace bracketed paths like [/tmp/file] with the inner content,
+        // collecting the content into links.
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]+)\]", m =>
+        {
+            var value = m.Groups[1].Value;
+            links.Add(value);
+            return value;
+        });
+
+        // Replace backtick-quoted snippets like `command output` with the inner content,
+        // collecting the content into links (avoiding duplicates).
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"`([^`]+)`", m =>
+        {
+            var value = m.Groups[1].Value;
+            if (!links.Contains(value))
+            {
+                links.Add(value);
+            }
+            return value;
+        });
+
+        // Collapse extra whitespace left behind by removed wrappers
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+    }
+
     private static string GetHelpText() =>
         "I can help you audit your Linux system security. Try asking:\n" +
         "• \"Is my system secure?\" or \"Run a full audit\"\n" +
@@ -392,4 +542,8 @@ public sealed class SecurityAgent : IAgent
         "\nRemediation session management:\n" +
         "• \"List sessions\" — browse all persisted remediation sessions\n" +
         "• \"Resume session <id>\" — reload a previous session to continue remediation\n" +
-        "• \"Verify session <id>\" — run before/after verification on a completed session\n";}
+        "• \"Verify session <id>\" — run before/after verification on a completed session\n" +
+        "\nSession notes & evidence:\n" +
+        "• \"Add note to session <id> <text>\" — add a session-level note with human context\n" +
+        "• \"Note for step <rule-id> in session <id> <text>\" — attach a note to a specific step\n" +
+        "  Use backticks for command snippets (`ls -la`) and brackets for file paths ([/tmp/file])\n";}

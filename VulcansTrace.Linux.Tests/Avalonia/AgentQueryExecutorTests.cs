@@ -184,5 +184,11 @@ public class AgentQueryExecutorTests
 
         public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.ListRemediationSessions, Summary = "deleted" });
+
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddSessionNote, Summary = "note" });
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddStepNote, Summary = "step note" });
     }
 }

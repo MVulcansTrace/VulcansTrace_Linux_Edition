@@ -89,6 +89,12 @@ public enum AgentIntent
     /// <summary>Resume a previously created remediation session.</summary>
     ResumeRemediation,
 
+    /// <summary>Add a note to a remediation session.</summary>
+    AddSessionNote,
+
+    /// <summary>Add a note to a specific remediation step.</summary>
+    AddStepNote,
+
     /// <summary>Request help on available capabilities.</summary>
     Help
 }

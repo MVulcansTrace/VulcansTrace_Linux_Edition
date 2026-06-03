@@ -36,6 +36,8 @@ The query parser maps natural-language prompts to structured intents:
 | `Verify remediation abc12345` | `VerifyRemediation` | Re-run the session's audit intent and produce a before/after remediation diff. Adds `VerificationStarted` plus a terminal `VerificationCompleted`, `VerificationBlocked`, or `VerificationFailed` event to the session timeline |
 | `List my sessions` / `Show sessions` | `ListRemediationSessions` | List all persisted remediation sessions with ID, status, rule ID, and creation time |
 | `Resume session abc12345` | `ResumeRemediation` | Reload a previously saved remediation session into the chat panel for review or continued verification |
+| `Add note to session abc12345 <text>` | `AddSessionNote` | Append a free-text note to an existing remediation session |
+| `Note for step FW-001 in session abc12345 <text>` | `AddStepNote` | Append a note to a specific remediation step within a session |
 | `Which findings are suppressed?` | `ListSuppressed` | List suppressed findings from the last audit |
 | `Set baseline` | `SetBaseline` | Save the last audit as a known-good baseline snapshot |
 | `Check drift` | `CheckDrift` | Compare live config against the saved baseline and report new/worsened findings |
@@ -56,8 +58,51 @@ Guided remediation sessions (`remediate <finding>`) record an immutable event ti
 - **VerificationFailed** — recorded when the verification audit crashes after verification has started.
 - **Exported** — recorded only after **Export Session** successfully writes the markdown report. Cancelled or failed saves do not mutate the timeline.
 - **SessionResumed** — recorded when a session is loaded back into the UI via `ResumeRemediation` or the **Resume** button.
+- **SessionNoteAdded** — recorded when a session-level note is appended via `AddSessionNote`.
+- **StepNoteAdded** — recorded when a step-level note is appended via `AddStepNote`.
 
 The timeline is visible in the Avalonia chat UI under the session card and is included in exported session markdown reports under a `## Timeline` section. After a successful export, the UI refreshes the current session timeline so the persisted `Exported` event is visible in chat.
+
+## Session Notes
+
+Remediation sessions support free-text notes for audit traceability:
+
+- **Session notes** — attached to the session itself (`AddSessionNote`). Use these for general observations, handoff context, or runbook references.
+- **Step notes** — attached to a specific remediation step (`AddStepNote`). Use these for per-step observations, troubleshooting notes, or evidence links.
+
+Notes are append-only and immutable. Each note records:
+- `Text` — the note content (evidence syntax is stripped from the stored text).
+- `CreatedAtUtc` — UTC timestamp when the note was added.
+- `RuleId` — `null` for session notes; the step's rule ID for step notes.
+- `EvidenceLinks` — a list of evidence references extracted from bracket or backtick syntax in the note text.
+
+### Evidence Syntax in Notes
+
+When typing a note, you can reference evidence using two lightweight syntaxes:
+
+- **Bracket syntax**: `[evidence-reference]` — e.g., `[screenshot-2026-06-02]` or `[ticket-SEC-12345]`
+- **Backtick syntax**: `` `evidence-reference` `` — e.g., `` `audit-log-2026-06-02` ``
+
+Both syntaxes are automatically extracted into the note's `EvidenceLinks` list and stripped from the displayed text. This keeps the note readable while preserving traceable references. The syntax is stripped on both session notes and step notes, and on both the `AddSessionNote`/`AddStepNote` intents and the `SessionNoteAdded`/`StepNoteAdded` timeline events.
+
+### Note Intents and Routing
+
+`SecurityAgent.AskAsync` routes note intents through `GuidedRemediationService`:
+
+- `AddSessionNote` — extracts the session ID from the query, validates the session exists, appends a `SessionNoteAdded` timeline event, and returns a concise confirmation.
+- `AddStepNote` — extracts both the rule ID and session ID, validates the session and step exist, appends a `StepNoteAdded` timeline event, and returns a concise confirmation.
+
+If the referenced session does not exist, the step does not exist, or the step rule ID is empty, the agent returns a guidance message instead of modifying the session.
+
+### Notes in Session Exports
+
+The `RemediationMarkdownFormatter` renders notes under a dedicated `## Notes` section in exported session reports:
+
+- Session notes are grouped under `### Session Notes`.
+- Step notes are grouped under `### Step Notes`, organized by rule ID.
+- Each note shows its timestamp, text, and any evidence links as a bulleted list.
+
+Notes appear after the Timeline section and before Blocked Steps in the exported markdown.
 
 ## Data Sources
 
@@ -256,6 +301,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Export Remediation support that writes a review-only markdown plan with preconditions, backup/apply/rollback command sections, safety notes, rollback hints, and verification commands. Plans with risky or unclassified apply/backup commands are blocked from standalone export and omitted from evidence bundles unless the template includes explicit rollback guidance.
 - **Interactive Remediation Preview** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat without exposing copyable commands.
 - **Guided Remediation Sessions** (`remediate FW-001`) persist a manual remediation workflow with a before snapshot, step state, session ID, verification action, immutable event timeline, and markdown session export. Blocked sessions remain visible for auditability but do not expose the command card or allow verification as completed remediation. Verification failures and successful report exports are recorded as terminal timeline events.
+- **Remediation Session Notes** — During an existing session, you can append free-text notes via chat: `add note to session abc12345 reviewed firewall policy with security team` or `note for step FW-001 in session abc12345 applied iptables rule, verified with ss -tulnp`. Notes support lightweight evidence syntax (`[reference]` and `` `reference` ``) that is extracted into traceable `EvidenceLinks` and stripped from the displayed text. Notes are rendered in exported session markdown under a `## Notes` section and recorded as `SessionNoteAdded`/`StepNoteAdded` timeline events.
 - **Remediation Session History Browser** — A **Remediation Sessions** expander in the Avalonia UI lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel (records a `SessionResumed` timeline event), or click **Delete** to remove it from the store. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same functionality through natural language.
 - **Batch Auto-Fix** (`--auto-fix` on the CLI) extends interactive remediation to headless batch mode. After an audit, the CLI can build a `RemediationPlan` for all findings, filter commands through a configurable `AutoFixPolicy`, execute backup/apply/verify phases sequentially, and automatically roll back a section if any apply command fails. `--dry-run` previews the plan without executing anything. The default policy permits `ReadOnly` verification and `ConfigChange` commands; `--allow-restart` and `--allow-packages` expand the policy; destructive and unclassified commands are never auto-executed.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
@@ -415,8 +461,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [ISessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/ISessionStore.cs)
 - [JsonFileSessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/JsonFileSessionStore.cs)
 - [InMemorySessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/InMemorySessionStore.cs)
-- [IAgent.cs](../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface with `ListRemediationSessionsAsync`, `LoadRemediationSessionAsync`, and `DeleteRemediationSessionAsync`
-- [QueryParser.cs](../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing including `ListRemediationSessions` and `ResumeRemediation`
+- [IAgent.cs](../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface with `ListRemediationSessionsAsync`, `LoadRemediationSessionAsync`, `DeleteRemediationSessionAsync`, `AddSessionNoteAsync`, and `AddStepNoteAsync`
+- [QueryParser.cs](../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing including `ListRemediationSessions`, `ResumeRemediation`, `AddSessionNote`, and `AddStepNote`
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
 - [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)
@@ -424,3 +470,4 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [IProcessRunner.cs](../VulcansTrace.Linux.Agent/Remediation/IProcessRunner.cs)
 - [RemediationConsoleFormatter.cs](../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs)
 - [RemediationPlanValidator.cs](../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs)
+- [RemediationMarkdownFormatter.cs](../VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs) — renders session notes and evidence links in exported markdown reports

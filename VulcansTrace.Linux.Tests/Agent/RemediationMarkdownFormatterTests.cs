@@ -305,4 +305,109 @@ public class RemediationMarkdownFormatterTests
         Assert.Contains("2026-06-02 14:25:33 UTC — VerificationCompleted: 1 fixed, 0 unchanged, 0 new, 0 worsened", result);
         Assert.Contains("All clear.", result);
     }
+
+    [Fact]
+    public void FormatSession_IncludesSessionNotes()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "notes1",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Notes = new[]
+            {
+                new SessionNote
+                {
+                    CreatedAtUtc = new DateTime(2026, 6, 2, 14, 30, 0, DateTimeKind.Utc),
+                    Text = "Changed firewall policy after confirming console access."
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("## Notes", result);
+        Assert.Contains("### Session Notes", result);
+        Assert.Contains("2026-06-02 14:30:00 UTC — Changed firewall policy after confirming console access.", result);
+    }
+
+    [Fact]
+    public void FormatSession_IncludesStepNotes()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "notes2",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Notes = new[]
+            {
+                new SessionNote
+                {
+                    CreatedAtUtc = new DateTime(2026, 6, 2, 14, 32, 0, DateTimeKind.Utc),
+                    Text = "Backup saved to /tmp/fw-2026-06-02.rules.",
+                    RuleId = "FW-001"
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("## Notes", result);
+        Assert.Contains("### Step Notes", result);
+        Assert.Contains("#### FW-001", result);
+        Assert.Contains("2026-06-02 14:32:00 UTC — Backup saved to /tmp/fw-2026-06-02.rules.", result);
+    }
+
+    [Fact]
+    public void FormatSession_IncludesEvidenceLinks()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "notes3",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Notes = new[]
+            {
+                new SessionNote
+                {
+                    CreatedAtUtc = DateTime.UtcNow,
+                    Text = "Verified with command output.",
+                    RuleId = "FW-001",
+                    EvidenceLinks = new[] { "/tmp/fw-2026-06-02.rules", "iptables -L -n" }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.Contains("Evidence: `/tmp/fw-2026-06-02.rules`", result);
+        Assert.Contains("Evidence: `iptables -L -n`", result);
+    }
+
+    [Fact]
+    public void FormatSession_NoNotes_OmitsNotesSection()
+    {
+        var session = new RemediationSession
+        {
+            SessionId = "nonotes",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>()
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.FormatSession(session);
+
+        Assert.DoesNotContain("## Notes", result);
+    }
 }

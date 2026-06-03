@@ -233,6 +233,18 @@ Last updated: 2026-06-02
 - Machine role picker dropdown in the Avalonia UI allows hot-swapping roles without code changes.
   - Code: `VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs`, `AgentViewModel.cs`
 
+### Security Agent — Remediation Session Notes + Evidence Attachments
+- Added `SessionNote` record to `RemediationSession` with `Text`, `CreatedAtUtc`, optional `RuleId`, and `EvidenceLinks`.
+- Added `SessionNoteAdded` and `StepNoteAdded` to `RemediationSessionEventType` for immutable timeline recording.
+- Added `GuidedRemediationService.AddSessionNote` and `AddStepNote` — append-only, validates the session exists, guards against null/empty rule IDs and unknown steps, and returns concise confirmation results.
+- Added `AgentIntent.AddSessionNote` and `AgentIntent.AddStepNote` with `QueryParser` support for natural-language patterns such as `add note to session abc12345 ...` and `note for step FW-001 in session abc12345 ...`.
+- `QueryParser` extracts session IDs for both note intents using the existing `SessionIdPattern` regex, avoiding unreliable hex-word heuristics that could steal CVE IDs or hashes from note text.
+- `SecurityAgent.AskAsync` routes note intents through `GuidedRemediationService` and strips evidence syntax from note text via `ExtractEvidenceLinks`, which uses `Regex.Replace` callbacks to collect bracket (`[ref]`) and backtick (`` `ref` ``) references while removing the wrapper syntax from the stored text.
+- `RemediationMarkdownFormatter` renders a `## Notes` section in exported session reports, grouping session notes under `### Session Notes` and step notes under `### Step Notes` (organized by rule ID), with timestamps, text, and bulleted evidence links.
+- `AgentResultPresenter` renders a single-line confirmation message for `AddSessionNote`/`AddStepNote` results instead of falling through to the full remediation plan summary.
+- 10+ new integration and edge-case tests covering full `AskAsync` routing, prefix stripping, empty note text, evidence syntax extraction, confidence/ambiguity scoring, and collision avoidance.
+- Code: `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`
+
 ### Security Agent — Remediation Session Resume / History Browser
 - Added `AgentIntent.ListRemediationSessions` and `AgentIntent.ResumeRemediation` with `QueryParser` support for `list my sessions`, `show sessions`, and `resume session <id>`.
 - `GuidedRemediationService` now exposes `ListSessionsAsync`, `LoadSessionAsync`, and `DeleteSessionAsync` for full session store lifecycle management.

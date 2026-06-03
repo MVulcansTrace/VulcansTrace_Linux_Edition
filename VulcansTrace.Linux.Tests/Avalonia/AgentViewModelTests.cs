@@ -514,6 +514,20 @@ public class AgentViewModelTests
                 Intent = AgentIntent.ListRemediationSessions,
                 Summary = "stub"
             });
+
+        public virtual Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = "stub"
+            });
+
+        public virtual Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "stub"
+            });
     }
 
     private sealed class SessionResultAgent : StubAgent
@@ -623,6 +637,12 @@ public class AgentViewModelTests
         public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
 
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.AddSessionNote));
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.AddStepNote));
+
         private AgentResult CreateResult(AgentIntent intent) => new()
         {
             Intent = intent,
@@ -684,6 +704,12 @@ public class AgentViewModelTests
 
         public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ListRemediationSessions));
+
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.AddSessionNote));
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(CreateResult(AgentIntent.AddStepNote));
 
         private static AgentResult CreateResult(AgentIntent intent) => new()
         {

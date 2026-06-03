@@ -177,6 +177,22 @@ public class RemediationSessionIntegrationTests
                         Title = "FW-001 marked completed",
                         RuleId = "FW-001"
                     }
+                },
+                Notes = new[]
+                {
+                    new SessionNote
+                    {
+                        CreatedAtUtc = new DateTime(2026, 6, 2, 10, 10, 0, DateTimeKind.Utc),
+                        Text = "Confirmed console access before firewall change.",
+                        EvidenceLinks = new[] { "ticket-SEC-12345" }
+                    },
+                    new SessionNote
+                    {
+                        CreatedAtUtc = new DateTime(2026, 6, 2, 10, 15, 0, DateTimeKind.Utc),
+                        Text = "Saved backup and verified listener state.",
+                        RuleId = "FW-001",
+                        EvidenceLinks = new[] { "/tmp/fw.rules", "ss -tlnp" }
+                    }
                 }
             };
 
@@ -193,6 +209,21 @@ public class RemediationSessionIntegrationTests
             Assert.Equal("FW-001", loaded.Timeline[1].RuleId);
             Assert.Equal(new DateTime(2026, 6, 2, 10, 5, 0, DateTimeKind.Utc), loaded.Timeline[1].TimestampUtc);
             Assert.Equal(DateTimeKind.Utc, loaded.Timeline[1].TimestampUtc.Kind);
+
+            Assert.Equal(2, loaded.Notes.Count);
+            Assert.Equal("Confirmed console access before firewall change.", loaded.Notes[0].Text);
+            Assert.Null(loaded.Notes[0].RuleId);
+            Assert.Equal(new DateTime(2026, 6, 2, 10, 10, 0, DateTimeKind.Utc), loaded.Notes[0].CreatedAtUtc);
+            Assert.Equal(DateTimeKind.Utc, loaded.Notes[0].CreatedAtUtc.Kind);
+            Assert.Single(loaded.Notes[0].EvidenceLinks);
+            Assert.Equal("ticket-SEC-12345", loaded.Notes[0].EvidenceLinks[0]);
+            Assert.Equal("Saved backup and verified listener state.", loaded.Notes[1].Text);
+            Assert.Equal("FW-001", loaded.Notes[1].RuleId);
+            Assert.Equal(new DateTime(2026, 6, 2, 10, 15, 0, DateTimeKind.Utc), loaded.Notes[1].CreatedAtUtc);
+            Assert.Equal(DateTimeKind.Utc, loaded.Notes[1].CreatedAtUtc.Kind);
+            Assert.Equal(2, loaded.Notes[1].EvidenceLinks.Count);
+            Assert.Equal("/tmp/fw.rules", loaded.Notes[1].EvidenceLinks[0]);
+            Assert.Equal("ss -tlnp", loaded.Notes[1].EvidenceLinks[1]);
         }
         finally
         {

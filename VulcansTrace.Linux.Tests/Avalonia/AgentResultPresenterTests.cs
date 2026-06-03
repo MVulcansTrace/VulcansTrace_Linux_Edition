@@ -382,6 +382,117 @@ public class AgentResultPresenterTests
     }
 
     [Fact]
+    public void PresentFindings_AddSessionNote_RendersConciseConfirmation()
+    {
+        var harness = new PresenterHarness();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            Status = RemediationSessionStatus.Active,
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Notes = new[]
+            {
+                new SessionNote
+                {
+                    Text = "Changed firewall policy after confirming console access.",
+                    EvidenceLinks = new[] { "/tmp/fw-2026-06-02.rules" }
+                }
+            },
+            Timeline = new[]
+            {
+                new RemediationSessionEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Type = RemediationSessionEventType.Created,
+                    Title = "Session started"
+                }
+            }
+        };
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.AddSessionNote,
+            Summary = "Full session summary that should not be rendered",
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.True(message.IsInfo);
+        Assert.Equal("Note added to session abc12345 (1 evidence link(s)): Changed firewall policy after confirming console access.", message.Text);
+        Assert.Equal("abc12345", message.SessionId);
+        Assert.True(message.HasSessionTimeline);
+    }
+
+    [Fact]
+    public void PresentFindings_AddStepNote_RendersConciseConfirmation()
+    {
+        var harness = new PresenterHarness();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            Status = RemediationSessionStatus.Active,
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>(),
+            Notes = new[]
+            {
+                new SessionNote
+                {
+                    Text = "Backup saved to /tmp/backup.rules.",
+                    RuleId = "FW-001"
+                }
+            }
+        };
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.AddStepNote,
+            Summary = "Full session summary that should not be rendered",
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.True(message.IsInfo);
+        Assert.Equal("Note added to step FW-001 in session abc12345: Backup saved to /tmp/backup.rules.", message.Text);
+        Assert.Equal("abc12345", message.SessionId);
+    }
+
+    [Fact]
+    public void PresentFindings_AddSessionNote_NoNotes_FallsBackToSummary()
+    {
+        var harness = new PresenterHarness();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            Status = RemediationSessionStatus.Active,
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
+            StepStates = new Dictionary<string, RemediationStepState>(),
+            BlockedReasons = Array.Empty<string>()
+        };
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.AddSessionNote,
+            Summary = "Session not found.",
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.Equal("Session not found.", message.Text);
+    }
+
+    [Fact]
     public void AgentMessageViewModel_HasActiveSession_TrueOnlyWhenActive()
     {
         var msg = new AgentMessageViewModel { SessionId = "abc", SessionStatus = RemediationSessionStatus.Active };

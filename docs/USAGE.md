@@ -44,6 +44,8 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Verify remediation abc12345`
 - `List my sessions` / `Show sessions`
 - `Resume session abc12345`
+- `Add note to session abc12345 <text>` — append a free-text note to a remediation session
+- `Note for step FW-001 in session abc12345 <text>` — append a note to a specific step within a session
 
 After an audit, you can also ask follow-up questions without re-running scans:
 
@@ -84,7 +86,13 @@ Agent chat findings can be filtered by severity and category without changing th
 
 **Interactive Remediation Preview** — When you type `fix FW-001` after an audit, the agent returns a single-finding remediation card when the finding's explanation includes enough rollback guidance. The card shows preconditions as a checklist, then backup commands (run these first to preserve state), apply commands (the step-by-step fix), rollback commands (if something goes wrong), and verification commands (confirm the fix worked). Every command carries the same safety and structural badges as verification commands. The agent validates the plan before displaying it: risky or unclassified commands without explicit rollback guidance are blocked for safety and the command card is not shown.
 
-**Guided Remediation Sessions** — When you type `remediate FW-001`, the agent creates a persisted manual session with a short session ID, a before snapshot, step state, an immutable event timeline, and a Verify Remediation button. The timeline records session creation, step state changes, blocked steps, verification lifecycle events, failed verification attempts, and successful report exports. After you complete the manual steps, click **Verify Remediation** or type `verify remediation <session-id>` to re-run the original audit intent and produce a before/after diff. Blocked sessions remain visible with their safety reasons and timeline but cannot be verified as completed remediation. Use **Export Session** to save a markdown report that includes the timeline for review or audit handoff; the export event is recorded only after the report is written successfully.
+**Guided Remediation Sessions** — When you type `remediate FW-001`, the agent creates a persisted manual session with a short session ID, a before snapshot, step state, an immutable event timeline, and a Verify Remediation button. The timeline records session creation, step state changes, blocked steps, verification lifecycle events, failed verification attempts, successful report exports, and session/step notes. After you complete the manual steps, click **Verify Remediation** or type `verify remediation <session-id>` to re-run the original audit intent and produce a before/after diff. Blocked sessions remain visible with their safety reasons and timeline but cannot be verified as completed remediation. Use **Export Session** to save a markdown report that includes the timeline and any notes for review or audit handoff; the export event is recorded only after the report is written successfully.
+
+**Session Notes** — During an existing remediation session, you can append free-text notes for audit traceability:
+- `add note to session abc12345 <text>` — adds a session-level note.
+- `note for step FW-001 in session abc12345 <text>` — adds a step-level note tied to a specific rule.
+
+Notes support lightweight evidence syntax: wrap references in brackets (`[ticket-SEC-123]`) or backticks (`` `screenshot-2026-06-02` ``) and they are automatically extracted into traceable evidence links and stripped from the displayed text. Notes are append-only, recorded as `SessionNoteAdded` or `StepNoteAdded` timeline events, and included in exported session markdown under a dedicated **Notes** section.
 
 **Remediation Session History Browser** — The Avalonia UI includes a **Remediation Sessions** expander below the audit history. It lists all persisted sessions with their ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel, or click **Delete** to remove it from the store. You can also type `list my sessions` or `show sessions` in chat to list sessions, and `resume session <id>` to load a specific session.
 

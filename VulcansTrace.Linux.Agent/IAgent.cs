@@ -108,4 +108,25 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result confirming deletion or explaining why it could not be deleted.</returns>
     Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct);
+
+    /// <summary>
+    /// Adds a human-context note to a remediation session.
+    /// </summary>
+    /// <param name="sessionId">The session ID to attach the note to.</param>
+    /// <param name="text">The note text.</param>
+    /// <param name="evidenceLinks">Optional evidence links or file paths.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the updated session.</returns>
+    Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct);
+
+    /// <summary>
+    /// Adds a human-context note to a specific remediation step.
+    /// </summary>
+    /// <param name="sessionId">The session ID.</param>
+    /// <param name="ruleId">The step rule ID.</param>
+    /// <param name="text">The note text.</param>
+    /// <param name="evidenceLinks">Optional evidence links or file paths.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the updated session.</returns>
+    Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct);
 }

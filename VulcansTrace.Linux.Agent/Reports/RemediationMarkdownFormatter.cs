@@ -170,6 +170,11 @@ public sealed class RemediationMarkdownFormatter
             sb.AppendLine();
         }
 
+        if (session.Notes.Count > 0)
+        {
+            AppendNotesSection(sb, session.Notes);
+        }
+
         if (session.BlockedReasons.Count > 0)
         {
             sb.AppendLine("## Blocked Steps");
@@ -266,6 +271,50 @@ public sealed class RemediationMarkdownFormatter
         }
 
         return sb.ToString();
+    }
+
+    private static void AppendNotesSection(StringBuilder sb, IReadOnlyList<SessionNote> notes)
+    {
+        sb.AppendLine("## Notes");
+        sb.AppendLine();
+
+        var sessionNotes = notes.Where(n => string.IsNullOrEmpty(n.RuleId)).ToList();
+        var stepNotes = notes.Where(n => !string.IsNullOrEmpty(n.RuleId)).GroupBy(n => n.RuleId!).ToList();
+
+        if (sessionNotes.Count > 0)
+        {
+            sb.AppendLine("### Session Notes");
+            sb.AppendLine();
+            foreach (var note in sessionNotes)
+            {
+                sb.AppendLine($"- {note.CreatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC — {note.Text}");
+                foreach (var link in note.EvidenceLinks)
+                {
+                    sb.AppendLine($"  - Evidence: `{link}`");
+                }
+            }
+            sb.AppendLine();
+        }
+
+        if (stepNotes.Count > 0)
+        {
+            sb.AppendLine("### Step Notes");
+            sb.AppendLine();
+            foreach (var group in stepNotes)
+            {
+                sb.AppendLine($"#### {group.Key}");
+                sb.AppendLine();
+                foreach (var note in group)
+                {
+                    sb.AppendLine($"- {note.CreatedAtUtc:yyyy-MM-dd HH:mm:ss} UTC — {note.Text}");
+                    foreach (var link in note.EvidenceLinks)
+                    {
+                        sb.AppendLine($"  - Evidence: `{link}`");
+                    }
+                }
+                sb.AppendLine();
+            }
+        }
     }
 
     private static void AppendCommandWarnings(StringBuilder sb, RemediationCommand cmd)

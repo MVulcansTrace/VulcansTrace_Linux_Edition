@@ -280,6 +280,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to delete the selected remediation session.</summary>
     public AsyncRelayCommand DeleteSessionCommand { get; }
 
+    /// <summary>Gets the command to add a note to the active remediation session.</summary>
+    public AsyncRelayCommand AddSessionNoteCommand { get; }
+
+    /// <summary>Gets the command to add a note to a specific remediation step.</summary>
+    public AsyncRelayCommand AddStepNoteCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -462,6 +468,16 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         DeleteSessionCommand = new AsyncRelayCommand(
             async _ => await DeleteSessionAsync(),
             _ => !_isBusy && _selectedSession != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        AddSessionNoteCommand = new AsyncRelayCommand(
+            async param => await AddSessionNoteAsync((param as string) ?? ""),
+            param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        AddStepNoteCommand = new AsyncRelayCommand(
+            async param => await AddStepNoteAsync((param as string) ?? ""),
+            param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
@@ -856,6 +872,69 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 SelectedSession = null;
                 RefreshSessions();
                 AddAgentMessage(result.Summary, true);
+            });
+        });
+    }
+
+    private async Task AddSessionNoteAsync(string text)
+    {
+        var session = _resultState.LastResult?.RemediationSession;
+        if (session == null)
+        {
+            AddAgentMessage("No active remediation session to add a note to.", true);
+            return;
+        }
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.AddSessionNoteAsync(session.SessionId, text, null, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (result.RemediationSession != null)
+                {
+                    UpdateSessionTimeline(result.RemediationSession);
+                    RefreshSessions();
+                }
+                AddAgentMessage(result.Summary, result.RemediationSession == null);
+            });
+        });
+    }
+
+    private async Task AddStepNoteAsync(string param)
+    {
+        var session = _resultState.LastResult?.RemediationSession;
+        if (session == null)
+        {
+            AddAgentMessage("No active remediation session to add a note to.", true);
+            return;
+        }
+
+        // param format: "ruleId|note text"
+        var parts = param.Split('|', 2);
+        if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            AddAgentMessage("Provide the note as 'ruleId|note text'.", true);
+            return;
+        }
+
+        var ruleId = parts[0].Trim();
+        var text = parts[1].Trim();
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.AddStepNoteAsync(session.SessionId, ruleId, text, null, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (result.RemediationSession != null)
+                {
+                    UpdateSessionTimeline(result.RemediationSession);
+                    RefreshSessions();
+                }
+                AddAgentMessage(result.Summary, result.RemediationSession == null);
             });
         });
     }

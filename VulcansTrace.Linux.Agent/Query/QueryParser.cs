@@ -34,6 +34,8 @@ public sealed class QueryParser : IQueryParser
         (new[] { "verify remediation", "verify session", "check remediation", "did the fix work" }, AgentIntent.VerifyRemediation, 4),
         (new[] { "list sessions", "show sessions", "session history", "my sessions", "remediation sessions" }, AgentIntent.ListRemediationSessions, 4),
         (new[] { "resume session", "continue session", "open session", "load session" }, AgentIntent.ResumeRemediation, 4),
+        (new[] { "add note", "session note", "write note" }, AgentIntent.AddSessionNote, 4),
+        (new[] { "note for step", "step note", "add step note" }, AgentIntent.AddStepNote, 4),
         (new[] { "suppressed", "which are suppressed", "hidden findings", "silenced" }, AgentIntent.ListSuppressed, 2),
         (new[] { "set baseline", "save baseline", "snapshot baseline", "mark as baseline", "known good" }, AgentIntent.SetBaseline, 3),
         (new[] { "drift", "check drift", "baseline drift", "deviated", "changed from baseline" }, AgentIntent.CheckDrift, 3),
@@ -120,10 +122,12 @@ public sealed class QueryParser : IQueryParser
     {
         if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory
             && intent != AgentIntent.FixFinding && intent != AgentIntent.StartRemediation
-            && intent != AgentIntent.VerifyRemediation && intent != AgentIntent.ResumeRemediation)
+            && intent != AgentIntent.VerifyRemediation && intent != AgentIntent.ResumeRemediation
+            && intent != AgentIntent.AddSessionNote && intent != AgentIntent.AddStepNote)
             return null;
 
-        if (intent == AgentIntent.VerifyRemediation || intent == AgentIntent.ResumeRemediation)
+        if (intent == AgentIntent.VerifyRemediation || intent == AgentIntent.ResumeRemediation
+            || intent == AgentIntent.AddSessionNote || intent == AgentIntent.AddStepNote)
         {
             var sessionMatch = SessionIdPattern.Match(rawQuery);
             if (sessionMatch.Success)

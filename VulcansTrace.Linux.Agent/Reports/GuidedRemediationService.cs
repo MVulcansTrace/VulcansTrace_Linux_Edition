@@ -680,6 +680,134 @@ internal sealed class GuidedRemediationService
         });
     }
 
+    public AgentResult AddSessionNote(string sessionId, string text, IReadOnlyList<string>? evidenceLinks = null)
+    {
+        if (_sessionStore == null)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = "Please specify which session to add the note to.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = $"Session **{sessionId}** not found.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddSessionNote,
+                Summary = "Note text cannot be empty.",
+                AgentFindings = session.SourceFindings,
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var updatedSession = AppendNote(session, text, ruleId: null, evidenceLinks);
+        _sessionStore.Save(updatedSession);
+
+        return BuildSessionResult(updatedSession, AgentIntent.AddSessionNote);
+    }
+
+    public AgentResult AddStepNote(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks = null)
+    {
+        if (_sessionStore == null)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "Please specify which session to add the note to.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(ruleId))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "Please specify which step to add the note to.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = $"Session **{sessionId}** not found.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (!session.RemediationPlan.Sections.Any(s => s.RuleId == ruleId))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = $"Step **{ruleId}** does not exist in this session's remediation plan.",
+                AgentFindings = session.SourceFindings,
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.AddStepNote,
+                Summary = "Note text cannot be empty.",
+                AgentFindings = session.SourceFindings,
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var updatedSession = AppendNote(session, text, ruleId, evidenceLinks);
+        _sessionStore.Save(updatedSession);
+
+        return BuildSessionResult(updatedSession, AgentIntent.AddStepNote);
+    }
+
     private static AuditSnapshot CaptureSnapshot(AgentResult result) => new()
     {
         Findings = result.AgentFindings.Select(ToSnapshotFinding).ToList(),
@@ -856,6 +984,31 @@ internal sealed class GuidedRemediationService
         };
         var updated = ((ImmutableList<RemediationSessionEvent>)session.Timeline).Add(evt);
         return session with { Timeline = updated };
+    }
+
+    private static RemediationSession AppendNote(
+        RemediationSession session,
+        string text,
+        string? ruleId,
+        IReadOnlyList<string>? evidenceLinks)
+    {
+        var links = evidenceLinks ?? Array.Empty<string>();
+        var note = new SessionNote
+        {
+            Text = text.Trim(),
+            RuleId = ruleId,
+            EvidenceLinks = links
+        };
+        var updatedNotes = ((ImmutableList<SessionNote>)session.Notes).Add(note);
+
+        var isSessionNote = string.IsNullOrWhiteSpace(ruleId);
+        var eventType = isSessionNote ? RemediationSessionEventType.SessionNoteAdded : RemediationSessionEventType.StepNoteAdded;
+        var title = isSessionNote ? $"Session note added: {text.Trim()}" : $"Step note added for {ruleId}: {text.Trim()}";
+        var details = links.Count > 0 ? string.Join("; ", links) : null;
+        var eventRuleId = isSessionNote ? null : ruleId;
+
+        var updatedSession = AppendEvent(session, eventType, title, eventRuleId, details);
+        return updatedSession with { Notes = updatedNotes };
     }
 
     private static string? ExtractRuleIdFromBlockedReason(string reason)
