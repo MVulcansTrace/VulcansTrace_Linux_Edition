@@ -19,4 +19,6 @@ public static class FindingCategories
     public const string FilesystemAudit = "FilesystemAudit";
     public const string CronJob = "CronJob";
     public const string PackageVulnerability = "PackageVulnerability";
+    public const string Container = "Container";
+    public const string Kubernetes = "Kubernetes";
 }

@@ -1,12 +1,13 @@
 # Security
 
-OFFLINE POLICY: This app is 100% offline. It does not send logs, telemetry, or analytics anywhere.
+OFFLINE POLICY: This app does not send logs, telemetry, or analytics anywhere. Most analysis is local-only; optional user-configured integrations such as SMTP/webhook notifications and Kubernetes scans may contact the endpoints the user configured.
 
 ## Data Handling
 
 - Logs are processed locally in memory.
 - Evidence bundles are written only to user-selected files.
 - No telemetry or remote logging is built into the app.
+- Kubernetes posture checks run `kubectl` against the user's configured context when kubeconfig exists; disable or remove that context if cluster API access is not desired.
 
 ## Evidence Integrity
 

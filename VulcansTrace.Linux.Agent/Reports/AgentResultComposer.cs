@@ -38,6 +38,8 @@ internal sealed class AgentResultComposer
             AgentIntent.LoggingAuditCheck => "Logging audit check",
             AgentIntent.CronJobCheck => "Cron job check",
             AgentIntent.PackageVulnerabilityCheck => "Package vulnerability check",
+            AgentIntent.ContainerCheck => "Container check",
+            AgentIntent.KubernetesCheck => "Kubernetes check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"

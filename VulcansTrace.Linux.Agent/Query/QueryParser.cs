@@ -24,6 +24,8 @@ public sealed class QueryParser : IQueryParser
         (new[] { "logging", "log", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "syslog" }, AgentIntent.LoggingAuditCheck, 2),
         (new[] { "cron", "crontab", "scheduled job", "cron job" }, AgentIntent.CronJobCheck, 2),
         (new[] { "package", "vulnerability", "cve", "security update", "apt", "upgradeable", "patch" }, AgentIntent.PackageVulnerabilityCheck, 2),
+        (new[] { "container", "docker", "privileged container", "crictl", "containerd", "docker.sock", "image tag" }, AgentIntent.ContainerCheck, 2),
+        (new[] { "kubernetes", "kubectl", "k8s", "pod security", "pod", "namespace", "helm" }, AgentIntent.KubernetesCheck, 2),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
         (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
@@ -49,7 +51,7 @@ public sealed class QueryParser : IQueryParser
 
     private static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod"
     };
 
     /// <inheritdoc />
@@ -114,7 +116,9 @@ public sealed class QueryParser : IQueryParser
             or AgentIntent.UserAccountCheck
             or AgentIntent.LoggingAuditCheck
             or AgentIntent.CronJobCheck
-            or AgentIntent.PackageVulnerabilityCheck => true,
+            or AgentIntent.PackageVulnerabilityCheck
+            or AgentIntent.ContainerCheck
+            or AgentIntent.KubernetesCheck => true,
         _ => false
     };
 

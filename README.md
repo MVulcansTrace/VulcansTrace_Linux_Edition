@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2196 passing](https://img.shields.io/badge/Tests-2196%20passing-2E7D32)
+![Tests: 2241 passing](https://img.shields.io/badge/Tests-2241%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -47,6 +47,8 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Filesystem Auditing — hunts broadly for world-writable files outside expected paths, unexpected SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount hardening (`noexec`, `nosuid`, `nodev`).
 - User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, missing home directories, PAM faillock / account lockout configuration, detailed password quality requirements (`minlen`, `minclass`, credits), and PAM auth stack ordering (`required` before `sufficient`).
 - Cron Job Auditing — checks cron entries for suspicious commands (reverse shells, network downloaders, temp paths), world-writable or setuid/setgid cron scripts, and root jobs referencing non-root user directories.
+- Container Security Auditing — checks running containers for privileged mode, `latest` image tags, Docker socket exposure/mounts, known risky base-image hints, and containerd namespace isolation.
+- Kubernetes Security Auditing — checks Kubernetes pod security posture for privileged containers, hostNetwork/hostPID/hostIPC sharing, root containers, and missing security contexts (privilege escalation, readOnlyRootFilesystem, dropped capabilities, confined seccomp).
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.

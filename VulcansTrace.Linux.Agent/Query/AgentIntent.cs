@@ -44,6 +44,12 @@ public enum AgentIntent
     /// <summary>Focus on package vulnerabilities and pending security updates.</summary>
     PackageVulnerabilityCheck,
 
+    /// <summary>Focus on running containers and Docker/containerd security posture.</summary>
+    ContainerCheck,
+
+    /// <summary>Focus on Kubernetes pods and Pod Security Standard violations.</summary>
+    KubernetesCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

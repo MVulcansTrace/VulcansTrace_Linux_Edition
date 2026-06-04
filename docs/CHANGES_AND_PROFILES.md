@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -221,8 +221,34 @@ Last updated: 2026-06-03
 - Added `ssh.md` explanation template with remediation steps for all SSH rules.
 - Code: `VulcansTrace.Linux.Agent/Scanners/SshConfigScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/SshRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/ssh.md`
 
+### Security Agent — Container & Kubernetes Security Scanner
+- Added `ContainerScanner` that scans local container runtime state via `docker ps` + `docker inspect` (with `crictl` fallback), detecting running containers, privileged mode, `latest` tags, Docker socket exposure/mounts, known risky base-image hints from local image metadata, and containerd namespace isolation. Per-element try/catch in parsers emits warnings instead of silently swallowing malformed entries.
+- Added `KubernetesScanner` that scans Kubernetes pods via `kubectl get pods --all-namespaces -o json` when a kubeconfig is present. Supports the `$KUBECONFIG` environment variable and uses the configured cluster context. Detects privileged containers, `hostNetwork`/`hostPID`/`hostIPC` sharing, root containers, and missing security context hardening (`allowPrivilegeEscalation: false`, `readOnlyRootFilesystem`, dropped capabilities, confined seccomp profile). Pod-level `securityContext` is inherited by containers with container-level overrides respected.
+- Added 5 container security rules (`CTR-001` through `CTR-005`) with dual-layer CIS compliance mappings:
+  - `CTR-001` — Privileged containers should not be running (CIS Docker Benchmark 5.4)
+  - `CTR-002` — Container images should not use the `latest` tag (CIS Docker Benchmark 4.1)
+  - `CTR-003` — Docker socket should not be exposed on the host or mounted into containers (CIS Docker Benchmark 5.25)
+  - `CTR-004` — Containerd should use explicit namespaces rather than only the default (CIS Containerd Benchmark 1.1)
+  - `CTR-005` — Container images should not use known risky base-image hints (CIS Docker Benchmark 4.1)
+- Added 4 Kubernetes security rules (`K8S-001` through `K8S-004`) with dual-layer CIS compliance mappings:
+  - `K8S-001` — Pods should not run privileged containers (CIS Kubernetes Benchmark 5.2.1)
+  - `K8S-002` — Pods should not use `hostNetwork`, `hostPID`, or `hostIPC` (CIS Kubernetes Benchmark 5.2.4)
+  - `K8S-003` — Containers should run as non-root (CIS Kubernetes Benchmark 5.2.6)
+  - `K8S-004` — Containers should have hardened security contexts, including disabled privilege escalation and confined seccomp (CIS Kubernetes Benchmark 5.2.7)
+- Added `ContainerRuntimeInfo`, `ContainerInfo`, `KubernetesPodInfo`, and `K8sContainerInfo` records to `ScanData` / `ScanDataBuilder`.
+- Added `FindingCategories.Container` and `FindingCategories.Kubernetes` constants.
+- Added `AgentIntent.ContainerCheck` and `AgentIntent.KubernetesCheck` with `QueryParser` keywords (`container`, `docker`, `kubernetes`, `k8s`, `pod`, `pods`).
+- Added container/kubernetes intent filtering in `RuleEvaluationService.FilterRulesByIntent`.
+- Added follow-up intent mapping in `AgentFollowUpService.InferIntentFromCategory` for `ContainerCheck` and `KubernetesCheck`.
+- Added result composer labels (`Container check`, `Kubernetes check`) in `AgentResultComposer.BuildSummary`.
+- Added `container.md` and `kubernetes.md` explanation templates with remediation steps.
+- Scanner failures (missing docker/crictl/ctr/kubectl, permission denied, malformed JSON) are reported as warnings without crashing the agent.
+- All container and Kubernetes rules return `Pass` when the respective runtime is unavailable, preventing false positives on non-containerized hosts.
+- 20+ new tests covering scanner parser fixtures (docker ps, docker inspect JSON, crictl JSON, ctr namespace, kubectl pods JSON), rule behavior (privileged, latest tag, socket exposure/mount, known risky base hints, namespace defaults, pod security context inheritance, root detection, capability/seccomp checks), intent parsing, UI audit-state routing, and `RuleCatalogTests` count update.
+  - Code: `VulcansTrace.Linux.Agent/Scanners/ContainerScanner.cs`, `VulcansTrace.Linux.Agent/Scanners/KubernetesScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ContainerRules.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/KubernetesRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/container.md`, `VulcansTrace.Linux.Agent/Explanations/Templates/kubernetes.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Core/FindingCategories.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 68 agent rules now carry dual-layer CIS compliance mappings:
+- All 76 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

@@ -23,7 +23,7 @@ Run all tests:
 dotnet test
 ```
 
-The test suite contains **2 143 tests** covering unit, integration, detector, evidence, UI, live stream, and performance scenarios.
+The test suite contains **2 241 tests** covering unit, integration, detector, evidence, UI, live stream, and performance scenarios.
 
 Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Tests/Data/Real/Samples`

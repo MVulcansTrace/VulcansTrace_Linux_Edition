@@ -386,6 +386,8 @@ internal sealed class AgentFollowUpService
         "logging" or "rsyslog" or "journald" or "audit" or "auditd" or "logrotate" or "forwarding" or "syslog" => AgentIntent.LoggingAuditCheck,
         "cron" or "crontab" or "scheduled" => AgentIntent.CronJobCheck,
         "packagevulnerability" or "package" or "cve" => AgentIntent.PackageVulnerabilityCheck,
+        "container" or "docker" => AgentIntent.ContainerCheck,
+        "kubernetes" or "k8s" or "pod" => AgentIntent.KubernetesCheck,
         _ => AgentIntent.Help
     };
 }

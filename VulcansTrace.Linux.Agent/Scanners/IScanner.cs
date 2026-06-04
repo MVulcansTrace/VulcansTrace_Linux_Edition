@@ -35,6 +35,8 @@ public sealed class ScanDataBuilder
     private readonly List<UserAccount> _userAccounts = new();
     private readonly List<ShadowEntry> _shadowEntries = new();
     private readonly List<CronJobEntry> _cronJobs = new();
+    private readonly List<ContainerInfo> _containers = new();
+    private readonly List<KubernetesPodInfo> _kubernetesPods = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
@@ -46,6 +48,7 @@ public sealed class ScanDataBuilder
     private PamConfig? _pamConfig;
     private LoggingAuditConfig? _loggingAuditConfig;
     private PackageVulnerabilityStatus? _packageVulnerabilityStatus;
+    private ContainerRuntimeInfo? _containerRuntime;
 
     public string FirewallRaw
     {
@@ -164,6 +167,21 @@ public sealed class ScanDataBuilder
         lock (_lock) { _packageVulnerabilityStatus = status; }
     }
 
+    public void SetContainerRuntime(ContainerRuntimeInfo runtime)
+    {
+        lock (_lock) { _containerRuntime = runtime; }
+    }
+
+    public void AddContainer(ContainerInfo container)
+    {
+        lock (_lock) { _containers.Add(container); }
+    }
+
+    public void AddKubernetesPod(KubernetesPodInfo pod)
+    {
+        lock (_lock) { _kubernetesPods.Add(pod); }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -192,7 +210,10 @@ public sealed class ScanDataBuilder
                 PamConfig = _pamConfig,
                 LoggingAudit = _loggingAuditConfig,
                 CronJobs = _cronJobs.ToArray(),
-                PackageVulnerabilities = _packageVulnerabilityStatus
+                PackageVulnerabilities = _packageVulnerabilityStatus,
+                ContainerRuntime = _containerRuntime,
+                Containers = _containers.ToArray(),
+                KubernetesPods = _kubernetesPods.ToArray()
             };
         }
     }

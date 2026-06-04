@@ -17,15 +17,15 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Metric | Value |
 | --- | --- |
 | Agent project | `VulcansTrace.Linux.Agent` |
-| Scanner types | 12: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit, CronJob, PackageVulnerability |
-| Rule categories | 12: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging, CronJob, PackageVulnerability |
+| Scanner types | 14: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit, CronJob, PackageVulnerability, Container, Kubernetes |
+| Rule categories | 14: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging, CronJob, PackageVulnerability, Container, Kubernetes |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 29: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
-| CIS mapping coverage | 64 / 64 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
+| Agent intents | 31: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
+| CIS mapping coverage | 76 / 76 rules (100%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
 | Command safety levels | 5: ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, Unknown |
@@ -36,7 +36,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Risk scoring formula | `SeverityValue × 5 × AverageControlWeight` per finding; Info findings excluded |
 | Risk grade thresholds | A ≥90, B ≥80, C ≥70, D ≥60, F <60 (named constants on `RiskScorecard`) |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
-| Explanation templates | 9 embedded markdown files |
+| Explanation templates | 11 embedded markdown files |
 | UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, and interactive single-finding remediation cards with an impact preview panel, preconditions, backup/apply/rollback/verification commands and safety badges |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
@@ -85,6 +85,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [LoggingAuditScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs) — logging service status, auditd rules, logrotate, and central forwarding collection
 - [CronJobScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs) — cron job entry collection from system and user crontabs
 - [PackageVulnerabilityScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs) — installed package enumeration, security update detection, and CVE enrichment
+- [ContainerScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/ContainerScanner.cs) — container runtime state collection, socket exposure/mount checks, and risky base-image hint detection (docker, crictl, ctr)
+- [KubernetesScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/KubernetesScanner.cs) — Kubernetes pod security posture collection via kubectl and the configured cluster context
 - [FirewallRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/FirewallRules.cs) — firewall posture rules
 - [PortRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/PortRules.cs) — exposed-port rules
 - [ServiceRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/ServiceRules.cs) — service posture rules

@@ -1356,4 +1356,390 @@ public class ScannerParserFixtureTests
         Assert.Single(result);
         Assert.Single(result["libfoo"]);
     }
+
+    // =====================================================================
+    // ContainerScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void ContainerScanner_ParseDockerPs_ExtractsContainers()
+    {
+        const string output = """
+            nginx|nginx:latest
+            app|myregistry/app:1.2.3
+            """;
+
+        var result = ContainerScanner.ParseDockerPs(output);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("nginx", result["nginx"].Name);
+        Assert.Equal("nginx", result["nginx"].Image);
+        Assert.Equal("latest", result["nginx"].Tag);
+        Assert.Equal("app", result["app"].Name);
+        Assert.Equal("myregistry/app", result["app"].Image);
+        Assert.Equal("1.2.3", result["app"].Tag);
+    }
+
+    [Fact]
+    public void ContainerScanner_ParseDockerPs_EmptyInput_YieldsNoContainers()
+    {
+        var result = ContainerScanner.ParseDockerPs("");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ContainerScanner_ParseDockerInspectJson_ExtractsPrivilegedAndMounts()
+    {
+        const string json = """
+            [
+              {
+                "Name": "/web",
+                "Config": {
+                  "Image": "web:1.0",
+                  "Labels": {
+                    "org.opencontainers.image.base.name": "ubuntu:14.04"
+                  }
+                },
+                "HostConfig": {
+                  "Privileged": true,
+                  "PidMode": "host",
+                  "NetworkMode": "bridge"
+                },
+                "Mounts": [
+                  { "Source": "/var/run/docker.sock", "Destination": "/var/run/docker.sock" }
+                ]
+              }
+            ]
+            """;
+
+        var result = ContainerScanner.ParseDockerInspectJson(json);
+
+        Assert.Single(result);
+        var container = result["web"];
+        Assert.True(container.IsPrivileged);
+        Assert.True(container.HasHostPid);
+        Assert.False(container.HasHostNetwork);
+        Assert.True(container.HasDockerSocketMount);
+        Assert.Contains(container.KnownBadBaseLayers, layer => layer.Contains("ubuntu:14.04"));
+    }
+
+    [Fact]
+    public void ContainerScanner_ParseDockerInspectJson_EmptyInput_YieldsNoContainers()
+    {
+        var result = ContainerScanner.ParseDockerInspectJson("");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ContainerScanner_ParseCrictlPsJson_ExtractsContainers()
+    {
+        const string json = """
+            {
+              "containers": [
+                {
+                  "metadata": { "name": "pod-1-container" },
+                  "image": { "image": "busybox:1.35" }
+                }
+              ]
+            }
+            """;
+
+        var result = ContainerScanner.ParseCrictlPsJson(json);
+
+        Assert.Single(result);
+        Assert.Equal("pod-1-container", result[0].Name);
+        Assert.Equal("busybox", result[0].Image);
+        Assert.Equal("1.35", result[0].Tag);
+        Assert.Equal("containerd", result[0].Runtime);
+    }
+
+    [Fact]
+    public void ContainerScanner_ParseCrictlPsJson_EmptyInput_YieldsNoContainers()
+    {
+        var result = ContainerScanner.ParseCrictlPsJson("");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ContainerScanner_HasDefaultNamespaceOnly_DefaultOnly_ReturnsTrue()
+    {
+        const string output = "NAME    LABELS\ndefault";
+        Assert.True(ContainerScanner.HasDefaultNamespaceOnly(output));
+    }
+
+    [Fact]
+    public void ContainerScanner_HasDefaultNamespaceOnly_MultipleNamespaces_ReturnsFalse()
+    {
+        const string output = "NAME    LABELS\ndefault\nproduction";
+        Assert.False(ContainerScanner.HasDefaultNamespaceOnly(output));
+    }
+
+    [Fact]
+    public void ContainerScanner_DetectKnownBadBaseLayers_EolBaseImage_ReturnsHint()
+    {
+        var result = ContainerScanner.DetectKnownBadBaseLayers("registry.example.com/app:1.0", "debian:stretch");
+
+        Assert.Contains(result, layer => layer.Contains("debian:stretch"));
+    }
+
+    [Fact]
+    public async Task ContainerScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new ContainerScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "docker ps" || c.SourceName == "crictl");
+        Assert.Contains(data.Capabilities, c => c.SourceName == "docker.sock");
+    }
+
+    // =====================================================================
+    // KubernetesScanner Fixtures
+    // =====================================================================
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_ExtractsPodsAndViolations()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "default", "name": "web-pod" },
+                  "spec": {
+                    "hostNetwork": true,
+                    "hostIPC": true,
+                    "containers": [
+                      {
+                        "name": "web",
+                        "image": "nginx:latest",
+                        "securityContext": {
+                          "privileged": true,
+                          "runAsNonRoot": false,
+                          "allowPrivilegeEscalation": true,
+                          "readOnlyRootFilesystem": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        var pod = data.KubernetesPods[0];
+        Assert.Equal("default", pod.Namespace);
+        Assert.Equal("web-pod", pod.Name);
+        Assert.Single(pod.Containers);
+        Assert.True(pod.Containers[0].Privileged);
+        Assert.True(pod.Containers[0].AllowPrivilegeEscalation);
+        Assert.False(pod.Containers[0].ReadOnlyRootFilesystem);
+        Assert.True(pod.Containers[0].RunAsRoot);
+        Assert.True(pod.HostNetwork);
+        Assert.True(pod.HostIpc);
+        Assert.Contains(pod.Violations, v => v.Contains("hostNetwork"));
+        Assert.Contains(pod.Violations, v => v.Contains("hostIPC"));
+        Assert.Contains(pod.Violations, v => v.Contains("privileged"));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_EmptyInput_YieldsNoPods()
+    {
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson("", builder);
+        var data = builder.Build();
+
+        Assert.Empty(data.KubernetesPods);
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_HardenedPod_YieldsNoViolations()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "prod", "name": "safe-pod" },
+                  "spec": {
+                    "containers": [
+                      {
+                        "name": "app",
+                        "image": "app:1.0",
+                        "securityContext": {
+                          "runAsNonRoot": true,
+                          "allowPrivilegeEscalation": false,
+                          "readOnlyRootFilesystem": true,
+                          "capabilities": { "drop": ["ALL"] },
+                          "seccompProfile": { "type": "RuntimeDefault" }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        var pod = data.KubernetesPods[0];
+        Assert.False(pod.Containers[0].Privileged);
+        Assert.False(pod.Containers[0].AllowPrivilegeEscalation);
+        Assert.True(pod.Containers[0].ReadOnlyRootFilesystem);
+        Assert.False(pod.Containers[0].RunAsRoot);
+        Assert.True(pod.Containers[0].DropAllCapabilities);
+        Assert.Equal("RuntimeDefault", pod.Containers[0].SeccompProfile);
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_UnconfinedSeccomp_AddsViolation()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "prod", "name": "unsafe-pod" },
+                  "spec": {
+                    "containers": [
+                      {
+                        "name": "app",
+                        "image": "app:1.0",
+                        "securityContext": {
+                          "runAsNonRoot": true,
+                          "allowPrivilegeEscalation": false,
+                          "readOnlyRootFilesystem": true,
+                          "capabilities": { "drop": ["ALL"] },
+                          "seccompProfile": { "type": "Unconfined" }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        Assert.Contains(data.KubernetesPods[0].Violations, v => v.Contains("unconfined seccomp"));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_PodLevelRunAsUser1000_NotRoot()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "prod", "name": "safe-pod" },
+                  "spec": {
+                    "securityContext": { "runAsUser": 1000 },
+                    "containers": [
+                      {
+                        "name": "app",
+                        "image": "app:1.0"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        Assert.False(data.KubernetesPods[0].Containers[0].RunAsRoot);
+        Assert.DoesNotContain(data.KubernetesPods[0].Violations, v => v.Contains("may run as root"));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_RunAsUser1000WithNoRunAsNonRoot_NotRoot()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "prod", "name": "safe-pod" },
+                  "spec": {
+                    "containers": [
+                      {
+                        "name": "app",
+                        "image": "app:1.0",
+                        "securityContext": { "runAsUser": 1000 }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        Assert.False(data.KubernetesPods[0].Containers[0].RunAsRoot);
+        Assert.DoesNotContain(data.KubernetesPods[0].Violations, v => v.Contains("may run as root"));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_MalformedPod_SkipsItAndContinues()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "bad", "name": "malformed" }
+                },
+                {
+                  "metadata": { "namespace": "good", "name": "valid-pod" },
+                  "spec": {
+                    "containers": [
+                      {
+                        "name": "app",
+                        "image": "app:1.0",
+                        "securityContext": { "runAsNonRoot": true }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+            """;
+
+        var builder = new ScanDataBuilder();
+        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Single(data.KubernetesPods);
+        Assert.Equal("good", data.KubernetesPods[0].Namespace);
+        Assert.Equal("valid-pod", data.KubernetesPods[0].Name);
+        Assert.Contains(data.Warnings, w => w.Contains("malformed"));
+    }
+
+    [Fact]
+    public async Task KubernetesScanner_ScanAsync_PopulatesCapabilities()
+    {
+        var builder = new ScanDataBuilder();
+        var scanner = new KubernetesScanner();
+        await scanner.ScanAsync(builder, CancellationToken.None);
+        var data = builder.Build();
+
+        Assert.Contains(data.Capabilities, c => c.SourceName == "kubectl");
+    }
 }

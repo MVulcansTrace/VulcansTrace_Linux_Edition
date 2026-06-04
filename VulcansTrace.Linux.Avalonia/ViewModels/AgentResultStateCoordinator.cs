@@ -71,5 +71,12 @@ internal sealed class AgentResultStateCoordinator
             or AgentIntent.NetworkCheck
             or AgentIntent.SshCheck
             or AgentIntent.FilePermissionCheck
-            or AgentIntent.KernelCheck;
+            or AgentIntent.FilesystemAuditCheck
+            or AgentIntent.KernelCheck
+            or AgentIntent.UserAccountCheck
+            or AgentIntent.LoggingAuditCheck
+            or AgentIntent.CronJobCheck
+            or AgentIntent.PackageVulnerabilityCheck
+            or AgentIntent.ContainerCheck
+            or AgentIntent.KubernetesCheck;
 }

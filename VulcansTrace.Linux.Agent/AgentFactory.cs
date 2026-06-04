@@ -92,7 +92,9 @@ public static class AgentFactory
             new UserAccountScanner(),
             new LoggingAuditScanner(),
             new CronJobScanner(),
-            new PackageVulnerabilityScanner()
+            new PackageVulnerabilityScanner(),
+            new ContainerScanner(),
+            new KubernetesScanner()
         };
 
         var rules = new IRule[]
@@ -164,7 +166,16 @@ public static class AgentFactory
             new ForwardingUsesTcpRule(),
             new SecurityUpdatesAvailableRule(),
             new UnattendedUpgradesEnabledRule(),
-            new CriticalCvesPresentRule()
+            new CriticalCvesPresentRule(),
+            new PrivilegedContainerRule(),
+            new LatestTagRule(),
+            new DockerSocketExposedRule(),
+            new ContainerdWeakDefaultsRule(),
+            new KnownBadBaseLayerRule(),
+            new K8sPrivilegedPodRule(),
+            new K8sHostNamespaceRule(),
+            new K8sRunAsRootRule(),
+            new K8sSecurityContextRule()
         };
 
         var mitreCoverageSources = BuildMitreCoverageSources(

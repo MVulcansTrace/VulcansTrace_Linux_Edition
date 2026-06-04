@@ -42,6 +42,19 @@ public class AgentResultStateCoordinatorTests
         Assert.Null(harness.PublishedResult);
     }
 
+    [Theory]
+    [InlineData(AgentIntent.FilesystemAuditCheck)]
+    [InlineData(AgentIntent.UserAccountCheck)]
+    [InlineData(AgentIntent.LoggingAuditCheck)]
+    [InlineData(AgentIntent.CronJobCheck)]
+    [InlineData(AgentIntent.PackageVulnerabilityCheck)]
+    [InlineData(AgentIntent.ContainerCheck)]
+    [InlineData(AgentIntent.KubernetesCheck)]
+    public void IsAuditIntent_IncludesTypedAuditIntents(AgentIntent intent)
+    {
+        Assert.True(AgentResultStateCoordinator.IsAuditIntent(intent));
+    }
+
     [Fact]
     public void PublishAuditCompleted_UpdatesAuditStatePublishesAndAppendsHistory()
     {

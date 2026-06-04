@@ -3210,4 +3210,510 @@ public class RuleTests
         Assert.True(result.Passed);
         Assert.Equal(RuleStatus.NotApplicable, result.Status);
     }
+
+    // =====================================================================
+    // Container Rules
+    // =====================================================================
+
+    [Fact]
+    public void PrivilegedContainerRule_PrivilegedExists_Fails()
+    {
+        var rule = new PrivilegedContainerRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", IsPrivileged = true, Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void PrivilegedContainerRule_NoPrivileged_Passes()
+    {
+        var rule = new PrivilegedContainerRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", IsPrivileged = false, Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void LatestTagRule_LatestExists_Fails()
+    {
+        var rule = new LatestTagRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void LatestTagRule_ExplicitTag_Passes()
+    {
+        var rule = new LatestTagRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "1.25", Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void DockerSocketExposedRule_SocketMounted_Fails()
+    {
+        var rule = new DockerSocketExposedRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", HasDockerSocketMount = true, Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void DockerSocketExposedRule_HostSocketExists_Fails()
+    {
+        var rule = new DockerSocketExposedRule();
+        var data = new ScanData
+        {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerSocketExposed = true },
+            Containers = Array.Empty<ContainerInfo>()
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+        Assert.Contains("/var/run/docker.sock", result.Target);
+    }
+
+    [Fact]
+    public void DockerSocketExposedRule_Safe_Passes()
+    {
+        var rule = new DockerSocketExposedRule();
+        var data = new ScanData
+        {
+            Containers = Array.Empty<ContainerInfo>()
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void KnownBadBaseLayerRule_RiskyBase_Fails()
+    {
+        var rule = new KnownBadBaseLayerRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo
+                {
+                    Name = "legacy",
+                    Image = "legacy",
+                    Tag = "1.0",
+                    KnownBadBaseLayers = new[] { "ubuntu:14.04 EOL base image" },
+                    Runtime = "docker"
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void KnownBadBaseLayerRule_NoRiskyBase_Passes()
+    {
+        var rule = new KnownBadBaseLayerRule();
+        var data = new ScanData
+        {
+            Containers = new[]
+            {
+                new ContainerInfo { Name = "web", Image = "nginx", Tag = "1.25", Runtime = "docker" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void ContainerdWeakDefaultsRule_WeakDefault_Fails()
+    {
+        var rule = new ContainerdWeakDefaultsRule();
+        var data = new ScanData
+        {
+            ContainerRuntime = new ContainerRuntimeInfo { ContainerdAvailable = true },
+            Warnings = new[] { "Containerd default namespace is in use without explicit isolation." }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void ContainerdWeakDefaultsRule_NotAvailable_Passes()
+    {
+        var rule = new ContainerdWeakDefaultsRule();
+        var data = new ScanData
+        {
+            ContainerRuntime = new ContainerRuntimeInfo { ContainerdAvailable = false }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void ContainerRules_MissingData_Passes()
+    {
+        var data = new ScanData { Containers = Array.Empty<ContainerInfo>(), ContainerRuntime = null };
+
+        Assert.True(new PrivilegedContainerRule().Evaluate(data).Passed);
+        Assert.True(new LatestTagRule().Evaluate(data).Passed);
+        Assert.True(new DockerSocketExposedRule().Evaluate(data).Passed);
+        Assert.True(new KnownBadBaseLayerRule().Evaluate(data).Passed);
+        Assert.True(new ContainerdWeakDefaultsRule().Evaluate(data).Passed);
+    }
+
+    // =====================================================================
+    // Kubernetes Rules
+    // =====================================================================
+
+    [Fact]
+    public void K8sPrivilegedPodRule_PrivilegedExists_Fails()
+    {
+        var rule = new K8sPrivilegedPodRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", Privileged = true }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void K8sPrivilegedPodRule_NoPrivileged_Passes()
+    {
+        var rule = new K8sPrivilegedPodRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "safe-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", Privileged = false }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void K8sHostNamespaceRule_HostNetwork_Fails()
+    {
+        var rule = new K8sHostNamespaceRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    HostNetwork = true,
+                    Violations = new[] { "Pod 'bad-pod' uses hostNetwork" },
+                    Containers = Array.Empty<K8sContainerInfo>()
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void K8sHostNamespaceRule_HostIpc_Fails()
+    {
+        var rule = new K8sHostNamespaceRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    HostIpc = true,
+                    Containers = Array.Empty<K8sContainerInfo>()
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void K8sHostNamespaceRule_Safe_Passes()
+    {
+        var rule = new K8sHostNamespaceRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "safe-pod",
+                    Violations = Array.Empty<string>(),
+                    Containers = Array.Empty<K8sContainerInfo>()
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void K8sRunAsRootRule_RootAllowed_Fails()
+    {
+        var rule = new K8sRunAsRootRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", RunAsRoot = true }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void K8sRunAsRootRule_NonRoot_Passes()
+    {
+        var rule = new K8sRunAsRootRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "safe-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", RunAsRoot = false }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void K8sRunAsRootRule_RunAsUser1000_Passes()
+    {
+        var rule = new K8sRunAsRootRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "safe-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", RunAsRoot = false }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void K8sSecurityContextRule_MissingHardening_Fails()
+    {
+        var rule = new K8sSecurityContextRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", ReadOnlyRootFilesystem = false, DropAllCapabilities = false, SeccompProfile = "" }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void K8sSecurityContextRule_UnconfinedSeccomp_Fails()
+    {
+        var rule = new K8sSecurityContextRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "bad-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo
+                        {
+                            Name = "app",
+                            Image = "app:1.0",
+                            AllowPrivilegeEscalation = false,
+                            ReadOnlyRootFilesystem = true,
+                            DropAllCapabilities = true,
+                            SeccompProfile = "Unconfined"
+                        }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void K8sSecurityContextRule_Hardened_Passes()
+    {
+        var rule = new K8sSecurityContextRule();
+        var data = new ScanData
+        {
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "safe-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Image = "app:1.0", ReadOnlyRootFilesystem = true, DropAllCapabilities = true, SeccompProfile = "RuntimeDefault" }
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void KubernetesRules_MissingData_Passes()
+    {
+        var data = new ScanData { KubernetesPods = Array.Empty<KubernetesPodInfo>() };
+
+        Assert.True(new K8sPrivilegedPodRule().Evaluate(data).Passed);
+        Assert.True(new K8sHostNamespaceRule().Evaluate(data).Passed);
+        Assert.True(new K8sRunAsRootRule().Evaluate(data).Passed);
+        Assert.True(new K8sSecurityContextRule().Evaluate(data).Passed);
+    }
 }

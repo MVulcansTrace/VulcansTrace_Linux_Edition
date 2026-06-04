@@ -119,6 +119,8 @@ internal sealed class RuleEvaluationService
             AgentIntent.LoggingAuditCheck => _rules.Where(r => r.Category.Equals("Logging", StringComparison.OrdinalIgnoreCase)),
             AgentIntent.CronJobCheck => _rules.Where(r => r.Category.Equals(FindingCategories.CronJob, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.PackageVulnerabilityCheck => _rules.Where(r => r.Category.Equals(FindingCategories.PackageVulnerability, StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.ContainerCheck => _rules.Where(r => r.Category.Equals(FindingCategories.Container, StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.KubernetesCheck => _rules.Where(r => r.Category.Equals(FindingCategories.Kubernetes, StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }

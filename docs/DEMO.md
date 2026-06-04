@@ -148,6 +148,35 @@ The Security Agent audits scheduled cron jobs for suspicious entries, dangerous 
 4. Review findings in the chat panel and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain CRON-001`.
 
+## Security Agent — Container Security Audit
+
+The Security Agent audits local container runtime state without making network calls:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my containers`
+3. The agent runs `ContainerScanner` and evaluates rules for:
+   - Privileged containers running on the host (`CTR-001`)
+   - Container images using the `latest` tag or no explicit tag (`CTR-002`)
+   - Docker socket exposed on the host or mounted into running containers (`CTR-003`)
+   - Containerd using only the default namespace without explicit isolation (`CTR-004`)
+   - Known risky base-image hints such as end-of-life distro bases (`CTR-005`)
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain CTR-001`.
+
+## Security Agent — Kubernetes Security Audit
+
+The Security Agent audits Kubernetes pod security posture via `kubectl` when a kubeconfig is present. `kubectl` uses the configured cluster context, so this may contact that cluster API:
+
+1. Open the **Security Agent** panel in the UI.
+2. Type: `Check my kubernetes` or `Check my pods`
+3. The agent runs `KubernetesScanner` and evaluates rules for:
+   - Pods running privileged containers (`K8S-001`)
+   - Pods sharing hostNetwork, hostPID, or hostIPC namespaces (`K8S-002`)
+   - Containers that may run as root (`K8S-003`)
+   - Missing security context hardening (privilege escalation disabled, readOnlyRootFilesystem, dropped capabilities, confined seccomp) (`K8S-004`)
+4. Review findings in the chat panel and the main findings grid.
+5. Ask follow-ups like `What should I fix first?` or `Explain K8S-001`.
+
 ## Security Agent — Remediation Session History Browser
 
 The agent persists all guided remediation sessions so you can review, resume, or delete them later:

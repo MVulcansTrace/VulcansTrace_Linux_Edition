@@ -165,6 +165,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 PortsCommand.RaiseCanExecuteChanged();
                 ServicesCommand.RaiseCanExecuteChanged();
                 NetworkCommand.RaiseCanExecuteChanged();
+                ContainerCommand.RaiseCanExecuteChanged();
+                KubernetesCommand.RaiseCanExecuteChanged();
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
                 ExportAuditCommand.RaiseCanExecuteChanged();
                 ExportRemediationCommand.RaiseCanExecuteChanged();
@@ -237,6 +239,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to run a network check.</summary>
     public AsyncRelayCommand NetworkCommand { get; }
+
+    /// <summary>Gets the command to run a container security check.</summary>
+    public AsyncRelayCommand ContainerCommand { get; }
+
+    /// <summary>Gets the command to run a Kubernetes security check.</summary>
+    public AsyncRelayCommand KubernetesCommand { get; }
 
     /// <summary>Gets the command to explain the selected finding.</summary>
     public AsyncRelayCommand ExplainSelectedCommand { get; }
@@ -402,6 +410,16 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         NetworkCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.NetworkCheck, "Check my network"),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ContainerCommand = new AsyncRelayCommand(
+            async _ => await RunQuickAuditAsync(AgentIntent.ContainerCheck, "Check my containers"),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        KubernetesCommand = new AsyncRelayCommand(
+            async _ => await RunQuickAuditAsync(AgentIntent.KubernetesCheck, "Check my kubernetes"),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 

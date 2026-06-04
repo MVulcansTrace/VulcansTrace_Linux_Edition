@@ -74,6 +74,15 @@ public sealed record ScanData
 
     /// <summary>Package vulnerability status including installed packages and pending security updates.</summary>
     public PackageVulnerabilityStatus? PackageVulnerabilities { get; init; }
+
+    /// <summary>Container runtime availability and socket exposure status.</summary>
+    public ContainerRuntimeInfo? ContainerRuntime { get; init; }
+
+    /// <summary>Running containers detected via docker or crictl.</summary>
+    public IReadOnlyList<ContainerInfo> Containers { get; init; } = Array.Empty<ContainerInfo>();
+
+    /// <summary>Kubernetes pods and their security contexts detected via kubectl.</summary>
+    public IReadOnlyList<KubernetesPodInfo> KubernetesPods { get; init; } = Array.Empty<KubernetesPodInfo>();
 }
 
 /// <summary>An installed package parsed from dpkg-query.</summary>
@@ -437,4 +446,101 @@ public sealed record PamConfig
     /// <summary>Raw lines keyed by source file path (e.g. "/etc/pam.d/common-auth").</summary>
     public IReadOnlyDictionary<string, string[]> RawLinesByFile { get; init; }
         = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Container runtime detection status.</summary>
+public sealed record ContainerRuntimeInfo
+{
+    /// <summary>Whether Docker CLI was available.</summary>
+    public bool DockerAvailable { get; init; }
+
+    /// <summary>Whether containerd CLI (ctr/crictl) was available.</summary>
+    public bool ContainerdAvailable { get; init; }
+
+    /// <summary>Whether /var/run/docker.sock exists on the host.</summary>
+    public bool DockerSocketExposed { get; init; }
+}
+
+/// <summary>A running container detected via docker or crictl.</summary>
+public sealed record ContainerInfo
+{
+    /// <summary>Container name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Container image repository.</summary>
+    public string Image { get; init; } = string.Empty;
+
+    /// <summary>Container image tag.</summary>
+    public string Tag { get; init; } = string.Empty;
+
+    /// <summary>Whether the container runs in privileged mode.</summary>
+    public bool IsPrivileged { get; init; }
+
+    /// <summary>Whether the container shares the host PID namespace.</summary>
+    public bool HasHostPid { get; init; }
+
+    /// <summary>Whether the container shares the host network namespace.</summary>
+    public bool HasHostNetwork { get; init; }
+
+    /// <summary>Whether the container mounts the Docker socket.</summary>
+    public bool HasDockerSocketMount { get; init; }
+
+    /// <summary>Known risky base image or layer hints detected from local image metadata.</summary>
+    public IReadOnlyList<string> KnownBadBaseLayers { get; init; } = Array.Empty<string>();
+
+    /// <summary>Runtime that reported this container (docker or containerd).</summary>
+    public string Runtime { get; init; } = string.Empty;
+}
+
+/// <summary>A Kubernetes pod and its security posture.</summary>
+public sealed record KubernetesPodInfo
+{
+    /// <summary>Pod namespace.</summary>
+    public string Namespace { get; init; } = string.Empty;
+
+    /// <summary>Pod name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Containers within the pod.</summary>
+    public IReadOnlyList<K8sContainerInfo> Containers { get; init; } = Array.Empty<K8sContainerInfo>();
+
+    /// <summary>Whether the pod shares the host network namespace.</summary>
+    public bool HostNetwork { get; init; }
+
+    /// <summary>Whether the pod shares the host PID namespace.</summary>
+    public bool HostPid { get; init; }
+
+    /// <summary>Whether the pod shares the host IPC namespace.</summary>
+    public bool HostIpc { get; init; }
+
+    /// <summary>Detected Pod Security Standard violation descriptions.</summary>
+    public IReadOnlyList<string> Violations { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>A container within a Kubernetes pod.</summary>
+public sealed record K8sContainerInfo
+{
+    /// <summary>Container name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Container image.</summary>
+    public string Image { get; init; } = string.Empty;
+
+    /// <summary>Whether the container explicitly runs as root.</summary>
+    public bool RunAsRoot { get; init; }
+
+    /// <summary>Whether the container is privileged.</summary>
+    public bool Privileged { get; init; }
+
+    /// <summary>Whether privilege escalation is allowed (true if missing or not false).</summary>
+    public bool AllowPrivilegeEscalation { get; init; }
+
+    /// <summary>Whether the root filesystem is read-only.</summary>
+    public bool ReadOnlyRootFilesystem { get; init; }
+
+    /// <summary>Whether all capabilities are dropped.</summary>
+    public bool DropAllCapabilities { get; init; }
+
+    /// <summary>Seccomp profile type (e.g. RuntimeDefault, Unconfined, or custom).</summary>
+    public string SeccompProfile { get; init; } = string.Empty;
 }

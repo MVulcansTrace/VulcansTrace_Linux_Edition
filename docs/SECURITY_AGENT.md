@@ -25,6 +25,9 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my logging` | `LoggingAuditCheck` | Reviews rsyslog, journald, auditd, logrotate, and central forwarding configuration |
 | `Check my cron jobs` | `CronJobCheck` | Reviews cron entries for suspicious commands, world-writable scripts, and root jobs referencing user paths |
 | `Check package vulnerabilities` | `PackageVulnerabilityCheck` | Reviews installed packages for pending security updates and known CVEs |
+| `Check my containers` | `ContainerCheck` | Reviews container runtime posture (privileged mode, latest tags, Docker socket exposure/mounts, risky base-image hints, namespace isolation) |
+| `Check my kubernetes` | `KubernetesCheck` | Reviews Kubernetes pod security posture (privileged pods, host namespaces, root containers, security contexts) |
+| `Check my pods` | `KubernetesCheck` | Alias for Kubernetes pod security audit |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -122,6 +125,8 @@ The agent reads local host state using common Linux tools:
 | `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | Checks logging service status, auditd rules, logrotate configuration, and central forwarding targets |
 | `CronJobScanner` | Reads `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/var/spool/cron/*`, `/etc/cron.daily/*`, `/etc/cron.hourly/*`, `/etc/cron.weekly/*`, `/etc/cron.monthly/*`; uses `stat` for script permissions | Parses system and user crontabs and cron script directories for scheduled job entries and script permissions |
 | `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, optionally `debsecan --format report --only-fixed`, `/etc/apt/apt.conf.d/50unattended-upgrades`, `/etc/apt/apt.conf.d/20auto-upgrades` | Enumerates installed packages, detects pending security updates from security repositories, enriches with CVE IDs when debsecan is available, and checks unattended-upgrades configuration |
+| `ContainerScanner` | `docker ps`, `docker inspect`, `crictl ps`, `ctr namespace ls` | Detects running containers, privileged mode, latest tags, Docker socket exposure/mounts, known risky base-image hints from local image metadata, and containerd namespace isolation |
+| `KubernetesScanner` | `kubectl get pods --all-namespaces -o json` | Detects Kubernetes pod security posture when kubeconfig is present; supports `$KUBECONFIG` env var and uses the configured cluster context |
 
 Scanner failures are reported as warnings instead of crashing the agent. Scanner commands use a shared bounded runner with concurrent stdout/stderr capture, a 30-second default timeout, cancellation propagation, and 1 MiB stdout/stderr limits. `FilesystemAuditScanner` uses the same runner with a 60-second timeout for broader `find` scans. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -233,6 +238,24 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 - Known CVEs affecting installed packages should be tracked and patched. Returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable, preventing false confidence on systems without CVE data (`PKG-VULN-003`).
 - All package vulnerability rules return `NotApplicable` when package data is unreadable (dpkg-query failed or permission denied).
 
+### Container
+
+- Privileged containers should not be running (`CTR-001`).
+- Container images should not use the `latest` tag or no explicit tag (`CTR-002`).
+- The Docker socket should not be exposed on the host or mounted into containers (`CTR-003`).
+- Containerd should use explicit namespaces rather than only the default (`CTR-004`).
+- Container images should not use known risky base-image hints, such as end-of-life distro bases detected from local image references or base-image labels (`CTR-005`).
+- All container rules return `Pass` when no container runtime is available.
+
+### Kubernetes
+
+- Pods should not run privileged containers (`K8S-001`).
+- Pods should not use `hostNetwork`, `hostPID`, or `hostIPC` (`K8S-002`).
+- Containers should run as non-root (`K8S-003`).
+- Containers should have hardened security contexts (`allowPrivilegeEscalation: false`, `readOnlyRootFilesystem`, drop ALL capabilities, and a confined seccomp profile) (`K8S-004`).
+- Pod-level `securityContext` is inherited by containers; container-level settings override pod-level.
+- All Kubernetes rules return `Pass` when no kubeconfig is present or `kubectl` is unavailable.
+
 ## How The Pipeline Works
 
 1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent`, confidence, optional alternative intents, and optional target reference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
@@ -280,7 +303,7 @@ Explanations are rendered as structured sections: what was found, why it matters
 The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
 
 - Chat-style natural-language questions.
-- Quick-action buttons for full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, selected-finding explanation, and audit export.
+- Quick-action buttons for full audit, firewall, ports, services, network, containers, Kubernetes, selected-finding explanation, and audit export.
 - Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
@@ -290,7 +313,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - A Compliance tab showing the CIS Compliance Scorecard with an overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid with score and status, and a mini bar-chart trend visualization of previous audits.
 - A Risk Score tab showing the aggregate Risk Scorecard with a color-coded grade badge (A–F), numeric score, summary status, and a per-category breakdown ordered by total deduction.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
-- Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, and cron job checks.
+- Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, cron job, package vulnerability, container, and Kubernetes checks.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
@@ -309,7 +332,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 ## Privacy And Safety
 
 - The agent is local-only.
-- It does not make network calls for analysis.
+- It does not send telemetry or analysis data to third-party services. Kubernetes audits run `kubectl` against the user's configured cluster context when kubeconfig exists.
 - It reads host state through local Linux commands.
 - It does not modify firewall rules, services, network interfaces, routes, or files.
 - It reports warnings when data cannot be collected.
@@ -386,6 +409,15 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | CRON-003 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
 | PKG-VULN-001 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
 | PKG-VULN-002 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
+| CTR-001 | CIS 5.4 — Ensure Privileged Containers Are Not Used | CIS Docker Benchmark 5.4 — Ensure that privileged containers are not used |
+| CTR-002 | CIS 4.1 — Ensure Image Pinning Is Used | CIS Docker Benchmark 4.1 — Ensure that a fixed tag or digest is used for base images |
+| CTR-003 | CIS 5.25 — Ensure Docker Socket Is Not Mounted Inside Containers | CIS Docker Benchmark 5.25 — Ensure that the Docker socket is not exposed or mounted inside any containers |
+| CTR-004 | CIS 1.1 — Use Explicit Namespaces for Workload Isolation | CIS Containerd Benchmark 1.1 — Use explicit namespaces for workload isolation |
+| CTR-005 | CIS 4.1 — Ensure Image Pinning Is Used | CIS Docker Benchmark 4.1 — Ensure that a fixed and maintained image base is used |
+| K8S-001 | CIS 5.2.1 — Minimize Admission of Privileged Containers | CIS Kubernetes Benchmark 5.2.1 — Minimize the admission of privileged containers |
+| K8S-002 | CIS 5.2.4 — Minimize Admission of HostNetwork and HostPID | CIS Kubernetes Benchmark 5.2.4 — Minimize the admission of containers wishing to share the host network namespace |
+| K8S-003 | CIS 5.2.6 — Minimize Admission of Root Containers | CIS Kubernetes Benchmark 5.2.6 — Minimize the admission of root containers |
+| K8S-004 | CIS 5.2.7 — Enforce Security Context Constraints | CIS Kubernetes Benchmark 5.2.7 — Enforce hardened container security contexts |
 
 The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003, PKG-VULN-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable. PKG-VULN-003 returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable.
 

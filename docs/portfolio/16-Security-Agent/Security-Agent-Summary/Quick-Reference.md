@@ -19,6 +19,8 @@
 | `LoggingAuditCheck` | `Check my logging` | rsyslog, journald, auditd, logrotate, and central forwarding posture rules |
 | `CronJobCheck` | `Check my cron jobs` | Cron job posture rules (suspicious entries, world-writable scripts, root jobs for non-root users) |
 | `PackageVulnerabilityCheck` | `Check package vulnerabilities` | Package vulnerability posture rules (pending security updates, unattended-upgrades config, known CVEs) |
+| `ContainerCheck` | `Check my containers` | Container posture rules (privileged mode, latest tags, socket exposure/mounts, risky base-image hints, namespace isolation) |
+| `KubernetesCheck` | `Check my kubernetes` / `Check my pods` | Kubernetes pod security rules (privileged pods, host namespaces, root containers, security contexts) |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
@@ -89,6 +91,8 @@
 | `LoggingAuditScanner` | `systemctl is-active rsyslog journald auditd`, `auditctl -l`, `/etc/audit/audit.rules`, `/etc/logrotate.conf`, `/etc/rsyslog.conf`, `/etc/rsyslog.d/*.conf`, `/etc/systemd/journald.conf` | `LoggingAudit` |
 | `CronJobScanner` | `/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `stat` on referenced scripts | `CronJobs` |
 | `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, `debsecan` (optional), `/etc/apt/apt.conf.d/50unattended-upgrades` | `PackageVulnerabilities` |
+| `ContainerScanner` | `docker ps`, `docker inspect`, `crictl ps`, `ctr namespace ls` | `Containers`, `ContainerRuntime` |
+| `KubernetesScanner` | `kubectl get pods --all-namespaces -o json` | `KubernetesPods` |
 
 ---
 
@@ -108,8 +112,10 @@
 | Logging | rsyslog/journald active, auditd active, auditd rules configured, logrotate configured, central forwarding, privilege escalation monitoring, TCP forwarding | 7/7 rules mapped to CIS 8.1 / 8.2 / 8.3 / 8.4 + Ubuntu 4.1.x / 4.2.x / 4.3.x |
 | CronJob | suspicious cron entries, world-writable cron scripts, root cron jobs for non-root users | 3/3 rules mapped to CIS 5.1 / 6.1 |
 | PackageVulnerability | pending security updates, unattended-upgrades configuration, known CVEs | 2/3 rules mapped to CIS 1.9 + Ubuntu 1.9 |
+| Container | privileged containers, latest tags, Docker socket exposure/mounts, risky base-image hints, containerd namespace defaults | 5/5 rules mapped to CIS Docker/Containerd Benchmark |
+| Kubernetes | privileged pods, hostNetwork/hostPID/hostIPC, root containers, missing security contexts | 4/4 rules mapped to CIS Kubernetes Benchmark 5.2.x |
 
-All 64 rules carry dual-layer CIS mappings:
+All 76 rules carry dual-layer CIS mappings:
 - **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.2`, `CIS 6.3`, `CIS 13.3`
 - **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled` and `5.1.8 Ensure cron is restricted to authorized users`
 
@@ -150,7 +156,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, package vulnerabilities, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, package vulnerabilities, containers, kubernetes, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |

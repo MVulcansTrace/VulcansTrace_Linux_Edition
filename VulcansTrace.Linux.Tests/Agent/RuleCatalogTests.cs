@@ -75,7 +75,16 @@ public class RuleCatalogTests
         new ForwardingUsesTcpRule(),
         new SecurityUpdatesAvailableRule(),
         new UnattendedUpgradesEnabledRule(),
-        new CriticalCvesPresentRule()
+        new CriticalCvesPresentRule(),
+        new PrivilegedContainerRule(),
+        new LatestTagRule(),
+        new DockerSocketExposedRule(),
+        new ContainerdWeakDefaultsRule(),
+        new KnownBadBaseLayerRule(),
+        new K8sPrivilegedPodRule(),
+        new K8sHostNamespaceRule(),
+        new K8sRunAsRootRule(),
+        new K8sSecurityContextRule()
     };
 
     [Fact]
@@ -83,7 +92,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(68, catalog.Items.Count);
+        Assert.Equal(77, catalog.Items.Count);
     }
 
     [Fact]
@@ -116,6 +125,8 @@ public class RuleCatalogTests
     [InlineData("LOG-0", 7)]
     [InlineData("CRON-0", 3)]
     [InlineData("PKG-VULN-0", 3)]
+    [InlineData("CTR-0", 5)]
+    [InlineData("K8S-0", 4)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -140,7 +151,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(68, results.Count);
+        Assert.Equal(77, results.Count);
     }
 
     [Fact]
@@ -236,6 +247,15 @@ public class RuleCatalogTests
     [InlineData("LOG-007", "CIS 8.4")]
     [InlineData("PKG-VULN-001", "CIS 1.9")]
     [InlineData("PKG-VULN-002", "CIS 1.9")]
+    [InlineData("CTR-001", "CIS 5.4")]
+    [InlineData("CTR-002", "CIS 4.1")]
+    [InlineData("CTR-003", "CIS 5.25")]
+    [InlineData("CTR-004", "CIS 1.1")]
+    [InlineData("CTR-005", "CIS 4.1")]
+    [InlineData("K8S-001", "CIS 5.2.1")]
+    [InlineData("K8S-002", "CIS 5.2.4")]
+    [InlineData("K8S-003", "CIS 5.2.6")]
+    [InlineData("K8S-004", "CIS 5.2.7")]
     public void Catalog_Items_KeyRules_HaveCisMappings(string ruleId, string expectedControlId)
     {
         var catalog = new RuleCatalog(GetAllRules());
