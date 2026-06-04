@@ -358,6 +358,29 @@ See `docs/HMAC_EVIDENCE.md` for the step-by-step HMAC signing key flow.
 - Each detector is capped at 100 findings per category. If a detector exceeds this, a truncation warning is emitted.
 - Some detectors may also emit warnings when individual analysis windows are truncated (for example, port scan event caps).
 
+## Live Stream
+
+The Avalonia UI includes a **Live Stream** tab for real-time kernel telemetry analysis.
+
+1. Open the **Live Stream** tab.
+2. Select a source:
+   - **Synthetic Demo Stream** — no privileges required; generates realistic traffic patterns.
+   - **Kernel Packet Capture** — requires root or `CAP_NET_RAW`; captures IPv4 TCP/UDP via `AF_PACKET`.
+   - **NFLOG Netlink** — requires root or `CAP_NET_ADMIN`; reads structured events from netfilter NFLOG.
+3. Select an analysis intensity.
+4. Click **Start**.
+5. Watch live metrics (events/sec, window size, analysis runs, delta findings).
+6. New findings appear in the live grid and are added to the main findings grid.
+7. Click **Stop** for graceful async shutdown.
+
+### NFLOG Setup
+
+If using the NFLOG source, create a logging rule first:
+
+```bash
+sudo iptables -A INPUT -j NFLOG --nflog-group 1
+```
+
 ## CLI Test Tool
 
 The optional CLI runner in `tools/TestAnalysis` (not in the solution file) can analyze a log file directly:

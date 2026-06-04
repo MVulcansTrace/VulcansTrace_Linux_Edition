@@ -314,6 +314,33 @@ vulcanstrace audit --intent FullAudit --auto-fix --yes
 vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-restart --allow-packages
 ```
 
+## Live Stream — Real-Time Kernel Telemetry
+
+VulcansTrace can capture and analyze live network events in real time:
+
+1. Open the **Live Stream** tab in the Avalonia UI.
+2. Select a source:
+   - **Synthetic Demo Stream** — works without root; generates realistic port scans, beaconing, and floods.
+   - **Kernel Packet Capture** — requires root or `CAP_NET_RAW`; captures all IPv4 TCP/UDP packets via `AF_PACKET` + classic BPF.
+   - **NFLOG Netlink** — requires root or `CAP_NET_ADMIN`; reads structured firewall events from netfilter NFLOG.
+3. Select an analysis intensity (Low, Medium, High).
+4. Click **Start**.
+5. Watch the metrics panel (events/sec, window size, analysis runs, delta findings).
+6. New findings appear in the live findings grid and are also added to the main findings grid.
+7. Click **Stop** for graceful async shutdown.
+
+### Setting up NFLOG
+
+If using the NFLOG source, create an NFLOG rule first:
+
+```bash
+# iptables
+sudo iptables -A INPUT -j NFLOG --nflog-group 1
+
+# nftables
+sudo nft add rule ip filter input log group 1
+```
+
 ## Performance and Profiling
 
 ```bash

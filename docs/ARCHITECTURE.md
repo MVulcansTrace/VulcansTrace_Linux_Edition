@@ -15,6 +15,17 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `VulcansTrace.Linux.PerformanceConsole`: console runner for performance tests.
 - `tools/TestAnalysis`: sample CLI analysis runner (not part of the solution file).
 
+## Live Stream Components
+
+- `IEventSource` — abstraction for real-time event producers (packet capture, NFLOG, synthetic).
+- `PacketCaptureEventSource` — `AF_PACKET` + classic BPF socket filter.
+- `NflogEventSource` — `AF_NETLINK` NFLOG structured event reader.
+- `SyntheticEventSource` — deterministic traffic generator for zero-privilege testing.
+- `LiveStreamWindow` — thread-safe rolling buffer with time/count eviction.
+- `LiveStreamAnalyzer` — orchestrates source → channel → window → analysis → dedup.
+- `LiveStreamViewModel` — Avalonia UI logic for source selection, start/stop, and metrics.
+- `LiveAnalysisResult` — delta findings and window metrics for UI display.
+
 ## Data Flow
 
 1. Raw firewall log text is provided by the UI or a tool.
@@ -29,6 +40,16 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 7. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`) and per-category cap (`MaxFindingsPerDetector`).
 8. `AnalysisResult` is returned with findings, warnings, parse errors, and time range metadata.
 9. The UI renders findings (including timeline and Trace Map visualization), and `EvidenceBuilder` optionally creates a signed bundle.
+
+The **Live Stream** provides a parallel real-time analysis path:
+
+1. `IEventSource` reads live events from `AF_PACKET` + classic BPF, `AF_NETLINK` NFLOG, or a synthetic generator.
+2. `LiveStreamWindow` buffers events with dual eviction: 60-second time window and 10 000 event count cap.
+3. A dedicated `SentryAnalyzer` instance runs on the window every 5 seconds or 500 events.
+4. Completed `LiveAnalysisResult` records flow through a bounded `DropOldest` channel so stale UI updates do not stall analysis.
+5. Findings are deduplicated by fingerprint (5-minute TTL) and stored in `LiveFindings` with FIFO eviction at 1 000 entries.
+6. `LiveResultReceived` surfaces new findings to the UI, which adds them to the shared findings grid.
+7. `StopAsync()` signals cancellation, closes the native socket (unblocking `recv()`), and awaits clean pipeline shutdown.
 
 The Security Agent provides a parallel local posture path:
 
@@ -84,6 +105,8 @@ Notification services are pluggable:
 - `CorrelationConfidence`: `Low`, `Medium`, or `High`, derived from time gap between findings.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 - `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
+- `LiveAnalysisResult`: real-time analysis output containing delta findings (new since last run), window metrics, and source status.
+- `LiveWindowMetrics`: live stream statistics (event rate, window size, analysis run count).
 
 ## Detection Layers
 

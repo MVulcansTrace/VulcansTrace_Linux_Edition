@@ -86,16 +86,11 @@ public sealed class SentryAnalyzer
             _logSink.Write(LogLevel.Warning, $"Normalization reported {normalized.Errors.Length} parse errors.");
         }
 
-        // Collect all data first
         var errorsToKeep = normalized.Errors.Take(MaxParseErrorsToKeep).ToList();
         var events = normalized.Events.ToList();
 
-        var timeRangeStart = events.Count > 0 ? events.Min(e => e.Timestamp) : DateTime.MinValue;
-        var timeRangeEnd = events.Count > 0 ? events.Max(e => e.Timestamp) : DateTime.MinValue;
-
-        if (normalized.Events.Length == 0)
+        if (events.Count == 0)
         {
-            // Return empty result if no events
             return new Core.AnalysisResult
             {
                 TotalLines = normalized.TotalLines,
@@ -112,14 +107,71 @@ public sealed class SentryAnalyzer
         }
 
         var profile = overrideProfile ?? _profileProvider.GetProfile(intensity);
-
-        var allFindings = new List<Core.Finding>();
         var warnings = new List<string>();
-
         if (normalized.Warnings.Length > 0)
         {
             warnings.AddRange(normalized.Warnings);
         }
+
+        var findings = RunDetectors(events, profile, warnings, cancellationToken);
+
+        return BuildAnalysisResult(
+            events,
+            findings,
+            warnings,
+            normalized.TotalLines,
+            normalized.Errors.Length,
+            normalized.SkippedLineCount,
+            errorsToKeep);
+    }
+
+    /// <summary>
+    /// Performs analysis directly on pre-parsed events, bypassing log normalization.
+    /// Use this overload when the events are already structured (e.g., from a live stream).
+    /// </summary>
+    public Core.AnalysisResult Analyze(IReadOnlyList<UnifiedEvent> events, IntensityLevel intensity, CancellationToken cancellationToken, AnalysisProfile? overrideProfile = null)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (events.Count == 0)
+        {
+            return new Core.AnalysisResult
+            {
+                TotalLines = 0,
+                ParseErrorCount = 0,
+                SkippedLineCount = 0,
+                ParsedLines = 0,
+                TimeRangeStart = DateTime.MinValue,
+                TimeRangeEnd = DateTime.MinValue,
+                ParseErrors = Array.Empty<string>(),
+                Entries = Array.Empty<UnifiedEvent>(),
+                Findings = Array.Empty<Core.Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var profile = overrideProfile ?? _profileProvider.GetProfile(intensity);
+        var warnings = new List<string>();
+
+        var findings = RunDetectors(events, profile, warnings, cancellationToken);
+
+        return BuildAnalysisResult(
+            events,
+            findings,
+            warnings,
+            totalLines: events.Count,
+            parseErrorCount: 0,
+            skippedLineCount: 0,
+            parseErrors: Array.Empty<string>());
+    }
+
+    private IReadOnlyList<Core.Finding> RunDetectors(
+        IReadOnlyList<UnifiedEvent> events,
+        AnalysisProfile profile,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        var allFindings = new List<Core.Finding>();
 
         // Layer 1: Run baseline detectors (ported from Windows, proven logic)
         foreach (var detector in _baselineDetectors)
@@ -127,7 +179,7 @@ public sealed class SentryAnalyzer
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var detected = detector.Detect(normalized.Events, profile, cancellationToken);
+                var detected = detector.Detect(events, profile, cancellationToken);
                 allFindings.AddRange(detected.Findings);
                 warnings.AddRange(detected.Warnings);
             }
@@ -149,7 +201,7 @@ public sealed class SentryAnalyzer
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var detected = detector.Detect(normalized.Events, profile, cancellationToken);
+                var detected = detector.Detect(events, profile, cancellationToken);
                 allFindings.AddRange(detected.Findings);
                 warnings.AddRange(detected.Warnings);
             }
@@ -171,7 +223,7 @@ public sealed class SentryAnalyzer
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var detected = detector.Detect(normalized.Events, profile, cancellationToken);
+                var detected = detector.Detect(events, profile, cancellationToken);
                 allFindings.AddRange(detected.Findings);
                 warnings.AddRange(detected.Warnings);
             }
@@ -196,20 +248,32 @@ public sealed class SentryAnalyzer
         // Filter by minimum severity before applying the per-category cap so
         // hidden low-severity findings cannot displace visible higher-severity ones.
         var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-        var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
+        return ApplyFindingCap(visibleFindings, profile, warnings);
+    }
 
-        // Create final result with all data
+    private static Core.AnalysisResult BuildAnalysisResult(
+        IReadOnlyList<UnifiedEvent> events,
+        IReadOnlyList<Core.Finding> findings,
+        List<string> warnings,
+        int totalLines,
+        int parseErrorCount,
+        int skippedLineCount,
+        IReadOnlyList<string> parseErrors)
+    {
+        var timeRangeStart = events.Count > 0 ? events.Min(e => e.Timestamp) : DateTime.MinValue;
+        var timeRangeEnd = events.Count > 0 ? events.Max(e => e.Timestamp) : DateTime.MinValue;
+
         return new Core.AnalysisResult
         {
-            TotalLines = normalized.TotalLines,
-            ParseErrorCount = normalized.Errors.Length,
-            SkippedLineCount = normalized.SkippedLineCount,
-            ParsedLines = normalized.Events.Length,
+            TotalLines = totalLines,
+            ParseErrorCount = parseErrorCount,
+            SkippedLineCount = skippedLineCount,
+            ParsedLines = events.Count,
             TimeRangeStart = timeRangeStart,
             TimeRangeEnd = timeRangeEnd,
-            ParseErrors = errorsToKeep,
-            Entries = events,
-            Findings = filteredFindings,
+            ParseErrors = parseErrors,
+            Entries = events.ToList(),
+            Findings = findings,
             Warnings = warnings
         };
     }

@@ -12,6 +12,7 @@ using VulcansTrace.Linux.Core.Security;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.Detectors;
+using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Evidence.Formatters;
 using Xunit;
@@ -241,6 +242,8 @@ also not a firewall line";
             traceMapMarkdownFormatter: new TraceMapMarkdownFormatter(),
             traceMapJsonFormatter: new TraceMapJsonFormatter());
 
+        var liveStreamAnalyzer = new LiveStreamAnalyzer(analyzer, profileProvider);
+
         return new MainViewModel(
             analyzer,
             evidenceBuilder,
@@ -250,7 +253,8 @@ also not a firewall line";
             suppressionStore ?? new InMemorySuppressionStore(),
             new InMemoryAuditHistoryStore(),
             new RemediationPlanBuilder(new ExplanationProvider()),
-            new TraceMapCorrelator());
+            new TraceMapCorrelator(),
+            liveStreamAnalyzer);
     }
 
     private sealed class MockAgent : IAgent

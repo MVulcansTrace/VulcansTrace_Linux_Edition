@@ -396,6 +396,19 @@ Jan 19 10:15:33 server kernel: net_ratelimit: 45 callbacks suppressed";
     }
 
     [Fact]
+    public void Analyze_MixedValidAndParseErrorLines_PreservesParseErrorSamples()
+    {
+        var log = @"kernel: Jan 19 10:15:31 server IN=eth0 SRC=192.168.1.99 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=80
+kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.5 PROTO=TCP SPT=70000 DPT=80";
+
+        var result = _analyzer.Analyze(log, IntensityLevel.Medium, CancellationToken.None);
+
+        Assert.Equal(1, result.ParsedLines);
+        Assert.Equal(1, result.ParseErrorCount);
+        Assert.Single(result.ParseErrors);
+    }
+
+    [Fact]
     public void Analyze_DetectorException_AddsWarningWithType()
     {
         // Arrange
@@ -534,7 +547,7 @@ Another invalid line";
     public void Analyze_NullLog_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            _analyzer.Analyze(null!, IntensityLevel.Medium, CancellationToken.None));
+            _analyzer.Analyze((string)null!, IntensityLevel.Medium, CancellationToken.None));
     }
 
     [Fact]

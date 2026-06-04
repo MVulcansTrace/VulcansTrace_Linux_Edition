@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.LiveStreamView"
+             x:DataType="vm:LiveStreamViewModel">
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
+    <!-- Controls Row -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="8">
+      <TextBlock Text="Source:" VerticalAlignment="Center" />
+      <ComboBox Width="320"
+                ItemsSource="{Binding AvailableSources}"
+                SelectedItem="{Binding SelectedSourceName}" />
+      <Button Content="Start"
+              Command="{Binding StartCommand}" />
+      <Button Content="Stop"
+              Command="{Binding StopCommand}" />
+    </StackPanel>
+
+    <!-- Status Row -->
+    <Border Grid.Row="1" Background="#1e293b" CornerRadius="4" Margin="8,0,8,8" Padding="12,8">
+      <StackPanel>
+        <TextBlock Text="{Binding StatusText}" FontWeight="Bold" Foreground="#e2e8f0" />
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
+          <TextBlock Foreground="#94a3b8">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="Events/sec: {0:F1}">
+                <Binding Path="EventsPerSecond" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+          <TextBlock Foreground="#94a3b8">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="Window: {0}">
+                <Binding Path="WindowEventCount" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+          <TextBlock Foreground="#94a3b8">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="Runs: {0}">
+                <Binding Path="AnalysisRunCount" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+          <TextBlock Foreground="#94a3b8">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="Delta Findings: {0}">
+                <Binding Path="TotalDeltaFindings" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Findings Grid Row -->
+    <Border Grid.Row="3" Background="#0f172a" CornerRadius="4" Margin="8,0,8,8">
+      <DataGrid ItemsSource="{Binding LiveFindings}"
+                IsReadOnly="True"
+                AutoGenerateColumns="False"
+                GridLinesVisibility="Horizontal"
+                HorizontalGridLinesBrush="#334155">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Time"
+                              Binding="{Binding TimeRangeStart, StringFormat='{}{0:HH:mm:ss.fff}'}"
+                              Width="100" />
+          <DataGridTextColumn Header="Severity"
+                              Binding="{Binding Severity}"
+                              Width="80" />
+          <DataGridTextColumn Header="Category"
+                              Binding="{Binding Category}"
+                              Width="140" />
+          <DataGridTextColumn Header="Source"
+                              Binding="{Binding SourceHost}"
+                              Width="120" />
+          <DataGridTextColumn Header="Target"
+                              Binding="{Binding Target}"
+                              Width="120" />
+          <DataGridTextColumn Header="Description"
+                              Binding="{Binding ShortDescription}"
+                              Width="*" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </Border>
+  </Grid>
+</UserControl>

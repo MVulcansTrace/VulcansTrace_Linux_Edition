@@ -759,6 +759,10 @@
                      AutomationProperties.AutomationId="SchedulesTab">
                 <views:ScheduleView DataContext="{Binding Schedules}"/>
             </TabItem>
+            <TabItem Header="Live Stream"
+                     AutomationProperties.AutomationId="LiveStreamTab">
+                <views:LiveStreamView DataContext="{Binding LiveStream}"/>
+            </TabItem>
         </TabControl>
 
         <!-- Bottom: Agent chat panel -->

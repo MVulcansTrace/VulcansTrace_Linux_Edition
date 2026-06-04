@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: xUnit](https://img.shields.io/badge/Tests-xUnit-512BD4)
+![Tests: 2143 passing](https://img.shields.io/badge/Tests-2143%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -54,6 +54,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction and is included in the Avalonia UI, agent chat, and evidence exports.
 - **Trace Map / Incident Graph** — interactive attack-chain visualization on the timeline canvas. Correlated findings are connected with directed edges (escalation, temporal sequence, same-host links). Click any finding to highlight its connected chain and read a narrative attack story. Supports category-based or host-based grouping. Performance guardrails suppress rendering when >100 edges are detected.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
+- **Live Stream / Real-Time Kernel Telemetry** — captures live network events from the kernel via `AF_PACKET` with classic BPF socket filtering or `AF_NETLINK` NFLOG, buffers them in a rolling window, and runs the detector pipeline in real time using a dedicated `SentryAnalyzer` instance. Completed analysis results are published through a bounded `DropOldest` channel so the UI never stalls on stale updates. Includes a synthetic demo source for zero-privilege testing. Desktop UI shows live metrics and delta findings as they are detected; findings are wired into the shared findings grid.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 
@@ -153,7 +154,15 @@ Build a self-contained CLI binary:
 ./scripts/publish-cli.sh
 ```
 
+Start a live stream capture in the desktop UI (requires root for kernel sources; synthetic demo works without privileges):
+
+```bash
+dotnet run --project VulcansTrace.Linux.Avalonia
+# Select the "Live Stream" tab, choose a source (Synthetic Demo, Packet Capture, or NFLOG), and click Start.
+```
+
 For a guided product walkthrough, see [docs/DEMO.md](docs/DEMO.md).
+For live stream architecture and bug-fix details, see [docs/LIVE_STREAM.md](docs/LIVE_STREAM.md).
 
 ## Evidence Bundles
 
@@ -222,6 +231,7 @@ Start here depending on what you need:
 | [docs/SECURITY_AGENT.md](docs/SECURITY_AGENT.md) | Local Security Agent capabilities, scanner pipeline, rules, limitations, and roadmap |
 | [docs/HMAC_EVIDENCE.md](docs/HMAC_EVIDENCE.md) | How session signing keys are generated, copied, and used for verification |
 | [docs/CHANGES_AND_PROFILES.md](docs/CHANGES_AND_PROFILES.md) | Implementation change summary and Low/Medium/High profile capabilities |
+| [docs/LIVE_STREAM.md](docs/LIVE_STREAM.md) | Real-time kernel telemetry: architecture, sources, bug fixes, and hardening |
 | [docs/portfolio/README.md](docs/portfolio/README.md) | GitHub-facing index for the complete technical portfolio |
 
 Recommended review paths:
@@ -232,6 +242,7 @@ Recommended review paths:
 - For investigation workflow: [Risk Escalation](docs/portfolio/08-Risk-Escalation/README.md) -> [Evidence Packaging](docs/portfolio/09-Evidence-Packaging/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For local assistant workflow: [Security Agent](docs/SECURITY_AGENT.md) -> [Security Agent portfolio](docs/portfolio/16-Security-Agent/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For scheduling and automation: [Usage](docs/USAGE.md) -> [Changes](docs/CHANGES_AND_PROFILES.md) -> [Security](docs/SECURITY.md)
+- For live kernel telemetry: [Live Stream](docs/LIVE_STREAM.md) -> [Live Stream Portfolio](docs/portfolio/17-Live-Stream/README.md) -> [Architecture](docs/ARCHITECTURE.md)
 - For verification: [Automated Tests](docs/portfolio/11-Automated-Tests/README.md) -> [Development](docs/DEVELOPMENT.md) -> [Security](docs/SECURITY.md)
 
 ## Portfolio Deep Dives
@@ -267,7 +278,7 @@ dotnet build VulcansTrace.Linux.sln --configuration Release
 dotnet test VulcansTrace.Linux.sln --configuration Release
 ```
 
-GitHub Actions runs restore, Release build, and the deterministic test set. Tests marked `Category=Performance` or `Category=Timing` are kept out of hosted CI because benchmark thresholds and millisecond cancellation races are runner-sensitive; run the full suite locally when validating performance changes.
+GitHub Actions runs restore, Release build, and the deterministic test set (2 143 tests). Tests marked `Category=Performance` or `Category=Timing` are kept out of hosted CI because benchmark thresholds and millisecond cancellation races are runner-sensitive; run the full suite locally when validating performance changes.
 
 To add a detector, implement `IDetector`, register it with the analyzer composition root, add focused detector tests, update profile thresholds if needed, and document the behavior in the relevant portfolio section. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the detailed checklist.
 

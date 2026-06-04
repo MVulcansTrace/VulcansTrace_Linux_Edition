@@ -14,6 +14,7 @@ using VulcansTrace.Linux.Core.Security;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.Detectors;
+using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Evidence.Formatters;
 
@@ -252,6 +253,11 @@ public static class AgentFactory
         var processRunner = new ProcessRunner();
         var remediationExecutor = new RemediationExecutor(processRunner);
         var remediationPlanBuilder = new RemediationPlanBuilder(explanationProvider);
+        // Give the live stream its own SentryAnalyzer instance so it never
+        // contends with the static audit/analysis path for thread-safety.
+        var liveStreamSentryAnalyzer = new SentryAnalyzer(
+            logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, riskEscalator, logSink);
+        var liveStreamAnalyzer = new LiveStreamAnalyzer(liveStreamSentryAnalyzer, profileProvider, logSink);
 
         return new AgentServices
         {
@@ -269,7 +275,8 @@ public static class AgentFactory
             ProcessRunner = processRunner,
             RemediationExecutor = remediationExecutor,
             RemediationPlanBuilder = remediationPlanBuilder,
-            SessionStore = sessionStore
+            SessionStore = sessionStore,
+            LiveStreamAnalyzer = liveStreamAnalyzer
         };
     }
 }
@@ -325,6 +332,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Store for remediation sessions.</summary>
     public required ISessionStore SessionStore { get; init; }
 
+    /// <summary>Orchestrates live kernel stream analysis.</summary>
+    public required LiveStreamAnalyzer LiveStreamAnalyzer { get; init; }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -339,5 +349,6 @@ public sealed record AgentServices : IDisposable
         (NotificationService as IDisposable)?.Dispose();
         (ProcessRunner as IDisposable)?.Dispose();
         (SessionStore as IDisposable)?.Dispose();
+        (LiveStreamAnalyzer as IDisposable)?.Dispose();
     }
 }

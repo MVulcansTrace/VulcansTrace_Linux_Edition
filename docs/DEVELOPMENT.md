@@ -23,6 +23,8 @@ Run all tests:
 dotnet test
 ```
 
+The test suite contains **2 143 tests** covering unit, integration, detector, evidence, UI, live stream, and performance scenarios.
+
 Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Tests/Data/Real/Samples`
 
@@ -42,6 +44,18 @@ Sample logs used by integration tests live in:
 
 The signing key is generated after each completed analysis in the UI. See `docs/HMAC_EVIDENCE.md`
 for the step-by-step HMAC signing key flow.
+
+## Adding a Live Stream Event Source
+
+1. Implement `IEventSource` in `VulcansTrace.Linux.Engine/Live`.
+2. Add the source name to `LiveStreamViewModel.SourceNames` (constant, not magic string).
+3. Register the source in `LiveStreamViewModel.ResolveSource()`.
+4. Add tests in `VulcansTrace.Linux.Tests/Engine/Live`. Include:
+   - Unit tests for the source's event generation/parsing.
+   - Round-trip tests if the source uses `FormatAsIptablesLog`.
+   - Null guard tests for public entry points.
+   - Stress tests for rapid start/stop cycles and dispose-while-running.
+5. Update `docs/LIVE_STREAM.md` and `docs/portfolio/17-Live-Stream/README.md`.
 
 ## Adding a Detector
 

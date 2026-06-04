@@ -34,6 +34,7 @@ If you want the full end-to-end story, read in this order:
 14. [14 - Privilege Escalation Detection](./14-Privilege-Escalation-Detection/README.md)
 15. [15 - Linux Deep Inspection](./15-Linux-Deep-Inspection/README.md)
 16. [16 - Security Agent](./16-Security-Agent/README.md)
+17. [17 - Live Stream](./17-Live-Stream/README.md)
 
 ## What These Docs Cover
 
@@ -52,6 +53,7 @@ If you want the full end-to-end story, read in this order:
 - How batch auto-fix with dry-run preview and policy-gated execution bridges detection and safe remediation in the CLI
 - How persisted remediation sessions can be resumed, browsed, and deleted through both the UI and natural-language chat commands
 - How the automated test suite supports confidence in the implementation
+- How live kernel telemetry is captured via raw sockets and classic BPF, buffered in a rolling window, and analyzed in real time
 
 ## How The Case Studies Are Organized
 
@@ -73,6 +75,7 @@ Each numbered folder uses a consistent entry-point pattern, while individual dee
 - Quality and verification: [11 - Automated Tests](./11-Automated-Tests/README.md)
 - C2 and advanced threats: [13 - C2 Channel Detection](./13-C2-Channel-Detection/README.md)
 - Linux-specific signals: [15 - Linux Deep Inspection](./15-Linux-Deep-Inspection/README.md)
+- Real-time kernel telemetry and streaming analysis: [17 - Live Stream](./17-Live-Stream/README.md)
 
 ## Grounding Principle
 

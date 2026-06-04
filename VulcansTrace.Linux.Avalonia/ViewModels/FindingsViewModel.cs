@@ -197,6 +197,22 @@ public sealed class FindingsViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Adds a single finding to the display without clearing existing items.
+    /// Used by the live stream to merge real-time findings into the main grid.
+    /// </summary>
+    public void AddFinding(Finding finding)
+    {
+        var item = new FindingItemViewModel(finding);
+        Items.Add(item);
+        FindingsCount++;
+        if (finding.Severity >= Severity.High)
+        {
+            HighCriticalCount++;
+        }
+        ApplyFilters();
+    }
+
+    /// <summary>
     /// Clears all findings and resets statistics.
     /// </summary>
     public void Clear()

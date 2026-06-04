@@ -305,6 +305,19 @@ Last updated: 2026-06-03
     `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/USAGE.md`,
     `docs/DEVELOPMENT.md`, `docs/HMAC_EVIDENCE.md`, `docs/SECURITY_AGENT.md`
 
+### Live Stream / Real-Time Kernel Telemetry
+- Added live stream pipeline that captures network events directly from the Linux kernel and runs the detector pipeline in real time.
+- **Event sources:**
+  - `SyntheticEventSource` — generates realistic traffic without privileges (port scans, beaconing, floods).
+  - `PacketCaptureEventSource` — `AF_PACKET` raw socket with classic BPF filter (`SO_ATTACH_FILTER`), parses IP/TCP/UDP headers via P/Invoke to `libc`.
+  - `NflogEventSource` — `AF_NETLINK` NFLOG group binding through `NFULNL_MSG_CONFIG`, parses structured netlink attributes including kernel timestamps.
+- **Pipeline:** `LiveStreamWindow` with dual eviction (60 s / 10 000 events); dedicated `SentryAnalyzer` instance to avoid concurrency conflicts with batch analysis; `LiveStreamAnalyzer` deduplicates findings by fingerprint with 5-minute TTL; completed results flow through a bounded `DropOldest(64)` channel so stale UI updates do not stall analysis; live findings are capped at 1 000 (FIFO eviction).
+- **UI:** Live Stream tab with source selection, privilege detection, live metrics, async stop (`StopAsync()` via `AsyncRelayCommand`), and `LiveResultReceived` wired into the main findings grid.
+- **Structured event path:** Live events bypass `FormatAsIptablesLog` / `LogNormalizer` round-trip and feed directly into `SentryAnalyzer.Analyze(IReadOnlyList<UnifiedEvent>)`.
+- **Action metadata:** Live events tagged `CAPTURED` (packet capture) or `LOGGED` (NFLOG) instead of `UNKNOWN`.
+- **30 bug fixes** during code review: correct `AF_NETLINK` family, flat attribute flags, NFLOG payload/HWADDR/UID constants, `NFULNL_COPY_PACKET` mode request, double-close race, intensity threading, async stop, bounded findings, IDisposable caching, dedicated analyzer, result channel backpressure, realistic TTL, NFLOG timestamp parsing, kernel source fault surfacing, capability-aware source availability, retained parse-error samples, null guards, send errno handling, BPF length guards, delay clamping, structured overload, `LiveResultReceived` wiring, source name constants, and focused tests (VM, parser, config, formatter, stress).
+- Code: `VulcansTrace.Linux.Engine/Live/*.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/LiveStreamViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/LiveStreamView.axaml`, `VulcansTrace.Linux.Tests/Engine/Live/*`
+
 ### Tooling
 - CLI test runner supports `--intensity`, `--all`, `--export`.
   - Tool: `tools/TestAnalysis/Program.cs`

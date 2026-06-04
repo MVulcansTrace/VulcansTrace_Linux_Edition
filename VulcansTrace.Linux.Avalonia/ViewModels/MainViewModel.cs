@@ -12,8 +12,10 @@ using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Core.Live;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
+using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Avalonia.Services;
 
@@ -34,6 +36,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly EventHandler<string> _evidenceStatusHandler;
     private readonly EventHandler _evidenceExportCompletedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
+    private readonly EventHandler<LiveAnalysisResult> _liveResultHandler;
 
     private string _logText = "";
     private string _summaryText = "";
@@ -91,6 +94,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for risk scorecard.</summary>
     public RiskScorecardViewModel RiskScorecard { get; }
+
+    /// <summary>Gets the child ViewModel for live stream analysis.</summary>
+    public LiveStreamViewModel LiveStream { get; }
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -296,6 +302,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
         TraceMapCorrelator traceMapCorrelator,
+        LiveStreamAnalyzer liveStreamAnalyzer,
         IScheduleStore? scheduleStore = null,
         INotificationService? notificationService = null,
         ISessionStore? sessionStore = null)
@@ -351,6 +358,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             auditHistoryStore,
             notificationService ?? new NotifySendNotificationService(),
             dialogService);
+        LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
+        _liveResultHandler = (_, result) =>
+        {
+            foreach (var finding in result.DeltaFindings)
+            {
+                Findings.AddFinding(finding);
+            }
+        };
+        LiveStream.LiveResultReceived += _liveResultHandler;
 
         AcceptRiskCommand = new AsyncRelayCommand(
             async _ => await AcceptRiskAsync(),
@@ -757,6 +773,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (Findings != null)
         {
             Findings.PropertyChanged -= _findingsPropertyChangedHandler;
+        }
+
+        if (LiveStream != null)
+        {
+            LiveStream.LiveResultReceived -= _liveResultHandler;
+            LiveStream.Dispose();
         }
     }
 }
