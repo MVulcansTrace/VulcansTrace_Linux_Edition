@@ -320,6 +320,38 @@ public class RemediationMarkdownFormatterTests
     }
 
     [Fact]
+    public void Format_IncludesMitreTechniques_WhenPresent()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    MitreTechniques = new[]
+                    {
+                        new MitreTechnique { TechniqueId = "T1562.004", TechniqueName = "Disable or Modify System Firewall", Tactic = "Defense Evasion", WhyItMatters = "Firewall." }
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.Contains("T1562.004", result);
+        Assert.Contains("Disable or Modify System Firewall", result);
+        Assert.Contains("MITRE ATT&CK", result);
+    }
+
+    [Fact]
     public void Format_OmitsImpactPreview_WhenNull()
     {
         var plan = new RemediationPlan

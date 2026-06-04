@@ -244,8 +244,13 @@ public sealed class StixFormatter : IEvidenceFormatter
             ? "CIS Mapping: " + string.Join("; ", finding.CisMappings.Select(m => $"{m.ControlId} ({m.ControlName})")) + "\n"
             : string.Empty;
 
+        var mitre = finding.MitreTechniques.Count > 0
+            ? "MITRE ATT&CK: " + string.Join("; ", finding.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName} — {m.Tactic})")) + "\n"
+            : string.Empty;
+
         return ruleId +
                cis +
+               mitre +
                $"Category: {finding.Category}\n" +
                $"Severity: {finding.Severity}\n" +
                $"Source: {finding.SourceHost}\n" +

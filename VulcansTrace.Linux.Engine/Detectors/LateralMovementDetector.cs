@@ -13,6 +13,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class LateralMovementDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1021", TechniqueName = "Remote Services", Tactic = "Lateral Movement", WhyItMatters = "Lateral movement often exploits remote services to pivot between internal hosts." },
+        new MitreTechnique { TechniqueId = "T1210", TechniqueName = "Exploitation of Remote Services", Tactic = "Lateral Movement", WhyItMatters = "An attacker may exploit remote services to move laterally after initial compromise." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableLateralMovement || events.Count == 0)
@@ -83,7 +91,8 @@ public sealed class LateralMovementDetector : IDetector
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Lateral movement from {srcGroup.Key}",
-                            Details = $"Contacted {distinctHosts} internal hosts on admin ports."
+                            Details = $"Contacted {distinctHosts} internal hosts on admin ports.",
+                            MitreTechniques = s_mitreTechniques
                         });
                         inFinding = true;
                     }

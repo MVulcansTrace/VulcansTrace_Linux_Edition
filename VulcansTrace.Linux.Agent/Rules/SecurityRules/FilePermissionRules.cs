@@ -3,6 +3,15 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class FilePermissionMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1222", TechniqueName = "File and Directory Permissions Modification", Tactic = "Defense Evasion", WhyItMatters = "Overly permissive files enable unauthorized access and permission abuse." },
+    };
+}
+
+
 /// <summary>
 /// FILE-001: /etc/shadow should have restrictive permissions.
 /// </summary>
@@ -25,6 +34,7 @@ public sealed class ShadowPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.1 — Ensure permissions on /etc/shadow are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -32,10 +42,10 @@ public sealed class ShadowPermissionRule : IRule
             f.Path.Equals("/etc/shadow", StringComparison.OrdinalIgnoreCase));
 
         if (entry == null || !entry.Exists)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         if (!int.TryParse(entry.Mode, out var mode))
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var isRootOwned = entry.Owner.Equals("root", StringComparison.OrdinalIgnoreCase);
         var validGroup = entry.Group.Equals("root", StringComparison.OrdinalIgnoreCase)
@@ -44,7 +54,7 @@ public sealed class ShadowPermissionRule : IRule
 
         // Accept 600 or 640
         if ((mode == 600 || mode == 640) && isRootOwned && validGroup)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             $"/etc/shadow {entry.Mode} {entry.Owner}:{entry.Group}",
@@ -54,7 +64,7 @@ public sealed class ShadowPermissionRule : IRule
                 ["mode"] = entry.Mode,
                 ["owner"] = entry.Owner,
                 ["group"] = entry.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -80,6 +90,7 @@ public sealed class PasswdPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.2 — Ensure permissions on /etc/passwd are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -87,16 +98,16 @@ public sealed class PasswdPermissionRule : IRule
             f.Path.Equals("/etc/passwd", StringComparison.OrdinalIgnoreCase));
 
         if (entry == null || !entry.Exists)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         if (!int.TryParse(entry.Mode, out var mode))
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var isRootOwned = entry.Owner.Equals("root", StringComparison.OrdinalIgnoreCase);
         var isRootGroup = entry.Group.Equals("root", StringComparison.OrdinalIgnoreCase);
 
         if (mode == 644 && isRootOwned && isRootGroup)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             $"/etc/passwd {entry.Mode} {entry.Owner}:{entry.Group}",
@@ -106,7 +117,7 @@ public sealed class PasswdPermissionRule : IRule
                 ["mode"] = entry.Mode,
                 ["owner"] = entry.Owner,
                 ["group"] = entry.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -132,6 +143,7 @@ public sealed class SshHostKeyPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.2 — Ensure permissions on SSH private host key files are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -142,7 +154,7 @@ public sealed class SshHostKeyPermissionRule : IRule
             .ToList();
 
         if (hostKeys.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         foreach (var entry in hostKeys)
         {
@@ -161,11 +173,11 @@ public sealed class SshHostKeyPermissionRule : IRule
                         ["mode"] = entry.Mode,
                         ["owner"] = entry.Owner,
                         ["group"] = entry.Group
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -191,6 +203,7 @@ public sealed class RootSshDirectoryPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.4 — Ensure permissions on SSH public host key files are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -214,7 +227,7 @@ public sealed class RootSshDirectoryPermissionRule : IRule
                             ["mode"] = sshDir.Mode,
                             ["owner"] = sshDir.Owner,
                             ["group"] = sshDir.Group
-                        }, CisMappings);
+                        }, CisMappings, MitreTechniques);
                 }
             }
         }
@@ -234,12 +247,12 @@ public sealed class RootSshDirectoryPermissionRule : IRule
                             ["mode"] = authKeys.Mode,
                             ["owner"] = authKeys.Owner,
                             ["group"] = authKeys.Group
-                        }, CisMappings);
+                        }, CisMappings, MitreTechniques);
                 }
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -265,6 +278,7 @@ public sealed class CronDirectoryWorldWritableRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.3 — Ensure permissions on /etc/cron.* are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -273,7 +287,7 @@ public sealed class CronDirectoryWorldWritableRule : IRule
             .ToList();
 
         if (cronDirs.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         foreach (var entry in cronDirs)
         {
@@ -293,11 +307,11 @@ public sealed class CronDirectoryWorldWritableRule : IRule
                         ["mode"] = entry.Mode,
                         ["owner"] = entry.Owner,
                         ["group"] = entry.Group
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsCronDirectory(string path)
@@ -329,6 +343,7 @@ public sealed class CrontabPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.4 — Ensure permissions on /etc/crontab are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -336,16 +351,16 @@ public sealed class CrontabPermissionRule : IRule
             f.Path.Equals("/etc/crontab", StringComparison.OrdinalIgnoreCase));
 
         if (entry == null || !entry.Exists)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         if (!int.TryParse(entry.Mode, out var mode))
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var isRootOwned = entry.Owner.Equals("root", StringComparison.OrdinalIgnoreCase);
         var isRootGroup = entry.Group.Equals("root", StringComparison.OrdinalIgnoreCase);
 
         if ((mode == 644 || mode == 600) && isRootOwned && isRootGroup)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             $"/etc/crontab {entry.Mode} {entry.Owner}:{entry.Group}",
@@ -355,7 +370,7 @@ public sealed class CrontabPermissionRule : IRule
                 ["mode"] = entry.Mode,
                 ["owner"] = entry.Owner,
                 ["group"] = entry.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -381,6 +396,7 @@ public sealed class UserSshDirectoryPermissionRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.4 — Ensure permissions on SSH public host key files are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilePermissionMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -389,7 +405,7 @@ public sealed class UserSshDirectoryPermissionRule : IRule
             .ToList();
 
         if (userSshEntries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         foreach (var entry in userSshEntries)
         {
@@ -409,10 +425,10 @@ public sealed class UserSshDirectoryPermissionRule : IRule
                         ["mode"] = entry.Mode,
                         ["owner"] = entry.Owner,
                         ["group"] = entry.Group
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 }

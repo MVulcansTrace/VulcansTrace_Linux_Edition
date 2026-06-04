@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
+using VulcansTrace.Linux.Core;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent.Remediation;
@@ -237,6 +238,37 @@ public class RemediationConsoleFormatterTests
         Assert.Contains("→ Impact: Default INPUT policy will change to DROP.", output);
         Assert.Contains("→ Rollback: sudo iptables -P INPUT ACCEPT", output);
         Assert.Contains("→ Verify: sudo iptables -L INPUT | head -n 1", output);
+    }
+
+    [Fact]
+    public void FormatDryRun_Includes_MitreTechniques_When_Present()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    MitreTechniques = new[]
+                    {
+                        new MitreTechnique { TechniqueId = "T1562.004", TechniqueName = "Disable or Modify System Firewall", Tactic = "Defense Evasion", WhyItMatters = "Firewall." }
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+        var policy = AutoFixPolicy.Standard();
+
+        var output = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+
+        Assert.Contains("MITRE ATT&CK: T1562.004", output);
+        Assert.Contains("Disable or Modify System Firewall", output);
     }
 
     [Fact]

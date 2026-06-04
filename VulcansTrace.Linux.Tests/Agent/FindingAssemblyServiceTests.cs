@@ -42,6 +42,32 @@ public class FindingAssemblyServiceTests
     }
 
     [Fact]
+    public void Assemble_FailedRule_PropagatesMitreTechniques()
+    {
+        var service = new FindingAssemblyService(new TestExplanationProvider(), suppressionStore: null);
+        var mitreTechniques = new[]
+        {
+            new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Reconnaissance." }
+        };
+        var ruleResult = RuleResult.Fail(
+            "TEST-001",
+            "Test",
+            "TEST-001",
+            "Test failed",
+            Severity.High,
+            "test-target",
+            null,
+            null,
+            mitreTechniques);
+
+        var result = service.Assemble(new[] { ruleResult });
+
+        var finding = result.AgentFindings[0];
+        Assert.Single(finding.MitreTechniques);
+        Assert.Equal("T1046", finding.MitreTechniques[0].TechniqueId);
+    }
+
+    [Fact]
     public void Assemble_PassedNotApplicableAndCrashedResults_DoNotCreateFindings()
     {
         var service = new FindingAssemblyService(new TestExplanationProvider(), suppressionStore: null);

@@ -27,6 +27,11 @@ public static class RemediationConsoleFormatter
             var section = plan.Sections[i];
             sb.AppendLine($"[{i + 1}/{plan.TotalSections}] {section.RuleId}: {section.FindingSummary}");
             sb.AppendLine($"    Risk: {section.RiskNote}");
+            if (section.MitreTechniques.Count > 0)
+            {
+                var mitre = string.Join(", ", section.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
+                sb.AppendLine($"    MITRE ATT&CK: {mitre}");
+            }
 
             if (section.ImpactPreview != null)
             {

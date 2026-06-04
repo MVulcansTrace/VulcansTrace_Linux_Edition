@@ -13,6 +13,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class BeaconingDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1071.001", TechniqueName = "Application Layer Protocol: Web Protocols", Tactic = "Command and Control", WhyItMatters = "Beaconing to external destinations is a hallmark of C2 communication over web protocols." },
+        new MitreTechnique { TechniqueId = "T1001", TechniqueName = "Data Obfuscation", Tactic = "Command and Control", WhyItMatters = "Regular beaconing intervals may be used to obfuscate malicious traffic within normal network patterns." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableBeaconing || events.Count == 0)
@@ -75,7 +83,8 @@ public sealed class BeaconingDetector : IDetector
                 TimeRangeStart = first.Timestamp,
                 TimeRangeEnd = last.Timestamp,
                 ShortDescription = $"Regular beaconing from {group.Key.SourceIP}",
-                Details = $"Average interval ~{mean:F1}s, std dev ~{stdDev:F1}s over {ordered.Count} events."
+                Details = $"Average interval ~{mean:F1}s, std dev ~{stdDev:F1}s over {ordered.Count} events.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 

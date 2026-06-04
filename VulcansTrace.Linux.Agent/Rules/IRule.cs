@@ -29,6 +29,9 @@ public interface IRule
     /// <summary>CIS Benchmark controls this rule maps to (may be empty).</summary>
     IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
 
+    /// <summary>MITRE ATT&CK techniques this rule maps to (may be empty).</summary>
+    IReadOnlyList<MitreTechnique> MitreTechniques => Array.Empty<MitreTechnique>();
+
     /// <summary>
     /// Evaluates the provided scan data.
     /// </summary>

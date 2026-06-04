@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2143 passing](https://img.shields.io/badge/Tests-2143%20passing-2E7D32)
+![Tests: 2196 passing](https://img.shields.io/badge/Tests-2196%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -41,8 +41,8 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Runs baseline, Linux-specific, and advanced threat detectors.
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
-- Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats.
-- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, and dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls) for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands, a compact impact preview showing expected change, rollback path, and verification command before every apply step, rollback visibility, session notes with evidence links, and batch auto-fix with dry-run preview for headless remediation.
+- Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats — every export includes MITRE ATT&CK technique mappings for findings and rules.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls), and **MITRE ATT&CK technique mapping** for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands, a compact impact preview showing expected change, rollback path, and verification command before every apply step, rollback visibility, session notes with evidence links, and batch auto-fix with dry-run preview for headless remediation.
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
 - Filesystem Auditing — hunts broadly for world-writable files outside expected paths, unexpected SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount hardening (`noexec`, `nosuid`, `nodev`).
 - User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, missing home directories, PAM faillock / account lockout configuration, detailed password quality requirements (`minlen`, `minclass`, credits), and PAM auth stack ordering (`required` before `sufficient`).
@@ -128,6 +128,12 @@ Run a headless audit via CLI:
 dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --role Server
 ```
 
+Export a MITRE ATT&CK Navigator layer for visual coverage analysis:
+
+```bash
+dotnet run --project VulcansTrace.Linux.Cli -- audit --intent FullAudit --role Server --output-mitre mitre-layer.json
+```
+
 Preview and apply automatic remediation after an audit:
 
 ```bash
@@ -185,6 +191,7 @@ The UI can export a signed ZIP evidence package containing:
 | `risk-scorecard.md` | Markdown risk scorecard for Git-based workflows |
 | `incident-story.md` | Human-readable attack-chain narrative when correlated findings are detected |
 | `trace-map.json` | Cytoscape.js-compatible JSON graph of findings and correlation edges |
+| `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer (JSON) showing technique coverage and finding density |
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
 
@@ -239,6 +246,7 @@ Recommended review paths:
 - For usage: [Usage](docs/USAGE.md) -> [Demo](docs/DEMO.md) -> [Evidence signing](docs/HMAC_EVIDENCE.md)
 - For architecture: [Architecture](docs/ARCHITECTURE.md) -> [Log Normalization](docs/portfolio/01-Log-Normalization/README.md) -> [Intensity Profiles](docs/portfolio/10-Intensity-Profiles/README.md)
 - For detection engineering: [Port Scan Detection](docs/portfolio/02-Port-Scan-Detection/README.md) -> [Beaconing Detection](docs/portfolio/03-Beaconing-Detection/README.md) -> [C2 Channel Detection](docs/portfolio/13-C2-Channel-Detection/README.md)
+- For threat-framework coverage: [Evidence Packaging](docs/portfolio/09-Evidence-Packaging/README.md) -> [Security Agent](docs/portfolio/16-Security-Agent/README.md) -> [Automated Tests](docs/portfolio/11-Automated-Tests/README.md)
 - For investigation workflow: [Risk Escalation](docs/portfolio/08-Risk-Escalation/README.md) -> [Evidence Packaging](docs/portfolio/09-Evidence-Packaging/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For local assistant workflow: [Security Agent](docs/SECURITY_AGENT.md) -> [Security Agent portfolio](docs/portfolio/16-Security-Agent/README.md) -> [Avalonia UI](docs/portfolio/12-Avalonia-UI/README.md)
 - For scheduling and automation: [Usage](docs/USAGE.md) -> [Changes](docs/CHANGES_AND_PROFILES.md) -> [Security](docs/SECURITY.md)

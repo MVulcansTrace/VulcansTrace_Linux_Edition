@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class LoggingAuditMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1562.001", TechniqueName = "Impair Defenses: Disable or Modify Tools", Tactic = "Defense Evasion", WhyItMatters = "Missing or disabled logging tools impair security monitoring and forensic capabilities." },
+        new MitreTechnique { TechniqueId = "T1070", TechniqueName = "Indicator Removal", Tactic = "Defense Evasion", WhyItMatters = "Inadequate logging allows attackers to remove indicators of their activity." },
+    };
+}
+
+
 /// <summary>
 /// LOG-001: A system logging service (rsyslog or journald) should be active.
 /// </summary>
@@ -25,6 +35,7 @@ public sealed class LoggingServiceActiveRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.2.1.1 — Ensure rsyslog or systemd-journald is installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -38,17 +49,18 @@ public sealed class LoggingServiceActiveRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         if (!data.LoggingAudit.RsyslogActive && !data.LoggingAudit.JournaldActive)
         {
             return RuleResult.Fail(Id, Category, "LOG-001", Description, Severity.Medium, "none",
-                new Dictionary<string, string> { ["rsyslog"] = "inactive", ["journald"] = "inactive" }, CisMappings);
+                new Dictionary<string, string> { ["rsyslog"] = "inactive", ["journald"] = "inactive" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-001", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-001", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -74,6 +86,7 @@ public sealed class AuditdActiveRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.1.1.1 — Ensure auditd is installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -87,17 +100,18 @@ public sealed class AuditdActiveRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         if (!data.LoggingAudit.AuditdActive)
         {
             return RuleResult.Fail(Id, Category, "LOG-002", Description, Severity.High, "auditd",
-                new Dictionary<string, string> { ["service"] = "auditd", ["status"] = "inactive" }, CisMappings);
+                new Dictionary<string, string> { ["service"] = "auditd", ["status"] = "inactive" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-002", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-002", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -123,6 +137,7 @@ public sealed class AuditdRulesConfiguredRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.1.3.x — Ensure events that modify date and time information are collected"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -136,7 +151,8 @@ public sealed class AuditdRulesConfiguredRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
@@ -148,10 +164,10 @@ public sealed class AuditdRulesConfiguredRule : IRule
                     ["service"] = "auditd",
                     ["rules"] = "0",
                     ["hint"] = "Run 'auditctl -l' to verify; add rules to /etc/audit/audit.rules"
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-003", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-003", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -177,6 +193,7 @@ public sealed class LogRotationConfiguredRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.3.x — Ensure logrotate is configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -190,17 +207,18 @@ public sealed class LogRotationConfiguredRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         if (!data.LoggingAudit.LogRotationConfigured)
         {
             return RuleResult.Fail(Id, Category, "LOG-004", Description, Severity.Low, "logrotate",
-                new Dictionary<string, string> { ["config"] = "missing" }, CisMappings);
+                new Dictionary<string, string> { ["config"] = "missing" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-004", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-004", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -226,6 +244,7 @@ public sealed class CentralForwardingConfiguredRule : IRule, IContextualRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.2.2.x — Ensure rsyslog is configured to send logs to a remote log host"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
         => Evaluate(data, new RuleEvaluationContext(MachineRole.Workstation, null));
@@ -242,23 +261,24 @@ public sealed class CentralForwardingConfiguredRule : IRule, IContextualRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         // Non-production roles may legitimately not forward centrally.
         if (context.Role is MachineRole.Workstation or MachineRole.DevMachine or MachineRole.LabBox or MachineRole.Router)
         {
-            return RuleResult.Pass(Id, Category, "LOG-005", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "LOG-005", Description, CisMappings, MitreTechniques);
         }
 
         if (!data.LoggingAudit.CentralForwardingConfigured)
         {
             return RuleResult.Fail(Id, Category, "LOG-005", Description, Severity.Medium, "none",
-                new Dictionary<string, string> { ["forwarding"] = "not configured" }, CisMappings);
+                new Dictionary<string, string> { ["forwarding"] = "not configured" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-005", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-005", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -284,6 +304,7 @@ public sealed class AuditdPrivilegeEscalationMonitoringRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.1.12 — Ensure successful file system mounts are collected"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     private static readonly string[] PrivEscSyscalls =
     {
@@ -303,13 +324,14 @@ public sealed class AuditdPrivilegeEscalationMonitoringRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         // If auditd has no rules at all, LOG-003 already flags that; defer to it.
         if (!data.LoggingAudit.AuditdRulesConfigured)
-            return RuleResult.Pass(Id, Category, "LOG-006", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "LOG-006", Description, CisMappings, MitreTechniques);
 
         var rules = data.LoggingAudit.AuditdRules;
         var hasPrivEsc = rules.Any(r =>
@@ -325,10 +347,10 @@ public sealed class AuditdPrivilegeEscalationMonitoringRule : IRule
                     ["rules"] = rules.Count.ToString(),
                     ["missing"] = string.Join(", ", PrivEscSyscalls),
                     ["hint"] = "Add: -a always,exit -F arch=b64 -S setuid,setgid,seteuid,setegid,setreuid,setregid,setresuid,setresgid -k privilege_escalation"
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-006", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-006", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -354,6 +376,7 @@ public sealed class ForwardingUsesTcpRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 4.2.2.x — Ensure rsyslog is configured to send logs to a remote log host"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => LoggingAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -367,13 +390,14 @@ public sealed class ForwardingUsesTcpRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — logging/audit configuration not available (scanner failed or permission denied).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         // If no forwarding is configured, LOG-005 already flags that; defer to it.
         if (!data.LoggingAudit.CentralForwardingConfigured)
-            return RuleResult.Pass(Id, Category, "LOG-007", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "LOG-007", Description, CisMappings, MitreTechniques);
 
         var udpTargets = data.LoggingAudit.ForwardingTargets
             .Where(t => t.StartsWith('@') && !t.StartsWith("@@"))
@@ -387,9 +411,9 @@ public sealed class ForwardingUsesTcpRule : IRule
                     ["udp_targets"] = string.Join(", ", udpTargets),
                     ["count"] = udpTargets.Count.ToString(),
                     ["hint"] = "Replace @ with @@ in rsyslog forwarding directives to use TCP"
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "LOG-007", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "LOG-007", Description, CisMappings, MitreTechniques);
     }
 }

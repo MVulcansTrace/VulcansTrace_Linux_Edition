@@ -42,6 +42,20 @@ public class RuleEvaluationServiceTests
     }
 
     [Fact]
+    public void EvaluateRule_DisabledPolicy_PreservesMitreTechniques()
+    {
+        var policyStore = new InMemoryRulePolicyStore();
+        policyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { Enabled = false });
+        var rule = new MitreRule("TEST-001", "Test");
+        var service = new RuleEvaluationService(new[] { rule }, MachineRole.Server, policyStore);
+
+        var result = service.EvaluateRule(rule, EmptyScanData(), CancellationToken.None);
+
+        Assert.Single(result.RuleResult.MitreTechniques);
+        Assert.Equal("T1046", result.RuleResult.MitreTechniques[0].TechniqueId);
+    }
+
+    [Fact]
     public void EvaluateRule_ContextualRule_ReceivesRoleAndPolicy()
     {
         var policy = new RulePolicy { AutoPass = true };
@@ -66,6 +80,18 @@ public class RuleEvaluationServiceTests
 
         Assert.Equal(RuleStatus.Crashed, result.RuleResult.Status);
         Assert.Contains(result.Warnings, w => w.Contains("Rule CRASH-001 crashed: InvalidOperationException", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void EvaluateRule_CrashedRule_PreservesMitreTechniques()
+    {
+        var rule = new ThrowingMitreRule();
+        var service = new RuleEvaluationService(new[] { rule }, MachineRole.Server, policyProvider: null);
+
+        var result = service.EvaluateRule(rule, EmptyScanData(), CancellationToken.None);
+
+        Assert.Single(result.RuleResult.MitreTechniques);
+        Assert.Equal("T1068", result.RuleResult.MitreTechniques[0].TechniqueId);
     }
 
     [Fact]
@@ -106,11 +132,20 @@ public class RuleEvaluationServiceTests
         public string WhatItChecks => "Test";
         public IReadOnlyList<string> SupportedDataSources => Array.Empty<string>();
         public Severity Severity => Severity.Low;
+        public virtual IReadOnlyList<MitreTechnique> MitreTechniques => Array.Empty<MitreTechnique>();
 
         public virtual RuleResult Evaluate(ScanData data)
         {
             return RuleResult.Pass(Id, Category, Id, Description);
         }
+    }
+
+    private sealed class MitreRule(string id, string category) : TestRule(id, category)
+    {
+        public override IReadOnlyList<MitreTechnique> MitreTechniques { get; } = new[]
+        {
+            new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Test coverage." }
+        };
     }
 
     private sealed class FailingRule(string id, Severity severity) : TestRule(id, "Test")
@@ -127,6 +162,24 @@ public class RuleEvaluationServiceTests
             : base("CRASH-001", "Test")
         {
         }
+
+        public override RuleResult Evaluate(ScanData data)
+        {
+            throw new InvalidOperationException("boom");
+        }
+    }
+
+    private sealed class ThrowingMitreRule : TestRule
+    {
+        public ThrowingMitreRule()
+            : base("CRASH-MITRE-001", "Test")
+        {
+        }
+
+        public override IReadOnlyList<MitreTechnique> MitreTechniques { get; } = new[]
+        {
+            new MitreTechnique { TechniqueId = "T1068", TechniqueName = "Exploitation for Privilege Escalation", Tactic = "Privilege Escalation", WhyItMatters = "Test coverage." }
+        };
 
         public override RuleResult Evaluate(ScanData data)
         {

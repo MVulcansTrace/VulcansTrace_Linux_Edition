@@ -31,6 +31,7 @@ Documentation is organized for two audiences:
 - **Interface hopping detection** — groups by SourceIP, detects rapid switching between multiple network interfaces within a configurable time window
 - **Unusual packet size detection** — two-phase analysis: per-packet threshold checks for large/small packets, then aggregate statistical analysis for covert channels and fragmentation
 - **Risk escalation integration** — `RiskEscalator` correlates FlagAnomaly+PortScan to Critical and MacSpoofing+InterfaceHopping to Critical
+- **MITRE ATT&CK mapping** — all findings carry explicit technique mappings; evidence bundles include a Navigator-compatible `mitre-navigator-layer.json`
 
 ## Implementation Evidence
 

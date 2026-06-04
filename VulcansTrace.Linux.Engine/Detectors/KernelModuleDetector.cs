@@ -17,6 +17,13 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class KernelModuleDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1547.006", TechniqueName = "Boot or Logon Autostart Execution: Kernel Modules and Extensions", Tactic = "Persistence", WhyItMatters = "Kernel modules can be loaded for persistence and to evade user-mode detection." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableKernelModule || events.Count == 0)
@@ -87,7 +94,8 @@ public sealed class KernelModuleDetector : IDetector
                 TimeRangeStart = timestamps.Min(),
                 TimeRangeEnd = timestamps.Max(),
                 ShortDescription = $"Detected {module}",
-                Details = $"Analysis of firewall logs indicates the use of {module}. This provides insight into the firewall's security posture and capabilities."
+                Details = $"Analysis of firewall logs indicates the use of {module}. This provides insight into the firewall's security posture and capabilities.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 

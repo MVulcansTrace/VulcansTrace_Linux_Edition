@@ -16,6 +16,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class C2ChannelDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1071.001", TechniqueName = "Application Layer Protocol: Web Protocols", Tactic = "Command and Control", WhyItMatters = "C2 channels frequently use web protocols for covert command-and-control communication." },
+        new MitreTechnique { TechniqueId = "T1071", TechniqueName = "Application Layer Protocol", Tactic = "Command and Control", WhyItMatters = "Periodic communication patterns indicate malware phoning home via application-layer protocols." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableC2Detection || events.Count == 0)
@@ -91,7 +99,8 @@ public sealed class C2ChannelDetector : IDetector
                             TimeRangeEnd = maxTime,
                             ShortDescription = $"Potential C2 channel detected: {connectionKey}",
                             Details = $"Detected {patternEvents.Count} events with approximately {interval}s intervals (tolerance: \u00b1{tolerance}s). " +
-                                      $"This pattern suggests periodic communication that may indicate a C2 channel."
+                                      $"This pattern suggests periodic communication that may indicate a C2 channel.",
+                            MitreTechniques = s_mitreTechniques
                         });
                     }
                 }

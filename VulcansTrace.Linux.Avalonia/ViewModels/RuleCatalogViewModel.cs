@@ -84,7 +84,8 @@ public sealed class RuleCatalogViewModel : ViewModelBase
                 item.Category.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 item.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 item.WhatItChecks.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                item.DataSources.Contains(term, StringComparison.OrdinalIgnoreCase))
+                item.DataSources.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                item.MitreTechniquesDisplay.Contains(term, StringComparison.OrdinalIgnoreCase))
             {
                 FilteredItems.Add(item);
             }

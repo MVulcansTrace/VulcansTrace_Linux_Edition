@@ -43,8 +43,11 @@ public sealed record RuleResult
     /// <summary>CIS Benchmark controls this rule maps to (may be empty).</summary>
     public IReadOnlyList<CisBenchmarkMapping> CisMappings { get; init; } = Array.Empty<CisBenchmarkMapping>();
 
+    /// <summary>MITRE ATT&CK techniques this rule maps to (may be empty).</summary>
+    public IReadOnlyList<MitreTechnique> MitreTechniques { get; init; } = Array.Empty<MitreTechnique>();
+
     /// <summary>Creates a passing result.</summary>
-    public static RuleResult Pass(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null) =>
+    public static RuleResult Pass(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null) =>
         new()
         {
             RuleId = ruleId,
@@ -52,11 +55,12 @@ public sealed record RuleResult
             Passed = true,
             ExplanationKey = explanationKey,
             Description = description,
-            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
+            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>(),
+            MitreTechniques = mitreTechniques ?? Array.Empty<MitreTechnique>()
         };
 
     /// <summary>Creates a failing result.</summary>
-    public static RuleResult Fail(string ruleId, string category, string explanationKey, string description, Severity severity, string target, IReadOnlyDictionary<string, string>? variables = null, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null) =>
+    public static RuleResult Fail(string ruleId, string category, string explanationKey, string description, Severity severity, string target, IReadOnlyDictionary<string, string>? variables = null, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null) =>
         new()
         {
             RuleId = ruleId,
@@ -67,11 +71,12 @@ public sealed record RuleResult
             Description = description,
             Target = target,
             Variables = variables ?? new Dictionary<string, string>(),
-            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
+            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>(),
+            MitreTechniques = mitreTechniques ?? Array.Empty<MitreTechnique>()
         };
 
     /// <summary>Creates a crashed result.</summary>
-    public static RuleResult Crash(string ruleId, string category, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null) =>
+    public static RuleResult Crash(string ruleId, string category, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null) =>
         new()
         {
             RuleId = ruleId,
@@ -80,11 +85,12 @@ public sealed record RuleResult
             Status = RuleStatus.Crashed,
             ExplanationKey = ruleId,
             Description = description,
-            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
+            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>(),
+            MitreTechniques = mitreTechniques ?? Array.Empty<MitreTechnique>()
         };
 
     /// <summary>Creates a not-applicable result (data source missing or unreadable).</summary>
-    public static RuleResult NotApplicable(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null) =>
+    public static RuleResult NotApplicable(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null) =>
         new()
         {
             RuleId = ruleId,
@@ -93,6 +99,7 @@ public sealed record RuleResult
             Status = RuleStatus.NotApplicable,
             ExplanationKey = explanationKey,
             Description = description,
-            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>()
+            CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>(),
+            MitreTechniques = mitreTechniques ?? Array.Empty<MitreTechnique>()
         };
 }

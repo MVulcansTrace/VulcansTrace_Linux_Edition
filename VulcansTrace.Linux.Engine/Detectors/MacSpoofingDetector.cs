@@ -19,6 +19,14 @@ public sealed class MacSpoofingDetector : IDetector
 {
     private const int DefaultWindowMinutes = 5;
 
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1557", TechniqueName = "Man-in-the-Middle", Tactic = "Credential Access", WhyItMatters = "MAC spoofing and ARP poisoning are classic man-in-the-middle attack enablers." },
+        new MitreTechnique { TechniqueId = "T1557.001", TechniqueName = "Man-in-the-Middle: LLMNR/NBT-NS Poisoning and SMB Relay", Tactic = "Credential Access", WhyItMatters = "Network-level spoofing and ARP poisoning are classic enablers for man-in-the-middle credential relay attacks." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableMacSpoofing || events.Count == 0)
@@ -111,7 +119,8 @@ public sealed class MacSpoofingDetector : IDetector
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = $"Potential MAC spoofing from {ip}",
-                    Details = $"IP address {ip} is associated with {bestMacAddresses.Count} different MAC addresses within {windowMinutes} minutes: {string.Join(", ", bestMacAddresses)}. This may indicate MAC address spoofing, ARP poisoning, or network masquerading."
+                    Details = $"IP address {ip} is associated with {bestMacAddresses.Count} different MAC addresses within {windowMinutes} minutes: {string.Join(", ", bestMacAddresses)}. This may indicate MAC address spoofing, ARP poisoning, or network masquerading.",
+                    MitreTechniques = s_mitreTechniques
                 });
             }
         }

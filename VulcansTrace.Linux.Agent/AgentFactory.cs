@@ -77,7 +77,7 @@ public static class AgentFactory
         var riskScorecardMarkdownFormatter = new RiskScorecardMarkdownFormatter();
         var traceMapMarkdownFormatter = new TraceMapMarkdownFormatter();
         var traceMapJsonFormatter = new TraceMapJsonFormatter();
-        var evidenceBuilder = new EvidenceBuilder(hasher, csvFormatter, markdownFormatter, htmlFormatter, jsonFormatter, stixFormatter, scorecardHtmlFormatter, scorecardMarkdownFormatter, riskScorecardHtmlFormatter, riskScorecardMarkdownFormatter, traceMapMarkdownFormatter, traceMapJsonFormatter);
+        var mitreLayerBuilder = new MitreLayerBuilder();
 
         var scanners = new IScanner[]
         {
@@ -166,6 +166,25 @@ public static class AgentFactory
             new UnattendedUpgradesEnabledRule(),
             new CriticalCvesPresentRule()
         };
+
+        var mitreCoverageSources = BuildMitreCoverageSources(
+            baselineDetectors.Concat(linuxDetectors).Concat(advancedDetectors),
+            rules);
+        var evidenceBuilder = new EvidenceBuilder(
+            hasher,
+            csvFormatter,
+            markdownFormatter,
+            htmlFormatter,
+            jsonFormatter,
+            stixFormatter,
+            scorecardHtmlFormatter,
+            scorecardMarkdownFormatter,
+            riskScorecardHtmlFormatter,
+            riskScorecardMarkdownFormatter,
+            traceMapMarkdownFormatter,
+            traceMapJsonFormatter,
+            mitreLayerBuilder,
+            mitreCoverageSources);
 
         var explanationProvider = new ExplanationProvider();
 
@@ -264,6 +283,7 @@ public static class AgentFactory
             Agent = agent,
             Analyzer = analyzer,
             EvidenceBuilder = evidenceBuilder,
+            MitreCoverageSources = mitreCoverageSources,
             RuleCatalog = ruleCatalog,
             SuppressionStore = suppressionStore,
             AuditHistoryStore = auditHistoryStore,
@@ -278,6 +298,43 @@ public static class AgentFactory
             SessionStore = sessionStore,
             LiveStreamAnalyzer = liveStreamAnalyzer
         };
+    }
+
+    private static IReadOnlyList<MitreCoverageSource> BuildMitreCoverageSources(
+        IEnumerable<IDetector> detectors,
+        IEnumerable<IRule> rules)
+    {
+        var sources = new List<MitreCoverageSource>();
+
+        foreach (var detector in detectors)
+        {
+            if (detector.MitreTechniques.Count == 0)
+                continue;
+
+            sources.Add(new MitreCoverageSource
+            {
+                SourceId = detector.GetType().Name,
+                SourceName = detector.GetType().Name.Replace("Detector", " detector", StringComparison.Ordinal),
+                SourceType = "Detector",
+                MitreTechniques = detector.MitreTechniques
+            });
+        }
+
+        foreach (var rule in rules)
+        {
+            if (rule.MitreTechniques.Count == 0)
+                continue;
+
+            sources.Add(new MitreCoverageSource
+            {
+                SourceId = rule.Id,
+                SourceName = rule.Description,
+                SourceType = "Rule",
+                MitreTechniques = rule.MitreTechniques
+            });
+        }
+
+        return sources;
     }
 }
 
@@ -295,6 +352,9 @@ public sealed record AgentServices : IDisposable
 
     /// <summary>The evidence builder for exporting results.</summary>
     public required EvidenceBuilder EvidenceBuilder { get; init; }
+
+    /// <summary>Detector and rule MITRE ATT&CK coverage sources used for Navigator exports.</summary>
+    public required IReadOnlyList<MitreCoverageSource> MitreCoverageSources { get; init; }
 
     /// <summary>Browsable catalog of security rules.</summary>
     public required RuleCatalog RuleCatalog { get; init; }

@@ -55,6 +55,7 @@ public class HtmlFormatterTests
         Assert.Contains("<th>Category</th>", html);
         Assert.Contains("<th>Severity</th>", html);
         Assert.Contains("<th>CIS Control</th>", html);
+        Assert.Contains("<th>MITRE Technique</th>", html);
         Assert.DoesNotContain("<td>", html);
     }
 
@@ -162,5 +163,38 @@ public class HtmlFormatterTests
         Assert.Contains("<h2>Data Sources</h2>", html);
         Assert.Contains("iptables &lt;available&gt;", html);
         Assert.DoesNotContain("iptables <available>", html);
+    }
+
+    [Fact]
+    public void ToHtml_IncludesMitreTechniques()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "PortScan",
+                    Severity = Severity.High,
+                    SourceHost = "192.168.1.10",
+                    Target = "10.0.0.5",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Port scan",
+                    Details = "details",
+                    MitreTechniques =
+                    [
+                        new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Reconnaissance." }
+                    ]
+                }
+            ]
+        };
+
+        var html = formatter.ToHtml(result);
+
+        Assert.Contains("T1046", html);
+        Assert.Contains("Network Service Discovery", html);
+        Assert.Contains("<h2>MITRE ATT&CK Context</h2>", html);
     }
 }

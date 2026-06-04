@@ -98,12 +98,13 @@ public sealed class HtmlFormatter : IEvidenceFormatter
 
         sb.AppendLine("<h2>Findings</h2>");
         sb.AppendLine("<table>");
-        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th><th>CIS Control</th><th>CIS Benchmark</th></tr>");
+        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th><th>CIS Control</th><th>CIS Benchmark</th><th>MITRE Technique</th></tr>");
 
         foreach (var f in result.Findings)
         {
             var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
             var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
+            var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
             sb.AppendLine("<tr>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.RuleId ?? string.Empty)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Category)}</td>");
@@ -115,6 +116,7 @@ public sealed class HtmlFormatter : IEvidenceFormatter
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.ShortDescription)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(cisIds)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(cisBenchmarks)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(mitreIds)}</td>");
             sb.AppendLine("</tr>");
         }
 
@@ -137,6 +139,28 @@ public sealed class HtmlFormatter : IEvidenceFormatter
                 sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.ControlName)}</td>");
                 sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.WhyItMatters)}</td>");
                 sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.BenchmarkReference ?? "—")}</td>");
+                sb.AppendLine("</tr>");
+            }
+            sb.AppendLine("</table>");
+        }
+
+        var distinctMitre = result.Findings
+            .SelectMany(f => f.MitreTechniques)
+            .Distinct()
+            .ToList();
+
+        if (distinctMitre.Count > 0)
+        {
+            sb.AppendLine("<h2>MITRE ATT&CK Context</h2>");
+            sb.AppendLine("<table>");
+            sb.AppendLine("<tr><th>Technique ID</th><th>Name</th><th>Tactic</th><th>Why It Matters</th></tr>");
+            foreach (var m in distinctMitre)
+            {
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.TechniqueId)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.TechniqueName)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.Tactic)}</td>");
+                sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(m.WhyItMatters)}</td>");
                 sb.AppendLine("</tr>");
             }
             sb.AppendLine("</table>");

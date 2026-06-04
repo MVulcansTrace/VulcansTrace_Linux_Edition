@@ -5,6 +5,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 
 public sealed class PolicyViolationDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1090", TechniqueName = "Proxy", Tactic = "Command and Control", WhyItMatters = "Disallowed outbound ports may indicate proxy or tunneling for C2 communication." },
+        new MitreTechnique { TechniqueId = "T1571", TechniqueName = "Non-Standard Port", Tactic = "Command and Control", WhyItMatters = "Traffic to non-standard ports can be used to bypass network policy and evade detection." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnablePolicy || events.Count == 0)
@@ -62,7 +70,8 @@ public sealed class PolicyViolationDetector : IDetector
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"Disallowed outbound port {kvp.Key.DstPort} from {kvp.Key.SourceIP}",
-                Details = $"{evts.Count} outbound connection(s) to {distinctTargetIps.Count} destination(s) on disallowed port {kvp.Key.DstPort} from {kvp.Key.SourceIP}."
+                Details = $"{evts.Count} outbound connection(s) to {distinctTargetIps.Count} destination(s) on disallowed port {kvp.Key.DstPort} from {kvp.Key.SourceIP}.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 

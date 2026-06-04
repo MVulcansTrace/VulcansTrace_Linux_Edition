@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class FilesystemAuditMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1083", TechniqueName = "File and Directory Discovery", Tactic = "Discovery", WhyItMatters = "Filesystem misconfigurations enable unauthorized file and directory discovery." },
+        new MitreTechnique { TechniqueId = "T1222", TechniqueName = "File and Directory Permissions Modification", Tactic = "Defense Evasion", WhyItMatters = "World-writable files and directories weaken permission boundaries, enabling attackers to modify, replace, or hide malicious content." },
+    };
+}
+
+
 /// <summary>
 /// FSYS-001: World-writable files outside expected temporary paths.
 /// </summary>
@@ -25,6 +35,7 @@ public sealed class WorldWritableFileRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.9 — Ensure no world writable files exist"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilesystemAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -34,7 +45,7 @@ public sealed class WorldWritableFileRule : IRule
             .ToList();
 
         if (entries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = entries.First();
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
@@ -46,7 +57,7 @@ public sealed class WorldWritableFileRule : IRule
                 ["mode"] = first.Mode,
                 ["owner"] = first.Owner,
                 ["group"] = first.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -72,6 +83,7 @@ public sealed class UnexpectedSuidSgidRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.12 — Ensure SUID and SGID files are reviewed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilesystemAuditMitreMappings.Techniques;
 
     // Whitelist is by FULL PATH, not just filename. Binaries must reside in standard system directories.
     private static readonly HashSet<string> ExpectedSuidPaths = new(StringComparer.Ordinal)
@@ -130,11 +142,11 @@ public sealed class UnexpectedSuidSgidRule : IRule
             .ToList();
 
         if (entries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var unexpected = entries.Where(e => !IsExpected(e.Path)).ToList();
         if (unexpected.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = unexpected.First();
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
@@ -146,7 +158,7 @@ public sealed class UnexpectedSuidSgidRule : IRule
                 ["mode"] = first.Mode,
                 ["owner"] = first.Owner,
                 ["group"] = first.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 
     private static bool IsExpected(string path)
@@ -177,6 +189,7 @@ public sealed class UnownedFileRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.11 — Ensure no unowned files or directories exist"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilesystemAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -186,7 +199,7 @@ public sealed class UnownedFileRule : IRule
             .ToList();
 
         if (entries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = entries.First();
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
@@ -198,7 +211,7 @@ public sealed class UnownedFileRule : IRule
                 ["mode"] = first.Mode,
                 ["owner"] = first.Owner,
                 ["group"] = first.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -224,6 +237,7 @@ public sealed class WorldWritableDirNoStickyRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.10 — Ensure sticky bit is set on all world-writable directories"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilesystemAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -233,7 +247,7 @@ public sealed class WorldWritableDirNoStickyRule : IRule
             .ToList();
 
         if (entries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = entries.First();
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
@@ -245,7 +259,7 @@ public sealed class WorldWritableDirNoStickyRule : IRule
                 ["mode"] = first.Mode,
                 ["owner"] = first.Owner,
                 ["group"] = first.Group
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -271,12 +285,13 @@ public sealed class TmpHardeningRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.1.2.2-4 — Ensure nodev, nosuid, noexec options set on /tmp partition"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FilesystemAuditMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         // If we couldn't determine the mount target or options at all, pass (data unavailable).
         if (string.IsNullOrWhiteSpace(data.TmpMountTarget) && string.IsNullOrWhiteSpace(data.TmpMountOptions))
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         // CIS recommends /tmp be a separate partition. If it's on the root filesystem, flag it.
         if (!string.IsNullOrWhiteSpace(data.TmpMountTarget) &&
@@ -288,11 +303,11 @@ public sealed class TmpHardeningRule : IRule
                 {
                     ["target"] = data.TmpMountTarget,
                     ["options"] = data.TmpMountOptions
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
         if (string.IsNullOrWhiteSpace(data.TmpMountOptions))
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var options = data.TmpMountOptions.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(o => o.Trim())
@@ -304,7 +319,7 @@ public sealed class TmpHardeningRule : IRule
         if (!options.Contains("nodev")) missing.Add("nodev");
 
         if (missing.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             $"/tmp missing mount options: {string.Join(", ", missing)}",
@@ -312,6 +327,6 @@ public sealed class TmpHardeningRule : IRule
             {
                 ["options"] = data.TmpMountOptions,
                 ["missing"] = string.Join(", ", missing)
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }

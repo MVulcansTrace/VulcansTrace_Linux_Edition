@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class UserAccountMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1136", TechniqueName = "Create Account", Tactic = "Persistence", WhyItMatters = "Weak account controls enable attackers to create persistent accounts." },
+        new MitreTechnique { TechniqueId = "T1098", TechniqueName = "Account Manipulation", Tactic = "Persistence", WhyItMatters = "Account misconfigurations allow attackers to manipulate legitimate accounts." },
+    };
+}
+
+
 /// <summary>
 /// USER-001: UID 0 accounts beyond root.
 /// </summary>
@@ -25,6 +35,7 @@ public sealed class UidZeroBeyondRootRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -33,7 +44,7 @@ public sealed class UidZeroBeyondRootRule : IRule
             .ToList();
 
         if (offenders.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = offenders[0];
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
@@ -43,7 +54,7 @@ public sealed class UidZeroBeyondRootRule : IRule
                 ["username"] = first.Username,
                 ["uid"] = first.Uid.ToString(),
                 ["shell"] = first.Shell
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -69,6 +80,7 @@ public sealed class EmptyPasswordRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.4.1 — Ensure password creation requirements are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -85,12 +97,13 @@ public sealed class EmptyPasswordRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = Id,
                 Description = $"{Description} — /etc/shadow not readable (requires root or elevated privileges).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         if (data.ShadowEntries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var interactiveUsers = data.UserAccounts
             .Where(a => IsInteractiveShell(a.Shell))
@@ -110,7 +123,7 @@ public sealed class EmptyPasswordRule : IRule
                     {
                         ["username"] = entry.Username,
                         ["reason"] = "empty hash"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
 
             // Locked / no-password-set markers on interactive accounts
@@ -122,11 +135,11 @@ public sealed class EmptyPasswordRule : IRule
                     {
                         ["username"] = entry.Username,
                         ["reason"] = "no valid password set"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsLockedHash(string hash)
@@ -165,6 +178,7 @@ public sealed class PasswordAgingRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.4.1 — Ensure password creation requirements are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -195,7 +209,7 @@ public sealed class PasswordAgingRule : IRule
             {
                 return RuleResult.Fail(Id, Category, Id, Description, Severity,
                     string.Join("; ", violations),
-                    vars, CisMappings);
+                    vars, CisMappings, MitreTechniques);
             }
         }
 
@@ -218,11 +232,11 @@ public sealed class PasswordAgingRule : IRule
                         ["username"] = entry.Username,
                         ["maxDays"] = entry.MaxDays?.ToString() ?? "unset",
                         ["expected"] = "<= 90"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsInteractiveShell(string shell)
@@ -256,11 +270,12 @@ public sealed class PamPasswordComplexityRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.4.1 — Ensure password creation requirements are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.PamConfig is not { Readable: true, RawLines.Count: > 0 })
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var hasComplexity = data.PamConfig.RawLines.Any(line =>
         {
@@ -280,14 +295,14 @@ public sealed class PamPasswordComplexityRule : IRule
         });
 
         if (hasComplexity || hasPwqualityConf)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             "No PAM password complexity module found",
             new Dictionary<string, string>
             {
                 ["expectedModules"] = "pam_pwquality.so, pam_cracklib.so, or pam_passwdqc.so"
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -313,11 +328,12 @@ public sealed class InactiveAccountsRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.5 — Ensure inactive accounts are locked or removed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.ShadowEntries.Count == 0 || data.UserAccounts.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var todayDays = (int)(DateTime.UtcNow.Date - new DateTime(1970, 1, 1)).TotalDays;
 
@@ -346,7 +362,7 @@ public sealed class InactiveAccountsRule : IRule
                     {
                         ["username"] = account.Username,
                         ["reason"] = "locked or no password set"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
 
             if (shadow.ExpireDate.HasValue && shadow.ExpireDate.Value < todayDays)
@@ -357,11 +373,11 @@ public sealed class InactiveAccountsRule : IRule
                     {
                         ["username"] = account.Username,
                         ["reason"] = "account expiry date has passed"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsLockedHash(string hash)
@@ -400,15 +416,16 @@ public sealed class DuplicateUidsRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.UserAccounts.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var groups = data.UserAccounts.GroupBy(a => a.Uid).Where(g => g.Count() > 1).ToList();
         if (groups.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = groups[0];
         var names = string.Join(", ", first.Select(a => a.Username));
@@ -419,7 +436,7 @@ public sealed class DuplicateUidsRule : IRule
             {
                 ["uid"] = first.Key.ToString(),
                 ["usernames"] = names
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -445,6 +462,7 @@ public sealed class MissingHomeDirectoryRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.6 — Ensure all users' home directories exist"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -464,7 +482,7 @@ public sealed class MissingHomeDirectoryRule : IRule
                     {
                         ["username"] = account.Username,
                         ["homeDirectory"] = "(unset)"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
 
             if (!account.HomeDirectoryExists)
@@ -475,11 +493,11 @@ public sealed class MissingHomeDirectoryRule : IRule
                     {
                         ["username"] = account.Username,
                         ["homeDirectory"] = account.HomeDirectory
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsInteractiveShell(string shell)
@@ -513,12 +531,13 @@ public sealed class PamFaillockConfiguredRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.3.2 — Ensure lockout for failed password attempts is configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.PamConfig is not { Readable: true } ||
             (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
-            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         // Use per-file data when available; fall back to flat RawLines for compatibility.
         var filesToCheck = data.PamConfig.RawLinesByFile.Count > 0
@@ -530,7 +549,7 @@ public sealed class PamFaillockConfiguredRule : IRule
             .ToList();
 
         if (authFilesWithLines.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var filesMissingFaillock = new List<string>();
         foreach (var (filePath, lines) in authFilesWithLines)
@@ -567,7 +586,7 @@ public sealed class PamFaillockConfiguredRule : IRule
             });
 
         if (filesMissingFaillock.Count == 0 && hasFaillockConf)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var missing = new List<string>();
         if (filesMissingFaillock.Count > 0)
@@ -581,7 +600,7 @@ public sealed class PamFaillockConfiguredRule : IRule
             {
                 ["missing"] = string.Join("; ", missing),
                 ["expected"] = "pam_faillock.so preauth and authfail in every auth stack, with faillock.conf"
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 }
 
@@ -607,12 +626,13 @@ public sealed class PamPasswordQualityDetailedRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.4.1 — Ensure password creation requirements are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.PamConfig is not { Readable: true } ||
             (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
-            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         int? minlen = null;
         int? minclass = null;
@@ -693,13 +713,13 @@ public sealed class PamPasswordQualityDetailedRule : IRule
         }
 
         if (violations.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         vars["violations"] = string.Join("; ", violations);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             string.Join("; ", violations),
-            vars, CisMappings);
+            vars, CisMappings, MitreTechniques);
     }
 }
 
@@ -725,12 +745,13 @@ public sealed class PamAuthRequiredRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.3.1 — Ensure password hashing algorithm is configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => UserAccountMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.PamConfig is not { Readable: true } ||
             (data.PamConfig.RawLines.Count == 0 && data.PamConfig.RawLinesByFile.Count == 0))
-            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings);
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         // Check each file independently; fail if ANY file has sufficient before required.
         var filesToCheck = data.PamConfig.RawLinesByFile.Count > 0
@@ -777,11 +798,11 @@ public sealed class PamAuthRequiredRule : IRule
                         ["file"] = filePath,
                         ["issue"] = "sufficient placed before required/requisite in auth stack",
                         ["expected"] = "required or requisite module must appear before any sufficient module"
-                    }, CisMappings);
+                    }, CisMappings, MitreTechniques);
             }
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool IsMandatoryControl(string control)

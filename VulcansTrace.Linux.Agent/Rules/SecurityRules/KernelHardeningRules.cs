@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class KernelHardeningMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1068", TechniqueName = "Exploitation for Privilege Escalation", Tactic = "Privilege Escalation", WhyItMatters = "Weak kernel hardening enables exploitation for privilege escalation." },
+        new MitreTechnique { TechniqueId = "T1547.006", TechniqueName = "Boot or Logon Autostart Execution: Kernel Modules and Extensions", Tactic = "Persistence", WhyItMatters = "Unrestricted kernel modules allow persistent kernel-level compromise." },
+    };
+}
+
+
 /// <summary>
 /// KERN-001: Address Space Layout Randomization (ASLR) should be fully enabled.
 /// </summary>
@@ -25,20 +35,21 @@ public sealed class AslrEnabledRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.5.2 — Ensure address space layout randomization is enabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-001", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-001", Description, CisMappings, MitreTechniques);
 
         if (kp.RandomizeVaSpace.GetValueOrDefault(0) < 2)
         {
             return RuleResult.Fail(Id, Category, "KERN-001", Description, Severity.High, "kernel.randomize_va_space",
-                new Dictionary<string, string> { ["value"] = kp.RandomizeVaSpace?.ToString() ?? "missing" }, CisMappings);
+                new Dictionary<string, string> { ["value"] = kp.RandomizeVaSpace?.ToString() ?? "missing" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-001", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-001", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -64,12 +75,13 @@ public sealed class IpForwardingDisabledRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.1 — Ensure IP forwarding is disabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-002", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-002", Description, CisMappings, MitreTechniques);
 
         var ipv4Forward = kp.IpForwardIpv4.GetValueOrDefault(0);
         var ipv6Forward = kp.IpForwardIpv6.GetValueOrDefault(0);
@@ -86,10 +98,10 @@ public sealed class IpForwardingDisabledRule : IRule
                     ["ipv4"] = kp.IpForwardIpv4?.ToString() ?? "missing",
                     ["ipv6"] = kp.IpForwardIpv6?.ToString() ?? "missing",
                     ["issues"] = string.Join(", ", issues)
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-002", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-002", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -115,12 +127,13 @@ public sealed class IcmpRedirectsDisabledRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.2 — Ensure ICMP redirects are not accepted"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-003", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-003", Description, CisMappings, MitreTechniques);
 
         var ipv4Fail = kp.AcceptRedirectsIpv4 == 1;
         var ipv6Fail = kp.AcceptRedirectsIpv6 == 1;
@@ -132,10 +145,10 @@ public sealed class IcmpRedirectsDisabledRule : IRule
                 {
                     ["ipv4"] = kp.AcceptRedirectsIpv4?.ToString() ?? "missing",
                     ["ipv6"] = kp.AcceptRedirectsIpv6?.ToString() ?? "missing"
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-003", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-003", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -161,20 +174,21 @@ public sealed class SourceRoutingDisabledRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.3 — Ensure source routed packets are not accepted"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-004", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-004", Description, CisMappings, MitreTechniques);
 
         if (kp.AcceptSourceRouteIpv4 == 1)
         {
             return RuleResult.Fail(Id, Category, "KERN-004", Description, Severity.Medium, "accept_source_route",
-                new Dictionary<string, string> { ["value"] = kp.AcceptSourceRouteIpv4?.ToString() ?? "missing" }, CisMappings);
+                new Dictionary<string, string> { ["value"] = kp.AcceptSourceRouteIpv4?.ToString() ?? "missing" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-004", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-004", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -200,6 +214,7 @@ public sealed class KernelModuleLoadingRestrictedRule : IRule, IContextualRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.4.1 — Ensure loading and unloading of kernel modules is restricted"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
         => Evaluate(data, new RuleEvaluationContext(MachineRole.Workstation, null));
@@ -208,17 +223,17 @@ public sealed class KernelModuleLoadingRestrictedRule : IRule, IContextualRule
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-005", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-005", Description, CisMappings, MitreTechniques);
 
         var severity = context.Role == MachineRole.Server ? Severity.High : Severity.Medium;
 
         if (kp.ModulesDisabled.GetValueOrDefault(0) == 0)
         {
             return RuleResult.Fail(Id, Category, "KERN-005", Description, severity, "kernel.modules_disabled",
-                new Dictionary<string, string> { ["value"] = kp.ModulesDisabled?.ToString() ?? "missing" }, CisMappings);
+                new Dictionary<string, string> { ["value"] = kp.ModulesDisabled?.ToString() ?? "missing" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-005", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-005", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -244,6 +259,7 @@ public sealed class SecureBootEnabledRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.4.2 — Ensure Secure Boot is enabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -258,17 +274,18 @@ public sealed class SecureBootEnabledRule : IRule
                 Status = RuleStatus.NotApplicable,
                 ExplanationKey = "KERN-006",
                 Description = $"{Description} — Secure Boot not available on this system (BIOS/legacy system).",
-                CisMappings = CisMappings
+                CisMappings = CisMappings,
+                MitreTechniques = MitreTechniques
             };
         }
 
         if (!kp.SecureBootEnabled.Value)
         {
             return RuleResult.Fail(Id, Category, "KERN-006", Description, Severity.Medium, "SecureBoot",
-                new Dictionary<string, string> { ["status"] = "disabled" }, CisMappings);
+                new Dictionary<string, string> { ["status"] = "disabled" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-006", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-006", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -294,12 +311,13 @@ public sealed class KernelPointerExposureRestrictedRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.5.3 — Ensure kernel pointer restriction is enabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => KernelHardeningMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         var kp = data.KernelParameters;
         if (kp == null || !kp.ParametersReadable)
-            return RuleResult.Pass(Id, Category, "KERN-007", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "KERN-007", Description, CisMappings, MitreTechniques);
 
         var kptr = kp.KptrRestrict.GetValueOrDefault(0);
         var dmesg = kp.DmesgRestrict.GetValueOrDefault(0);
@@ -316,9 +334,9 @@ public sealed class KernelPointerExposureRestrictedRule : IRule
                     ["kptr_restrict"] = kp.KptrRestrict?.ToString() ?? "missing",
                     ["dmesg_restrict"] = kp.DmesgRestrict?.ToString() ?? "missing",
                     ["issues"] = string.Join(", ", issues)
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "KERN-007", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "KERN-007", Description, CisMappings, MitreTechniques);
     }
 }

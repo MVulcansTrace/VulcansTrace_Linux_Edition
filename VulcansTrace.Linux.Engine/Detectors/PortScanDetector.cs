@@ -12,6 +12,13 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class PortScanDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Port scanning is a primary reconnaissance technique used to discover exposed network services." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
@@ -96,7 +103,8 @@ public sealed class PortScanDetector : IDetector
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Port scan detected from {srcIp}",
-                            Details = $"Detected {distinctPorts} distinct destination ports within {windowMinutes} minutes."
+                            Details = $"Detected {distinctPorts} distinct destination ports within {windowMinutes} minutes.",
+                            MitreTechniques = s_mitreTechniques
                         });
                         inFinding = true;
                     }

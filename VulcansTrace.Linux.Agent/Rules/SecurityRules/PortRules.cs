@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class PortMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Open ports expose network services to discovery and exploitation." },
+        new MitreTechnique { TechniqueId = "T1021", TechniqueName = "Remote Services", Tactic = "Lateral Movement", WhyItMatters = "Unnecessary listening services enable lateral movement." },
+    };
+}
+
+
 /// <summary>
 /// PORT-001: SSH should ideally run on a non-default port.
 /// </summary>
@@ -24,6 +34,7 @@ public sealed class SshNonDefaultPortRule : IRule, IContextualRule
             WhyItMatters = "Running SSH on the default port 22 increases visibility to automated scanners. While not a control requirement, non-default ports reduce noise in logs and frustrate untargeted attacks."
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => PortMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
         => Evaluate(data, new RuleEvaluationContext(MachineRole.Server, null));
@@ -36,14 +47,14 @@ public sealed class SshNonDefaultPortRule : IRule, IContextualRule
             if (context.Policy?.Parameters.TryGetValue("treatDefaultAs", out var treatDefaultAs) == true &&
                 string.Equals(treatDefaultAs, "Pass", StringComparison.OrdinalIgnoreCase))
             {
-                return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings);
+                return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings, MitreTechniques);
             }
 
             return RuleResult.Fail(Id, Category, "PORT-001", Description, Severity.Info, "22",
-                new Dictionary<string, string> { ["port"] = "22" }, CisMappings);
+                new Dictionary<string, string> { ["port"] = "22" }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "PORT-001", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -69,6 +80,7 @@ public sealed class WideOpenServicesRule : IRule, IContextualRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => PortMitreMappings.Techniques;
 
     private static readonly int[] DefaultExpectedPublicPorts = { 22, 80, 443 };
 
@@ -103,10 +115,10 @@ public sealed class WideOpenServicesRule : IRule, IContextualRule
                     ["address"] = first.LocalAddress,
                     ["process"] = first.ProcessName ?? "unknown",
                     ["count"] = wideOpen.Count.ToString()
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-002", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "PORT-002", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -132,6 +144,7 @@ public sealed class DatabasePortExposureRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => PortMitreMappings.Techniques;
 
     private static readonly int[] DatabasePorts = { 3306, 5432, 27017, 1433, 1521, 6379 };
 
@@ -150,10 +163,10 @@ public sealed class DatabasePortExposureRule : IRule
                 {
                     ["port"] = first.LocalPort.ToString(),
                     ["process"] = first.ProcessName ?? "unknown"
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-003", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "PORT-003", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -179,6 +192,7 @@ public sealed class HighPortListeningRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => PortMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -197,9 +211,9 @@ public sealed class HighPortListeningRule : IRule
                 {
                     ["port"] = first.LocalPort.ToString(),
                     ["count"] = highPorts.Count.ToString()
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "PORT-004", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "PORT-004", Description, CisMappings, MitreTechniques);
     }
 }

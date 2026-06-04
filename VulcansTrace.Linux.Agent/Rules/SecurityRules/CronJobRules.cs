@@ -4,6 +4,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class CronJobMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1053", TechniqueName = "Scheduled Task/Job", Tactic = "Persistence", WhyItMatters = "Cron is a common persistence mechanism for attackers." },
+        new MitreTechnique { TechniqueId = "T1053.003", TechniqueName = "Scheduled Task/Job: Cron", Tactic = "Persistence", WhyItMatters = "Malicious cron entries establish persistent execution on Linux systems." },
+    };
+}
+
+
 /// <summary>
 /// CRON-001: Suspicious cron entries (reverse shells, network tools, temp paths, encoded payloads).
 /// </summary>
@@ -26,6 +36,7 @@ public sealed class SuspiciousCronEntryRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.3 — Ensure permissions on /etc/cron.* are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => CronJobMitreMappings.Techniques;
 
     // Patterns that indicate potentially malicious cron commands.
     // Patterns containing /, space, (, or . are matched as substrings.
@@ -63,7 +74,7 @@ public sealed class SuspiciousCronEntryRule : IRule
         }
 
         if (violations.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = violations[0];
         var target = $"{violations.Count} suspicious entr{(violations.Count == 1 ? "y" : "ies")}: " +
@@ -80,7 +91,7 @@ public sealed class SuspiciousCronEntryRule : IRule
                 ["firstSource"] = first.Entry.SourceFile,
                 ["firstCommand"] = first.Entry.Command,
                 ["firstPattern"] = first.Pattern
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 
     /// <summary>
@@ -154,7 +165,8 @@ public sealed class SuspiciousCronEntryRule : IRule
                     WhyItMatters = "Malicious cron entries are a common persistence mechanism. Attackers use cron to re-establish access, exfiltrate data, or execute backdoors with elevated privileges.",
                     BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.3 — Ensure permissions on /etc/cron.* are configured"
                 }
-            }
+            },
+            MitreTechniques = CronJobMitreMappings.Techniques
         };
     }
 }
@@ -181,6 +193,7 @@ public sealed class WorldWritableCronScriptRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.3 — Ensure permissions on /etc/cron.* are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => CronJobMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -231,10 +244,10 @@ public sealed class WorldWritableCronScriptRule : IRule
                 {
                     ["count"] = allViolations.Count.ToString(),
                     ["type"] = typeLabel
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+        return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
     }
 
     private static bool HasCronDataAvailable(ScanData data)
@@ -271,7 +284,8 @@ public sealed class WorldWritableCronScriptRule : IRule
                     WhyItMatters = "World-writable or setuid cron scripts allow any local user to modify scheduled tasks or escalate privileges. When cron executes the modified script, the attacker achieves arbitrary code execution with elevated privileges.",
                     BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.1.3 — Ensure permissions on /etc/cron.* are configured"
                 }
-            }
+            },
+            MitreTechniques = CronJobMitreMappings.Techniques
         };
     }
 }
@@ -298,6 +312,7 @@ public sealed class RootCronForNonRootUserRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => CronJobMitreMappings.Techniques;
 
     // Match any /home/ reference
     private static readonly Regex HomePathRegex = new(
@@ -330,7 +345,7 @@ public sealed class RootCronForNonRootUserRule : IRule
         }
 
         if (violations.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings);
+            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var first = violations[0];
         var target = $"{violations.Count} root job{(violations.Count == 1 ? "" : "s")} reference user paths: " +
@@ -347,7 +362,7 @@ public sealed class RootCronForNonRootUserRule : IRule
                 ["firstSource"] = first.SourceFile,
                 ["firstCommand"] = first.Command,
                 ["runAsUser"] = first.RunAsUser!
-            }, CisMappings);
+            }, CisMappings, MitreTechniques);
     }
 
     internal static bool ReferencesNonRootHomePath(string command)
@@ -398,7 +413,8 @@ public sealed class RootCronForNonRootUserRule : IRule
                     WhyItMatters = "System-wide cron jobs running as root should be system-wide. User-specific jobs should be placed in the user's own crontab. Root jobs referencing user directories may indicate privilege misuse or attacker persistence.",
                     BenchmarkReference = "CIS Ubuntu 24.04 LTS 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs"
                 }
-            }
+            },
+            MitreTechniques = CronJobMitreMappings.Techniques
         };
     }
 }

@@ -3,6 +3,15 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class FirewallMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1562.004", TechniqueName = "Impair Defenses: Disable or Modify System Firewall", Tactic = "Defense Evasion", WhyItMatters = "Weak firewall rules impair network defenses and enable evasion." },
+    };
+}
+
+
 /// <summary>
 /// FW-001: Firewall should have a default DROP policy on INPUT chain.
 /// </summary>
@@ -25,17 +34,18 @@ public sealed class FirewallDefaultDropRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.3 / 3.5.2.3 — Ensure default deny firewall policy"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FirewallMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
             return RuleResult.Fail(Id, Category, "FW-001", Description, Severity.High, "INPUT",
-                new Dictionary<string, string> { ["issue"] = "No active firewall detected" }, CisMappings);
+                new Dictionary<string, string> { ["issue"] = "No active firewall detected" }, CisMappings, MitreTechniques);
 
         var inputChain = data.FirewallRules.FirstOrDefault(r => r.Chain.Equals("INPUT", StringComparison.OrdinalIgnoreCase));
         if (inputChain == null)
         {
-            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings, MitreTechniques);
         }
 
         // Check if any rule has target DROP for default policy (iptables -L shows policy in chain header, not as rule)
@@ -46,16 +56,16 @@ public sealed class FirewallDefaultDropRule : IRule
         if (hasAcceptPolicy)
         {
             return RuleResult.Fail(Id, Category, "FW-001", Description, Severity.High, "INPUT",
-                new Dictionary<string, string> { ["policy"] = "ACCEPT" }, CisMappings);
+                new Dictionary<string, string> { ["policy"] = "ACCEPT" }, CisMappings, MitreTechniques);
         }
 
         if (hasDropPolicy)
         {
-            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings, MitreTechniques);
         }
 
         // Unknown policy or nftables — be lenient
-        return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "FW-001", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -81,11 +91,12 @@ public sealed class FirewallSshExposureRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FirewallMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings); // Can't verify without firewall
+            return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings, MitreTechniques); // Can't verify without firewall
 
         var sshRules = data.FirewallRules.Where(r =>
             r.DestinationPort == "22" || r.RawLine.Contains("dpt:22") || r.RawLine.Contains("--dport 22")).ToList();
@@ -94,7 +105,7 @@ public sealed class FirewallSshExposureRule : IRule
         {
             // No explicit SSH rule — might be covered by general ACCEPT or DROP
             return RuleResult.Fail(Id, Category, "FW-002", Description, Severity.Medium, "SSH/22",
-                new Dictionary<string, string> { ["issue"] = "No explicit SSH firewall rule found" }, CisMappings);
+                new Dictionary<string, string> { ["issue"] = "No explicit SSH firewall rule found" }, CisMappings, MitreTechniques);
         }
 
         var openRule = sshRules.FirstOrDefault(r =>
@@ -104,10 +115,10 @@ public sealed class FirewallSshExposureRule : IRule
         if (openRule != null)
         {
             return RuleResult.Fail(Id, Category, "FW-002", Description, Severity.High, "SSH/22",
-                new Dictionary<string, string> { ["source"] = openRule.Source }, CisMappings);
+                new Dictionary<string, string> { ["source"] = openRule.Source }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -133,11 +144,12 @@ public sealed class FirewallStateTrackingRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FirewallMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings, MitreTechniques);
 
         var hasStateTracking = data.FirewallRules.Any(r =>
             r.StateMatch != null &&
@@ -146,10 +158,10 @@ public sealed class FirewallStateTrackingRule : IRule
         if (!hasStateTracking)
         {
             return RuleResult.Fail(Id, Category, "FW-003", Description, Severity.Medium, "INPUT",
-                new Dictionary<string, string>(), CisMappings);
+                new Dictionary<string, string>(), CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -175,14 +187,15 @@ public sealed class FirewallActiveRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.1 / 3.5.2.1 — Ensure iptables/nftables is installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FirewallMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (data.FirewallActive && data.FirewallRules.Count > 0)
-            return RuleResult.Pass(Id, Category, "FW-004", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-004", Description, CisMappings, MitreTechniques);
 
         return RuleResult.Fail(Id, Category, "FW-004", Description, Severity.Critical, "firewall",
-            new Dictionary<string, string>(), CisMappings);
+            new Dictionary<string, string>(), CisMappings, MitreTechniques);
     }
 }
 
@@ -208,11 +221,12 @@ public sealed class FirewallIcmpRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.5 / 3.5.2.5 — Ensure outbound and established connections are configured"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => FirewallMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings, MitreTechniques);
 
         var icmpRules = data.FirewallRules.Where(r =>
             r.Protocol.Equals("icmp", StringComparison.OrdinalIgnoreCase) ||
@@ -221,7 +235,7 @@ public sealed class FirewallIcmpRule : IRule
         if (!icmpRules.Any())
         {
             // No explicit ICMP rule — might be handled by default policy
-            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
+            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings, MitreTechniques);
         }
 
         var blanketAccept = icmpRules.Any(r =>
@@ -231,9 +245,9 @@ public sealed class FirewallIcmpRule : IRule
         if (blanketAccept)
         {
             return RuleResult.Fail(Id, Category, "FW-005", Description, Severity.Low, "ICMP",
-                new Dictionary<string, string>(), CisMappings);
+                new Dictionary<string, string>(), CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings, MitreTechniques);
     }
 }

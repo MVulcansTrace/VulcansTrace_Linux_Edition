@@ -485,4 +485,34 @@ public class StixFormatterTests
         Assert.True(firstObserved.Year >= 2024);
         Assert.True(lastObserved.Year >= 2024);
     }
+
+    [Fact]
+    public void Format_IncludesMitreTechniquesInNoteContent()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "C2Channel",
+            Severity = Severity.High,
+            SourceHost = "192.168.1.50",
+            Target = "203.0.113.10:443",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddHours(1),
+            ShortDescription = "Potential C2 channel detected",
+            Details = "Periodic communication pattern",
+            MitreTechniques =
+            [
+                new MitreTechnique { TechniqueId = "T1071.001", TechniqueName = "Web Protocols", Tactic = "Command and Control", WhyItMatters = "C2." }
+            ]
+        });
+
+        var stix = _formatter.Format(result, "");
+        var doc = JsonDocument.Parse(stix);
+
+        var notes = doc.RootElement.GetProperty("objects")
+            .EnumerateArray()
+            .Where(o => o.TryGetProperty("type", out var t) && t.GetString() == "note")
+            .ToList();
+
+        Assert.Contains(notes, n => n.GetProperty("content").GetString()!.Contains("MITRE ATT&CK: T1071.001"));
+    }
 }

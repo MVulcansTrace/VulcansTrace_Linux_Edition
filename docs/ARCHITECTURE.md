@@ -39,7 +39,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 6. Overlapping Beaconing and C2Channel findings on the same source-destination tuple are deduplicated (C2Channel absorbs the Beaconing details).
 7. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`) and per-category cap (`MaxFindingsPerDetector`).
 8. `AnalysisResult` is returned with findings, warnings, parse errors, and time range metadata.
-9. The UI renders findings (including timeline and Trace Map visualization), and `EvidenceBuilder` optionally creates a signed bundle.
+9. The UI renders findings (including timeline and Trace Map visualization), and `EvidenceBuilder` optionally creates a signed bundle that includes a `mitre-navigator-layer.json` built from detector/rule MITRE coverage plus observed finding density.
 
 The **Live Stream** provides a parallel real-time analysis path:
 
@@ -64,7 +64,8 @@ The Security Agent provides a parallel local posture path:
 9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
-- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, and verification command.
+- `FindingAssemblyService` maps `RuleResult.MitreTechniques` to `Finding.MitreTechniques` so agent posture findings carry MITRE ATT&CK context through every export path.
+- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, and verification command. Remediation sections now also carry `MitreTechniques` for threat-contextualized remediation planning.
 
 The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
 
@@ -105,6 +106,8 @@ Notification services are pluggable:
 - `CorrelationConfidence`: `Low`, `Medium`, or `High`, derived from time gap between findings.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 - `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
+- `MitreTechnique`: MITRE ATT&CK technique mapping with `TechniqueId`, `TechniqueName`, `Tactic`, and `WhyItMatters`. Validated at construction (non-empty IDs).
+- `MitreLayerBuilder`: builds MITRE ATT&CK Navigator v4.5-compatible layer JSON from findings, with deterministic technique aggregation (most common name wins, alphabetical tiebreak) and gradient scoring.
 - `LiveAnalysisResult`: real-time analysis output containing delta findings (new since last run), window metrics, and source status.
 - `LiveWindowMetrics`: live stream statistics (event rate, window size, analysis run count).
 

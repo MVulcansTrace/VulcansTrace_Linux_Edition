@@ -45,6 +45,7 @@ If you want the full end-to-end story, read in this order:
 - How higher-confidence host risk is inferred from correlated findings
 - How intensity profiles change cost, noise, and completeness trade-offs
 - How results are packaged into signed evidence artifacts for reporting and handoff
+- How MITRE ATT&CK Navigator layer export turns findings into importable threat-intelligence overlays
 - How the Avalonia application exposes the workflow to an analyst
 - How the local Security Agent answers plain-English posture questions from live host state
 - How configuration baselines and drift detection turn point-in-time audits into continuous posture monitoring

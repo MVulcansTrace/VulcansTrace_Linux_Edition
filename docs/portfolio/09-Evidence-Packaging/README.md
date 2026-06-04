@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Ten-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, raw log, plus compliance scorecard HTML/Markdown and risk scorecard HTML/Markdown in a single ZIP archive
+- **Eleven-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, MITRE ATT&CK Navigator layer, raw log, plus compliance scorecard HTML/Markdown and risk scorecard HTML/Markdown in a single ZIP archive
 - **Data-source visibility notes** — agent audit Markdown and HTML reports can include scanner capability status for local commands used during posture checks
 - **Suppression notes** — agent audit exports can include active accepted-risk suppressions in reports and a conditional `suppressions.csv`, including finding fingerprints when available
 - **Cryptographic integrity chain** — SHA-256 per-file hashes in a manifest, HMAC-SHA256 signature over the manifest, written as `manifest.json` + `manifest.hmac`

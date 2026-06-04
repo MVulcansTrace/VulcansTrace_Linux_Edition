@@ -299,6 +299,20 @@ Last updated: 2026-06-03
 - `LastRunUtc` displayed with explicit `UTC` label in CLI list output.
 - `ScheduleViewModel.Refresh` preserves DataGrid selection by ID across reloads.
 
+### MITRE ATT&CK Navigator Layer Export
+- Added `MitreTechnique` record to Core with `TechniqueId`, `TechniqueName`, `Tactic`, and `WhyItMatters` fields, with validation to prevent empty IDs.
+- Added `MitreTechniques` to `Finding`, `IRule`, and `RuleResult` so every detection and rule can carry MITRE context.
+- `MitreLayerBuilder` constructs Navigator-compatible layer JSON (format v4.5) with deterministic tactic-specific coverage aggregation, observed-finding scoring, and overridable version fields.
+- All 13 engine detectors and all 12 security rule files now carry static `s_mitreTechniques` mappings.
+- Evidence formatters (HTML, Markdown, CSV, STIX) include MITRE technique columns and fields.
+- CLI `--output-mitre` flag exports a combined Navigator layer from configured detector/rule coverage plus any observed agent and engine findings.
+- `EvidenceBuilder` automatically includes `mitre-navigator-layer.json` in every signed evidence ZIP.
+- `RemediationSection` carries `MitreTechniques` for threat-contextualized remediation planning.
+- Avalonia UI Findings and Rules DataGrids expose a **MITRE ATT&CK** column with searchable/displayable technique summaries.
+- `RuleCatalogItem` and `RulesCatalog` flow MITRE techniques through the catalog and include them in search.
+- 30+ new tests: `MitreTechniqueTests`, `MitreLayerBuilderTests` (empty, single, aggregate, dedup, gradient, custom name), `DetectorMitreMappingTests` (reflection-based static field verification), and formatter inclusion tests.
+  - Code: `VulcansTrace.Linux.Core/MitreTechnique.cs`, `VulcansTrace.Linux.Evidence/MitreLayerBuilder.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`, `VulcansTrace.Linux.Agent/Remediation/RemediationPlan.cs`, `VulcansTrace.Linux.Avalonia/MainWindow.axaml`, `VulcansTrace.Linux.Agent/Rules/RuleCatalogItem.cs`, `VulcansTrace.Linux.Agent/Rules/RulesCatalog.cs`, `VulcansTrace.Linux.Tests/Core/MitreTechniqueTests.cs`, `VulcansTrace.Linux.Tests/Evidence/MitreLayerBuilderTests.cs`, `VulcansTrace.Linux.Tests/Engine/DetectorMitreMappingTests.cs`
+
 ### Documentation
 - Portfolio and technical docs aligned to actual behavior and formats.
   - Docs: `README.md`, `docs/portfolio/` (15 implementation portfolios),

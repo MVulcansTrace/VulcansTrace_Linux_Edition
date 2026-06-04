@@ -4,6 +4,13 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 
 public sealed class FlagAnomalyDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Abnormal TCP flag combinations (XMAS, FIN scans) are reconnaissance techniques for service discovery." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableFlagAnomaly || events.Count == 0)
@@ -66,7 +73,8 @@ public sealed class FlagAnomalyDetector : IDetector
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = description,
-                Details = detail
+                Details = detail,
+                MitreTechniques = s_mitreTechniques
             });
         }
 

@@ -46,6 +46,12 @@ public sealed class RemediationMarkdownFormatter
             sb.AppendLine($"**Risk:** {section.RiskNote}");
             sb.AppendLine();
 
+            if (section.MitreTechniques.Count > 0)
+            {
+                sb.AppendLine("> **MITRE ATT&CK:** " + string.Join(", ", section.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})")));
+                sb.AppendLine();
+            }
+
             if (section.ImpactPreview != null)
             {
                 sb.AppendLine("> **Impact Preview**");

@@ -23,7 +23,8 @@ public sealed class RuleCatalog
             Severity = r.Severity,
             SupportedDataSources = r.SupportedDataSources,
             ExplanationKey = r.Id,
-            CisMappings = r.CisMappings
+            CisMappings = r.CisMappings,
+            MitreTechniques = r.MitreTechniques
         }).ToList();
     }
 
@@ -48,6 +49,8 @@ public sealed class RuleCatalog
             i.Category.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.WhatItChecks.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-            i.SupportedDataSources.Any(ds => ds.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            i.SupportedDataSources.Any(ds => ds.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+            i.MitreTechniques.Any(m => m.TechniqueId.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                       m.TechniqueName.Contains(term, StringComparison.OrdinalIgnoreCase)));
     }
 }

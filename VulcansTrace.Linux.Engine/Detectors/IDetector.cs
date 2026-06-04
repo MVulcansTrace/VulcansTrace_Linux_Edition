@@ -10,6 +10,9 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public interface IDetector
 {
+    /// <summary>MITRE ATT&CK techniques this detector maps to (may be empty).</summary>
+    IReadOnlyList<MitreTechnique> MitreTechniques => Array.Empty<MitreTechnique>();
+
     /// <summary>
     /// Analyzes UnifiedEvent entries to detect security threats.
     /// Implementations may return multiple findings per source IP when

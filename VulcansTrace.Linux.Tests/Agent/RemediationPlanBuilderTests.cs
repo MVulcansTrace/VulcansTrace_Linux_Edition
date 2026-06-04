@@ -420,6 +420,31 @@ All incoming traffic is allowed until explicit rules are added.
     }
 
     [Fact]
+    public void Build_Preserves_MitreTechniques_From_Finding()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-MITRE",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "Mitre mapping test",
+            Target = "INPUT",
+            Details = "Test.",
+            MitreTechniques = new[]
+            {
+                new MitreTechnique { TechniqueId = "T1562.004", TechniqueName = "Disable or Modify System Firewall", Tactic = "Defense Evasion", WhyItMatters = "Firewall misconfigurations can be exploited." }
+            }
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        Assert.Single(plan.Sections[0].MitreTechniques);
+        Assert.Equal("T1562.004", plan.Sections[0].MitreTechniques[0].TechniqueId);
+    }
+
+    [Fact]
     public void Build_ImpactPreview_Rejects_Prose_Backticks_As_VerificationCommand()
     {
         var builder = new RemediationPlanBuilder(new ExplanationProvider());

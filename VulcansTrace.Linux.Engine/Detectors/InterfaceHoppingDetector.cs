@@ -16,6 +16,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class InterfaceHoppingDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1595", TechniqueName = "Active Scanning", Tactic = "Reconnaissance", WhyItMatters = "Rapid interface switching can indicate active scanning and network enumeration." },
+        new MitreTechnique { TechniqueId = "T1018", TechniqueName = "Remote System Discovery", Tactic = "Discovery", WhyItMatters = "Hopping between interfaces may be used to discover remote systems across network segments." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableInterfaceHopping || events.Count == 0)
@@ -107,7 +115,8 @@ public sealed class InterfaceHoppingDetector : IDetector
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = $"Interface hopping detected from {ip}",
-                    Details = $"Source IP {ip} sent traffic through {bestInterfaces.Count} different network interfaces ({string.Join(", ", bestInterfaces)}) within {windowMinutes} minutes. This may indicate network enumeration, bypassing segmentation, or multi-homed attack scenarios."
+                    Details = $"Source IP {ip} sent traffic through {bestInterfaces.Count} different network interfaces ({string.Join(", ", bestInterfaces)}) within {windowMinutes} minutes. This may indicate network enumeration, bypassing segmentation, or multi-homed attack scenarios.",
+                    MitreTechniques = s_mitreTechniques
                 });
             }
         }

@@ -11,6 +11,7 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Evidence;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
 
@@ -55,6 +56,7 @@ public static class Program
     {
         var intent = ParseArg(args, "--intent", "FullAudit")!;
         var outputJson = ParseArg(args, "--output-json", null);
+        var outputMitre = ParseArg(args, "--output-mitre", null);
         var notifyOnCritical = HasFlag(args, "--notify-on-critical");
         var role = ParseArg(args, "--role", "Workstation")!;
 
@@ -88,6 +90,12 @@ public static class Program
 
         if (!string.IsNullOrEmpty(outputJson))
         {
+            if (Directory.Exists(outputJson))
+            {
+                Console.WriteLine($"  Error: --output-json path is a directory: {outputJson}");
+                return 1;
+            }
+
             var directory = Path.GetDirectoryName(outputJson);
             if (!string.IsNullOrWhiteSpace(directory))
             {
@@ -101,6 +109,31 @@ public static class Program
             });
             await File.WriteAllTextAsync(outputJson, json, cts.Token);
             Console.WriteLine($"  JSON output written to: {outputJson}");
+        }
+
+        if (!string.IsNullOrEmpty(outputMitre))
+        {
+            if (Directory.Exists(outputMitre))
+            {
+                Console.WriteLine($"  Error: --output-mitre path is a directory: {outputMitre}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputMitre);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var allFindings = result.AgentFindings.ToList();
+            if (result.LogAnalysisResult?.Findings is { Count: > 0 } engineFindings)
+            {
+                allFindings.AddRange(engineFindings);
+            }
+
+            var layer = new MitreLayerBuilder().BuildCoverageLayer(services.MitreCoverageSources, allFindings);
+            await File.WriteAllTextAsync(outputMitre, layer, cts.Token);
+            Console.WriteLine($"  MITRE layer written to: {outputMitre}");
         }
 
         if (notifyOnCritical && criticalCount > 0)
@@ -769,6 +802,7 @@ public static class Program
         Console.WriteLine("Options:");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");
         Console.WriteLine("  --output-json <file>       Write the full AgentResult to a JSON file");
+        Console.WriteLine("  --output-mitre <file>      Write the MITRE ATT&CK Navigator layer JSON");
         Console.WriteLine("  --notify-on-critical       Send a notification if critical findings are found");
         Console.WriteLine("  --no-notify-on-critical    Disable critical notifications (edit only)");
         Console.WriteLine("  --role <role>              Machine role: Workstation, Server, LabBox, Router, DevMachine");

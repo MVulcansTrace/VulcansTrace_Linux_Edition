@@ -11,6 +11,7 @@
 | `summary.md` | `MarkdownFormatter` | GitHub-Flavored Markdown with severity grouping and table escaping |
 | `findings.json` | `JsonFormatter` | SIEM-compatible JSON: metadata + findings + errors + warnings |
 | `findings.stix.json` | `StixFormatter` | STIX 2.1 bundle with identity, observed-data, notes, IP observables, malware SDO |
+| `mitre-navigator-layer.json` | `MitreLayerBuilder` | MITRE ATT&CK Navigator layer v4.5 with detector/rule coverage and observed finding scoring |
 | `log.txt` | (passthrough) | Original raw log file content |
 | `suppressions.csv` | `CsvFormatter` | Active accepted-risk suppressions, included only when present |
 | `compliance-scorecard.html` | `ComplianceScorecardHtmlFormatter` | Manager-friendly HTML compliance scorecard (Pass/Warn/Fail per CIS family, overall score, trend) |

@@ -419,6 +419,7 @@
                             <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />
                             <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
                             <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
                             <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -581,6 +582,7 @@
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
                             <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="220" />
                             <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="*" />
+                            <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
                             <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="280" />
                         </DataGrid.Columns>
                     </DataGrid>

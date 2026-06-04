@@ -30,4 +30,7 @@ public sealed record RuleCatalogItem
 
     /// <summary>CIS Benchmark controls this rule maps to (may be empty).</summary>
     public IReadOnlyList<CisBenchmarkMapping> CisMappings { get; init; } = Array.Empty<CisBenchmarkMapping>();
+
+    /// <summary>MITRE ATT&CK techniques this rule maps to (may be empty).</summary>
+    public IReadOnlyList<MitreTechnique> MitreTechniques { get; init; } = Array.Empty<MitreTechnique>();
 }

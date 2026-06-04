@@ -35,7 +35,7 @@ Click the "Analyze" button to process the log and detect security findings.
 
 ## Review Findings
 
-- Check the **Findings** tab for detected threats
+- Check the **Findings** tab for detected threats — the **MITRE ATT&CK** column shows mapped techniques for each finding
 - Switch to **Timeline** to visualize events over time with time-scaled bars per category
 - Toggle **Trace Map** to reveal directed correlation edges between related findings (dashed lines). Click any bar to highlight its connected attack chain — other findings dim. A narrative panel appears below the timeline describing the attack story
 - Toggle **Group by Host** to re-group the timeline Y-axis by source host instead of category
@@ -56,6 +56,7 @@ Click **Export Evidence** to generate a signed ZIP bundle containing:
 | `log.txt` | Original raw log |
 | `incident-story.md` | Attack-chain narrative when correlated findings are detected |
 | `trace-map.json` | Cytoscape.js-compatible graph for import into network visualization tools |
+| `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer v4.5 with detector/rule coverage and observed finding scoring |
 | `manifest.json` + `manifest.hmac` | HMAC integrity verification |
 
 ## Sample Attack Scenarios
@@ -293,6 +294,9 @@ Scheduled audits only notify when **new** critical findings appear, using finger
 ```bash
 # Run a full audit without the GUI
 vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
+
+# Export a MITRE ATT&CK Navigator layer from the audit findings
+vulcanstrace audit --intent FullAudit --output-mitre /tmp/mitre-layer.json
 
 # Check exit code
 # 0 = success, no critical findings

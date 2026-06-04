@@ -84,7 +84,8 @@ internal sealed class FindingAssemblyService
             TimeRangeStart = now,
             TimeRangeEnd = now,
             RuleId = result.RuleId,
-            CisMappings = result.CisMappings
+            CisMappings = result.CisMappings,
+            MitreTechniques = result.MitreTechniques
         };
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
@@ -31,6 +32,9 @@ public sealed class RuleCatalogItemViewModel
     /// <summary>Gets the supported data sources as a comma-separated string.</summary>
     public string DataSources { get; }
 
+    /// <summary>Gets the formatted MITRE ATT&CK technique IDs for display.</summary>
+    public string MitreTechniquesDisplay { get; }
+
     /// <summary>Gets the underlying catalog item.</summary>
     public RuleCatalogItem Item { get; }
 
@@ -48,5 +52,13 @@ public sealed class RuleCatalogItemViewModel
         Severity = item.Severity.ToString();
         SeverityValue = item.Severity;
         DataSources = string.Join(", ", item.SupportedDataSources);
+        MitreTechniquesDisplay = FormatMitreTechniques(item.MitreTechniques);
+    }
+
+    private static string FormatMitreTechniques(IReadOnlyList<MitreTechnique> techniques)
+    {
+        if (techniques.Count == 0)
+            return string.Empty;
+        return string.Join(", ", techniques.Select(t => $"{t.TechniqueId}"));
     }
 }

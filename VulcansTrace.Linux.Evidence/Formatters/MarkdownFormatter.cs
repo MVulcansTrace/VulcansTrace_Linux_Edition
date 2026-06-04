@@ -87,14 +87,15 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();
-        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description | CIS Control | CIS Benchmark |");
-        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|-------------|---------------|");
+        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description | CIS Control | CIS Benchmark | MITRE Technique |");
+        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|-------------|---------------|-----------------|");
 
         foreach (var f in result.Findings)
         {
             var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
             var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
-            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} |");
+            var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
+            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} | {Escape(mitreIds)} |");
         }
 
         var distinctCis = result.Findings
@@ -114,6 +115,23 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
                 {
                     sb.AppendLine($"  - Benchmark: {Escape(m.BenchmarkReference)}");
                 }
+                sb.AppendLine($"  - {Escape(m.WhyItMatters)}");
+            }
+        }
+
+        var distinctMitre = result.Findings
+            .SelectMany(f => f.MitreTechniques)
+            .Distinct()
+            .ToList();
+
+        if (distinctMitre.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## MITRE ATT&CK Context");
+            sb.AppendLine();
+            foreach (var m in distinctMitre)
+            {
+                sb.AppendLine($"- **{Escape(m.TechniqueId)}** — {Escape(m.TechniqueName)} ({Escape(m.Tactic)})");
                 sb.AppendLine($"  - {Escape(m.WhyItMatters)}");
             }
         }

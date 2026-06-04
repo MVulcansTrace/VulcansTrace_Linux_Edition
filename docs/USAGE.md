@@ -11,7 +11,7 @@
 4. Select a machine role from the dropdown (Workstation, Server, LabBox, Router, DevMachine). The role affects which rules are enforced and how strictly they are evaluated.
 5. Click **Analyze** to generate findings.
 6. Review results:
-   - **Findings tab** — searchable, filterable table of all detected threats. Use the search box and severity dropdown to narrow results.
+   - **Findings tab** — searchable, filterable table of all detected threats. Use the search box and severity dropdown to narrow results. The **MITRE ATT&CK** column shows mapped techniques for each finding.
    - **Timeline tab** — visual timeline of findings by category. Toggle **Trace Map** to draw directed correlation edges between related findings (escalation, temporal sequence, same-host links). Toggle **Group by Host** to re-group the Y-axis by source host instead of category. Click any finding bar to highlight its connected attack chain; a narrative panel appears below the timeline describing the chain. If more than 100 edges are detected, interactive rendering is suppressed for performance — export the evidence bundle to review the full Trace Map.
    - **Parse Errors tab** — lines that could not be parsed.
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
@@ -200,6 +200,16 @@ Run audits without launching the desktop UI:
 ```bash
 vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
 ```
+
+### MITRE ATT&CK Navigator Layer Export
+
+The CLI can export a MITRE ATT&CK Navigator layer JSON from configured detector/rule coverage and audit findings:
+
+```bash
+vulcanstrace audit --intent FullAudit --output-mitre /path/to/layer.json
+```
+
+This combines VulcansTrace detector/rule coverage with any observed agent posture findings and log analysis findings into a single Navigator-compatible layer. The output path may be a simple filename or a path with directories; when directories are present, they are created automatically.
 
 Exit codes:
 - `0` — success, no critical findings.

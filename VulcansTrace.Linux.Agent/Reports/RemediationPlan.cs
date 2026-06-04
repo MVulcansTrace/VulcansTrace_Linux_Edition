@@ -1,3 +1,5 @@
+using VulcansTrace.Linux.Core;
+
 namespace VulcansTrace.Linux.Agent.Reports;
 
 /// <summary>
@@ -28,6 +30,9 @@ public sealed record RemediationSection
 
     /// <summary>Risk level/notes for this finding.</summary>
     public required string RiskNote { get; init; }
+
+    /// <summary>MITRE ATT&CK techniques mapped to the underlying finding.</summary>
+    public IReadOnlyList<MitreTechnique> MitreTechniques { get; init; } = Array.Empty<MitreTechnique>();
 
     /// <summary>Preconditions that should be satisfied before applying this section.</summary>
     public IReadOnlyList<string> Preconditions { get; init; } = Array.Empty<string>();

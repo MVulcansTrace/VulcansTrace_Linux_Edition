@@ -39,6 +39,8 @@ public sealed class EvidenceBuilder
     private readonly RiskScorecardMarkdownFormatter? _riskScorecardMarkdownFormatter;
     private readonly TraceMapMarkdownFormatter? _traceMapMarkdownFormatter;
     private readonly TraceMapJsonFormatter? _traceMapJsonFormatter;
+    private readonly MitreLayerBuilder? _mitreLayerBuilder;
+    private readonly IReadOnlyList<MitreCoverageSource> _mitreCoverageSources;
     private static readonly DateTimeOffset ZipMinTimestamp = new DateTimeOffset(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     private static readonly DateTimeOffset ZipMaxTimestamp = new DateTimeOffset(new DateTime(2107, 12, 31, 23, 59, 59, DateTimeKind.Utc));
 
@@ -57,6 +59,8 @@ public sealed class EvidenceBuilder
     /// <param name="riskScorecardMarkdownFormatter">Optional formatter for risk scorecard Markdown.</param>
     /// <param name="traceMapMarkdownFormatter">Optional formatter for Trace Map incident story Markdown.</param>
     /// <param name="traceMapJsonFormatter">Optional formatter for Trace Map Cytoscape JSON.</param>
+    /// <param name="mitreLayerBuilder">Optional builder for MITRE ATT&CK Navigator layer export.</param>
+    /// <param name="mitreCoverageSources">Optional detector and rule coverage sources for the Navigator layer.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
@@ -69,7 +73,9 @@ public sealed class EvidenceBuilder
         RiskScorecardHtmlFormatter? riskScorecardHtmlFormatter = null,
         RiskScorecardMarkdownFormatter? riskScorecardMarkdownFormatter = null,
         TraceMapMarkdownFormatter? traceMapMarkdownFormatter = null,
-        TraceMapJsonFormatter? traceMapJsonFormatter = null)
+        TraceMapJsonFormatter? traceMapJsonFormatter = null,
+        MitreLayerBuilder? mitreLayerBuilder = null,
+        IReadOnlyList<MitreCoverageSource>? mitreCoverageSources = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -83,6 +89,8 @@ public sealed class EvidenceBuilder
         _riskScorecardMarkdownFormatter = riskScorecardMarkdownFormatter;
         _traceMapMarkdownFormatter = traceMapMarkdownFormatter;
         _traceMapJsonFormatter = traceMapJsonFormatter;
+        _mitreLayerBuilder = mitreLayerBuilder;
+        _mitreCoverageSources = mitreCoverageSources ?? Array.Empty<MitreCoverageSource>();
     }
 
     /// <summary>
@@ -192,6 +200,12 @@ public sealed class EvidenceBuilder
             {
                 files["trace-map.json"] = Encoding.UTF8.GetBytes(_traceMapJsonFormatter.Format(traceMap.Findings, traceMap.Edges));
             }
+        }
+
+        if (_mitreLayerBuilder != null && (_mitreCoverageSources.Count > 0 || result.Findings.Count > 0))
+        {
+            files["mitre-navigator-layer.json"] = Encoding.UTF8.GetBytes(
+                _mitreLayerBuilder.BuildCoverageLayer(_mitreCoverageSources, result.Findings));
         }
 
         cancellationToken.ThrowIfCancellationRequested();

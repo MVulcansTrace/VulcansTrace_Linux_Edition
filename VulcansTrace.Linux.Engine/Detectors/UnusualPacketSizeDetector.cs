@@ -4,6 +4,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 
 public sealed class UnusualPacketSizeDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1001", TechniqueName = "Data Obfuscation", Tactic = "Command and Control", WhyItMatters = "Unusual packet sizes can be used to obfuscate data in covert channels." },
+        new MitreTechnique { TechniqueId = "T1041", TechniqueName = "Exfiltration Over C2 Channel", Tactic = "Exfiltration", WhyItMatters = "Abnormal packet sizes may indicate data exfiltration over customized C2 protocols." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableUnusualPacketSize || events.Count == 0)
@@ -84,7 +92,8 @@ public sealed class UnusualPacketSizeDetector : IDetector
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"{entries.Count} unusually large packet(s) detected",
-                Details = $"{entries.Count} packet(s) from {kvp.Key.SrcIP} to {kvp.Key.DstIP} exceeded {largeThreshold} bytes (range: {minSize}-{maxSize} bytes). May indicate data exfiltration, DoS attack, or protocol abuse."
+                Details = $"{entries.Count} packet(s) from {kvp.Key.SrcIP} to {kvp.Key.DstIP} exceeded {largeThreshold} bytes (range: {minSize}-{maxSize} bytes). May indicate data exfiltration, DoS attack, or protocol abuse.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 
@@ -105,7 +114,8 @@ public sealed class UnusualPacketSizeDetector : IDetector
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"{entries.Count} unusually small packet(s) detected",
-                Details = $"{entries.Count} packet(s) from {kvp.Key.SrcIP} to {kvp.Key.DstIP} were below {smallThreshold} bytes. May indicate covert channel, reconnaissance, or protocol probing."
+                Details = $"{entries.Count} packet(s) from {kvp.Key.SrcIP} to {kvp.Key.DstIP} were below {smallThreshold} bytes. May indicate covert channel, reconnaissance, or protocol probing.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 
@@ -148,7 +158,8 @@ public sealed class UnusualPacketSizeDetector : IDetector
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = "Highly consistent packet sizes detected",
-                    Details = $"{consistencyPct:F1}% of packets from {sourceHost} to {target} have the same size ({mostCommonSize.Key} bytes). This unusual consistency may indicate a covert channel using fixed-size packets for data exfiltration or command communication."
+                    Details = $"{consistencyPct:F1}% of packets from {sourceHost} to {target} have the same size ({mostCommonSize.Key} bytes). This unusual consistency may indicate a covert channel using fixed-size packets for data exfiltration or command communication.",
+                    MitreTechniques = s_mitreTechniques
                 });
             }
 
@@ -163,7 +174,8 @@ public sealed class UnusualPacketSizeDetector : IDetector
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = "High packet size variance detected",
-                    Details = $"Packet sizes from {sourceHost} to {target} show high variance (avg: {avgSize:F0} bytes, std dev: {stdDev:F0} bytes). This may indicate fragmented traffic, mixed protocols, or network anomalies."
+                    Details = $"Packet sizes from {sourceHost} to {target} show high variance (avg: {avgSize:F0} bytes, std dev: {stdDev:F0} bytes). This may indicate fragmented traffic, mixed protocols, or network anomalies.",
+                    MitreTechniques = s_mitreTechniques
                 });
             }
         }

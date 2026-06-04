@@ -12,6 +12,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class FloodDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1498", TechniqueName = "Network Denial of Service", Tactic = "Impact", WhyItMatters = "High-volume traffic floods are a classic network DoS attack pattern." },
+        new MitreTechnique { TechniqueId = "T1499", TechniqueName = "Endpoint Denial of Service", Tactic = "Impact", WhyItMatters = "Flood traffic can exhaust endpoint resources and degrade availability." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableFlood || events.Count == 0)
@@ -58,7 +66,8 @@ public sealed class FloodDetector : IDetector
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Flood detected from {srcIp}",
-                            Details = $"Detected {windowCount} events within {windowSeconds} seconds."
+                            Details = $"Detected {windowCount} events within {windowSeconds} seconds.",
+                            MitreTechniques = s_mitreTechniques
                         });
                         inFinding = true;
                     }

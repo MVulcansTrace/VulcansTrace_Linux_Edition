@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -29,6 +31,9 @@ public sealed class FindingItemViewModel
     /// <summary>Gets the short description for the finding.</summary>
     public string ShortDescription { get; }
 
+    /// <summary>Gets the formatted MITRE ATT&CK technique IDs for display.</summary>
+    public string MitreTechniquesDisplay { get; }
+
     /// <summary>Gets the underlying finding.</summary>
     public Finding Finding { get; }
 
@@ -46,5 +51,13 @@ public sealed class FindingItemViewModel
         TimeStart = finding.TimeRangeStart;
         TimeEnd = finding.TimeRangeEnd;
         ShortDescription = finding.ShortDescription;
+        MitreTechniquesDisplay = FormatMitreTechniques(finding.MitreTechniques);
+    }
+
+    private static string FormatMitreTechniques(IReadOnlyList<MitreTechnique> techniques)
+    {
+        if (techniques.Count == 0)
+            return string.Empty;
+        return string.Join(", ", techniques.Select(t => $"{t.TechniqueId}"));
     }
 }

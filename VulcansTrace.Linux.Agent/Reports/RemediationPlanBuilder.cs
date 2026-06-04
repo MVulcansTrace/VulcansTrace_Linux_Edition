@@ -72,6 +72,7 @@ public sealed class RemediationPlanBuilder
             RuleId = finding.RuleId!,
             FindingSummary = $"[{finding.Severity}] {finding.ShortDescription}",
             RiskNote = string.IsNullOrWhiteSpace(riskNote) ? "Review before applying." : riskNote,
+            MitreTechniques = finding.MitreTechniques,
             Preconditions = preconditions,
             BackupCommands = backupCommands,
             ApplyCommands = applyCommands,

@@ -58,6 +58,13 @@ public class JsonFormatter : IEvidenceFormatter
                     ControlName = m.ControlName,
                     WhyItMatters = m.WhyItMatters,
                     BenchmarkReference = m.BenchmarkReference
+                }).ToArray(),
+                MitreTechniques = f.MitreTechniques.Select(m => new MitreTechniqueExportModel
+                {
+                    TechniqueId = m.TechniqueId,
+                    TechniqueName = m.TechniqueName,
+                    Tactic = m.Tactic,
+                    WhyItMatters = m.WhyItMatters
                 }).ToArray()
             }).ToArray(),
             ParseErrors = result.ParseErrors.ToArray(),
@@ -148,6 +155,15 @@ public class FindingExportModel
     public string ShortDescription { get; set; } = string.Empty;
     public string Details { get; set; } = string.Empty;
     public CisMappingExportModel[] CisMappings { get; set; } = Array.Empty<CisMappingExportModel>();
+    public MitreTechniqueExportModel[] MitreTechniques { get; set; } = Array.Empty<MitreTechniqueExportModel>();
+}
+
+public class MitreTechniqueExportModel
+{
+    public string TechniqueId { get; set; } = string.Empty;
+    public string TechniqueName { get; set; } = string.Empty;
+    public string Tactic { get; set; } = string.Empty;
+    public string WhyItMatters { get; set; } = string.Empty;
 }
 
 public class CisMappingExportModel

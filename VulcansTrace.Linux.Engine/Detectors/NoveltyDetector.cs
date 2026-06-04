@@ -5,6 +5,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 
 public sealed class NoveltyDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1071", TechniqueName = "Application Layer Protocol", Tactic = "Command and Control", WhyItMatters = "Novel destinations may indicate C2 infrastructure testing or domain generation algorithm usage." },
+        new MitreTechnique { TechniqueId = "T1041", TechniqueName = "Exfiltration Over C2 Channel", Tactic = "Exfiltration", WhyItMatters = "Rare external destinations can signal data exfiltration over newly established C2 channels." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnableNovelty || events.Count == 0)
@@ -74,7 +82,8 @@ public sealed class NoveltyDetector : IDetector
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"{uniqueDests.Count} novel destination(s) from {source}",
-                Details = $"Source {source} contacted {uniqueDests.Count} external destination(s) {occurrenceWord}. This may indicate reconnaissance or testing of exfiltration channels."
+                Details = $"Source {source} contacted {uniqueDests.Count} external destination(s) {occurrenceWord}. This may indicate reconnaissance or testing of exfiltration channels.",
+                MitreTechniques = s_mitreTechniques
             });
         }
 

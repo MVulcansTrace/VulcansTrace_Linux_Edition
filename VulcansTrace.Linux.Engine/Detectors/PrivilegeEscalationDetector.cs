@@ -15,6 +15,14 @@ namespace VulcansTrace.Linux.Engine.Detectors;
 /// </remarks>
 public sealed class PrivilegeEscalationDetector : IDetector
 {
+    private static readonly IReadOnlyList<MitreTechnique> s_mitreTechniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1068", TechniqueName = "Exploitation for Privilege Escalation", Tactic = "Privilege Escalation", WhyItMatters = "Admin port access spikes may indicate exploitation attempts to gain elevated privileges." },
+        new MitreTechnique { TechniqueId = "T1548", TechniqueName = "Abuse Elevation Control Mechanism", Tactic = "Privilege Escalation", WhyItMatters = "Repeated admin access attempts can signal abuse of elevation controls." }
+    };
+
+    public IReadOnlyList<MitreTechnique> MitreTechniques => s_mitreTechniques;
+
     public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken)
     {
         if (!profile.EnablePrivilegeEscalationDetection || events.Count == 0)
@@ -96,7 +104,8 @@ public sealed class PrivilegeEscalationDetector : IDetector
                         TimeRangeStart = events[start].Timestamp,
                         TimeRangeEnd = events[end].Timestamp,
                         ShortDescription = $"Potential privilege escalation indicator: {windowCount} admin access attempts from {sourceIp}",
-                        Details = $"Detected {windowCount} admin port access attempts within {windowMinutes} minutes, suggesting possible brute force or escalation activity."
+                        Details = $"Detected {windowCount} admin port access attempts within {windowMinutes} minutes, suggesting possible brute force or escalation activity.",
+                        MitreTechniques = s_mitreTechniques
                     });
                     inFinding = true;
                 }
@@ -192,7 +201,8 @@ public sealed class PrivilegeEscalationDetector : IDetector
                         TimeRangeStart = events[start].Timestamp,
                         TimeRangeEnd = events[end].Timestamp,
                         ShortDescription = $"Admin port sweep from {sourceIp}",
-                        Details = $"Detected access attempts across {distinctPorts} admin ports within {windowMinutes} minutes."
+                        Details = $"Detected access attempts across {distinctPorts} admin ports within {windowMinutes} minutes.",
+                        MitreTechniques = s_mitreTechniques
                     });
                     inFinding = true;
                 }

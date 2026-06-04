@@ -152,6 +152,25 @@ public class RuleCatalogTests
         Assert.Empty(results);
     }
 
+    [Fact]
+    public void Search_By_MitreTechniqueId_Returns_Matching_Rules()
+    {
+        var catalog = new RuleCatalog(GetAllRules());
+        var results = catalog.Search("T1021").ToList();
+
+        Assert.True(results.Count > 0, "Expected at least one rule mapping to T1021");
+        Assert.All(results, r => Assert.Contains(r.MitreTechniques, m => m.TechniqueId.Contains("T1021")));
+    }
+
+    [Fact]
+    public void Catalog_Items_Have_MitreTechniques()
+    {
+        var catalog = new RuleCatalog(GetAllRules());
+
+        var withMitre = catalog.Items.Where(i => i.MitreTechniques.Count > 0).ToList();
+        Assert.True(withMitre.Count > 0, "Expected some rules to have MITRE mappings");
+    }
+
     [Theory]
     [InlineData("FW-001", "CIS 4.5")]
     [InlineData("FW-002", "CIS 4.5")]

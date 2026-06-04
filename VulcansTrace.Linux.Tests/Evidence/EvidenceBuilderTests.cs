@@ -748,6 +748,48 @@ public class EvidenceBuilderTests
     }
 
     [Fact]
+    public void Build_WithMitreCoverage_IncludesNavigatorLayerWithoutFindings()
+    {
+        var coverage = new[]
+        {
+            new MitreCoverageSource
+            {
+                SourceId = "C2ChannelDetector",
+                SourceName = "C2 channel detector",
+                SourceType = "Detector",
+                MitreTechniques = new[]
+                {
+                    new MitreTechnique { TechniqueId = "T1071.001", TechniqueName = "Application Layer Protocol: Web Protocols", Tactic = "Command and Control", WhyItMatters = "C2 coverage." }
+                }
+            }
+        };
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            new JsonFormatter(),
+            new StixFormatter(),
+            mitreLayerBuilder: new MitreLayerBuilder(),
+            mitreCoverageSources: coverage);
+        var result = SingleFindingResult() with { Findings = Array.Empty<Finding>() };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var layerEntry = zip.GetEntry("mitre-navigator-layer.json");
+
+        Assert.NotNull(layerEntry);
+        using var stream = layerEntry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var doc = JsonDocument.Parse(reader.ReadToEnd());
+        var technique = doc.RootElement.GetProperty("techniques").EnumerateArray().Single();
+        Assert.Equal("T1071.001", technique.GetProperty("techniqueID").GetString());
+        Assert.Equal(0, technique.GetProperty("score").GetInt32());
+    }
+
+    [Fact]
     public void Build_WithTraceMap_IncludesIncidentStoryAndTraceMapJson()
     {
         var builder = new EvidenceBuilder(

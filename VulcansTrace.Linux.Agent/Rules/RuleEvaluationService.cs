@@ -81,7 +81,7 @@ internal sealed class RuleEvaluationService
         catch (Exception ex)
         {
             warnings.Add($"Rule {rule.Id} crashed: {ex.GetType().Name}");
-            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings);
+            result = RuleResult.Crash(rule.Id, rule.Category, rule.Description, rule.CisMappings, rule.MitreTechniques);
         }
 
         if (!result.Passed && policy?.AutoPass == true)
@@ -99,7 +99,7 @@ internal sealed class RuleEvaluationService
 
     private static RuleResult CreatePolicyDisabledResult(IRule rule)
     {
-        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)", rule.CisMappings);
+        return RuleResult.Pass(rule.Id, rule.Category, rule.Id, $"{rule.Description} (disabled by policy)", rule.CisMappings, rule.MitreTechniques);
     }
 
     private IEnumerable<IRule> FilterRulesByIntent(AgentIntent intent)

@@ -201,4 +201,29 @@ public class MarkdownFormatterTests
         Assert.Contains("## Data Sources", md);
         Assert.Contains("Data sources: iptables available; systemctl permission-limited.", md);
     }
+
+    [Fact]
+    public void ToMarkdown_IncludesMitreTechniques()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "C2Channel",
+            Severity = Severity.High,
+            SourceHost = "10.0.0.1",
+            Target = "8.8.8.8",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "C2 detected",
+            Details = "details",
+            MitreTechniques =
+            [
+                new MitreTechnique { TechniqueId = "T1071.001", TechniqueName = "Web Protocols", Tactic = "Command and Control", WhyItMatters = "C2." }
+            ]
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("T1071.001", md);
+        Assert.Contains("## MITRE ATT&CK Context", md);
+    }
 }

@@ -22,6 +22,7 @@ public sealed record Finding
     private Guid? _id;
     private string? _fingerprint;
     private IReadOnlyList<CisBenchmarkMapping> _cisMappings = Array.Empty<CisBenchmarkMapping>();
+    private IReadOnlyList<MitreTechnique> _mitreTechniques = Array.Empty<MitreTechnique>();
 
     /// <summary>
     /// Optional agent rule identifier (e.g., "FW-001", "PORT-003").
@@ -127,6 +128,15 @@ public sealed record Finding
     {
         get => _cisMappings;
         init => _cisMappings = value ?? throw new ArgumentNullException(nameof(CisMappings));
+    }
+
+    /// <summary>
+    /// MITRE ATT&CK techniques this finding maps to, explaining threat-framework context.
+    /// </summary>
+    public IReadOnlyList<MitreTechnique> MitreTechniques
+    {
+        get => _mitreTechniques;
+        init => _mitreTechniques = value ?? throw new ArgumentNullException(nameof(MitreTechniques));
     }
 
     private static string NormalizeNonEmpty(string value, string name)

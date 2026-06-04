@@ -3,6 +3,16 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Rules.SecurityRules;
 
+internal static class ServiceMitreMappings
+{
+    public static readonly IReadOnlyList<MitreTechnique> Techniques = new[]
+    {
+        new MitreTechnique { TechniqueId = "T1543", TechniqueName = "Create or Modify System Process", Tactic = "Persistence", WhyItMatters = "Unnecessary services expand the attack surface for persistent processes." },
+        new MitreTechnique { TechniqueId = "T1569", TechniqueName = "System Services", Tactic = "Execution", WhyItMatters = "Running services can be abused for arbitrary execution." },
+    };
+}
+
+
 /// <summary>
 /// SRV-001: Telnet service should not be running.
 /// </summary>
@@ -25,6 +35,7 @@ public sealed class TelnetServiceRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.17 — Ensure telnet server is not installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -34,10 +45,10 @@ public sealed class TelnetServiceRule : IRule
         if (telnet != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-001", Description, Severity.Critical, telnet.Name,
-                new Dictionary<string, string> { ["service"] = telnet.Name }, CisMappings);
+                new Dictionary<string, string> { ["service"] = telnet.Name }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-001", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "SRV-001", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -63,6 +74,7 @@ public sealed class FtpServiceRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.12 — Ensure FTP server is not installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -73,10 +85,10 @@ public sealed class FtpServiceRule : IRule
         if (ftp != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-002", Description, Severity.High, ftp.Name,
-                new Dictionary<string, string> { ["service"] = ftp.Name }, CisMappings);
+                new Dictionary<string, string> { ["service"] = ftp.Name }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-002", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "SRV-002", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -102,6 +114,7 @@ public sealed class SshServiceRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.4 — Ensure SSH server is installed and enabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
     public RuleResult Evaluate(ScanData data)
     {
@@ -111,10 +124,10 @@ public sealed class SshServiceRule : IRule
         if (ssh == null)
         {
             return RuleResult.Fail(Id, Category, "SRV-003", Description, Severity.Medium, "ssh",
-                new Dictionary<string, string>(), CisMappings);
+                new Dictionary<string, string>(), CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-003", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "SRV-003", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -140,6 +153,7 @@ public sealed class LegacyRservicesRule : IRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.16 — Ensure rsh server is not installed"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
     private static readonly string[] LegacyServices = { "rsh", "rexec", "rlogin", "shell", "login", "exec" };
 
@@ -151,10 +165,10 @@ public sealed class LegacyRservicesRule : IRule
         if (found != null)
         {
             return RuleResult.Fail(Id, Category, "SRV-004", Description, Severity.Critical, found.Name,
-                new Dictionary<string, string> { ["service"] = found.Name }, CisMappings);
+                new Dictionary<string, string> { ["service"] = found.Name }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-004", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "SRV-004", Description, CisMappings, MitreTechniques);
     }
 }
 
@@ -180,6 +194,7 @@ public sealed class UnnecessaryServicesRule : IRule, IContextualRule
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2.x — Ensure unnecessary services are removed or disabled"
         }
     };
+    public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
     private static readonly string[] DefaultUnnecessaryServices =
     {
@@ -211,9 +226,9 @@ public sealed class UnnecessaryServicesRule : IRule, IContextualRule
                 {
                     ["service"] = first.Name,
                     ["count"] = found.Count.ToString()
-                }, CisMappings);
+                }, CisMappings, MitreTechniques);
         }
 
-        return RuleResult.Pass(Id, Category, "SRV-005", Description, CisMappings);
+        return RuleResult.Pass(Id, Category, "SRV-005", Description, CisMappings, MitreTechniques);
     }
 }

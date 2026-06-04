@@ -33,7 +33,7 @@ public class CsvFormatterTests
 
         var csv = formatter.ToCsv(result);
 
-        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters", csv);
+        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters,MitreTechniqueIds,MitreTechniqueNames,MitreTactics", csv);
         Assert.Contains("FW-001", csv);
         Assert.Contains("\"Cat,1\"", csv);
         Assert.Contains("\"desc \"\"quoted\"\" value\"", csv);
@@ -200,5 +200,38 @@ public class CsvFormatterTests
 
         Assert.Contains("RuleId,Target,Fingerprint,Reason,CreatedAt,ExpiresAt,ReviewDate", csv);
         Assert.Contains("FW-001,INPUT,fp1,Known exposure", csv);
+    }
+
+    [Fact]
+    public void ToCsv_IncludesMitreTechniques()
+    {
+        var formatter = new CsvFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "PortScan",
+                    Severity = Severity.Medium,
+                    SourceHost = "192.168.1.2",
+                    Target = "10.0.0.5",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "desc",
+                    Details = "detail",
+                    MitreTechniques =
+                    [
+                        new MitreTechnique { TechniqueId = "T1046", TechniqueName = "Network Service Discovery", Tactic = "Discovery", WhyItMatters = "Recon." }
+                    ]
+                }
+            ]
+        };
+
+        var csv = formatter.ToCsv(result);
+
+        Assert.Contains("T1046", csv);
+        Assert.Contains("Network Service Discovery", csv);
+        Assert.Contains("Discovery", csv);
     }
 }
