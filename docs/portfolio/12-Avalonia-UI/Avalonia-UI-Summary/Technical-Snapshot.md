@@ -4,7 +4,7 @@
 
 ## Implementation Overview
 
-The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a single-window MVVM application built on Avalonia (a cross-platform XAML framework for .NET). MainWindow.axaml.cs acts as the composition root, wiring the complete analysis engine — LogNormalizer, 13 detectors across baseline, Linux-specific, and advanced tiers, RiskEscalator, SentryAnalyzer — the local Security Agent — scanners, rules, suppression store, audit history, and role-aware policy — plus the full evidence pipeline — IntegrityHasher, 5 formatters, EvidenceBuilder — in one constructor. The application provides paste-in log analysis with intensity selection, live posture audit chat, real-time findings display with severity filtering and text search, a timeline canvas with category-grouped severity-colored bars, and one-click evidence export with cryptographic signing key generation.
+The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a single-window MVVM application built on Avalonia (a cross-platform XAML framework for .NET). MainWindow.axaml.cs acts as the composition root, wiring the complete analysis engine — LogNormalizer, 14 detectors across baseline, Linux-specific, and advanced tiers, RiskEscalator, SentryAnalyzer — the local Security Agent — scanners, rules, suppression store, audit history, and role-aware policy — plus the full evidence pipeline — IntegrityHasher, 5 formatters, EvidenceBuilder — in one constructor. The application provides paste-in log analysis with intensity selection, live posture audit chat, real-time findings display with severity filtering and text search, a timeline canvas with category-grouped severity-colored bars, and one-click evidence export with cryptographic signing key generation.
 
 ---
 
@@ -36,7 +36,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 ## Key Evidence
 
-- [MainWindow.axaml.cs](../../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root wiring 13 detectors + engine + Security Agent + evidence builder
+- [MainWindow.axaml.cs](../../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs) — composition root wiring 14 detectors + engine + Security Agent + evidence builder
 - [MainViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/MainViewModel.cs) — central orchestrator with async analysis, advisor messages
 - [FindingsViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — filtering, search, parse error capping
 - [EvidenceViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, key generation, clipboard

@@ -50,6 +50,9 @@ public enum AgentIntent
     /// <summary>Focus on Kubernetes pods and Pod Security Standard violations.</summary>
     KubernetesCheck,
 
+    /// <summary>Focus on imported threat intelligence IOC correlations.</summary>
+    ThreatIntelCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

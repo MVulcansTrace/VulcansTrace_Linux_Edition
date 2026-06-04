@@ -5,12 +5,15 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
+using VulcansTrace.Linux.Agent.Rules.SecurityRules.ThreatIntel;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Logging;
 using VulcansTrace.Linux.Core.Security;
+using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.Detectors;
@@ -37,6 +40,16 @@ public static class AgentFactory
         var logNormalizer = new LogNormalizer(logSink);
         var profileProvider = new AnalysisProfileProvider();
 
+        IThreatIntelStore threatIntelStore;
+        try
+        {
+            threatIntelStore = JsonFileThreatIntelStore.CreateDefault();
+        }
+        catch
+        {
+            threatIntelStore = new InMemoryThreatIntelStore("Threat intel persistence is unavailable. IOCs will last only for this session.");
+        }
+
         var baselineDetectors = new IDetector[]
         {
             new PortScanDetector(),
@@ -59,7 +72,8 @@ public static class AgentFactory
         var advancedDetectors = new IDetector[]
         {
             new C2ChannelDetector(),
-            new PrivilegeEscalationDetector()
+            new PrivilegeEscalationDetector(),
+            new ThreatIntelDetector(threatIntelStore)
         };
 
         var riskEscalator = new RiskEscalator();
@@ -88,6 +102,7 @@ public static class AgentFactory
             new SshConfigScanner(),
             new FilePermissionScanner(),
             new FilesystemAuditScanner(),
+            new FileHashScanner(threatIntelStore),
             new KernelHardeningScanner(),
             new UserAccountScanner(),
             new LoggingAuditScanner(),
@@ -175,7 +190,10 @@ public static class AgentFactory
             new K8sPrivilegedPodRule(),
             new K8sHostNamespaceRule(),
             new K8sRunAsRootRule(),
-            new K8sSecurityContextRule()
+            new K8sSecurityContextRule(),
+            new ThreatIntelIpRule(threatIntelStore),
+            new ThreatIntelPortRule(threatIntelStore),
+            new ThreatIntelHashRule(threatIntelStore)
         };
 
         var mitreCoverageSources = BuildMitreCoverageSources(
@@ -285,8 +303,14 @@ public static class AgentFactory
         var remediationPlanBuilder = new RemediationPlanBuilder(explanationProvider);
         // Give the live stream its own SentryAnalyzer instance so it never
         // contends with the static audit/analysis path for thread-safety.
+        var liveStreamAdvancedDetectors = new IDetector[]
+        {
+            new C2ChannelDetector(),
+            new PrivilegeEscalationDetector(),
+            new ThreatIntelDetector(threatIntelStore)
+        };
         var liveStreamSentryAnalyzer = new SentryAnalyzer(
-            logNormalizer, profileProvider, baselineDetectors, linuxDetectors, advancedDetectors, riskEscalator, logSink);
+            logNormalizer, profileProvider, baselineDetectors, linuxDetectors, liveStreamAdvancedDetectors, riskEscalator, logSink);
         var liveStreamAnalyzer = new LiveStreamAnalyzer(liveStreamSentryAnalyzer, profileProvider, logSink);
 
         return new AgentServices
@@ -307,7 +331,8 @@ public static class AgentFactory
             RemediationExecutor = remediationExecutor,
             RemediationPlanBuilder = remediationPlanBuilder,
             SessionStore = sessionStore,
-            LiveStreamAnalyzer = liveStreamAnalyzer
+            LiveStreamAnalyzer = liveStreamAnalyzer,
+            ThreatIntelStore = threatIntelStore
         };
     }
 
@@ -406,6 +431,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Orchestrates live kernel stream analysis.</summary>
     public required LiveStreamAnalyzer LiveStreamAnalyzer { get; init; }
 
+    /// <summary>Store for imported threat intelligence IOCs.</summary>
+    public required IThreatIntelStore ThreatIntelStore { get; init; }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -421,5 +449,6 @@ public sealed record AgentServices : IDisposable
         (ProcessRunner as IDisposable)?.Dispose();
         (SessionStore as IDisposable)?.Dispose();
         (LiveStreamAnalyzer as IDisposable)?.Dispose();
+        (ThreatIntelStore as IDisposable)?.Dispose();
     }
 }

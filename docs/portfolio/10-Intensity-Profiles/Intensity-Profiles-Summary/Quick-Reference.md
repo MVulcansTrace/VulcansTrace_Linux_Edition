@@ -117,7 +117,7 @@
 
 ## Security Takeaways
 
-- 7 of 13 detectors are enabled in all profiles; 6 advanced detectors activate only at Medium and above
+- 7 of 14 detectors are enabled in all profiles; 6 advanced detectors activate only at Medium and above
 - Thresholds decrease roughly 2x from Low to Medium and 2x again from Medium to High
 - MinSeverityToShow is the visibility gate before the per-category finding cap — Low profile may detect Medium-severity findings but filters them before output
 - Shared policy lists (AdminPorts, DisallowedOutboundPorts) ensure consistent policy enforcement regardless of intensity

@@ -216,6 +216,7 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.PackageVulnerabilityCheck => "package vulnerabilities",
         AgentIntent.ContainerCheck => "containers",
         AgentIntent.KubernetesCheck => "kubernetes",
+        AgentIntent.ThreatIntelCheck => "threat intel",
         AgentIntent.ExplainFinding => "explain a finding",
         AgentIntent.ShowChanges => "audit changes",
         AgentIntent.ExplainCritical => "critical finding explanation",

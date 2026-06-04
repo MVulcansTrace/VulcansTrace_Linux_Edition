@@ -91,7 +91,7 @@ Even without the additional 3 ports, the original 12-port scan is detected at Hi
 |---|---|---|---|
 | Low | 30 | No | None beyond baseline |
 | Medium | 15 | No (borderline) | Novelty, KernelModule, C2, PrivEsc |
-| High | 8 | **Yes** | All 13 detectors |
+| High | 8 | **Yes** | All 14 detectors |
 
 ---
 

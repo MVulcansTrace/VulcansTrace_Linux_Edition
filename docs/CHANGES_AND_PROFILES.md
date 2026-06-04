@@ -90,6 +90,17 @@ Last updated: 2026-06-04
 - Added 10 new tests covering intent parsing, target reference extraction, and all `HandleFixFindingAsync` code paths (no context, no reference, unknown reference, success, validation failure).
 - Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`
 
+### Security Agent — Offline Threat Intel Correlation (STIX/MISP Import)
+- Added `IThreatIntelStore` abstraction with `InMemoryThreatIntelStore` and `JsonFileThreatIntelStore` (persists to `~/.config/VulcansTrace/threat-intel.json`).
+- Added `StixParser` for STIX 2.1 bundle JSON and `MispParser` for MISP event JSON, extracting IPv4, IPv6, domain, URL, port, and file hash IOCs.
+- Added `ThreatIntelDetector` (Engine) that correlates firewall logs against imported IP and port IOCs.
+- Added `FileHashScanner` that hashes security-interesting files (SUID/SGID, world-writable, unowned, cron scripts) via `sha256sum`/`md5sum`/`sha1sum`.
+- Added 3 threat intel rules (`TI-001` through `TI-003`) correlating active connections, open ports, and file hashes against imported IOCs.
+- Added CLI `threat-intel import --file <path> [--format stix|misp|auto]`, `status`, and `clear` commands.
+- Added Avalonia UI **Import Threat Intel** button with file picker and format auto-detection.
+- Added `AgentIntent.ThreatIntelCheck`, QueryParser keywords, `FilterRulesByIntent` case, and `GetIntentDisplayName` mapping.
+- Code: `VulcansTrace.Linux.Agent/ThreatIntel/*`, `VulcansTrace.Linux.Engine/Detectors/ThreatIntelDetector.cs`, `VulcansTrace.Linux.Agent/Scanners/FileHashScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ThreatIntel/*`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`
+
 ### Security Agent — Batch Auto-Fix (CLI)
 - Added `--auto-fix`, `--dry-run`, `--yes`, `--allow-restart`, and `--allow-packages` flags to the CLI `audit` command.
 - `AutoFixPolicy` defines which `CommandSafety` levels are permitted for automatic execution (`Conservative`, `Standard`, `Aggressive` presets).

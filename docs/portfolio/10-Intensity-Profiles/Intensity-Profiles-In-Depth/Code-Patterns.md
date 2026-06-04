@@ -2,7 +2,7 @@
 
 ## Security Problem
 
-The profile subsystem must produce a single, immutable configuration object that is shared across 13 detectors running in sequence. The implementation uses C# language features — sealed records, init-only properties, switch expressions, and ImmutableArray — to enforce correctness at compile time.
+The profile subsystem must produce a single, immutable configuration object that is shared across 14 detectors running in sequence. The implementation uses C# language features — sealed records, init-only properties, switch expressions, and ImmutableArray — to enforce correctness at compile time.
 
 ---
 

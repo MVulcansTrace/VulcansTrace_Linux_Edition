@@ -33,7 +33,7 @@ kernel: Jan 19 10:25:38 webserver IN=eth0 SRC=10.20.30.40 DST=10.0.0.1 PROTO=TCP
 When the application starts, `MainWindow.axaml.cs` constructs the full dependency graph:
 
 ```
-LogNormalizer → 13 detectors (6 baseline + 5 Linux + 2 advanced)
+LogNormalizer → 14 detectors (6 baseline + 5 Linux + 2 advanced)
   → RiskEscalator → SentryAnalyzer
 
 Agent scanners + rules + DefaultRulePolicyProvider(JsonRulePolicyStore)

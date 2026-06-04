@@ -39,6 +39,12 @@ VulcansTrace.Linux.Tests/
 │   ├── AuditDiffCalculatorTests.cs           — fingerprint-aware audit diff tests
 │   ├── SuppressionStoreTests.cs              — expiry, retention, and fingerprint matching tests
 │   ├── RuleTests.cs                          — posture rule and contextual rule behavior tests; CIS mapping presence and metadata validation for all 39 rules
+│   ├── RuleCatalogTests.cs                   — catalog metadata, search, and count verification for all 79 rules
+│   ├── ThreatIntelRuleTests.cs               — TI-001/TI-002/TI-003 behavior against mock IOC stores
+│   ├── StixParserTests.cs                    — STIX 2.1 bundle parsing (ipv4-addr, indicator patterns, file hashes)
+│   ├── MispParserTests.cs                    — MISP event JSON parsing (attributes, composite values, threat_level_id)
+│   ├── ThreatIntelStoreTests.cs              — in-memory and JSON-file IOC store round-trip tests
+│   ├── FileHashScannerTests.cs               — hash line parsing and scanner construction tests
 │   ├── DefaultRulePolicyProviderTests.cs     — built-in role defaults and JSON override merge tests
 │   ├── JsonRulePolicyStoreTests.cs           — policy persistence and hand-edited JSON lookup tests
 │   └── ScannerParserFixtureTests.cs          — realistic command-output parser and capability fixtures
@@ -90,7 +96,7 @@ VulcansTrace.Linux.Tests/
 | Core | 5 | Parsing, normalization, event construction, field extraction |
 | Detectors (Baseline) | 6 | Port scan, beaconing, flood, lateral movement, policy violation, novelty |
 | Detectors (Linux) | 5 | Flag anomaly, interface hopping, kernel module, MAC spoofing, packet size |
-| Detectors (Advanced) | 2 | C2 channel, privilege escalation |
+| Detectors (Advanced) | 3 | C2 channel, privilege escalation, threat intel |
 | Evidence | 6 | Builder integrity, CSV/HTML/JSON/Markdown/STIX formatting |
 | Integration | 7 | Full pipeline, real logs, attack scenarios, golden scenarios, thresholds, performance, profiles |
 | Avalonia | 4 | ViewModel command bindings and display logic |

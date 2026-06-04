@@ -1,3 +1,5 @@
+using VulcansTrace.Linux.Core.Security;
+
 namespace VulcansTrace.Linux.Agent.Scanners;
 
 /// <summary>
@@ -47,6 +49,9 @@ public sealed record ScanData
 
     /// <summary>Filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, etc.).</summary>
     public IReadOnlyList<FilesystemAuditEntry> FilesystemAudits { get; init; } = Array.Empty<FilesystemAuditEntry>();
+
+    /// <summary>SHA-256 hashes of interesting files discovered during scanning.</summary>
+    public IReadOnlyList<FileHashEntry> FileHashes { get; init; } = Array.Empty<FileHashEntry>();
 
     /// <summary>Mount options for /tmp (comma-separated).</summary>
     public string TmpMountOptions { get; init; } = string.Empty;

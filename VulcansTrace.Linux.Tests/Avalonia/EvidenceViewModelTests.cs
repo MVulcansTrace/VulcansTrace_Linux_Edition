@@ -193,6 +193,11 @@ public class EvidenceViewModelTests
             return Task.FromResult<string?>(null);
         }
 
+        public Task<string?> ShowOpenFileDialogAsync(string title, string filter)
+        {
+            return Task.FromResult<string?>(null);
+        }
+
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
         {
             return Task.FromResult<string?>(null);

@@ -391,6 +391,13 @@
                         Command="{Binding KubernetesCommand}"
                         IsEnabled="{Binding !IsBusy}"
                         AutomationProperties.AutomationId="AgentKubernetesButton"/>
+                <Button Content="Threat Intel"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding ImportThreatIntelCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentThreatIntelButton"/>
                 <Button Content="Explain Selected"
                         FontSize="11"
                         Padding="6,2"

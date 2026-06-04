@@ -1,3 +1,5 @@
+using VulcansTrace.Linux.Core.Security;
+
 namespace VulcansTrace.Linux.Agent.Scanners;
 
 /// <summary>
@@ -30,6 +32,7 @@ public sealed class ScanDataBuilder
     private readonly List<ActiveConnection> _activeConnections = new();
     private readonly List<FilePermissionEntry> _filePermissions = new();
     private readonly List<FilesystemAuditEntry> _filesystemAudits = new();
+    private readonly List<FileHashEntry> _fileHashes = new();
     private readonly List<string> _warnings = new();
     private readonly List<DataSourceCapability> _capabilities = new();
     private readonly List<UserAccount> _userAccounts = new();
@@ -100,6 +103,11 @@ public sealed class ScanDataBuilder
     public void AddFilesystemAudit(FilesystemAuditEntry entry)
     {
         lock (_lock) { _filesystemAudits.Add(entry); }
+    }
+
+    public void AddFileHash(FileHashEntry entry)
+    {
+        lock (_lock) { _fileHashes.Add(entry); }
     }
 
     public void SetTmpMountOptions(string options)
@@ -198,6 +206,7 @@ public sealed class ScanDataBuilder
                 ActiveConnections = _activeConnections.ToArray(),
                 FilePermissions = _filePermissions.ToArray(),
                 FilesystemAudits = _filesystemAudits.ToArray(),
+                FileHashes = _fileHashes.ToArray(),
                 TmpMountOptions = _tmpMountOptions,
                 TmpMountTarget = _tmpMountTarget,
                 Warnings = _warnings.ToArray(),

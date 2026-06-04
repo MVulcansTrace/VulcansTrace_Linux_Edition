@@ -110,6 +110,9 @@ Notification services are pluggable:
 - `MitreLayerBuilder`: builds MITRE ATT&CK Navigator v4.5-compatible layer JSON from findings, with deterministic technique aggregation (most common name wins, alphabetical tiebreak) and gradient scoring.
 - `LiveAnalysisResult`: real-time analysis output containing delta findings (new since last run), window metrics, and source status.
 - `LiveWindowMetrics`: live stream statistics (event rate, window size, analysis run count).
+- `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
+- `IocEntry`: immutable IOC record (`Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`).
+- `FileHashEntry`: scanner output pairing a file path with its SHA-256 hash (`Path`, `Hash`, `Algorithm`).
 
 ## Detection Layers
 
@@ -121,6 +124,23 @@ Linux Deep Inspection detectors:
 
 Advanced threat detectors:
 - C2Channel, PrivilegeEscalation.
+- ThreatIntelDetector — correlates firewall logs and live stream events against imported IOCs (STIX/MISP).
+
+## Threat Intel Components
+
+- `IThreatIntelStore` — abstraction for IOC storage (`InMemoryThreatIntelStore` + `JsonFileThreatIntelStore` → `~/.config/VulcansTrace/threat-intel.json`).
+- `IocEntry` — immutable IOC record with `Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`.
+- `IocType` — `IPv4`, `IPv6`, `Domain`, `URL`, `Port`, `FileHash`.
+- `StixParser` — parses STIX 2.1 bundle JSON, extracting IOCs from `ipv4-addr`, `ipv6-addr`, `domain-name`, `url`, `file` objects, and simple or compound `indicator` equality patterns.
+- `MispParser` — parses MISP event JSON, reading `Event.Attribute` and `Event.Object.Attribute`, mapping MISP types to `IocType`.
+- `FileHashEntry` — scanner output pairing a file path with its SHA-256 hash.
+- `FileHashScanner` — discovers security-sensitive files (SUID/SGID, world-writable, unowned, cron scripts) and hashes them via `sha256sum`/`openssl` only when file-hash IOCs are loaded.
+- `ThreatIntelDetector` (Engine) — implements `IDetector`; checks `UnifiedEvent.SourceIP`, `DestinationIP`, and `DestinationPort` against the store. Domain and URL IOCs are stored but not yet correlated in firewall log analysis (the log format does not reliably carry those fields).
+- Threat intel rules (Agent):
+  - `TI-001` (`ThreatIntelIpRule`) — active connections matching IP IOCs.
+  - `TI-002` (`ThreatIntelPortRule`) — open ports matching port IOCs.
+  - `TI-003` (`ThreatIntelHashRule`) — file hashes matching hash IOCs.
+- AgentFactory wires the store into `ThreatIntelDetector`, all three rules, and `FileHashScanner`.
 
 Risk escalation correlations include (when both findings occur within a correlated 24-hour window):
 - Beaconing + LateralMovement -> Critical.

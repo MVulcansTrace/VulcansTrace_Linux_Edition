@@ -27,6 +27,8 @@ public class DetectorMitreMappingTests
     [InlineData(typeof(KernelModuleDetector), "T1547.006")]
     [InlineData(typeof(NoveltyDetector), "T1071")]
     [InlineData(typeof(UnusualPacketSizeDetector), "T1001")]
+    [InlineData(typeof(ThreatIntelDetector), "T1071")]
+    [InlineData(typeof(ThreatIntelDetector), "T1571")]
     public void Detector_Category_HasExpectedMitreTechnique(Type detectorType, string expectedTechniqueId)
     {
         // Verify the type implements IDetector
@@ -65,7 +67,8 @@ public class DetectorMitreMappingTests
             typeof(InterfaceHoppingDetector),
             typeof(KernelModuleDetector),
             typeof(NoveltyDetector),
-            typeof(UnusualPacketSizeDetector)
+            typeof(UnusualPacketSizeDetector),
+            typeof(ThreatIntelDetector)
         };
 
         foreach (var dt in detectorTypes)

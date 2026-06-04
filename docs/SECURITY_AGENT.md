@@ -28,6 +28,8 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my containers` | `ContainerCheck` | Reviews container runtime posture (privileged mode, latest tags, Docker socket exposure/mounts, risky base-image hints, namespace isolation) |
 | `Check my kubernetes` | `KubernetesCheck` | Reviews Kubernetes pod security posture (privileged pods, host namespaces, root containers, security contexts) |
 | `Check my pods` | `KubernetesCheck` | Alias for Kubernetes pod security audit |
+| `Check threat intel` | `ThreatIntelCheck` | Correlates active connections, open ports, and file hashes against imported STIX/MISP IOCs |
+| `Check malicious IPs` | `ThreatIntelCheck` | Alias for threat intel correlation |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |

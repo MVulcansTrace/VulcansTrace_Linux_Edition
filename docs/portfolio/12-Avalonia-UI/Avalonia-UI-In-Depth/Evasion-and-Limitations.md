@@ -24,7 +24,7 @@ The application uses a single `MainWindow` with tab-based navigation (Findings, 
 
 ### Hardcoded Detector Registration
 
-The 13 detectors are registered as fixed arrays in the composition root. Adding a new detector requires modifying `MainWindow.axaml.cs`.
+The 14 detectors are registered as fixed arrays in the composition root. Adding a new detector requires modifying `MainWindow.axaml.cs`.
 
 **Mitigation in context:** This is intentional — the explicit registration makes the detector list auditable. A plugin system would introduce reflection and loading complexity that is not justified for the current detector count.
 

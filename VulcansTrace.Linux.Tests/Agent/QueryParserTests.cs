@@ -94,6 +94,9 @@ public class QueryParserTests
     [InlineData("session note abc12345 confirmed console access", AgentIntent.AddSessionNote)]
     [InlineData("note for step FW-001 backup saved", AgentIntent.AddStepNote)]
     [InlineData("step note FW-001 applied fix", AgentIntent.AddStepNote)]
+    [InlineData("check threat intel", AgentIntent.ThreatIntelCheck)]
+    [InlineData("show me threat intel", AgentIntent.ThreatIntelCheck)]
+    [InlineData("show me iocs", AgentIntent.ThreatIntelCheck)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);

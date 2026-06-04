@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 13 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, Security Agent scanners/rules/policy, IntegrityHasher, 5 formatters, and EvidenceBuilder in one constructor
+- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 14 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, Security Agent scanners/rules/policy, IntegrityHasher, 5 formatters, and EvidenceBuilder in one constructor
 - **MVVM with Security Agent child workflow** — MainViewModel orchestrates Findings, Evidence, Timeline, Suppressions, Rule Coverage, and Agent ViewModels without making those child ViewModels own each other's state
 - **Context-sensitive advisor** — MainViewModel generates triage guidance based on finding counts, severity distribution, warnings, and parse errors
 - **Timeline canvas rendering** — severity-colored horizontal bars grouped by category, normalized to 0–1 range, with dynamic canvas height calculation

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,7 +10,10 @@ using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.ThreatIntel;
+using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Core.ThreatIntel;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -25,6 +29,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentQueryExecutor _queryExecutor;
     private readonly AgentResultStateCoordinator _resultState;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
+    private readonly IThreatIntelStore? _threatIntelStore;
+    private readonly IDialogService? _dialogService;
     private ISessionStore? _sessionStore;
 
     private string _userQuery = "";
@@ -288,6 +294,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to delete the selected remediation session.</summary>
     public AsyncRelayCommand DeleteSessionCommand { get; }
 
+    /// <summary>Gets the command to import threat intelligence IOCs.</summary>
+    public AsyncRelayCommand ImportThreatIntelCommand { get; }
+
     /// <summary>Gets the command to add a note to the active remediation session.</summary>
     public AsyncRelayCommand AddSessionNoteCommand { get; }
 
@@ -340,12 +349,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <param name="historyStore">The store for persisting audit history.</param>
     /// <param name="remediationPlanBuilder">The plan builder for remediation exports.</param>
     /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, ISessionStore? sessionStore = null)
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
         _sessionStore = sessionStore;
+        _threatIntelStore = threatIntelStore;
+        _dialogService = dialogService;
         _presenter = new AgentResultPresenter(
             Messages,
             ChatCategoryFilters,
@@ -486,6 +497,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         DeleteSessionCommand = new AsyncRelayCommand(
             async _ => await DeleteSessionAsync(),
             _ => !_isBusy && _selectedSession != null,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ImportThreatIntelCommand = new AsyncRelayCommand(
+            async _ => await ImportThreatIntelAsync(),
+            _ => !_isBusy && _threatIntelStore != null && _dialogService != null,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         AddSessionNoteCommand = new AsyncRelayCommand(
@@ -955,6 +971,83 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 AddAgentMessage(result.Summary, result.RemediationSession == null);
             });
         });
+    }
+
+    private async Task ImportThreatIntelAsync()
+    {
+        if (_dialogService == null || _threatIntelStore == null)
+            return;
+
+        var filePath = await _dialogService.ShowOpenFileDialogAsync(
+            "Import Threat Intelligence",
+            "JSON files (*.json)|*.json|All files (*.*)|*.*");
+
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        if (!File.Exists(filePath))
+        {
+            AddAgentMessage($"File not found: {filePath}", true);
+            return;
+        }
+
+        var formatOptions = new[] { "Auto-detect", "STIX 2.1", "MISP JSON" };
+        var formatIndex = await _dialogService.ShowSelectionDialogAsync(
+            "Import Threat Intelligence",
+            $"Importing: {Path.GetFileName(filePath)}\n\nSelect format:",
+            formatOptions,
+            defaultIndex: 0);
+
+        if (formatIndex == null)
+            return;
+
+        var format = formatIndex.Value switch
+        {
+            1 => "stix",
+            2 => "misp",
+            _ => "auto"
+        };
+
+        var json = await File.ReadAllTextAsync(filePath);
+
+        if (format == "auto")
+        {
+            if (ThreatIntelFormatDetector.TryDetect(json, out var detectedFormat))
+            {
+                format = detectedFormat == ThreatIntelBundleFormat.Stix ? "stix" : "misp";
+            }
+            else
+            {
+                AddAgentMessage("Could not auto-detect format. Please select STIX 2.1 or MISP JSON.", true);
+                return;
+            }
+        }
+        ThreatIntelImportResult result;
+
+        try
+        {
+            result = format switch
+            {
+                "stix" => StixParser.Parse(json),
+                "misp" => MispParser.Parse(json),
+                _ => throw new InvalidOperationException($"Unknown format: {format}")
+            };
+        }
+        catch (Exception ex)
+        {
+            AddAgentMessage($"Parse error: {ex.Message}", true);
+            return;
+        }
+
+        _threatIntelStore.Import(result.Entries);
+
+        var msg = $"Imported {result.ImportedCount} IOC(s) from {format.ToUpperInvariant()} bundle.";
+        if (result.SkippedCount > 0)
+            msg += $" Skipped: {result.SkippedCount}.";
+        AddAgentMessage(msg, false);
+
+        foreach (var warning in result.Warnings)
+            AddAgentMessage($"Warning: {warning}", true);
     }
 
     /// <inheritdoc />

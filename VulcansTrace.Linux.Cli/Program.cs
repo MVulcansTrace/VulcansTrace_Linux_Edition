@@ -11,6 +11,8 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.ThreatIntel;
+using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Evidence;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
@@ -42,6 +44,7 @@ public static class Program
                 "audit" => await RunAuditAsync(args),
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
+                "threat-intel" => await RunThreatIntelAsync(args),
                 _ => PrintError($"Unknown command: {args[0]}")
             };
         }
@@ -780,6 +783,127 @@ public static class Program
         return 1;
     }
 
+    private static async Task<int> RunThreatIntelAsync(string[] args)
+    {
+        await Task.CompletedTask;
+
+        if (args.Length < 2)
+        {
+            return PrintError("Threat intel subcommand required: import, status, clear");
+        }
+
+        var sub = args[1].ToLowerInvariant();
+        using var services = AgentFactory.Create();
+        var store = services.ThreatIntelStore;
+
+        return sub switch
+        {
+            "import" => RunThreatIntelImport(args, store),
+            "status" => RunThreatIntelStatus(store),
+            "clear" => RunThreatIntelClear(args, store),
+            _ => PrintError($"Unknown threat-intel subcommand: {sub}")
+        };
+    }
+
+    private static int RunThreatIntelImport(string[] args, IThreatIntelStore store)
+    {
+        var filePath = ParseArg(args, "--file", null);
+        var format = ParseArg(args, "--format", "auto")!.ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(filePath))
+            return PrintError("--file is required");
+        if (!File.Exists(filePath))
+            return PrintError($"File not found: {filePath}");
+
+        var json = File.ReadAllText(filePath);
+
+        if (format == "auto")
+        {
+            if (ThreatIntelFormatDetector.TryDetect(json, out var detectedFormat))
+            {
+                format = detectedFormat == ThreatIntelBundleFormat.Stix ? "stix" : "misp";
+            }
+            else
+            {
+                return PrintError("Could not auto-detect format. Use --format stix or --format misp.");
+            }
+        }
+
+        if (format != "stix" && format != "misp")
+        {
+            return PrintError($"Unknown format: {format}. Use stix or misp.");
+        }
+
+        ThreatIntelImportResult result;
+
+        try
+        {
+            result = format == "stix"
+                ? StixParser.Parse(json)
+                : MispParser.Parse(json);
+        }
+        catch (Exception ex)
+        {
+            return PrintError($"Parse error: {ex.Message}");
+        }
+
+        store.Import(result.Entries);
+
+        Console.WriteLine($"Imported {result.ImportedCount} IOC(s) from {format.ToUpperInvariant()} bundle.");
+        if (result.SkippedCount > 0)
+            Console.WriteLine($"  Skipped: {result.SkippedCount}");
+        foreach (var warning in result.Warnings)
+            Console.WriteLine($"  Warning: {warning}");
+
+        if (!string.IsNullOrWhiteSpace(store.PersistenceWarning))
+            Console.WriteLine($"  Note: {store.PersistenceWarning}");
+
+        return 0;
+    }
+
+    private static int RunThreatIntelStatus(IThreatIntelStore store)
+    {
+        var total = store.Count;
+        if (total == 0)
+        {
+            Console.WriteLine("No threat intelligence IOCs loaded.");
+            return 0;
+        }
+
+        Console.WriteLine($"Threat intelligence IOCs: {total} total");
+        foreach (IocType type in Enum.GetValues<IocType>())
+        {
+            var count = store.CountByType(type);
+            if (count > 0)
+                Console.WriteLine($"  {type}: {count}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(store.PersistenceWarning))
+            Console.WriteLine($"  Note: {store.PersistenceWarning}");
+
+        return 0;
+    }
+
+    private static int RunThreatIntelClear(string[] args, IThreatIntelStore store)
+    {
+        var yes = HasFlag(args, "--yes");
+
+        if (!yes)
+        {
+            Console.Write($"Clear all {store.Count} imported IOCs? Type 'yes' to confirm: ");
+            var response = Console.ReadLine()?.Trim();
+            if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Cancelled.");
+                return 0;
+            }
+        }
+
+        store.Clear();
+        Console.WriteLine("All threat intelligence IOCs cleared.");
+        return 0;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine("VulcansTrace Linux Edition - CLI");
@@ -798,6 +922,9 @@ public static class Program
         Console.WriteLine("  vulcanstrace session list");
         Console.WriteLine("  vulcanstrace session show --id <id>");
         Console.WriteLine("  vulcanstrace session delete --id <id>");
+        Console.WriteLine("  vulcanstrace threat-intel import --file <path> [--format stix|misp|auto]");
+        Console.WriteLine("  vulcanstrace threat-intel status");
+        Console.WriteLine("  vulcanstrace threat-intel clear [--yes]");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");

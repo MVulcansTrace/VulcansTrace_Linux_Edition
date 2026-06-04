@@ -388,6 +388,7 @@ internal sealed class AgentFollowUpService
         "packagevulnerability" or "package" or "cve" => AgentIntent.PackageVulnerabilityCheck,
         "container" or "docker" => AgentIntent.ContainerCheck,
         "kubernetes" or "k8s" or "pod" => AgentIntent.KubernetesCheck,
+        "threatintel" or "threat-intel" or "ioc" => AgentIntent.ThreatIntelCheck,
         _ => AgentIntent.Help
     };
 }

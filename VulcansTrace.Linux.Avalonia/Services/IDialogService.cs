@@ -34,6 +34,14 @@ public interface IDialogService
     Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName);
 
     /// <summary>
+    /// Shows a modal file open dialog.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="filter">File type filter (e.g., "JSON files (*.json)|*.json|All files (*.*)|*.*").</param>
+    /// <returns>The selected file path, or null if the dialog was cancelled.</returns>
+    Task<string?> ShowOpenFileDialogAsync(string title, string filter);
+
+    /// <summary>
     /// Shows a modal input dialog with a text box.
     /// </summary>
     /// <param name="title">The dialog title.</param>

@@ -1,5 +1,8 @@
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
+using VulcansTrace.Linux.Agent.Rules.SecurityRules.ThreatIntel;
+using VulcansTrace.Linux.Agent.ThreatIntel;
+using VulcansTrace.Linux.Core.ThreatIntel;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
@@ -84,7 +87,10 @@ public class RuleCatalogTests
         new K8sPrivilegedPodRule(),
         new K8sHostNamespaceRule(),
         new K8sRunAsRootRule(),
-        new K8sSecurityContextRule()
+        new K8sSecurityContextRule(),
+        new ThreatIntelIpRule(new InMemoryThreatIntelStore()),
+        new ThreatIntelPortRule(new InMemoryThreatIntelStore()),
+        new ThreatIntelHashRule(new InMemoryThreatIntelStore())
     };
 
     [Fact]
@@ -92,7 +98,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(77, catalog.Items.Count);
+        Assert.Equal(80, catalog.Items.Count);
     }
 
     [Fact]
@@ -151,7 +157,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(77, results.Count);
+        Assert.Equal(80, results.Count);
     }
 
     [Fact]

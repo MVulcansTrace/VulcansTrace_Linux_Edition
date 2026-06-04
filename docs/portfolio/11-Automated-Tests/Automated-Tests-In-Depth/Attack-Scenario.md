@@ -97,7 +97,7 @@ public void Analyze_PortScanDetectsCorrectly()
 }
 ```
 
-This test feeds raw log text to the full `SentryAnalyzer` — which runs through normalization, all 13 detectors, and risk escalation — and verifies the finding survives the entire pipeline. This catches bugs that unit tests cannot: findings lost during aggregation, risk escalation errors, or profile misapplication.
+This test feeds raw log text to the full `SentryAnalyzer` — which runs through normalization, all 14 detectors, and risk escalation — and verifies the finding survives the entire pipeline. This catches bugs that unit tests cannot: findings lost during aggregation, risk escalation errors, or profile misapplication.
 
 ---
 

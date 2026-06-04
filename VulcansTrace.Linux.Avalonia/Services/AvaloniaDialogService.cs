@@ -83,6 +83,34 @@ public sealed class AvaloniaDialogService : IDialogService
         return result?.TryGetLocalPath();
     }
 
+    /// <summary>
+    /// Shows a modal file open dialog.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="filter">File type filter (e.g., "JSON files (*.json)|*.json|All files (*.*)|*.*").</param>
+    /// <returns>The selected file path, or null if the dialog was cancelled.</returns>
+    public async Task<string?> ShowOpenFileDialogAsync(string title, string filter)
+    {
+        var topLevel = TopLevel.GetTopLevel(_owner);
+        if (topLevel == null || topLevel.StorageProvider == null)
+        {
+            ShowError("File dialog system not available. Please restart the application.", "Dialog Error");
+            return null;
+        }
+
+        var fileTypes = ParseFilter(filter);
+
+        var options = new FilePickerOpenOptions
+        {
+            Title = title,
+            FileTypeFilter = fileTypes,
+            AllowMultiple = false
+        };
+
+        var results = await RunOnUiThreadAsync(() => topLevel.StorageProvider.OpenFilePickerAsync(options));
+        return results?.Count > 0 ? results[0].TryGetLocalPath() : null;
+    }
+
     private Task ShowDialogAsync(string message, string title, bool isError)
     {
         return RunOnUiThreadAsync(async () =>

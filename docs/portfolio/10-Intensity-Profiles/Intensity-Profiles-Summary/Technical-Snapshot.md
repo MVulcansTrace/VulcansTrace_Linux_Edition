@@ -8,7 +8,7 @@
 
 ## Implementation Overview
 
-The `AnalysisProfile` sealed record holds every config knob: enable flags for 13 detectors, numeric thresholds for port scan, flood, lateral movement, beaconing, C2, and privilege escalation detection, plus shared policy lists (AdminPorts, DisallowedOutboundPorts), the output severity filter (MinSeverityToShow), and the per-category cap (MaxFindingsPerDetector). The `AnalysisProfileProvider` factory maps each `IntensityLevel` enum value to a fully populated profile via a switch expression. The `SentryAnalyzer` resolves the profile once per call (line 114), then passes it to every detector and later uses it for visibility filtering and finding caps.
+The `AnalysisProfile` sealed record holds every config knob: enable flags for 14 detectors, numeric thresholds for port scan, flood, lateral movement, beaconing, C2, and privilege escalation detection, plus shared policy lists (AdminPorts, DisallowedOutboundPorts), the output severity filter (MinSeverityToShow), and the per-category cap (MaxFindingsPerDetector). The `AnalysisProfileProvider` factory maps each `IntensityLevel` enum value to a fully populated profile via a switch expression. The `SentryAnalyzer` resolves the profile once per call (line 114), then passes it to every detector and later uses it for visibility filtering and finding caps.
 
 ---
 

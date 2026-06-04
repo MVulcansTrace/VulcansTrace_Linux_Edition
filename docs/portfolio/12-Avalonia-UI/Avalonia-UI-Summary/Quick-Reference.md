@@ -32,6 +32,7 @@
 | `ListSessionsCommand` | AgentViewModel | `!IsBusy` | Lists all persisted remediation sessions |
 | `ResumeSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Reloads the selected remediation session into the chat panel |
 | `DeleteSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Removes the selected remediation session from the store |
+| `ImportThreatIntelCommand` | AgentViewModel | `!IsBusy && ThreatIntelStore != null && DialogService != null` | Opens file picker for STIX/MISP JSON, auto-detects format, parses, and imports IOCs |
 
 ---
 

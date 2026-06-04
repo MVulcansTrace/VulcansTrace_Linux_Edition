@@ -21,4 +21,5 @@ public static class FindingCategories
     public const string PackageVulnerability = "PackageVulnerability";
     public const string Container = "Container";
     public const string Kubernetes = "Kubernetes";
+    public const string ThreatIntel = "ThreatIntel";
 }

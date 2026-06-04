@@ -56,7 +56,7 @@ The `SentryAnalyzer` orchestrator resolves the profile once per analysis call (l
 
 ---
 
-> **Elevator Pitch:** Intensity profiles are the single knob that turns a raw detection engine into an analyst-friendly tool. One selection — Low, Medium, or High — configures 13 detectors, 20+ thresholds, an output filter, and finding caps into a coherent, tested, reproducible analysis strategy. It's the difference between "configure 30 parameters correctly" and "pick a sensitivity level."
+> **Elevator Pitch:** Intensity profiles are the single knob that turns a raw detection engine into an analyst-friendly tool. One selection — Low, Medium, or High — configures 14 detectors, 20+ thresholds, an output filter, and finding caps into a coherent, tested, reproducible analysis strategy. It's the difference between "configure 30 parameters correctly" and "pick a sensitivity level."
 
 ---
 

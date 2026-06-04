@@ -27,7 +27,7 @@
 | NIST CSF Function | Category | Control | Avalonia UI Implementation |
 |---|---|---|---|
 | Identify (ID) | Asset Management | ID.AM-3: Organizational communication and data flows are mapped | Log input box accepts raw firewall logs; intensity dropdown defines the analysis scope and detector set |
-| Detect (DE) | Alignment | DE.CM-1: The network is monitored to detect potential cybersecurity events | `AnalyzeCommand` triggers `SentryAnalyzer.Analyze` with 13 detectors across 3 intensity tiers |
+| Detect (DE) | Alignment | DE.CM-1: The network is monitored to detect potential cybersecurity events | `AnalyzeCommand` triggers `SentryAnalyzer.Analyze` with 14 detectors across 3 intensity tiers |
 | Detect (DE) | Analysis | DE.AE-1: Potential incidents are identified | `FindingsViewModel.LoadResults` populates severity-badged finding items for analyst review |
 | Detect (DE) | Analysis | DE.AE-2: Incident information is aggregated | `SummaryText` aggregates findings count, high/critical count, parse errors, and warnings into a single status line |
 | Detect (DE) | Analysis | DE.AE-3: Incident data is analyzed | `TimelineViewModel` groups findings by category and normalizes to a temporal 0–1 range for visual correlation |
@@ -53,7 +53,7 @@ The analyst selects an analysis intensity:
 |---|---|---|
 | Low | Critical threat triage | Baseline detectors only |
 | Medium | Investigation review | Baseline + Linux-specific detectors |
-| High | Deep hunt / forensics | All 13 detectors including C2 and privilege escalation |
+| High | Deep hunt / forensics | All 14 detectors including C2 and privilege escalation |
 
 The analyst can optionally set `PortScanMaxEntriesPerSource` in the Advanced expander to cap port scan findings per source IP.
 

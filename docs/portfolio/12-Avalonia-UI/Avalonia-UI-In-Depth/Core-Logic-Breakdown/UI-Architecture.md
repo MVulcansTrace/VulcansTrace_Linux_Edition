@@ -4,7 +4,7 @@
 
 ## The Engineering Problem
 
-VulcansTrace has 13 detectors, a risk escalation engine, 6 evidence formatters, and a cryptographic integrity chain — but none of these components know about each other. The UI must compose them into a coherent workflow: the analyst pastes a log, clicks Analyze, sees results, filters them, and exports evidence. The architecture must wire every dependency, manage async execution, handle cancellation, and render a timeline — all without coupling the ViewModels to the Avalonia framework beyond what is strictly necessary.
+VulcansTrace has 14 detectors, a risk escalation engine, 6 evidence formatters, and a cryptographic integrity chain — but none of these components know about each other. The UI must compose them into a coherent workflow: the analyst pastes a log, clicks Analyze, sees results, filters them, and exports evidence. The architecture must wire every dependency, manage async execution, handle cancellation, and render a timeline — all without coupling the ViewModels to the Avalonia framework beyond what is strictly necessary.
 
 ---
 
@@ -52,10 +52,10 @@ var logNormalizer = new LogNormalizer(logSink);
 // Analysis profiles
 var profileProvider = new AnalysisProfileProvider();
 
-// 13 detectors in 3 tiers
+// 14 detectors in 3 tiers
 var baselineDetectors = new IDetector[] { PortScan, Flood, Lateral, Beaconing, PolicyViolation, Novelty };
 var linuxDetectors = new IDetector[] { FlagAnomaly, MacSpoofing, KernelModule, InterfaceHopping, UnusualPacketSize };
-var advancedDetectors = new IDetector[] { C2Channel, PrivilegeEscalation };
+var advancedDetectors = new IDetector[] { C2Channel, PrivilegeEscalation, ThreatIntel };
 
 // Engine chain
 var riskEscalator = new RiskEscalator();

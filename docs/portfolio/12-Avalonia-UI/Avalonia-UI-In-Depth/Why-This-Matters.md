@@ -22,7 +22,7 @@ Without a UI, the analyst must use the CLI runner, which provides no interactive
 
 The Avalonia UI subsystem addresses these requirements with:
 
-- **A composition root** that wires the full engine chain in one place — 13 detectors, risk escalation, evidence packaging — visible and auditable
+- **A composition root** that wires the full engine chain in one place — 14 detectors, risk escalation, evidence packaging — visible and auditable
 - **MVVM separation** that keeps all logic in testable ViewModels, with the code-behind limited to canvas rendering and ViewModel hooking
 - **Async analysis** that offloads the engine to `Task.Run` with `CancellationToken` support, keeping the UI responsive during multi-second analysis runs
 - **Child ViewModel delegation** where MainViewModel orchestrates but Findings, Evidence, and Timeline ViewModels own their own state and commands

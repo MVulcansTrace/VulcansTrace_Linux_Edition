@@ -299,6 +299,8 @@ public class SuppressionViewModelTests
         public void ShowError(string message, string title) { }
         public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName)
             => Task.FromResult<string?>(null);
+        public Task<string?> ShowOpenFileDialogAsync(string title, string filter)
+            => Task.FromResult<string?>(null);
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
             => Task.FromResult(InputResult);
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)

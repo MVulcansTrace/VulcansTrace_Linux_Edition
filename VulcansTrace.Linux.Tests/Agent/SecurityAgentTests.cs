@@ -5,7 +5,10 @@ using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
+using VulcansTrace.Linux.Agent.Rules.SecurityRules.ThreatIntel;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Agent.ThreatIntel;
+using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using Xunit;
@@ -368,6 +371,7 @@ public class SecurityAgentTests
 
     private static SecurityAgent CreateAgent()
     {
+        var threatIntelStore = new InMemoryThreatIntelStore();
         var scanners = new IScanner[]
         {
             new FirewallScanner(),
@@ -383,7 +387,8 @@ public class SecurityAgentTests
             new CronJobScanner(),
             new PackageVulnerabilityScanner(),
             new ContainerScanner(),
-            new KubernetesScanner()
+            new KubernetesScanner(),
+            new FileHashScanner(threatIntelStore)
         };
 
         var rules = new IRule[]
@@ -464,7 +469,10 @@ public class SecurityAgentTests
             new K8sPrivilegedPodRule(),
             new K8sHostNamespaceRule(),
             new K8sRunAsRootRule(),
-            new K8sSecurityContextRule()
+            new K8sSecurityContextRule(),
+            new ThreatIntelIpRule(threatIntelStore),
+            new ThreatIntelPortRule(threatIntelStore),
+            new ThreatIntelHashRule(threatIntelStore)
         };
 
         var explanationProvider = new ExplanationProvider();

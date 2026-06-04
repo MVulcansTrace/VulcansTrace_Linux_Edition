@@ -40,6 +40,7 @@ internal sealed class AgentResultComposer
             AgentIntent.PackageVulnerabilityCheck => "Package vulnerability check",
             AgentIntent.ContainerCheck => "Container check",
             AgentIntent.KubernetesCheck => "Kubernetes check",
+            AgentIntent.ThreatIntelCheck => "Threat intel check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
