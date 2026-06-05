@@ -18,7 +18,7 @@ The test suite validates the VulcansTrace analysis pipeline end-to-end. Unit tes
 | Test categories | Core, Detectors (Baseline, Linux, Advanced), Evidence, Integration, Avalonia |
 | Detector test files | 14 (6 baseline, 5 Linux, 3 advanced) |
 | Integration test files | 7 (SentryAnalyzer, RealWorld, RealLog, Performance, ProfileComparison, ConfigurableThreshold, GoldenScenario) |
-| Evidence test files | 6 (Builder, CSV, HTML, JSON, Markdown, STIX) |
+| Evidence test files | 12 (Builder, CSV, HTML, JSON, Markdown, STIX, scorecards, MITRE, Trace Map, LogDiff) |
 | Test helper | LogScenarioBuilder |
 | Real log fixtures | 5 (iptables-attack.log, nftables-traffic.log, large-portscan.log, iptables-mixed-prefixes.log, golden-compromise-timeline.log) |
 | Assertion framework | xUnit Assert |

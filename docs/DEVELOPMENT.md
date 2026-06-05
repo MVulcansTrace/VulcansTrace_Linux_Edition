@@ -23,7 +23,7 @@ Run all tests:
 dotnet test
 ```
 
-The test suite contains **2 241 tests** covering unit, integration, detector, evidence, UI, live stream, and performance scenarios.
+The test suite contains **2 348 tests** covering unit, integration, detector, evidence, UI, live stream, and performance scenarios.
 
 Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Tests/Data/Real/Samples`
@@ -44,6 +44,13 @@ Sample logs used by integration tests live in:
 
 The signing key is generated after each completed analysis in the UI. See `docs/HMAC_EVIDENCE.md`
 for the step-by-step HMAC signing key flow.
+
+## Adding a Log Diff Formatter
+
+1. Add a new formatter in `VulcansTrace.Linux.Evidence/Formatters/` (e.g., `LogDiffCsvFormatter`).
+2. Register it in `AgentFactory.Create()` and wire it into `EvidenceBuilder`.
+3. Add tests in `VulcansTrace.Linux.Tests/Evidence/`.
+4. Update `docs/USAGE.md` and `docs/ARCHITECTURE.md`.
 
 ## Adding a Live Stream Event Source
 

@@ -350,9 +350,26 @@ Last updated: 2026-06-04
 - 30+ new tests: `MitreTechniqueTests`, `MitreLayerBuilderTests` (empty, single, aggregate, dedup, gradient, custom name), `DetectorMitreMappingTests` (reflection-based static field verification), and formatter inclusion tests.
   - Code: `VulcansTrace.Linux.Core/MitreTechnique.cs`, `VulcansTrace.Linux.Evidence/MitreLayerBuilder.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`, `VulcansTrace.Linux.Agent/Remediation/RemediationPlan.cs`, `VulcansTrace.Linux.Avalonia/MainWindow.axaml`, `VulcansTrace.Linux.Agent/Rules/RuleCatalogItem.cs`, `VulcansTrace.Linux.Agent/Rules/RulesCatalog.cs`, `VulcansTrace.Linux.Tests/Core/MitreTechniqueTests.cs`, `VulcansTrace.Linux.Tests/Evidence/MitreLayerBuilderTests.cs`, `VulcansTrace.Linux.Tests/Engine/DetectorMitreMappingTests.cs`
 
+### Log Diff Mode
+- Added `LogDiffAnalyzer` that compares two `AnalysisResult` instances to detect new, removed, and changed connection patterns and findings.
+  - Events matched by a traffic pattern key (source IP, destination IP, destination port, protocol; source port wildcarded) with count deltas and dominant action shifts.
+  - Findings matched by stable `Fingerprint` with `GroupBy` deduplication for duplicate fingerprints.
+  - `LogDiffState` enum: `Unchanged`, `Added`, `Removed`, `Changed`. Count delta >20% or action shift marks `Changed`.
+  - Code: `VulcansTrace.Linux.Engine/LogDiff/LogDiffAnalyzer.cs`, `LogDiffResult.cs`, `DiffEvent.cs`, `DiffFinding.cs`, `LogDiffState.cs`
+- Added `LogDiffMarkdownFormatter` and `LogDiffHtmlFormatter` for standalone diff reports.
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/LogDiffMarkdownFormatter.cs`, `LogDiffHtmlFormatter.cs`
+- Added CLI `diff` command with `--baseline`, `--incident`, `--intensity`, `--output-json`, `--output-html`, `--output-evidence`, and `--signing-key` flags. Exit code `2` when differences detected.
+  - Code: `VulcansTrace.Linux.Cli/Program.cs`
+- Added Avalonia `LogDiffWindow` with `LogDiffViewModel`, color-coded DataGrids, and `CompareLogsCommand` in `MainViewModel`.
+  - Code: `VulcansTrace.Linux.Avalonia/Views/LogDiffWindow.axaml`, `ViewModels/LogDiffViewModel.cs`, `Converters/LogDiffStateToBrushConverter.cs`, `Converters/LogDiffStateToForegroundBrushConverter.cs`
+- `EvidenceBuilder` includes `log-diff.md` and `log-diff.html` in signed ZIP when `LogDiffResult` provided.
+  - Code: `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`
+- Tests: `LogDiffAnalyzerTests` (added/removed/changed events and findings, source-port wildcard matching, action shift, count threshold), `DiffCommandTests` (CLI argument validation and evidence output), `LogDiffFormatterTests` (markdown and HTML coverage), `EvidenceBuilderTests` (bundle inclusion and omission).
+  - Code: `VulcansTrace.Linux.Tests/Engine/LogDiffAnalyzerTests.cs`, `VulcansTrace.Linux.Tests/Cli/DiffCommandTests.cs`, `VulcansTrace.Linux.Tests/Evidence/LogDiffFormatterTests.cs`
+
 ### Documentation
 - Portfolio and technical docs aligned to actual behavior and formats.
-  - Docs: `README.md`, `docs/portfolio/` (15 implementation portfolios),
+  - Docs: `README.md`, `docs/portfolio/` (17 implementation portfolios),
     `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/USAGE.md`,
     `docs/DEVELOPMENT.md`, `docs/HMAC_EVIDENCE.md`, `docs/SECURITY_AGENT.md`
 

@@ -198,6 +198,41 @@ Examples:
 
 The CLI and GUI both validate cron expressions before saving.
 
+## Log Diff Mode
+
+VulcansTrace can compare two firewall log files to detect changes in connection patterns and findings between a baseline and an incident timeframe.
+
+### CLI Log Diff
+
+```bash
+# Compare two logs and print a narrative summary
+vulcanstrace diff --baseline baseline.log --incident incident.log --intensity Medium
+
+# Export diff results as standalone JSON and HTML
+vulcanstrace diff --baseline baseline.log --incident incident.log --intensity Medium --output-json diff.json --output-html diff.html
+
+# Include diff reports in a signed evidence bundle.
+# If --signing-key is omitted, the CLI prints a generated key that must be saved for later verification.
+vulcanstrace diff --baseline baseline.log --incident incident.log --intensity Medium --output-evidence diff-evidence.zip
+```
+
+Exit codes:
+- `0` — no differences detected.
+- `1` — error (missing files, invalid arguments, analysis failure).
+- `2` — differences detected (new, removed, or changed events/findings).
+
+### Avalonia UI Log Diff
+
+1. Open the Avalonia UI.
+2. Click **Compare Logs** (below the main Analyze button).
+3. Select a **Baseline** log file and an **Incident** log file.
+4. The app analyzes both files using the currently selected intensity and opens a **Log Diff** results window.
+5. Review the diff results:
+   - **Connection Patterns** — per-pattern comparison showing baseline count, incident count, delta, dominant actions, and diff state (`Unchanged`, `Added`, `Removed`, `Changed`). Source ports are wildcarded for matching so ephemeral-port churn does not split one pattern into fake add/remove rows.
+   - **Findings** — per-fingerprint comparison showing new, resolved, changed, and unchanged findings.
+   - **Summary** — narrative description of what changed, with counts for each state.
+6. Use the CLI `diff` command when you need JSON/HTML output or a signed evidence bundle for handoff.
+
 ## Headless CLI Audits
 
 Run audits without launching the desktop UI:

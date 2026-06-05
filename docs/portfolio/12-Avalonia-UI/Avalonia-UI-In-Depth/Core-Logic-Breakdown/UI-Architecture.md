@@ -4,7 +4,7 @@
 
 ## The Engineering Problem
 
-VulcansTrace has 14 detectors, a risk escalation engine, 6 evidence formatters, and a cryptographic integrity chain — but none of these components know about each other. The UI must compose them into a coherent workflow: the analyst pastes a log, clicks Analyze, sees results, filters them, and exports evidence. The architecture must wire every dependency, manage async execution, handle cancellation, and render a timeline — all without coupling the ViewModels to the Avalonia framework beyond what is strictly necessary.
+VulcansTrace has 14 detectors, a risk escalation engine, evidence formatters, and a cryptographic integrity chain — but none of these components know about each other. The UI must compose them into a coherent workflow: the analyst pastes a log, clicks Analyze, sees results, filters them, and exports evidence. The architecture must wire every dependency, manage async execution, handle cancellation, and render a timeline — all without coupling the ViewModels to the Avalonia framework beyond what is strictly necessary.
 
 ---
 

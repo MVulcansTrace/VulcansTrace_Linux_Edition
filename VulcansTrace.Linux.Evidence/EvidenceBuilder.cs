@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Security;
+using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Evidence.Formatters;
 
 namespace VulcansTrace.Linux.Evidence;
@@ -41,6 +42,8 @@ public sealed class EvidenceBuilder
     private readonly TraceMapJsonFormatter? _traceMapJsonFormatter;
     private readonly MitreLayerBuilder? _mitreLayerBuilder;
     private readonly IReadOnlyList<MitreCoverageSource> _mitreCoverageSources;
+    private readonly LogDiffMarkdownFormatter? _logDiffMarkdownFormatter;
+    private readonly LogDiffHtmlFormatter? _logDiffHtmlFormatter;
     private static readonly DateTimeOffset ZipMinTimestamp = new DateTimeOffset(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     private static readonly DateTimeOffset ZipMaxTimestamp = new DateTimeOffset(new DateTime(2107, 12, 31, 23, 59, 59, DateTimeKind.Utc));
 
@@ -61,6 +64,8 @@ public sealed class EvidenceBuilder
     /// <param name="traceMapJsonFormatter">Optional formatter for Trace Map Cytoscape JSON.</param>
     /// <param name="mitreLayerBuilder">Optional builder for MITRE ATT&CK Navigator layer export.</param>
     /// <param name="mitreCoverageSources">Optional detector and rule coverage sources for the Navigator layer.</param>
+    /// <param name="logDiffMarkdownFormatter">Optional formatter for log diff Markdown.</param>
+    /// <param name="logDiffHtmlFormatter">Optional formatter for log diff HTML.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
@@ -75,7 +80,9 @@ public sealed class EvidenceBuilder
         TraceMapMarkdownFormatter? traceMapMarkdownFormatter = null,
         TraceMapJsonFormatter? traceMapJsonFormatter = null,
         MitreLayerBuilder? mitreLayerBuilder = null,
-        IReadOnlyList<MitreCoverageSource>? mitreCoverageSources = null)
+        IReadOnlyList<MitreCoverageSource>? mitreCoverageSources = null,
+        LogDiffMarkdownFormatter? logDiffMarkdownFormatter = null,
+        LogDiffHtmlFormatter? logDiffHtmlFormatter = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -91,6 +98,8 @@ public sealed class EvidenceBuilder
         _traceMapJsonFormatter = traceMapJsonFormatter;
         _mitreLayerBuilder = mitreLayerBuilder;
         _mitreCoverageSources = mitreCoverageSources ?? Array.Empty<MitreCoverageSource>();
+        _logDiffMarkdownFormatter = logDiffMarkdownFormatter;
+        _logDiffHtmlFormatter = logDiffHtmlFormatter;
     }
 
     /// <summary>
@@ -140,6 +149,23 @@ public sealed class EvidenceBuilder
     /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
     public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
+    {
+        return Build(result, rawLog, signingKey, analysisTimestampUtc, cancellationToken, remediationPlanMarkdown, traceMap, logDiffResult: null);
+    }
+
+    /// <summary>
+    /// Builds an evidence package that includes a log diff report.
+    /// </summary>
+    /// <param name="result">The analysis result to package.</param>
+    /// <param name="rawLog">The original raw log content.</param>
+    /// <param name="signingKey">The secret key for HMAC signing.</param>
+    /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
+    /// <param name="cancellationToken">Token to cancel the build operation.</param>
+    /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
+    /// <param name="logDiffResult">Optional log diff result to include as <c>log-diff.md</c> and <c>log-diff.html</c>.</param>
+    /// <returns>A byte array containing the ZIP file contents.</returns>
+    public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown, TraceMapResult? traceMap, LogDiffResult? logDiffResult)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -206,6 +232,20 @@ public sealed class EvidenceBuilder
         {
             files["mitre-navigator-layer.json"] = Encoding.UTF8.GetBytes(
                 _mitreLayerBuilder.BuildCoverageLayer(_mitreCoverageSources, result.Findings));
+        }
+
+        if (logDiffResult != null)
+        {
+            if (_logDiffMarkdownFormatter != null)
+            {
+                files["log-diff.md"] = Encoding.UTF8.GetBytes(_logDiffMarkdownFormatter.ToMarkdown(
+                    logDiffResult, logDiffResult.BaselineLabel, logDiffResult.IncidentLabel));
+            }
+            if (_logDiffHtmlFormatter != null)
+            {
+                files["log-diff.html"] = Encoding.UTF8.GetBytes(_logDiffHtmlFormatter.ToHtml(
+                    logDiffResult, logDiffResult.BaselineLabel, logDiffResult.IncidentLabel));
+            }
         }
 
         cancellationToken.ThrowIfCancellationRequested();

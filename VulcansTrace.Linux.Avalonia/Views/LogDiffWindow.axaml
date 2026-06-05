@@ -1,0 +1,158 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+        xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+        x:Class="VulcansTrace.Linux.Avalonia.Views.LogDiffWindow"
+        x:DataType="vm:LogDiffViewModel"
+        Title="Log Diff"
+        Width="1000"
+        Height="640"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
+
+    <Window.Resources>
+        <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
+        <conv:LogDiffStateToBrushConverter x:Key="LogDiffStateToBrushConverter" />
+        <conv:LogDiffStateToForegroundBrushConverter x:Key="LogDiffStateToForegroundBrushConverter" />
+    </Window.Resources>
+
+    <Design.DataContext>
+        <vm:LogDiffViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,*">
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="Log Comparison"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="#e2e8f0"
+                   Margin="0,0,0,8"/>
+
+        <!-- Narrative -->
+        <TextBlock Grid.Row="1"
+                   Text="{Binding Narrative}"
+                   FontSize="13"
+                   Foreground="#e2e8f0"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"/>
+
+        <!-- Summary badges -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Added: " Foreground="#94a3b8"/><Run Text="{Binding AddedCount}" FontWeight="Bold" Foreground="#fecaca"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Removed: " Foreground="#94a3b8"/><Run Text="{Binding RemovedCount}" FontWeight="Bold" Foreground="#bbf7d0"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Changed: " Foreground="#94a3b8"/><Run Text="{Binding ChangedCount}" FontWeight="Bold" Foreground="#fde047"/>
+                </TextBlock>
+            </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Unchanged: " Foreground="#94a3b8"/><Run Text="{Binding UnchangedCount}" FontWeight="Bold" Foreground="#94a3b8"/>
+                </TextBlock>
+            </Border>
+        </StackPanel>
+
+        <!-- Events grid -->
+        <TextBlock Grid.Row="3"
+                   Text="Connection Patterns"
+                   FontWeight="Bold"
+                   Foreground="#cbd5e1"
+                   Margin="0,0,0,4"
+                   IsVisible="{Binding Events.Count, Converter={StaticResource IntToBoolConverter}}"/>
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding Events}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  Margin="0,20,0,0">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="State" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding State, Converter={StaticResource LogDiffStateToBrushConverter}}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
+                                <TextBlock Text="{Binding State}"
+                                           Foreground="{Binding State, Converter={StaticResource LogDiffStateToForegroundBrushConverter}}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Connection" Binding="{Binding ConnectionKey}" Width="280" />
+                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="80" />
+                <DataGridTextColumn Header="Count Δ" Binding="{Binding CountDelta}" Width="90" />
+                <DataGridTextColumn Header="Baseline Actions" Binding="{Binding BaselineDominantAction}" Width="130" />
+                <DataGridTextColumn Header="Incident Actions" Binding="{Binding IncidentDominantAction}" Width="130" />
+                <DataGridTextColumn Header="Baseline First" Binding="{Binding BaselineFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
+                <DataGridTextColumn Header="Incident First" Binding="{Binding IncidentFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Empty state for events -->
+        <TextBlock Grid.Row="3"
+                   Text="No connection patterns to display."
+                   Foreground="#64748b"
+                   FontSize="12"
+                   IsVisible="{Binding !Events.Count, Converter={StaticResource IntToBoolConverter}}"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"/>
+
+        <!-- Findings label -->
+        <TextBlock Grid.Row="4"
+                   Text="Findings"
+                   FontWeight="Bold"
+                   Foreground="#cbd5e1"
+                   Margin="0,12,0,4"
+                   IsVisible="{Binding Findings.Count, Converter={StaticResource IntToBoolConverter}}"/>
+
+        <!-- Findings grid -->
+        <DataGrid Grid.Row="5"
+                  ItemsSource="{Binding Findings}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  IsVisible="{Binding Findings.Count, Converter={StaticResource IntToBoolConverter}}">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="State" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding State, Converter={StaticResource LogDiffStateToBrushConverter}}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
+                                <TextBlock Text="{Binding State}"
+                                           Foreground="{Binding State, Converter={StaticResource LogDiffStateToForegroundBrushConverter}}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Category" Binding="{Binding Finding.Category}" Width="150" />
+                <DataGridTextColumn Header="Severity" Binding="{Binding Finding.Severity}" Width="100" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Finding.SourceHost}" Width="130" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Finding.Target}" Width="150" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Finding.ShortDescription}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>

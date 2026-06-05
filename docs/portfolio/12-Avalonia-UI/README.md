@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 14 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, Security Agent scanners/rules/policy, IntegrityHasher, 5 formatters, and EvidenceBuilder in one constructor
+- **Full engine composition root** — MainWindow.axaml.cs wires LogNormalizer, 14 detectors across 3 tiers, RiskEscalator, SentryAnalyzer, Security Agent scanners/rules/policy, IntegrityHasher, report formatters, and EvidenceBuilder in one constructor
 - **MVVM with Security Agent child workflow** — MainViewModel orchestrates Findings, Evidence, Timeline, Suppressions, Rule Coverage, and Agent ViewModels without making those child ViewModels own each other's state
 - **Context-sensitive advisor** — MainViewModel generates triage guidance based on finding counts, severity distribution, warnings, and parse errors
 - **Timeline canvas rendering** — severity-colored horizontal bars grouped by category, normalized to 0–1 range, with dynamic canvas height calculation
@@ -32,6 +32,7 @@ Documentation is organized for two audiences:
 - **Risk Score tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid
 - **Schedule management tab** — DataGrid of recurring audit schedules with Add/Edit/Delete/Run Now/Install Cron actions, cron status indicators, and selection preservation across refreshes
 - **Remediation Sessions expander** — lists all persisted guided remediation sessions with ID, status, rule ID, and creation time; supports resuming a session into the chat panel and deleting sessions from the store
+- **Log Diff Mode** — `LogDiffWindow` with color-coded DataGrids for comparing baseline vs incident logs; shows per-connection-pattern event diffs and per-fingerprint finding diffs with `Unchanged`/`Added`/`Removed`/`Changed` state badges
 - **MITRE ATT&CK columns** — both Findings and Rules DataGrids display a **MITRE ATT&CK** column showing mapped technique IDs and names, with search support across technique data
 - **Machine role dropdown** — hot-swap roles (Workstation, Server, LabBox, Router, DevMachine) without restarting the app
 
@@ -49,6 +50,8 @@ Documentation is organized for two audiences:
 - [ScheduleViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs) — recurring schedule management, cron status, selection preservation, and on-demand execution
 - [ComplianceScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization
 - [RiskScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs) — risk score tab binding and grade-color mapping
+- [LogDiffViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/LogDiffViewModel.cs) — log diff result binding for narrative, counts, Events, and Findings
+- [LogDiffWindow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/LogDiffWindow.axaml) — diff results window with Events and Findings DataGrids
 - [ScheduleEditWindow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/ScheduleEditWindow.axaml) — schedule editor dialog
 - [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation
 - [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching

@@ -13,6 +13,9 @@ using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Core.ThreatIntel;
+using VulcansTrace.Linux.Engine;
+using VulcansTrace.Linux.Engine.Configuration;
+using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Evidence;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
@@ -42,6 +45,7 @@ public static class Program
             return command switch
             {
                 "audit" => await RunAuditAsync(args),
+                "diff" => await RunDiffAsync(args),
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
                 "threat-intel" => await RunThreatIntelAsync(args),
@@ -149,6 +153,151 @@ public static class Program
         var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
         var auditExitCode = criticalCount > 0 ? 2 : 0;
         return Math.Max(auditExitCode, autoFixExitCode);
+    }
+
+    private static async Task<int> RunDiffAsync(string[] args)
+    {
+        var baselinePath = ParseArg(args, "--baseline", null);
+        var incidentPath = ParseArg(args, "--incident", null);
+        var outputJson = ParseArg(args, "--output-json", null);
+        var outputHtml = ParseArg(args, "--output-html", null);
+        var outputEvidence = ParseArg(args, "--output-evidence", null);
+        var signingKeyHex = ParseArg(args, "--signing-key", null);
+        var intensityArg = ParseArg(args, "--intensity", "Medium")!;
+
+        if (HasFlag(args, "--output-json") && string.IsNullOrWhiteSpace(outputJson))
+            return PrintError("--output-json requires a file path");
+        if (HasFlag(args, "--output-html") && string.IsNullOrWhiteSpace(outputHtml))
+            return PrintError("--output-html requires a file path");
+        if (HasFlag(args, "--output-evidence") && string.IsNullOrWhiteSpace(outputEvidence))
+            return PrintError("--output-evidence requires a ZIP file path");
+        if (HasFlag(args, "--signing-key") && string.IsNullOrWhiteSpace(signingKeyHex))
+            return PrintError("--signing-key requires a hex-encoded key");
+        if (string.IsNullOrWhiteSpace(baselinePath))
+            return PrintError("--baseline is required");
+        if (string.IsNullOrWhiteSpace(incidentPath))
+            return PrintError("--incident is required");
+        if (!File.Exists(baselinePath))
+            return PrintError($"Baseline file not found: {baselinePath}");
+        if (!File.Exists(incidentPath))
+            return PrintError($"Incident file not found: {incidentPath}");
+        if (!Enum.TryParse<IntensityLevel>(intensityArg, true, out var intensity))
+            return PrintError($"Unknown intensity: {intensityArg}. Use Low, Medium, or High.");
+
+        Console.WriteLine($"Comparing logs...");
+        Console.WriteLine($"  Baseline: {baselinePath}");
+        Console.WriteLine($"  Incident: {incidentPath}");
+        Console.WriteLine($"  Intensity: {intensity}");
+
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var services = AgentFactory.Create();
+        var baselineLog = await File.ReadAllTextAsync(baselinePath, cts.Token);
+        var incidentLog = await File.ReadAllTextAsync(incidentPath, cts.Token);
+
+        var baselineResult = services.Analyzer.Analyze(baselineLog, intensity, cts.Token);
+        var incidentResult = services.Analyzer.Analyze(incidentLog, intensity, cts.Token);
+
+        var diffAnalyzer = new LogDiffAnalyzer();
+        var diffResult = diffAnalyzer.Compare(baselineResult, incidentResult) with
+        {
+            BaselineLabel = baselinePath,
+            IncidentLabel = incidentPath
+        };
+
+        Console.WriteLine();
+        Console.WriteLine($"  {diffResult.Narrative}");
+        Console.WriteLine($"  Patterns: {diffResult.AddedCount} added, {diffResult.RemovedCount} removed, {diffResult.ChangedCount} changed, {diffResult.UnchangedCount} unchanged");
+        if (diffResult.Findings.Count > 0)
+        {
+            Console.WriteLine($"  Findings: {diffResult.AddedFindingsCount} new, {diffResult.RemovedFindingsCount} resolved, {diffResult.ChangedFindingsCount} changed");
+        }
+
+        if (!string.IsNullOrEmpty(outputJson))
+        {
+            if (Directory.Exists(outputJson))
+            {
+                Console.WriteLine($"  Error: --output-json path is a directory: {outputJson}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputJson);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var json = JsonSerializer.Serialize(diffResult, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            await File.WriteAllTextAsync(outputJson, json, cts.Token);
+            Console.WriteLine($"  JSON output written to: {outputJson}");
+        }
+
+        if (!string.IsNullOrEmpty(outputHtml))
+        {
+            if (Directory.Exists(outputHtml))
+            {
+                Console.WriteLine($"  Error: --output-html path is a directory: {outputHtml}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputHtml);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var html = new VulcansTrace.Linux.Evidence.Formatters.LogDiffHtmlFormatter().ToHtml(diffResult, baselinePath, incidentPath);
+            await File.WriteAllTextAsync(outputHtml, html, cts.Token);
+            Console.WriteLine($"  HTML output written to: {outputHtml}");
+        }
+
+        if (!string.IsNullOrEmpty(outputEvidence))
+        {
+            if (Directory.Exists(outputEvidence))
+            {
+                Console.WriteLine($"  Error: --output-evidence path is a directory: {outputEvidence}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputEvidence);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            byte[] signingKey;
+            if (!string.IsNullOrWhiteSpace(signingKeyHex))
+            {
+                signingKey = Convert.FromHexString(signingKeyHex);
+            }
+            else
+            {
+                signingKey = new byte[32];
+                Random.Shared.NextBytes(signingKey);
+                Console.WriteLine($"  Generated signing key (save this to verify the evidence package): {Convert.ToHexString(signingKey)}");
+            }
+
+            var evidenceBytes = services.EvidenceBuilder.Build(
+                incidentResult,
+                incidentLog,
+                signingKey,
+                analysisTimestampUtc: DateTime.UtcNow,
+                cancellationToken: cts.Token,
+                remediationPlanMarkdown: null,
+                traceMap: null,
+                logDiffResult: diffResult);
+
+            await File.WriteAllBytesAsync(outputEvidence, evidenceBytes, cts.Token);
+            Console.WriteLine($"  Evidence package written to: {outputEvidence}");
+        }
+
+        var hasDiff = diffResult.AddedCount > 0 || diffResult.RemovedCount > 0 || diffResult.ChangedCount > 0
+            || diffResult.AddedFindingsCount > 0 || diffResult.RemovedFindingsCount > 0 || diffResult.ChangedFindingsCount > 0;
+
+        return hasDiff ? 2 : 0;
     }
 
     internal static async Task<int> HandleAutoFixAsync(string[] args, AgentResult auditResult, AgentServices services, CancellationToken ct)
@@ -910,6 +1059,7 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>] [--auto-fix [--dry-run] [--yes] [--allow-restart] [--allow-packages]]");
+        Console.WriteLine("  vulcanstrace diff --baseline <file> --incident <file> [--output-json <file>] [--output-html <file>] [--output-evidence <zip>] [--signing-key <hex>]");
         Console.WriteLine("  vulcanstrace schedule list");
         Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
         Console.WriteLine("  vulcanstrace schedule edit --id <id> [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>] [--notify-on-critical|--no-notify-on-critical] [--enabled|--disabled]");
@@ -928,7 +1078,13 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");
+        Console.WriteLine("  --baseline <file>          Baseline log file for diff comparison");
+        Console.WriteLine("  --incident <file>          Incident log file for diff comparison");
+        Console.WriteLine("  --intensity <level>        Diff analysis intensity: Low, Medium, High (default: Medium)");
         Console.WriteLine("  --output-json <file>       Write the full AgentResult to a JSON file");
+        Console.WriteLine("  --output-html <file>       Write the log diff report as HTML");
+        Console.WriteLine("  --output-evidence <zip>    Write a signed evidence ZIP including the diff report");
+        Console.WriteLine("  --signing-key <hex>        Hex-encoded HMAC signing key for evidence packages");
         Console.WriteLine("  --output-mitre <file>      Write the MITRE ATT&CK Navigator layer JSON");
         Console.WriteLine("  --notify-on-critical       Send a notification if critical findings are found");
         Console.WriteLine("  --no-notify-on-critical    Disable critical notifications (edit only)");
@@ -949,9 +1105,9 @@ public static class Program
         Console.WriteLine("  VT_WEBHOOK_URL");
         Console.WriteLine();
         Console.WriteLine("Exit codes:");
-        Console.WriteLine("  0  Success (no critical findings)");
+        Console.WriteLine("  0  Success (no critical findings / no diff detected)");
         Console.WriteLine("  1  Error");
-        Console.WriteLine("  2  Success with critical findings");
+        Console.WriteLine("  2  Success with critical findings / diff detected");
         Console.WriteLine("  3  Auto-fix executed but some commands failed");
     }
 }

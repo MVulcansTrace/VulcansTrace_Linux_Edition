@@ -937,6 +937,127 @@ public class EvidenceBuilderTests
         Assert.DoesNotContain("trace-map.json", names);
     }
 
+    [Fact]
+    public void Build_WithLogDiff_IncludesLogDiffMdAndHtml()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            jsonFormatter: null,
+            stixFormatter: null,
+            scorecardHtmlFormatter: null,
+            scorecardMarkdownFormatter: null,
+            riskScorecardHtmlFormatter: null,
+            riskScorecardMarkdownFormatter: null,
+            traceMapMarkdownFormatter: null,
+            traceMapJsonFormatter: null,
+            mitreLayerBuilder: null,
+            mitreCoverageSources: null,
+            logDiffMarkdownFormatter: new LogDiffMarkdownFormatter(),
+            logDiffHtmlFormatter: new LogDiffHtmlFormatter());
+
+        var result = SingleFindingResult();
+        var logDiffResult = new VulcansTrace.Linux.Engine.LogDiff.LogDiffResult
+        {
+            BaselineLabel = "/path/to/baseline.log",
+            IncidentLabel = "/path/to/incident.log",
+            Events =
+            [
+                new VulcansTrace.Linux.Engine.LogDiff.DiffEvent
+                {
+                    ConnectionKey = "10.0.0.1:*-192.168.1.1:443-TCP",
+                    State = VulcansTrace.Linux.Engine.LogDiff.LogDiffState.Added,
+                    BaselineCount = 0,
+                    IncidentCount = 5,
+                    SourceIP = "10.0.0.1",
+                    DestinationIP = "192.168.1.1",
+                    SourcePort = 80,
+                    DestinationPort = 443,
+                    Protocol = "TCP"
+                }
+            ]
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, CancellationToken.None, remediationPlanMarkdown: null, traceMap: null, logDiffResult: logDiffResult);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("log-diff.md", names);
+        Assert.Contains("log-diff.html", names);
+
+        var mdEntry = zip.GetEntry("log-diff.md");
+        Assert.NotNull(mdEntry);
+        using (var stream = mdEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var md = reader.ReadToEnd();
+            Assert.Contains("/path/to/baseline.log", md);
+            Assert.Contains("/path/to/incident.log", md);
+        }
+
+        var htmlEntry = zip.GetEntry("log-diff.html");
+        Assert.NotNull(htmlEntry);
+        using (var stream = htmlEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var html = reader.ReadToEnd();
+            Assert.Contains("/path/to/baseline.log", html);
+            Assert.Contains("/path/to/incident.log", html);
+        }
+
+        // Verify manifest lists both log-diff files
+        var manifestEntry = zip.GetEntry("manifest.json");
+        Assert.NotNull(manifestEntry);
+        using (var stream = manifestEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var manifest = JsonDocument.Parse(reader.ReadToEnd());
+            var fileNames = manifest.RootElement.GetProperty("files")
+                .EnumerateArray()
+                .Select(e => e.GetProperty("file").GetString())
+                .ToArray();
+            Assert.Contains("log-diff.md", fileNames);
+            Assert.Contains("log-diff.html", fileNames);
+        }
+    }
+
+    [Fact]
+    public void Build_WithoutLogDiff_OmitsLogDiffFiles()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            jsonFormatter: null,
+            stixFormatter: null,
+            scorecardHtmlFormatter: null,
+            scorecardMarkdownFormatter: null,
+            riskScorecardHtmlFormatter: null,
+            riskScorecardMarkdownFormatter: null,
+            traceMapMarkdownFormatter: null,
+            traceMapJsonFormatter: null,
+            mitreLayerBuilder: null,
+            mitreCoverageSources: null,
+            logDiffMarkdownFormatter: new LogDiffMarkdownFormatter(),
+            logDiffHtmlFormatter: new LogDiffHtmlFormatter());
+
+        var result = SingleFindingResult();
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, CancellationToken.None, remediationPlanMarkdown: null, traceMap: null, logDiffResult: null);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.DoesNotContain("log-diff.md", names);
+        Assert.DoesNotContain("log-diff.html", names);
+    }
+
     private static byte[] TamperFileInZip(byte[] zipBytes, string targetEntry, Func<byte[], byte[]> tamper)
     {
         // Read all entries from the original ZIP

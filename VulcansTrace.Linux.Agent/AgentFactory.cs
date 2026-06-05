@@ -92,6 +92,8 @@ public static class AgentFactory
         var traceMapMarkdownFormatter = new TraceMapMarkdownFormatter();
         var traceMapJsonFormatter = new TraceMapJsonFormatter();
         var mitreLayerBuilder = new MitreLayerBuilder();
+        var logDiffMarkdownFormatter = new LogDiffMarkdownFormatter();
+        var logDiffHtmlFormatter = new LogDiffHtmlFormatter();
 
         var scanners = new IScanner[]
         {
@@ -213,7 +215,9 @@ public static class AgentFactory
             traceMapMarkdownFormatter,
             traceMapJsonFormatter,
             mitreLayerBuilder,
-            mitreCoverageSources);
+            mitreCoverageSources,
+            logDiffMarkdownFormatter,
+            logDiffHtmlFormatter);
 
         var explanationProvider = new ExplanationProvider();
 

@@ -16,6 +16,7 @@ using VulcansTrace.Linux.Core.Live;
 using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
+using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Avalonia.Services;
@@ -290,6 +291,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the accept risk command.</summary>
     public AsyncRelayCommand AcceptRiskCommand { get; }
 
+    /// <summary>Gets the compare logs command.</summary>
+    public AsyncRelayCommand CompareLogsCommand { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
@@ -376,6 +380,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ex =>
             {
                 SummaryText = $"Accept risk failed: {ex.Message}";
+            });
+
+        CompareLogsCommand = new AsyncRelayCommand(
+            async _ => await RunLogDiffAsync(),
+            _ => !IsBusy,
+            ex =>
+            {
+                SummaryText = $"Log comparison failed: {ex.Message}";
             });
 
         BotIntroText = "Hi, I'm VulcansTrace. Paste a Linux firewall log, choose scan intensity, and I'll flag port scans, floods, lateral movement, beaconing, policy violations, novelty destinations, plus advanced signals like C2 channels and admin access spikes at higher intensities.";
@@ -526,6 +538,66 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         };
 
         IsBusy = false;
+    }
+
+    private async Task RunLogDiffAsync()
+    {
+        var baselinePath = await _dialogService.ShowOpenFileDialogAsync("Select Baseline Log", "Log files (*.log)|*.log|All files (*.*)|*.*");
+        if (string.IsNullOrWhiteSpace(baselinePath))
+            return;
+
+        var incidentPath = await _dialogService.ShowOpenFileDialogAsync("Select Incident Log", "Log files (*.log)|*.log|All files (*.*)|*.*");
+        if (string.IsNullOrWhiteSpace(incidentPath))
+            return;
+
+        IsBusy = true;
+        SummaryText = "Comparing logs...";
+        AdvisorMessage = "Running log diff analysis...";
+
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var token = _cancellationTokenSource.Token;
+
+        try
+        {
+            var baselineLog = await File.ReadAllTextAsync(baselinePath, token);
+            var incidentLog = await File.ReadAllTextAsync(incidentPath, token);
+
+            var baselineResult = await Task.Run(() => _analyzer.Analyze(baselineLog, _selectedIntensity?.Level ?? IntensityLevel.Medium, token), token);
+            var incidentResult = await Task.Run(() => _analyzer.Analyze(incidentLog, _selectedIntensity?.Level ?? IntensityLevel.Medium, token), token);
+
+            var diffAnalyzer = new LogDiffAnalyzer();
+            var diffResult = diffAnalyzer.Compare(baselineResult, incidentResult) with
+            {
+                BaselineLabel = baselinePath,
+                IncidentLabel = incidentPath
+            };
+
+            var viewModel = new LogDiffViewModel();
+            viewModel.LoadDiff(diffResult);
+
+            var window = new Views.LogDiffWindow(viewModel);
+            window.Show();
+
+            SummaryText = $"Diff complete: {diffResult.Narrative}";
+            AdvisorMessage = "Log comparison finished.";
+        }
+        catch (OperationCanceledException)
+        {
+            SummaryText = "Log comparison cancelled.";
+            AdvisorMessage = "Log comparison cancelled.";
+        }
+        catch (Exception ex)
+        {
+            SummaryText = $"Log comparison failed: {ex.Message}";
+            AdvisorMessage = "Log comparison failed.";
+        }
+        finally
+        {
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+            IsBusy = false;
+        }
     }
 
     private void InvalidateAnalysisContext(string? summaryText = null)

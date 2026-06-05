@@ -41,7 +41,7 @@ Agent scanners + rules + DefaultRulePolicyProvider(JsonRulePolicyStore)
   → ScannerCoordinator / RuleEvaluationService / FindingAssemblyService
   → AgentResultComposer / AgentLogAnalysisService / AgentResultFinalizer
 
-IntegrityHasher → 5 formatters → EvidenceBuilder
+IntegrityHasher → report formatters → EvidenceBuilder
 
 AgentResultPresenter + AgentHistoryCoordinator
   → AgentViewModel(agent, stores)

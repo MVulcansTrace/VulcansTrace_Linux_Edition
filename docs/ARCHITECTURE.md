@@ -51,6 +51,19 @@ The **Live Stream** provides a parallel real-time analysis path:
 6. `LiveResultReceived` surfaces new findings to the UI, which adds them to the shared findings grid.
 7. `StopAsync()` signals cancellation, closes the native socket (unblocking `recv()`), and awaits clean pipeline shutdown.
 
+The **Log Diff** subsystem provides a parallel comparison path for forensic timeline analysis:
+
+1. Two `AnalysisResult` instances are produced by running `SentryAnalyzer` independently on the baseline log and the incident log, using the same intensity profile.
+2. `LogDiffAnalyzer.Compare(baseline, incident)` produces a `LogDiffResult` containing:
+   - `Events` — per-connection-pattern diff records (`DiffEvent`) matched by a traffic pattern key (source IP + destination IP + destination port + protocol; source port wildcarded because it is commonly ephemeral). Each record carries baseline/incident counts, dominant actions, action histograms, and a `LogDiffState` (`Unchanged`, `Added`, `Removed`, `Changed`). A count delta >20% or a shift in dominant action marks a pattern as `Changed`.
+   - `Findings` — per-fingerprint diff records (`DiffFinding`) matched by stable `Finding.Fingerprint`. Baseline-only findings are `Removed`; incident-only are `Added`; severity changes are `Changed`.
+   - `Narrative` — a human-readable summary of what changed and why it matters.
+   - `Summary` — a concise one-line summary with counts per state.
+   - `BaselineLabel` / `IncidentLabel` — descriptive labels, currently file paths in CLI and UI flows, for report formatting.
+3. `LogDiffMarkdownFormatter` and `LogDiffHtmlFormatter` render standalone diff reports in GFM and dark-themed HTML.
+4. `EvidenceBuilder` includes `log-diff.md` and `log-diff.html` in the signed ZIP when a `LogDiffResult` is provided.
+5. The Avalonia UI exposes `LogDiffWindow` with `LogDiffViewModel`, color-coded DataGrids, and `LogDiffStateToBrushConverter` / `LogDiffStateToForegroundBrushConverter` for visual state indication.
+
 The Security Agent provides a parallel local posture path:
 
 1. A natural-language query is parsed into an `AgentIntent`.
@@ -106,6 +119,10 @@ Notification services are pluggable:
 - `CorrelationConfidence`: `Low`, `Medium`, or `High`, derived from time gap between findings.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 - `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
+- `LogDiffResult`: baseline-vs-incident comparison output with diff events, diff findings, narrative, and summary counts.
+- `DiffEvent`: per-connection-pattern diff record with baseline/incident counts, dominant actions, action histograms, and `LogDiffState`.
+- `DiffFinding`: per-fingerprint diff record with baseline/incident severity and `LogDiffState`.
+- `LogDiffState`: `Unchanged`, `Added`, `Removed`, or `Changed`.
 - `MitreTechnique`: MITRE ATT&CK technique mapping with `TechniqueId`, `TechniqueName`, `Tactic`, and `WhyItMatters`. Validated at construction (non-empty IDs).
 - `MitreLayerBuilder`: builds MITRE ATT&CK Navigator v4.5-compatible layer JSON from findings, with deterministic technique aggregation (most common name wins, alphabetical tiebreak) and gradient scoring.
 - `LiveAnalysisResult`: real-time analysis output containing delta findings (new since last run), window metrics, and source status.

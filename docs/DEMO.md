@@ -374,6 +374,32 @@ sudo iptables -A INPUT -j NFLOG --nflog-group 1
 sudo nft add rule ip filter input log group 1
 ```
 
+## Log Diff Mode
+
+Compare two firewall logs to detect what changed between a baseline and an incident:
+
+### CLI
+
+```bash
+# Basic diff with narrative output
+vulcanstrace diff --baseline VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log --incident VulcansTrace.Linux.Tests/Data/Real/Samples/iptables-attack.log --intensity Medium
+
+# Export standalone reports
+vulcanstrace diff --baseline baseline.log --incident incident.log --intensity High --output-json diff.json --output-html diff.html
+
+# Include in signed evidence bundle
+vulcanstrace diff --baseline baseline.log --incident incident.log --intensity Medium --output-evidence diff-evidence.zip
+```
+
+### Avalonia UI
+
+1. Launch the app: `dotnet run --project VulcansTrace.Linux.Avalonia`
+2. Click **Compare Logs** below the main Analyze button.
+3. Select a **Baseline** file and an **Incident** file.
+4. The app analyzes both files using the currently selected intensity and opens a **Log Diff** results window.
+5. Review the **Connection Patterns** grid for per-pattern changes (count deltas, action shifts) and the **Findings** grid for severity changes or new/removed findings.
+6. Use the CLI `diff` command for JSON/HTML output or signed evidence bundles.
+
 ## Performance and Profiling
 
 ```bash

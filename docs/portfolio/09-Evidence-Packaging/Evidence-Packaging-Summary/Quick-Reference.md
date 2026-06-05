@@ -18,6 +18,8 @@
 | `compliance-scorecard.md` | `ComplianceScorecardMarkdownFormatter` | Markdown compliance scorecard for Git-based workflows |
 | `risk-scorecard.html` | `RiskScorecardHtmlFormatter` | Manager-friendly HTML risk scorecard (grade badge, numeric score, per-category breakdown) |
 | `risk-scorecard.md` | `RiskScorecardMarkdownFormatter` | Markdown risk scorecard for Git-based workflows |
+| `log-diff.md` | `LogDiffMarkdownFormatter` | Markdown baseline-vs-incident diff report (included when Log Diff Mode is used) |
+| `log-diff.html` | `LogDiffHtmlFormatter` | Dark-themed HTML diff report (included when Log Diff Mode is used) |
 | `manifest.json` | (generated) | Per-file SHA-256 hashes, byte lengths, warnings, and creation timestamp |
 | `manifest.hmac` | (generated) | HMAC-SHA256 hex signature of `manifest.json` |
 
@@ -29,7 +31,7 @@
 AnalysisResult + rawLog
         |
         v
-   5 formatters + raw-log passthrough render content
+   configured formatters + raw-log passthrough render content
         |
         v
    SHA-256 per file  -->  manifest.json

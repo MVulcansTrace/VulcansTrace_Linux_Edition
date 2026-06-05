@@ -14,6 +14,7 @@
 | `FindingItemViewModel` | Adapts a `Finding` for UI display (Category, Severity, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
 | `IntensityOption` | DTO binding intensity levels to UI dropdown (Low/Medium/High) |
 | `SeverityFilterOption` | DTO binding severity thresholds to filter dropdown (All / High+Critical / Critical only) |
+| `LogDiffViewModel` | Binds a completed `LogDiffResult` into Events/Findings collections, narrative text, and state counts for `LogDiffWindow` |
 | `ViewModelBase` | INotifyPropertyChanged with generic `SetField<T>` equality check |
 | `RelayCommand` | ICommand implementation with manual `RaiseCanExecuteChanged()` |
 | `AsyncRelayCommand` | Async ICommand with exception handler callback |
@@ -33,6 +34,7 @@
 | `ResumeSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Reloads the selected remediation session into the chat panel |
 | `DeleteSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Removes the selected remediation session from the store |
 | `ImportThreatIntelCommand` | AgentViewModel | `!IsBusy && ThreatIntelStore != null && DialogService != null` | Opens file picker for STIX/MISP JSON, auto-detects format, parses, and imports IOCs |
+| `CompareLogsCommand` | MainViewModel | `!IsBusy` | Prompts for baseline/incident logs, runs the selected-intensity analysis for both, then opens `LogDiffWindow` |
 
 ---
 

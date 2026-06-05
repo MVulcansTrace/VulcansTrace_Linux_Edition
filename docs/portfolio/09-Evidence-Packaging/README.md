@@ -21,7 +21,7 @@ Documentation is organized for two audiences:
 
 ## System Capabilities
 
-- **Eleven-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, MITRE ATT&CK Navigator layer, raw log, plus compliance scorecard HTML/Markdown and risk scorecard HTML/Markdown in a single ZIP archive
+- **Thirteen-format evidence output** — CSV, HTML, Markdown, JSON, STIX 2.1, MITRE ATT&CK Navigator layer, raw log, compliance scorecard HTML/Markdown, risk scorecard HTML/Markdown, plus log-diff Markdown/HTML in a single ZIP archive
 - **Data-source visibility notes** — agent audit Markdown and HTML reports can include scanner capability status for local commands used during posture checks
 - **Suppression notes** — agent audit exports can include active accepted-risk suppressions in reports and a conditional `suppressions.csv`, including finding fingerprints when available
 - **Cryptographic integrity chain** — SHA-256 per-file hashes in a manifest, HMAC-SHA256 signature over the manifest, written as `manifest.json` + `manifest.hmac`
@@ -44,5 +44,7 @@ Documentation is organized for two audiences:
 - [ComplianceScorecardMarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/ComplianceScorecardMarkdownFormatter.cs) — Markdown compliance scorecard
 - [RiskScorecardHtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/RiskScorecardHtmlFormatter.cs) — manager-friendly HTML risk scorecard
 - [RiskScorecardMarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/RiskScorecardMarkdownFormatter.cs) — Markdown risk scorecard
+- [LogDiffMarkdownFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/LogDiffMarkdownFormatter.cs) — Markdown baseline-vs-incident diff report
+- [LogDiffHtmlFormatter.cs](../../../VulcansTrace.Linux.Evidence/Formatters/LogDiffHtmlFormatter.cs) — Dark-themed HTML diff report
 - [IntegrityHasher.cs](../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 wrapper
 - [EvidenceBuilderTests.cs](../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end build, manifest, reproducibility, and HMAC verification tests

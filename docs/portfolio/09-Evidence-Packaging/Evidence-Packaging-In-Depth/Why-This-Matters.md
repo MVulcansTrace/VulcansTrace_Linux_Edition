@@ -19,7 +19,7 @@ Without a packaging step, analysis results evaporate when the process exits. Wit
 
 The evidence packaging subsystem addresses these requirements with a single `Build` call that:
 
-- Renders the `AnalysisResult` through five formatters and includes the raw log as `log.txt`
+- Renders the `AnalysisResult` through configured formatters and includes the raw log as `log.txt`
 - Computes SHA-256 hashes for every content file, embedding them in a structured manifest
 - Signs the manifest with HMAC-SHA256 to create a tamper-evident chain
 - Packs everything into a portable ZIP archive that any operating system can open

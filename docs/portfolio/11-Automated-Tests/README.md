@@ -26,6 +26,7 @@ Documentation is organized for two audiences:
 - **Real-world log fixtures** — sample attack logs (`iptables-attack.log`, `nftables-traffic.log`, `large-portscan.log`, `iptables-mixed-prefixes.log`, `golden-compromise-timeline.log`) validate against actual firewall output
 - **Boundary testing** — detector tests probe exact threshold boundaries (at-threshold, just-below, well-above) to verify detection edges
 - **Integration testing** — `SentryAnalyzerTests` exercises the complete pipeline from raw log text through all detector layers to final `AnalysisResult`
+- **Log Diff testing** — `LogDiffAnalyzerTests` verifies baseline-vs-incident event and finding comparison, source-port wildcard matching, count thresholds, action shifts, and deduplication behavior; `LogDiffViewModelTests` verifies result binding for the desktop window
 - **Performance validation** — dedicated tests assert analysis completes within time bounds on large inputs
 
 ## Implementation Evidence

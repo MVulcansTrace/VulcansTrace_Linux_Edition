@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2241 passing](https://img.shields.io/badge/Tests-2241%20passing-2E7D32)
+![Tests: 2348 passing](https://img.shields.io/badge/Tests-2348%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -56,6 +56,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction and is included in the Avalonia UI, agent chat, and evidence exports.
 - **Trace Map / Incident Graph** — interactive attack-chain visualization on the timeline canvas. Correlated findings are connected with directed edges (escalation, temporal sequence, same-host links). Click any finding to highlight its connected chain and read a narrative attack story. Supports category-based or host-based grouping. Performance guardrails suppress rendering when >100 edges are detected.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.
+- **Log Diff Mode** — compare two firewall log files (baseline vs incident) to detect new, removed, or changed connection patterns and findings. Events are matched by a traffic pattern key (source IP, destination IP, destination port, protocol; source port wildcarded) with count deltas and dominant action shifts. Findings are matched by stable fingerprint. Produces a narrative summary, per-pattern diff state (`Unchanged`, `Added`, `Removed`, `Changed`), and color-coded DataGrid visualization in the Avalonia UI. CLI diff results can be exported as JSON/HTML or included in signed evidence bundles with Markdown and HTML reports.
 - **Live Stream / Real-Time Kernel Telemetry** — captures live network events from the kernel via `AF_PACKET` with classic BPF socket filtering or `AF_NETLINK` NFLOG, buffers them in a rolling window, and runs the detector pipeline in real time using a dedicated `SentryAnalyzer` instance. Completed analysis results are published through a bounded `DropOldest` channel so the UI never stalls on stale updates. Includes a synthetic demo source for zero-privilege testing. Desktop UI shows live metrics and delta findings as they are detected; findings are wired into the shared findings grid.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
@@ -162,6 +163,12 @@ Build a self-contained CLI binary:
 ./scripts/publish-cli.sh
 ```
 
+Compare two firewall logs via CLI to detect deltas:
+
+```bash
+dotnet run --project VulcansTrace.Linux.Cli -- diff --baseline baseline.log --incident incident.log --intensity Medium --output-evidence diff-evidence.zip
+```
+
 Start a live stream capture in the desktop UI (requires root for kernel sources; synthetic demo works without privileges):
 
 ```bash
@@ -174,7 +181,7 @@ For live stream architecture and bug-fix details, see [docs/LIVE_STREAM.md](docs
 
 ## Evidence Bundles
 
-The UI can export a signed ZIP evidence package containing:
+Signed ZIP evidence packages can contain:
 
 | File | Purpose |
 | --- | --- |
@@ -194,8 +201,12 @@ The UI can export a signed ZIP evidence package containing:
 | `incident-story.md` | Human-readable attack-chain narrative when correlated findings are detected |
 | `trace-map.json` | Cytoscape.js-compatible JSON graph of findings and correlation edges |
 | `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer (JSON) showing technique coverage and finding density |
+| `log-diff.md` | Markdown diff report when Log Diff Mode is used (baseline vs incident comparison) |
+| `log-diff.html` | Dark-themed HTML diff report when Log Diff Mode is used |
 
 The signing key is generated per completed analysis session and shown in the UI masked by default. Re-running analysis creates a new key; repeated exports of the same result reuse the session key. Keep the copied key with the case record if later verification is required.
+
+For CLI `diff --output-evidence`, provide `--signing-key <hex>` or save the generated key printed by the command.
 
 The optional CLI runner can verify an exported bundle with that key:
 

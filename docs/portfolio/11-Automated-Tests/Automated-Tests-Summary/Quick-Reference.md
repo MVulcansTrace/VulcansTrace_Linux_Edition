@@ -26,14 +26,17 @@ VulcansTrace.Linux.Tests/
 │   │   ├── MacSpoofingDetectorTests.cs       — MAC address change tests
 │   │   └── UnusualPacketSizeDetectorTests.cs — packet size anomaly tests
 │   ├── C2ChannelDetectorTests.cs             — C2 channel detection tests
-│   └── PrivilegeEscalationDetectorTests.cs   — privilege escalation tests
+│   ├── PrivilegeEscalationDetectorTests.cs   — privilege escalation tests
+│   └── LogDiffAnalyzerTests.cs               — baseline-vs-incident diff engine tests
 ├── Evidence/
 │   ├── EvidenceBuilderTests.cs               — ZIP package and HMAC integrity tests
 │   ├── CsvFormatterTests.cs                  — CSV output and injection defense tests
 │   ├── HtmlFormatterTests.cs                 — HTML output and XSS prevention tests
 │   ├── JsonFormatterTests.cs                 — JSON output and structure tests
 │   ├── MarkdownFormatterTests.cs             — Markdown formatting tests
-│   └── StixFormatterTests.cs                 — STIX format output tests
+│   ├── StixFormatterTests.cs                 — STIX format output tests
+│   ├── LogDiffFormatterTests.cs              — Log Diff Markdown and HTML formatter tests
+│   └── ComplianceScorecardFormatterTests.cs  — Compliance scorecard HTML and Markdown formatter tests
 ├── Agent/
 │   ├── SecurityAgentTests.cs                 — agent orchestration, policy, coverage, capabilities, suppression, explanation, follow-up question tests, and CIS mapping flow-through tests (RunSingleRuleAsync, Crash, PolicyDisabled, IContextualRule)
 │   ├── AuditDiffCalculatorTests.cs           — fingerprint-aware audit diff tests
@@ -97,9 +100,9 @@ VulcansTrace.Linux.Tests/
 | Detectors (Baseline) | 6 | Port scan, beaconing, flood, lateral movement, policy violation, novelty |
 | Detectors (Linux) | 5 | Flag anomaly, interface hopping, kernel module, MAC spoofing, packet size |
 | Detectors (Advanced) | 3 | C2 channel, privilege escalation, threat intel |
-| Evidence | 6 | Builder integrity, CSV/HTML/JSON/Markdown/STIX formatting |
+| Evidence | 12 | Builder integrity, CSV/HTML/JSON/Markdown/STIX formatting, compliance/risk scorecards, MITRE/Trace Map artifacts, log diff |
 | Integration | 7 | Full pipeline, real logs, attack scenarios, golden scenarios, thresholds, performance, profiles |
-| Avalonia | 4 | ViewModel command bindings and display logic |
+| Avalonia | 21 | ViewModel command bindings, display logic, agent state, evidence export, scorecards, audit diff, log diff, live stream |
 
 ---
 

@@ -282,6 +282,13 @@
                         IsVisible="{Binding Evidence.IsBusy}"
                         AutomationProperties.AutomationId="CancelExportButton"
                         Command="{Binding Evidence.CancelExportCommand}"/>
+
+                <Button Content="Compare Logs"
+                        Width="120"
+                        Margin="0,0,8,0"
+                        ToolTip.Tip="Compare two log files for differences"
+                        AutomationProperties.AutomationId="CompareLogsButton"
+                        Command="{Binding CompareLogsCommand}"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                 <Button Content="Accept Risk"

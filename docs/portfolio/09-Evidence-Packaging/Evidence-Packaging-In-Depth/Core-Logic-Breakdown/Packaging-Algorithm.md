@@ -8,7 +8,7 @@ The `EvidenceBuilder.Build` method executes seven sequential phases, with cancel
 
 ```
 Phase 1: Timestamp normalization
-Phase 2: Content rendering (5 formatters + raw-log passthrough)
+Phase 2: Content rendering (configured formatters + raw-log passthrough)
 Phase 3: Per-file SHA-256 hashing
 Phase 4: Manifest assembly
 Phase 5: HMAC-SHA256 manifest signing
