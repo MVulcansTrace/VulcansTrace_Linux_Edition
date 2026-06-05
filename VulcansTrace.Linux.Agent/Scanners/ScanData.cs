@@ -91,6 +91,9 @@ public sealed record ScanData
 
     /// <summary>YARA rule matches discovered on SUID/SGID binaries, running process executables, and cron scripts.</summary>
     public IReadOnlyList<YaraMatchEntry> YaraMatches { get; init; } = Array.Empty<YaraMatchEntry>();
+
+    /// <summary>Runtime process snapshots from /proc inspection.</summary>
+    public IReadOnlyList<ProcessRuntimeEntry> ProcessRuntimes { get; init; } = Array.Empty<ProcessRuntimeEntry>();
 }
 
 /// <summary>An installed package parsed from dpkg-query.</summary>

@@ -390,6 +390,7 @@ internal sealed class AgentFollowUpService
         "kubernetes" or "k8s" or "pod" => AgentIntent.KubernetesCheck,
         "threatintel" or "threat-intel" or "ioc" => AgentIntent.ThreatIntelCheck,
         "yara" or "malware" => AgentIntent.YaraCheck,
+        "processruntime" or "process" or "runtime" or "proc" or "ld_preload" => AgentIntent.ProcessRuntimeCheck,
         _ => AgentIntent.Help
     };
 }

@@ -389,7 +389,8 @@ public class SecurityAgentTests
             new ContainerScanner(),
             new KubernetesScanner(),
             new FileHashScanner(threatIntelStore),
-            new YaraScanner()
+            new YaraScanner(),
+            new ProcessRuntimeScanner()
         };
 
         var rules = new IRule[]
@@ -474,7 +475,13 @@ public class SecurityAgentTests
             new ThreatIntelIpRule(threatIntelStore),
             new ThreatIntelPortRule(threatIntelStore),
             new ThreatIntelHashRule(threatIntelStore),
-            new YaraMatchRule()
+            new YaraMatchRule(),
+            new RwxMemoryRegionRule(),
+            new LdPreloadInjectionRule(),
+            new DeletedBinaryExecutionRule(),
+            new OrphanedAnomalousProcessRule(),
+            new SuspiciousParentChildRule(),
+            new InterpreterRwxMemoryRule()
         };
 
         var explanationProvider = new ExplanationProvider();

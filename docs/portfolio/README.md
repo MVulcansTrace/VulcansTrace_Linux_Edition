@@ -14,7 +14,8 @@ If you only have a few minutes, read these first:
 1. [2 - Port Scan Detection](./02-Port-Scan-Detection/README.md): a strong example of the detection-engineering style used across the project
 2. [8 - Risk Escalation](./08-Risk-Escalation/README.md): shows how separate findings are correlated into higher-confidence host risk
 3. [9 - Evidence Packaging](./09-Evidence-Packaging/README.md): shows how analysis output is turned into signed investigator-facing artifacts
-4. [12 - Avalonia UI](./12-Avalonia-UI/README.md): shows how the system is surfaced in a cross-platform desktop product workflow
+4. [18 - Runtime Process Threat Hunting](./18-Runtime-Process-Threat-Hunting/README.md): shows live /proc DFIR scanning with injection, persistence, and anti-forensics detection
+5. [12 - Avalonia UI](./12-Avalonia-UI/README.md): shows how the system is surfaced in a cross-platform desktop product workflow
 
 If you want the full end-to-end story, read in this order:
 
@@ -35,6 +36,7 @@ If you want the full end-to-end story, read in this order:
 15. [15 - Linux Deep Inspection](./15-Linux-Deep-Inspection/README.md)
 16. [16 - Security Agent](./16-Security-Agent/README.md)
 17. [17 - Live Stream](./17-Live-Stream/README.md)
+18. [18 - Runtime Process Threat Hunting](./18-Runtime-Process-Threat-Hunting/README.md)
 
 ## What These Docs Cover
 
@@ -48,6 +50,7 @@ If you want the full end-to-end story, read in this order:
 - How MITRE ATT&CK Navigator layer export turns findings into importable threat-intelligence overlays
 - How the Avalonia application exposes the workflow to an analyst
 - How the local Security Agent answers plain-English posture questions from live host state
+- How runtime process threat hunting scans live /proc state to detect injection, persistence, and anti-forensics that static audits miss
 - How automated incident response playbooks detect critical attack chains and deploy active countermeasures with dry-run preview and explicit confirmation
 - How configuration baselines and drift detection turn point-in-time audits into continuous posture monitoring
 - How the CIS Compliance Scorecard turns raw rule results into manager-readable pass/fail/warn summaries with trend visualization
@@ -73,6 +76,7 @@ Each numbered folder uses a consistent entry-point pattern, while individual dee
 - Statistical signal analysis: [3 - Beaconing Detection](./03-Beaconing-Detection/README.md)
 - Threat correlation: [8 - Risk Escalation](./08-Risk-Escalation/README.md)
 - Evidence and reporting: [9 - Evidence Packaging](./09-Evidence-Packaging/README.md)
+- DFIR and runtime detection: [18 - Runtime Process Threat Hunting](./18-Runtime-Process-Threat-Hunting/README.md)
 - Product and UI engineering: [12 - Avalonia UI](./12-Avalonia-UI/README.md)
 - Local assistant workflow: [16 - Security Agent](./16-Security-Agent/README.md)
 - Quality and verification: [11 - Automated Tests](./11-Automated-Tests/README.md)

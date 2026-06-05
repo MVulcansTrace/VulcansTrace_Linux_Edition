@@ -28,6 +28,9 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my containers` | `ContainerCheck` | Reviews container runtime posture (privileged mode, latest tags, Docker socket exposure/mounts, risky base-image hints, namespace isolation) |
 | `Check my kubernetes` | `KubernetesCheck` | Reviews Kubernetes pod security posture (privileged pods, host namespaces, root containers, security contexts) |
 | `Check my pods` | `KubernetesCheck` | Alias for Kubernetes pod security audit |
+| `Check my processes` | `ProcessRuntimeCheck` | Reviews live process state for injection, persistence, and anti-forensics indicators |
+| `Check running processes` | `ProcessRuntimeCheck` | Alias for runtime process threat hunting |
+| `Check process runtime` | `ProcessRuntimeCheck` | Alias for runtime process threat hunting |
 | `Check threat intel` | `ThreatIntelCheck` | Correlates active connections, open ports, and file hashes against imported STIX/MISP IOCs |
 | `Check malicious IPs` | `ThreatIntelCheck` | Alias for threat intel correlation |
 | `Run a YARA scan` | `YaraCheck` | Scans SUID/SGID binaries, running process executables, and cron scripts against bundled and custom YARA rules |
@@ -132,6 +135,7 @@ The agent reads local host state using common Linux tools:
 | `ContainerScanner` | `docker ps`, `docker inspect`, `crictl ps`, `ctr namespace ls` | Detects running containers, privileged mode, latest tags, Docker socket exposure/mounts, known risky base-image hints from local image metadata, and containerd namespace isolation |
 | `KubernetesScanner` | `kubectl get pods --all-namespaces -o json` | Detects Kubernetes pod security posture when kubeconfig is present; supports `$KUBECONFIG` env var and uses the configured cluster context |
 | `YaraScanner` | `find / -xdev …`, `/proc/<pid>/exe` resolution, reads `/etc/cron.d*/*`; uses `libyara` via a thin P/Invoke wrapper | Scans SUID/SGID binaries, running process executables, and cron scripts against bundled rules (`Scanners/Yara/Rules/bundled.yar`) plus optional custom rules in `~/.config/VulcansTrace/yara/*.yar` |
+| `ProcessRuntimeScanner` | `/proc/<pid>/status`, `/proc/<pid>/comm`, `readlink /proc/<pid>/exe`, `/proc/<pid>/cmdline`, `/proc/<pid>/maps`, `/proc/<pid>/environ` | Reads live process state: memory maps, environment variables, executable paths, command lines, and parent-child relationships with bounded concurrency and per-file fault isolation |
 
 Scanner failures are reported as warnings instead of crashing the agent. Scanner commands use a shared bounded runner with concurrent stdout/stderr capture, a 30-second default timeout, cancellation propagation, and 1 MiB stdout/stderr limits. `FilesystemAuditScanner` uses the same runner with a 60-second timeout for broader `find` scans. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -267,6 +271,18 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 - The bundled rule set focuses on Linux ELF packers, SUID backdoor signatures, and common malware families.
 - Custom rules can be dropped into `~/.config/VulcansTrace/yara/*.yar` and are automatically compiled and scanned alongside bundled rules.
 - The scanner reports `Unavailable` when `libyara` is not installed, and `PermissionLimited` when some targets cannot be read.
+
+### Process Runtime
+
+- **PROC-001** (Critical) — Processes with RWX (`rwxp`) memory mappings in `/proc/<pid>/maps` indicate potential process injection or shellcode (MITRE T1055, T1620).
+- **PROC-002** (High) — Processes with `LD_PRELOAD` or `LD_AUDIT` environment variables indicate dynamic linker hijacking (MITRE T1574.006).
+- **PROC-003** (High) — Processes executing from deleted binaries (`(deleted)` suffix on `/proc/<pid>/exe`) or temporary paths (`/tmp`, `/var/tmp`, `/dev/shm`) indicate anti-forensics or dropped payloads (MITRE T1036, T1105).
+- **PROC-004** (Medium) — Orphaned processes (PPid=1) with anomalous names (≥10 chars, alphanumeric, ≥3 digits) indicate daemonized malware or persistence (MITRE T1036).
+- **PROC-005** (High) — Suspicious parent-child relationships: web servers (`apache2`, `nginx`, `httpd*`) spawning interpreters, SSH spawning non-shell interpreters, databases spawning shells, or cron spawning network tools (MITRE T1059).
+- **PROC-006** (Critical) — Interpreter processes (python, perl, ruby, php, including versioned binaries) with RWX mappings indicate in-memory payload execution or native-extension abuse (MITRE T1055, T1620, T1059).
+- All process runtime rules return `NotApplicable` when no `/proc` data is available.
+- Evidence-specific process runtime rules return `NotApplicable` when their required `/proc` evidence is entirely unreadable, and include unreadable-count metadata when only part of the process set was visible.
+- Rules intentionally carry **no CIS mappings** — they are DFIR indicators rather than configuration compliance checks.
 
 ## How The Pipeline Works
 
@@ -430,8 +446,14 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | K8S-002 | CIS 5.2.4 — Minimize Admission of HostNetwork and HostPID | CIS Kubernetes Benchmark 5.2.4 — Minimize the admission of containers wishing to share the host network namespace |
 | K8S-003 | CIS 5.2.6 — Minimize Admission of Root Containers | CIS Kubernetes Benchmark 5.2.6 — Minimize the admission of root containers |
 | K8S-004 | CIS 5.2.7 — Enforce Security Context Constraints | CIS Kubernetes Benchmark 5.2.7 — Enforce hardened container security contexts |
+| PROC-001 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
+| PROC-002 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
+| PROC-003 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
+| PROC-004 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
+| PROC-005 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
+| PROC-006 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
 
-The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003, PKG-VULN-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable. PKG-VULN-003 returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable.
+The remaining rules (NET-001 through NET-004, PORT-001, PORT-004, SRV-003, PKG-VULN-003) map to CIS Controls v8 where no direct Ubuntu benchmark section exists. KERN-006 returns `NotApplicable` on BIOS systems where Secure Boot is unavailable. PKG-VULN-003 returns `NotApplicable` when CVE enrichment data (debsecan) is unavailable. Process runtime rules (PROC-001..006) are DFIR indicators and intentionally do not map to CIS Benchmark controls.
 
 Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMappings`, and are attached to `Finding.CisMappings` in both the full audit and single-rule explain paths. Evidence exports preserve them in CSV, HTML, Markdown, JSON, and STIX formats.
 
@@ -446,6 +468,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - New suppressions are fingerprint-scoped when the selected finding has a fingerprint. Older suppressions without fingerprints still match by rule ID and target, so intentional target text changes can require accepting the risk again.
 - Command safety labels use conservative keyword heuristics. Unknown means "not classified," not "safe."
 - The desktop UI includes a machine-role dropdown for hot-swapping roles without code changes.
+- Process runtime scanning reads live `/proc` state; race conditions, PID reuse, and namespace boundaries can cause transient inconsistency. Read caps (64 KB cmdline, 256 KB environ, 512 KB maps) are surfaced as truncation metadata when exceeded. Thread-level injection into individual threads of a multi-threaded process would not surface distinct maps entries.
 
 ## Roadmap
 
@@ -476,6 +499,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [YaraScanner.cs](../VulcansTrace.Linux.Agent/Scanners/Yara/YaraScanner.cs)
 - [LibyaraEngine.cs](../VulcansTrace.Linux.Agent/Scanners/Yara/LibyaraEngine.cs)
 - [bundled.yar](../VulcansTrace.Linux.Agent/Scanners/Yara/Rules/bundled.yar)
+- [ProcessRuntimeScanner.cs](../VulcansTrace.Linux.Agent/Scanners/ProcessRuntimeScanner.cs)
+- [ProcessRuntimeEntry.cs](../VulcansTrace.Linux.Agent/Scanners/ProcessRuntimeEntry.cs)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [RuleEvaluationService.cs](../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs)
 - [FindingAssemblyService.cs](../VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs)

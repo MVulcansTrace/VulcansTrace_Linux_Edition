@@ -532,6 +532,7 @@ public sealed class SecurityAgent : IAgent
         "• \"Check containers\" or \"Any privileged containers?\"\n" +
         "• \"Check kubernetes\" or \"Any K8s security issues?\"\n" +
         "• \"Run a YARA scan\" or \"Check for malware signatures\"\n" +
+        "• \"Check running processes\" or \"Any memory injection?\"\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
         "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +
         "\nFollow-up questions (after an audit):\n" +

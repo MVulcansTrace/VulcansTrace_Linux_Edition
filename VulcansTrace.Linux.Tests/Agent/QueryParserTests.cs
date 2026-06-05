@@ -100,6 +100,11 @@ public class QueryParserTests
     [InlineData("run a yara scan", AgentIntent.YaraCheck)]
     [InlineData("check for malware signatures", AgentIntent.YaraCheck)]
     [InlineData("yara rule match", AgentIntent.YaraCheck)]
+    [InlineData("check running processes", AgentIntent.ProcessRuntimeCheck)]
+    [InlineData("process runtime check", AgentIntent.ProcessRuntimeCheck)]
+    [InlineData("memory injection", AgentIntent.ProcessRuntimeCheck)]
+    [InlineData("ld preload check", AgentIntent.ProcessRuntimeCheck)]
+    [InlineData("deleted binary", AgentIntent.ProcessRuntimeCheck)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);

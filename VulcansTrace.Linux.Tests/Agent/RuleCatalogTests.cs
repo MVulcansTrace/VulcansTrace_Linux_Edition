@@ -91,7 +91,13 @@ public class RuleCatalogTests
         new ThreatIntelIpRule(new InMemoryThreatIntelStore()),
         new ThreatIntelPortRule(new InMemoryThreatIntelStore()),
         new ThreatIntelHashRule(new InMemoryThreatIntelStore()),
-        new YaraMatchRule()
+        new YaraMatchRule(),
+        new RwxMemoryRegionRule(),
+        new LdPreloadInjectionRule(),
+        new DeletedBinaryExecutionRule(),
+        new OrphanedAnomalousProcessRule(),
+        new SuspiciousParentChildRule(),
+        new InterpreterRwxMemoryRule()
     };
 
     [Fact]
@@ -99,7 +105,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(81, catalog.Items.Count);
+        Assert.Equal(87, catalog.Items.Count);
     }
 
     [Fact]
@@ -134,6 +140,7 @@ public class RuleCatalogTests
     [InlineData("PKG-VULN-0", 3)]
     [InlineData("CTR-0", 5)]
     [InlineData("K8S-0", 4)]
+    [InlineData("PROC-0", 6)]
     public void Search_By_Prefix_Returns_Expected_Count(string prefix, int expectedCount)
     {
         var catalog = new RuleCatalog(GetAllRules());
@@ -158,7 +165,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(81, results.Count);
+        Assert.Equal(87, results.Count);
     }
 
     [Fact]

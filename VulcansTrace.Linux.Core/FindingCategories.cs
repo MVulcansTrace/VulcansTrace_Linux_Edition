@@ -23,4 +23,5 @@ public static class FindingCategories
     public const string Kubernetes = "Kubernetes";
     public const string ThreatIntel = "ThreatIntel";
     public const string Yara = "Yara";
+    public const string ProcessRuntime = "ProcessRuntime";
 }

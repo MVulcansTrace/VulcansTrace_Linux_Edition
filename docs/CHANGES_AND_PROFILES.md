@@ -276,8 +276,30 @@ Last updated: 2026-06-05
 - 20+ new tests covering scanner parser fixtures (docker ps, docker inspect JSON, crictl JSON, ctr namespace, kubectl pods JSON), rule behavior (privileged, latest tag, socket exposure/mount, known risky base hints, namespace defaults, pod security context inheritance, root detection, capability/seccomp checks), intent parsing, UI audit-state routing, and `RuleCatalogTests` count update.
   - Code: `VulcansTrace.Linux.Agent/Scanners/ContainerScanner.cs`, `VulcansTrace.Linux.Agent/Scanners/KubernetesScanner.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ContainerRules.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/KubernetesRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/container.md`, `VulcansTrace.Linux.Agent/Explanations/Templates/kubernetes.md`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Core/FindingCategories.cs`
 
+### Security Agent — Runtime Process Threat Hunting
+- Added `ProcessRuntimeScanner` that enumerates all numeric directories in `/proc/`, reads six files per process (`status`, `comm`, `exe` via `readlink`, `cmdline`, `maps`, `environ`) with bounded concurrency (`SemaphoreSlim(50)`), per-file fault isolation (`TryReadAsync`), and read loops into bounded `MemoryStream` to handle partial procfs reads.
+- Added `ProcessRuntimeEntry` record with `Pid`, `Name`, `ExePath`, `Cmdline`, `Ppid`, `Uid`, `MemoryMaps`, `Environment`, `StatusDuplicateFieldCount`, `CmdlineTruncated`, `EnvironTruncated`, and `MapsTruncated`.
+- Added 6 process runtime rules (`PROC-001` through `PROC-006`) with MITRE ATT&CK mappings:
+  - `PROC-001` — RWX memory mappings indicating process injection or shellcode (Critical, T1055/T1620)
+  - `PROC-002` — `LD_PRELOAD` / `LD_AUDIT` dynamic linker hijacking (High, T1574.006)
+  - `PROC-003` — Execution from deleted binaries or temporary paths (`/tmp`, `/var/tmp`, `/dev/shm`) (High, T1036/T1105)
+  - `PROC-004` — Orphaned processes with anomalous names running under init (Medium, T1036)
+  - `PROC-005` — Suspicious parent-child relationships (High, T1059); tracks `missingParentCount` and `totalChecked` metadata
+  - `PROC-006` — Interpreter processes with RWX mappings, highlighting python/perl/ruby/php in-memory payload execution (Critical, T1055/T1620/T1059)
+- Defensive parsing hardening:
+  - `ReadStatusAsync` guards against duplicate headers with first-value-wins and `DuplicateFieldCount`
+  - `ReadProcFileAsync` returns `(byte[] Data, bool Truncated)` with a 1-byte peek-read at cap boundary
+  - PROC-001, PROC-002, and PROC-006 include truncation metadata (`mapsTruncated`, `environTruncated`) on both Pass and Fail
+  - PROC-001, PROC-002, PROC-003, and PROC-006 distinguish unreadable `/proc` evidence from empty evidence, returning `NotApplicable` when required data is entirely unreadable and surfacing unreadable-count metadata for partial visibility
+- PROC-005 uses exact-match / `StartsWith` parent names (not `Contains`) to avoid `apachectl` false positives; `IsInterpreter` detects versioned interpreters (`python3.11`, `php8.1`, `ruby3.2`, `perl5.34`) via digit-prefix checks.
+- `AgentIntent.ProcessRuntimeCheck` and `QueryParser` keywords (`process`, `processes`, `running process`, `runtime process`, `process runtime`) so users can ask "check my processes".
+- Added `processruntime.md` explanation template with remediation steps for all 6 rules.
+- Added `ProcessRuntimeMitreMappings` static technique catalog inside `ProcessRuntimeRules.cs`.
+- 50+ tests covering `ParseMapLine`, `IsAnomalousName`, `IsSuspiciousPair`, all 6 rules across pass/fail/NotApplicable, missing-parent metadata, truncation metadata, unreadable-evidence semantics, and interpreter RWX detection.
+- Code: `VulcansTrace.Linux.Agent/Scanners/ProcessRuntimeScanner.cs`, `VulcansTrace.Linux.Agent/Scanners/ProcessRuntimeEntry.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ProcessRuntimeRules.cs`, `VulcansTrace.Linux.Agent/Explanations/Templates/processruntime.md`, `VulcansTrace.Linux.Tests/Agent/ProcessRuntimeScannerTests.cs`, `VulcansTrace.Linux.Tests/Agent/ProcessRuntimeRulesTests.cs`
+
 ### Security Agent — CIS Benchmark Mapping
-- All 76 agent rules now carry dual-layer CIS compliance mappings:
+- All 81 agent rules now carry dual-layer CIS compliance mappings:
   - **CIS Controls v8** (organizational): e.g., `CIS 4.5`, `CIS 5.4`, `CIS 6.3`
   - **CIS Ubuntu 24.04 LTS Benchmark** (technical): e.g., `5.2.7 Ensure SSH root login is disabled`
   - `CisBenchmarkMapping` record extended with optional `BenchmarkReference` field

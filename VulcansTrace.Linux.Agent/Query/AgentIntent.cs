@@ -56,6 +56,9 @@ public enum AgentIntent
     /// <summary>Focus on YARA rule matches for binaries, process executables, and cron scripts.</summary>
     YaraCheck,
 
+    /// <summary>Focus on runtime process anomalies: memory injection, deleted binaries, LD_PRELOAD, suspicious parent-child.</summary>
+    ProcessRuntimeCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

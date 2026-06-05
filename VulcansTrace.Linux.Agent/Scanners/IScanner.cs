@@ -41,6 +41,7 @@ public sealed class ScanDataBuilder
     private readonly List<ContainerInfo> _containers = new();
     private readonly List<KubernetesPodInfo> _kubernetesPods = new();
     private readonly List<YaraMatchEntry> _yaraMatches = new();
+    private readonly List<ProcessRuntimeEntry> _processRuntimes = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
@@ -196,6 +197,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _yaraMatches.Add(entry); }
     }
 
+    public void AddProcessRuntime(ProcessRuntimeEntry entry)
+    {
+        lock (_lock) { _processRuntimes.Add(entry); }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -229,7 +235,8 @@ public sealed class ScanDataBuilder
                 ContainerRuntime = _containerRuntime,
                 Containers = _containers.ToArray(),
                 KubernetesPods = _kubernetesPods.ToArray(),
-                YaraMatches = _yaraMatches.ToArray()
+                YaraMatches = _yaraMatches.ToArray(),
+                ProcessRuntimes = _processRuntimes.ToArray()
             };
         }
     }

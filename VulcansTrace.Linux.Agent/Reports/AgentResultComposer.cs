@@ -42,6 +42,7 @@ internal sealed class AgentResultComposer
             AgentIntent.KubernetesCheck => "Kubernetes check",
             AgentIntent.ThreatIntelCheck => "Threat intel check",
             AgentIntent.YaraCheck => "YARA scan",
+            AgentIntent.ProcessRuntimeCheck => "Process runtime check",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"
@@ -117,7 +118,8 @@ internal sealed class AgentResultComposer
             "log forwarding",
             "sshd -T",
             "sshd_config",
-            "stat"
+            "stat",
+            "/proc"
         };
 
         var orderedCapabilities = capabilities

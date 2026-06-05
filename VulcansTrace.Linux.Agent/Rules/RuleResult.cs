@@ -47,7 +47,7 @@ public sealed record RuleResult
     public IReadOnlyList<MitreTechnique> MitreTechniques { get; init; } = Array.Empty<MitreTechnique>();
 
     /// <summary>Creates a passing result.</summary>
-    public static RuleResult Pass(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null) =>
+    public static RuleResult Pass(string ruleId, string category, string explanationKey, string description, IReadOnlyList<CisBenchmarkMapping>? cisMappings = null, IReadOnlyList<MitreTechnique>? mitreTechniques = null, IReadOnlyDictionary<string, string>? variables = null) =>
         new()
         {
             RuleId = ruleId,
@@ -55,6 +55,7 @@ public sealed record RuleResult
             Passed = true,
             ExplanationKey = explanationKey,
             Description = description,
+            Variables = variables ?? new Dictionary<string, string>(),
             CisMappings = cisMappings ?? Array.Empty<CisBenchmarkMapping>(),
             MitreTechniques = mitreTechniques ?? Array.Empty<MitreTechnique>()
         };
