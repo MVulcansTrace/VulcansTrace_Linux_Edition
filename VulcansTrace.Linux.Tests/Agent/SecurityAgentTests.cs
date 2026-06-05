@@ -388,7 +388,8 @@ public class SecurityAgentTests
             new PackageVulnerabilityScanner(),
             new ContainerScanner(),
             new KubernetesScanner(),
-            new FileHashScanner(threatIntelStore)
+            new FileHashScanner(threatIntelStore),
+            new YaraScanner()
         };
 
         var rules = new IRule[]
@@ -472,7 +473,8 @@ public class SecurityAgentTests
             new K8sSecurityContextRule(),
             new ThreatIntelIpRule(threatIntelStore),
             new ThreatIntelPortRule(threatIntelStore),
-            new ThreatIntelHashRule(threatIntelStore)
+            new ThreatIntelHashRule(threatIntelStore),
+            new YaraMatchRule()
         };
 
         var explanationProvider = new ExplanationProvider();

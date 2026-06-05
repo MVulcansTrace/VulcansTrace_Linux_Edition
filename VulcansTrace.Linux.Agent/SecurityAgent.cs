@@ -217,6 +217,7 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.ContainerCheck => "containers",
         AgentIntent.KubernetesCheck => "kubernetes",
         AgentIntent.ThreatIntelCheck => "threat intel",
+        AgentIntent.YaraCheck => "YARA scan",
         AgentIntent.ExplainFinding => "explain a finding",
         AgentIntent.ShowChanges => "audit changes",
         AgentIntent.ExplainCritical => "critical finding explanation",
@@ -530,6 +531,7 @@ public sealed class SecurityAgent : IAgent
         "• \"Check my user accounts\" or \"Are my passwords strong?\"\n" +
         "• \"Check containers\" or \"Any privileged containers?\"\n" +
         "• \"Check kubernetes\" or \"Any K8s security issues?\"\n" +
+        "• \"Run a YARA scan\" or \"Check for malware signatures\"\n" +
         "You can also paste a firewall log and ask for analysis.\n" +
         "To explain a specific finding: \"explain FW-001\" or select a finding from the list.\n" +
         "\nFollow-up questions (after an audit):\n" +

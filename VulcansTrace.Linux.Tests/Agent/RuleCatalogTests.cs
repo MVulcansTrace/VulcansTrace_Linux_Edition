@@ -90,7 +90,8 @@ public class RuleCatalogTests
         new K8sSecurityContextRule(),
         new ThreatIntelIpRule(new InMemoryThreatIntelStore()),
         new ThreatIntelPortRule(new InMemoryThreatIntelStore()),
-        new ThreatIntelHashRule(new InMemoryThreatIntelStore())
+        new ThreatIntelHashRule(new InMemoryThreatIntelStore()),
+        new YaraMatchRule()
     };
 
     [Fact]
@@ -98,7 +99,7 @@ public class RuleCatalogTests
     {
         var catalog = new RuleCatalog(GetAllRules());
 
-        Assert.Equal(80, catalog.Items.Count);
+        Assert.Equal(81, catalog.Items.Count);
     }
 
     [Fact]
@@ -157,7 +158,7 @@ public class RuleCatalogTests
         var catalog = new RuleCatalog(GetAllRules());
         var results = catalog.Search("").ToList();
 
-        Assert.Equal(80, results.Count);
+        Assert.Equal(81, results.Count);
     }
 
     [Fact]

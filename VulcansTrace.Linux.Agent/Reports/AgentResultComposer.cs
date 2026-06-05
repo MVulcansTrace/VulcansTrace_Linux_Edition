@@ -41,6 +41,7 @@ internal sealed class AgentResultComposer
             AgentIntent.ContainerCheck => "Container check",
             AgentIntent.KubernetesCheck => "Kubernetes check",
             AgentIntent.ThreatIntelCheck => "Threat intel check",
+            AgentIntent.YaraCheck => "YARA scan",
             AgentIntent.ExplainFinding => "Finding explanation",
             AgentIntent.FixFinding => "Interactive remediation",
             _ => "Audit"

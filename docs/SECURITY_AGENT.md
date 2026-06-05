@@ -30,6 +30,8 @@ The query parser maps natural-language prompts to structured intents:
 | `Check my pods` | `KubernetesCheck` | Alias for Kubernetes pod security audit |
 | `Check threat intel` | `ThreatIntelCheck` | Correlates active connections, open ports, and file hashes against imported STIX/MISP IOCs |
 | `Check malicious IPs` | `ThreatIntelCheck` | Alias for threat intel correlation |
+| `Run a YARA scan` | `YaraCheck` | Scans SUID/SGID binaries, running process executables, and cron scripts against bundled and custom YARA rules |
+| `Check for malware signatures` | `YaraCheck` | Alias for YARA signature scan |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
@@ -129,6 +131,7 @@ The agent reads local host state using common Linux tools:
 | `PackageVulnerabilityScanner` | `dpkg-query -W`, `apt list --upgradeable`, `apt-cache policy`, optionally `debsecan --format report --only-fixed`, `/etc/apt/apt.conf.d/50unattended-upgrades`, `/etc/apt/apt.conf.d/20auto-upgrades` | Enumerates installed packages, detects pending security updates from security repositories, enriches with CVE IDs when debsecan is available, and checks unattended-upgrades configuration |
 | `ContainerScanner` | `docker ps`, `docker inspect`, `crictl ps`, `ctr namespace ls` | Detects running containers, privileged mode, latest tags, Docker socket exposure/mounts, known risky base-image hints from local image metadata, and containerd namespace isolation |
 | `KubernetesScanner` | `kubectl get pods --all-namespaces -o json` | Detects Kubernetes pod security posture when kubeconfig is present; supports `$KUBECONFIG` env var and uses the configured cluster context |
+| `YaraScanner` | `find / -xdev …`, `/proc/<pid>/exe` resolution, reads `/etc/cron.d*/*`; uses `libyara` via a thin P/Invoke wrapper | Scans SUID/SGID binaries, running process executables, and cron scripts against bundled rules (`Scanners/Yara/Rules/bundled.yar`) plus optional custom rules in `~/.config/VulcansTrace/yara/*.yar` |
 
 Scanner failures are reported as warnings instead of crashing the agent. Scanner commands use a shared bounded runner with concurrent stdout/stderr capture, a 30-second default timeout, cancellation propagation, and 1 MiB stdout/stderr limits. `FilesystemAuditScanner` uses the same runner with a 60-second timeout for broader `find` scans. Some commands may expose less detail without elevated privileges, especially process names, firewall rules, `sshd -T` host key access, and `stat` on files owned by other users.
 
@@ -257,6 +260,13 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 - Containers should have hardened security contexts (`allowPrivilegeEscalation: false`, `readOnlyRootFilesystem`, drop ALL capabilities, and a confined seccomp profile) (`K8S-004`).
 - Pod-level `securityContext` is inherited by containers; container-level settings override pod-level.
 - All Kubernetes rules return `Pass` when no kubeconfig is present or `kubectl` is unavailable.
+
+### YARA
+
+- Files matching bundled or custom YARA rules on SUID/SGID binaries, running process executables, or cron scripts are flagged (`YARA-001`).
+- The bundled rule set focuses on Linux ELF packers, SUID backdoor signatures, and common malware families.
+- Custom rules can be dropped into `~/.config/VulcansTrace/yara/*.yar` and are automatically compiled and scanned alongside bundled rules.
+- The scanner reports `Unavailable` when `libyara` is not installed, and `PermissionLimited` when some targets cannot be read.
 
 ## How The Pipeline Works
 
@@ -463,6 +473,9 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [LoggingAuditScanner.cs](../VulcansTrace.Linux.Agent/Scanners/LoggingAuditScanner.cs)
 - [CronJobScanner.cs](../VulcansTrace.Linux.Agent/Scanners/CronJobScanner.cs)
 - [PackageVulnerabilityScanner.cs](../VulcansTrace.Linux.Agent/Scanners/PackageVulnerabilityScanner.cs)
+- [YaraScanner.cs](../VulcansTrace.Linux.Agent/Scanners/Yara/YaraScanner.cs)
+- [LibyaraEngine.cs](../VulcansTrace.Linux.Agent/Scanners/Yara/LibyaraEngine.cs)
+- [bundled.yar](../VulcansTrace.Linux.Agent/Scanners/Yara/Rules/bundled.yar)
 - [Security rules](../VulcansTrace.Linux.Agent/Rules/SecurityRules)
 - [RuleEvaluationService.cs](../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs)
 - [FindingAssemblyService.cs](../VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs)
@@ -476,6 +489,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
 - [CronJobRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs)
 - [PackageVulnerabilityRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs)
+- [YaraRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/YaraRules.cs)
 - [AgentViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs)
 - [AgentMessageViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs)
 - [AgentOperationRunner.cs](../VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs)

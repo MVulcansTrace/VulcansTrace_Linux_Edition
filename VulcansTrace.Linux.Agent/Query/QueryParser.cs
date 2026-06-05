@@ -27,6 +27,7 @@ public sealed class QueryParser : IQueryParser
         (new[] { "container", "docker", "privileged container", "crictl", "containerd", "docker.sock", "image tag" }, AgentIntent.ContainerCheck, 2),
         (new[] { "kubernetes", "kubectl", "k8s", "pod security", "pod", "namespace", "helm" }, AgentIntent.KubernetesCheck, 2),
         (new[] { "threat intel", "threatintel", "ioc", "indicator", "threat intelligence", "malicious ip", "bad ip", "c2" }, AgentIntent.ThreatIntelCheck, 4),
+        (new[] { "yara", "yara scan", "malware scan", "malware signatures", "malware signature", "binary signature", "rule match" }, AgentIntent.YaraCheck, 3),
         (new[] { "explain", "what does", "mean", "why" }, AgentIntent.ExplainFinding, 2),
         (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
@@ -52,7 +53,7 @@ public sealed class QueryParser : IQueryParser
 
     private static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara"
     };
 
     /// <inheritdoc />
@@ -120,7 +121,8 @@ public sealed class QueryParser : IQueryParser
             or AgentIntent.PackageVulnerabilityCheck
             or AgentIntent.ContainerCheck
             or AgentIntent.KubernetesCheck
-            or AgentIntent.ThreatIntelCheck => true,
+            or AgentIntent.ThreatIntelCheck
+        or AgentIntent.YaraCheck => true,
         _ => false
     };
 

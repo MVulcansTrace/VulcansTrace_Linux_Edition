@@ -22,6 +22,7 @@
 | `ContainerCheck` | `Check my containers` | Container posture rules (privileged mode, latest tags, socket exposure/mounts, risky base-image hints, namespace isolation) |
 | `KubernetesCheck` | `Check my kubernetes` / `Check my pods` | Kubernetes pod security rules (privileged pods, host namespaces, root containers, security contexts) |
 | `ThreatIntelCheck` | `Check threat intel` / `Check malicious IPs` | Threat intel correlation rules (TI-001, TI-002, TI-003) against imported STIX/MISP IOCs |
+| `YaraCheck` | `Run a YARA scan` / `Check for malware signatures` | YARA rule scanning (YARA-001) for SUID/SGID binaries, running process executables, and cron scripts against bundled and custom rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
@@ -95,6 +96,7 @@
 | `ContainerScanner` | `docker ps`, `docker inspect`, `crictl ps`, `ctr namespace ls` | `Containers`, `ContainerRuntime` |
 | `KubernetesScanner` | `kubectl get pods --all-namespaces -o json` | `KubernetesPods` |
 | `FileHashScanner` | `find / -xdev …` + `sha256sum` / `md5sum` / `sha1sum` | `FileHashes` (SHA-256, MD5, SHA-1) |
+| `YaraScanner` | `find / -xdev …`, `/proc/<pid>/exe` resolution, reads `/etc/cron.d*/*`; uses `libyara` via P/Invoke | `YaraMatches` — bundled rules (`Scanners/Yara/Rules/bundled.yar`) plus optional custom rules in `~/.config/VulcansTrace/yara/*.yar` |
 
 ---
 
@@ -117,8 +119,9 @@
 | Container | privileged containers, latest tags, Docker socket exposure/mounts, risky base-image hints, containerd namespace defaults | 5/5 rules mapped to CIS Docker/Containerd Benchmark |
 | Kubernetes | privileged pods, hostNetwork/hostPID/hostIPC, root containers, missing security contexts | 4/4 rules mapped to CIS Kubernetes Benchmark 5.2.x |
 | ThreatIntel | active connections to malicious IPs, open ports matching malicious ports, file hashes matching known malicious hashes | 3/3 rules (TI-001, TI-002, TI-003) with MITRE ATT&CK T1071/T1571/T1204.002 mappings |
+| Yara | YARA rule matches on SUID/SGID binaries, running process executables, and cron scripts | 1/1 rule (YARA-001) mapped to CIS Controls v8 10.1 |
 
-All 79 rules carry dual-layer CIS mappings:
+All rules **except the three threat intel rules** carry dual-layer CIS mappings:
 - **CIS Controls v8** (organizational): `CIS 4.1`, `CIS 4.5`, `CIS 4.8`, `CIS 5.2`, `CIS 5.4`, `CIS 6.2`, `CIS 6.3`, `CIS 13.3`
 - **CIS Ubuntu 24.04 LTS Benchmark** (technical): specific section references such as `5.2.7 Ensure SSH root login is disabled` and `5.1.8 Ensure cron is restricted to authorized users`
 
@@ -159,7 +162,7 @@ User query
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, package vulnerabilities, containers, kubernetes, threat intel, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
+| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, package vulnerabilities, containers, kubernetes, threat intel, YARA scan, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |

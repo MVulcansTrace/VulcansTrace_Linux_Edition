@@ -28,6 +28,24 @@ public class RuleEvaluationServiceTests
     }
 
     [Fact]
+    public void EvaluateForIntent_YaraCheck_FiltersByYaraCategory()
+    {
+        var service = new RuleEvaluationService(
+            new IRule[]
+            {
+                new TestRule("YARA-TEST", FindingCategories.Yara),
+                new TestRule("FW-TEST", "Firewall")
+            },
+            MachineRole.Server,
+            policyProvider: null);
+
+        var result = service.EvaluateForIntent(AgentIntent.YaraCheck, EmptyScanData(), CancellationToken.None);
+
+        Assert.Single(result.RuleResults);
+        Assert.Equal("YARA-TEST", result.RuleResults[0].RuleId);
+    }
+
+    [Fact]
     public void EvaluateRule_DisabledPolicy_ReturnsDisabledPassResult()
     {
         var policyStore = new InMemoryRulePolicyStore();

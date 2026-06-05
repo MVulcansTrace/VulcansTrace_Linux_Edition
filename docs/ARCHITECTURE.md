@@ -67,7 +67,7 @@ The **Log Diff** subsystem provides a parallel comparison path for forensic time
 The Security Agent provides a parallel local posture path:
 
 1. A natural-language query is parsed into an `AgentIntent`.
-2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), and data-source capability status for local Linux commands.
+2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), YARA rule matches for SUID/SGID binaries, running process executables, and cron scripts, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed posture checks into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
 5. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
@@ -130,6 +130,7 @@ Notification services are pluggable:
 - `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
 - `IocEntry`: immutable IOC record (`Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`).
 - `FileHashEntry`: scanner output pairing a file path with its SHA-256 hash (`Path`, `Hash`, `Algorithm`).
+- `YaraMatchEntry`: scanner output for a YARA rule match, including the target path, target kind, matching rule identifier, optional process ID, and optional match description.
 
 ## Detection Layers
 
@@ -158,6 +159,14 @@ Advanced threat detectors:
   - `TI-002` (`ThreatIntelPortRule`) — open ports matching port IOCs.
   - `TI-003` (`ThreatIntelHashRule`) — file hashes matching hash IOCs.
 - AgentFactory wires the store into `ThreatIntelDetector`, all three rules, and `FileHashScanner`.
+
+## YARA Components
+
+- `IYaraEngine` — testable abstraction around YARA rule compilation and file scanning.
+- `LibyaraEngine` — thin P/Invoke wrapper over `libyara.so.10` with `DllImportResolver` fallback to `libyara.so`. Registers a one-time `yr_initialize()` and exposes `CompileRules` plus `ScanFile` with a C# callback that marshals matching rule identifiers.
+- `YaraScanner` — discovers targets (`find` for SUID/SGID, `/proc/<pid>/exe` symlink resolution, cron script directories), deduplicates by path, scans with bounded concurrency, and populates `YaraMatchEntry` records on `ScanDataBuilder`. Bundled rules ship as an embedded resource; optional custom rules load from `~/.config/VulcansTrace/yara/*.yar`.
+- `YaraMatchRule` (`YARA-001`) — fails when any YARA match is present on a SUID/SGID binary, running process executable, or cron script, with severity `High` and MITRE ATT&CK `T1204.002` / `T1027` mappings.
+- AgentFactory wires `YaraScanner` and `YaraMatchRule` into the agent pipeline; `RuleEvaluationService` filters by `FindingCategories.Yara` for `AgentIntent.YaraCheck`.
 
 Risk escalation correlations include (when both findings occur within a correlated 24-hour window):
 - Beaconing + LateralMovement -> Critical.

@@ -53,6 +53,9 @@ public enum AgentIntent
     /// <summary>Focus on imported threat intelligence IOC correlations.</summary>
     ThreatIntelCheck,
 
+    /// <summary>Focus on YARA rule matches for binaries, process executables, and cron scripts.</summary>
+    YaraCheck,
+
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 

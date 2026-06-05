@@ -389,6 +389,7 @@ internal sealed class AgentFollowUpService
         "container" or "docker" => AgentIntent.ContainerCheck,
         "kubernetes" or "k8s" or "pod" => AgentIntent.KubernetesCheck,
         "threatintel" or "threat-intel" or "ioc" => AgentIntent.ThreatIntelCheck,
+        "yara" or "malware" => AgentIntent.YaraCheck,
         _ => AgentIntent.Help
     };
 }

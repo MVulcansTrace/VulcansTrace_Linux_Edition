@@ -42,7 +42,7 @@ VulcansTrace.Linux.Tests/
 │   ├── AuditDiffCalculatorTests.cs           — fingerprint-aware audit diff tests
 │   ├── SuppressionStoreTests.cs              — expiry, retention, and fingerprint matching tests
 │   ├── RuleTests.cs                          — posture rule and contextual rule behavior tests; CIS mapping presence and metadata validation for all 39 rules
-│   ├── RuleCatalogTests.cs                   — catalog metadata, search, and count verification for all 79 rules
+│   ├── RuleCatalogTests.cs                   — catalog metadata, search, and count verification for all 81 rules
 │   ├── ThreatIntelRuleTests.cs               — TI-001/TI-002/TI-003 behavior against mock IOC stores
 │   ├── StixParserTests.cs                    — STIX 2.1 bundle parsing (ipv4-addr, indicator patterns, file hashes)
 │   ├── MispParserTests.cs                    — MISP event JSON parsing (attributes, composite values, threat_level_id)

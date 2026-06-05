@@ -97,6 +97,9 @@ public class QueryParserTests
     [InlineData("check threat intel", AgentIntent.ThreatIntelCheck)]
     [InlineData("show me threat intel", AgentIntent.ThreatIntelCheck)]
     [InlineData("show me iocs", AgentIntent.ThreatIntelCheck)]
+    [InlineData("run a yara scan", AgentIntent.YaraCheck)]
+    [InlineData("check for malware signatures", AgentIntent.YaraCheck)]
+    [InlineData("yara rule match", AgentIntent.YaraCheck)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);

@@ -120,6 +120,40 @@ public class AgentViewModelTests
     }
 
     [Fact]
+    public async Task SendQueryCommand_TypedYaraAudit_AppendsHistoryAndEnablesExport()
+    {
+        var agent = new TrackingAgent(AgentIntent.YaraCheck);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        {
+            UserQuery = "run a yara scan"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.CanExportAudit);
+        Assert.Single(vm.History);
+        Assert.Equal(AgentIntent.YaraCheck, vm.History[0].Intent);
+    }
+
+    [Fact]
+    public async Task YaraCommand_RunsYaraAudit()
+    {
+        var agent = new TrackingAgent(AgentIntent.YaraCheck);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder);
+
+        vm.YaraCommand.Execute(null);
+        await vm.YaraCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(AgentIntent.YaraCheck, agent.LastRunAuditIntent);
+        Assert.True(vm.CanExportAudit);
+        Assert.Single(vm.History);
+        Assert.Equal(AgentIntent.YaraCheck, vm.History[0].Intent);
+    }
+
+    [Fact]
     public async Task CheckDriftCommand_AfterShowBaseline_UsesLastAuditIntent()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
@@ -662,12 +696,16 @@ public class AgentViewModelTests
 
         public AgentIntent? LastDriftIntent { get; private set; }
         public AgentIntent? LastBaselineIntent { get; private set; }
+        public AgentIntent? LastRunAuditIntent { get; private set; }
 
         public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
             Task.FromResult(CreateResult(_auditIntent));
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
-            Task.FromResult(CreateResult(intent));
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            LastRunAuditIntent = intent;
+            return Task.FromResult(CreateResult(intent));
+        }
 
         public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ExplainFinding));

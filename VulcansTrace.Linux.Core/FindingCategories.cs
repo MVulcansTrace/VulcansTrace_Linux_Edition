@@ -22,4 +22,5 @@ public static class FindingCategories
     public const string Container = "Container";
     public const string Kubernetes = "Kubernetes";
     public const string ThreatIntel = "ThreatIntel";
+    public const string Yara = "Yara";
 }

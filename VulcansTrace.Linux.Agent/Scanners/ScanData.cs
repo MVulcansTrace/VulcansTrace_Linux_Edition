@@ -88,6 +88,9 @@ public sealed record ScanData
 
     /// <summary>Kubernetes pods and their security contexts detected via kubectl.</summary>
     public IReadOnlyList<KubernetesPodInfo> KubernetesPods { get; init; } = Array.Empty<KubernetesPodInfo>();
+
+    /// <summary>YARA rule matches discovered on SUID/SGID binaries, running process executables, and cron scripts.</summary>
+    public IReadOnlyList<YaraMatchEntry> YaraMatches { get; init; } = Array.Empty<YaraMatchEntry>();
 }
 
 /// <summary>An installed package parsed from dpkg-query.</summary>

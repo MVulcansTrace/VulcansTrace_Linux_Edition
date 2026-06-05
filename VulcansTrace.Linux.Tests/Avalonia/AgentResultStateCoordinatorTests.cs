@@ -50,6 +50,8 @@ public class AgentResultStateCoordinatorTests
     [InlineData(AgentIntent.PackageVulnerabilityCheck)]
     [InlineData(AgentIntent.ContainerCheck)]
     [InlineData(AgentIntent.KubernetesCheck)]
+    [InlineData(AgentIntent.ThreatIntelCheck)]
+    [InlineData(AgentIntent.YaraCheck)]
     public void IsAuditIntent_IncludesTypedAuditIntents(AgentIntent intent)
     {
         Assert.True(AgentResultStateCoordinator.IsAuditIntent(intent));

@@ -17,15 +17,15 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Metric | Value |
 | --- | --- |
 | Agent project | `VulcansTrace.Linux.Agent` |
-| Scanner types | 15: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit, CronJob, PackageVulnerability, Container, Kubernetes, FileHash |
-| Rule categories | 15: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging, CronJob, PackageVulnerability, Container, Kubernetes, ThreatIntel |
+| Scanner types | 16: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, KernelHardening, UserAccount, LoggingAudit, CronJob, PackageVulnerability, Container, Kubernetes, FileHash, Yara |
+| Rule categories | 16: Firewall, Port, Service, Network, SSH, FilePermission, FilesystemAudit, Kernel, UserAccount, Logging, CronJob, PackageVulnerability, Container, Kubernetes, ThreatIntel, Yara |
 | Machine roles | 5: Workstation, Server, LabBox, Router, DevMachine |
 | Policy persistence | JSON overrides in `~/.config/VulcansTrace/policy.json` |
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 32: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
-| CIS mapping coverage | 76 / 79 rules (96%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark. Threat intel rules (TI-001/002/003) intentionally have no CIS mappings. |
+| Agent intents | 33: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, YaraCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
+| CIS mapping coverage | 78 / 81 rules (96%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark. Threat intel rules (TI-001/002/003) intentionally have no CIS mappings. |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
 | Command safety levels | 5: ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, Unknown |
@@ -36,7 +36,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Risk scoring formula | `SeverityValue × 5 × AverageControlWeight` per finding; Info findings excluded |
 | Risk grade thresholds | A ≥90, B ≥80, C ≥70, D ≥60, F <60 (named constants on `RiskScorecard`) |
 | Target references | Rule IDs and category keywords extracted from explanation queries |
-| Explanation templates | 12 embedded markdown files |
+| Explanation templates | 13 embedded markdown files |
 | Threat intel formats | STIX 2.1 bundles, MISP event JSON |
 | Threat intel IOC types | IPv4, IPv6, Domain, URL, Port, FileHash (SHA-256/MD5/SHA-1) |
 | Threat intel persistence | JSON in `~/.config/VulcansTrace/threat-intel.json` |
@@ -91,6 +91,9 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [ContainerScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/ContainerScanner.cs) — container runtime state collection, socket exposure/mount checks, and risky base-image hint detection (docker, crictl, ctr)
 - [KubernetesScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/KubernetesScanner.cs) — Kubernetes pod security posture collection via kubectl and the configured cluster context
 - [FileHashScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/FileHashScanner.cs) — SHA-256/MD5/SHA-1 hash collection for security-interesting files
+- [YaraScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/Yara/YaraScanner.cs) — YARA rule scanning for SUID/SGID binaries, running process executables, and cron scripts
+- [LibyaraEngine.cs](../../../../VulcansTrace.Linux.Agent/Scanners/Yara/LibyaraEngine.cs) — thin P/Invoke wrapper around `libyara`
+- [bundled.yar](../../../../VulcansTrace.Linux.Agent/Scanners/Yara/Rules/bundled.yar) — embedded starter YARA rules
 - [StixParser.cs](../../../../VulcansTrace.Linux.Agent/ThreatIntel/StixParser.cs) — STIX 2.1 bundle parser
 - [MispParser.cs](../../../../VulcansTrace.Linux.Agent/ThreatIntel/MispParser.cs) — MISP event JSON parser
 - [InMemoryThreatIntelStore.cs](../../../../VulcansTrace.Linux.Agent/ThreatIntel/InMemoryThreatIntelStore.cs) — in-memory IOC store
@@ -105,6 +108,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [LoggingAuditRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs) — logging and audit posture rules
 - [CronJobRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs) — cron job posture rules
 - [PackageVulnerabilityRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs) — package vulnerability posture rules
+- [YaraRules.cs](../../../../VulcansTrace.Linux.Agent/Rules/SecurityRules/YaraRules.cs) — YARA match posture rule (YARA-001)
 - [DefaultRulePolicyProvider.cs](../../../../VulcansTrace.Linux.Agent/Rules/DefaultRulePolicyProvider.cs) — built-in role defaults and local override merge behavior
 - [JsonRulePolicyStore.cs](../../../../VulcansTrace.Linux.Agent/Rules/JsonRulePolicyStore.cs) — persisted rule policy store
 - [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding identity and fingerprints

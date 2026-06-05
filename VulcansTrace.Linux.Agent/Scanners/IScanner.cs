@@ -40,6 +40,7 @@ public sealed class ScanDataBuilder
     private readonly List<CronJobEntry> _cronJobs = new();
     private readonly List<ContainerInfo> _containers = new();
     private readonly List<KubernetesPodInfo> _kubernetesPods = new();
+    private readonly List<YaraMatchEntry> _yaraMatches = new();
     private readonly object _lock = new();
     private string _firewallRaw = string.Empty;
     private bool _firewallActive;
@@ -190,6 +191,11 @@ public sealed class ScanDataBuilder
         lock (_lock) { _kubernetesPods.Add(pod); }
     }
 
+    public void AddYaraMatch(YaraMatchEntry entry)
+    {
+        lock (_lock) { _yaraMatches.Add(entry); }
+    }
+
     public ScanData Build()
     {
         lock (_lock)
@@ -222,7 +228,8 @@ public sealed class ScanDataBuilder
                 PackageVulnerabilities = _packageVulnerabilityStatus,
                 ContainerRuntime = _containerRuntime,
                 Containers = _containers.ToArray(),
-                KubernetesPods = _kubernetesPods.ToArray()
+                KubernetesPods = _kubernetesPods.ToArray(),
+                YaraMatches = _yaraMatches.ToArray()
             };
         }
     }

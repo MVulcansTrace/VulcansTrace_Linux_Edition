@@ -111,7 +111,8 @@ public static class AgentFactory
             new CronJobScanner(),
             new PackageVulnerabilityScanner(),
             new ContainerScanner(),
-            new KubernetesScanner()
+            new KubernetesScanner(),
+            new YaraScanner()
         };
 
         var rules = new IRule[]
@@ -195,7 +196,8 @@ public static class AgentFactory
             new K8sSecurityContextRule(),
             new ThreatIntelIpRule(threatIntelStore),
             new ThreatIntelPortRule(threatIntelStore),
-            new ThreatIntelHashRule(threatIntelStore)
+            new ThreatIntelHashRule(threatIntelStore),
+            new YaraMatchRule()
         };
 
         var mitreCoverageSources = BuildMitreCoverageSources(

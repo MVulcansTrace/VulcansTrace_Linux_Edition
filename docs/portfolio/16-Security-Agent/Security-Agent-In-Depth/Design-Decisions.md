@@ -20,6 +20,7 @@ Scanners collect facts. Rules interpret those facts. This split keeps host colle
 - `CronJobScanner` knows how to read system and user crontabs (`/etc/crontab`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`) and collect referenced script paths.
 - `PackageVulnerabilityScanner` knows how to enumerate installed packages via `dpkg-query`, detect pending security updates via `apt`, classify updates via `apt-cache policy`, enrich with CVE IDs via `debsecan`, and check `unattended-upgrades` configuration.
 - `FileHashScanner` knows how to discover SUID/SGID binaries, world-writable files, unowned files, and cron scripts via `find`, then hash them via `sha256sum`, `md5sum`, and `sha1sum` for correlation against imported threat intelligence.
+- `YaraScanner` knows how to discover SUID/SGID binaries, running process executables, and cron scripts, compile bundled and custom YARA rules via `libyara`, and scan targets with bounded concurrency.
 - Rules only consume `ScanData`.
 
 That means rules can be tested with synthetic `ScanData` without depending on the host machine. It also means scanner parsers can evolve without rewriting the rule layer.

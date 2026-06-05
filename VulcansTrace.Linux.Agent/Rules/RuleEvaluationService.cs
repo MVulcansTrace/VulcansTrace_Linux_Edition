@@ -122,6 +122,7 @@ internal sealed class RuleEvaluationService
             AgentIntent.ContainerCheck => _rules.Where(r => r.Category.Equals(FindingCategories.Container, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.KubernetesCheck => _rules.Where(r => r.Category.Equals(FindingCategories.Kubernetes, StringComparison.OrdinalIgnoreCase)),
             AgentIntent.ThreatIntelCheck => _rules.Where(r => r.Category.Equals(FindingCategories.ThreatIntel, StringComparison.OrdinalIgnoreCase)),
+            AgentIntent.YaraCheck => _rules.Where(r => r.Category.Equals(FindingCategories.Yara, StringComparison.OrdinalIgnoreCase)),
             _ => Array.Empty<IRule>()
         };
     }

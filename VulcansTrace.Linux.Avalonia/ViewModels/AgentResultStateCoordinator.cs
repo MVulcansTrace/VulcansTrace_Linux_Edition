@@ -78,5 +78,7 @@ internal sealed class AgentResultStateCoordinator
             or AgentIntent.CronJobCheck
             or AgentIntent.PackageVulnerabilityCheck
             or AgentIntent.ContainerCheck
-            or AgentIntent.KubernetesCheck;
+            or AgentIntent.KubernetesCheck
+            or AgentIntent.ThreatIntelCheck
+            or AgentIntent.YaraCheck;
 }
