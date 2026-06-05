@@ -296,6 +296,27 @@
                                                     </ItemsControl.ItemsPanel>
                                                 </ItemsControl>
                                             </StackPanel>
+                                            <!-- Countermeasures -->
+                                            <StackPanel Orientation="Vertical"
+                                                        IsVisible="{Binding HasCountermeasureCommands}"
+                                                        Spacing="4">
+                                                <TextBlock Text="Countermeasures — active defense:" FontSize="10" Foreground="#f97316" FontWeight="SemiBold"/>
+                                                <ItemsControl ItemsSource="{Binding CountermeasureCommands}"
+                                                              ItemTemplate="{StaticResource CommandRowTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                                <Button Content="Deploy Countermeasures"
+                                                        FontSize="11"
+                                                        Padding="8,4"
+                                                        Background="#7c2d12"
+                                                        Foreground="#fb923c"
+                                                        Command="{Binding $parent[ItemsControl].((vm:AgentViewModel)DataContext).DeployCountermeasuresCommand}"
+                                                        CommandParameter="{Binding RemediationSection}"/>
+                                            </StackPanel>
                                             <!-- Verify Session Button -->
                                             <Button Content="Verify Remediation"
                                                     FontSize="11"

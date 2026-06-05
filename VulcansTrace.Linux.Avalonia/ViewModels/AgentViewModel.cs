@@ -7,8 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Services;
@@ -29,6 +31,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly AgentQueryExecutor _queryExecutor;
     private readonly AgentResultStateCoordinator _resultState;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
+    private readonly RemediationExecutor _remediationExecutor;
     private readonly IThreatIntelStore? _threatIntelStore;
     private readonly IDialogService? _dialogService;
     private ISessionStore? _sessionStore;
@@ -307,6 +310,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to add a note to a specific remediation step.</summary>
     public AsyncRelayCommand AddStepNoteCommand { get; }
 
+    /// <summary>Gets the command to deploy active countermeasures for a critical chain.</summary>
+    public AsyncRelayCommand DeployCountermeasuresCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -353,11 +359,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <param name="historyStore">The store for persisting audit history.</param>
     /// <param name="remediationPlanBuilder">The plan builder for remediation exports.</param>
     /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null)
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
+        _remediationExecutor = remediationExecutor ?? throw new ArgumentNullException(nameof(remediationExecutor));
         _sessionStore = sessionStore;
         _threatIntelStore = threatIntelStore;
         _dialogService = dialogService;
@@ -521,6 +528,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         AddStepNoteCommand = new AsyncRelayCommand(
             async param => await AddStepNoteAsync((param as string) ?? ""),
             param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        DeployCountermeasuresCommand = new AsyncRelayCommand(
+            async param => await DeployCountermeasuresAsync(param as RemediationSection),
+            param => !_isBusy && param is RemediationSection section && section.CountermeasureCommands.Count > 0,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
@@ -1057,6 +1069,90 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         foreach (var warning in result.Warnings)
             AddAgentMessage($"Warning: {warning}", true);
+    }
+
+    public void AddCountermeasureMessage(RemediationSection section)
+    {
+        if (Messages.Any(message => IsSameCountermeasureSection(message.RemediationSection, section)))
+            return;
+
+        Messages.Add(new AgentMessageViewModel
+        {
+            Text = $"**Critical chain detected — {section.FindingSummary}**",
+            Details = section.RiskNote,
+            IsUser = false,
+            IsInfo = false,
+            Severity = Severity.Critical,
+            Timestamp = DateTime.Now,
+            RemediationSection = section
+        });
+    }
+
+    private static bool IsSameCountermeasureSection(RemediationSection? existing, RemediationSection candidate)
+    {
+        if (existing == null)
+            return false;
+
+        if (!string.Equals(existing.RuleId, candidate.RuleId, StringComparison.Ordinal))
+            return false;
+
+        var existingCommands = existing.CountermeasureCommands.Select(command => command.Command);
+        var candidateCommands = candidate.CountermeasureCommands.Select(command => command.Command);
+        return existingCommands.SequenceEqual(candidateCommands, StringComparer.Ordinal);
+    }
+
+    private async Task DeployCountermeasuresAsync(RemediationSection? section)
+    {
+        if (section == null || section.CountermeasureCommands.Count == 0)
+        {
+            AddAgentMessage("No countermeasures to deploy.", true);
+            return;
+        }
+
+        var plan = new RemediationPlan { Sections = new[] { section } };
+        var policy = new AutoFixPolicy
+        {
+            AllowConfigChange = true,
+            RequireRollbackGuidance = true
+        };
+
+        // Dry-run
+        AddAgentMessage("Running countermeasure dry-run...", true);
+        var dryRunResult = await _remediationExecutor.ExecuteAsync(plan, policy, dryRun: true);
+        AddAgentMessage($"[DRY-RUN] {dryRunResult.Summary}", true);
+
+        if (dryRunResult.Sections.Any(s => s.Skipped))
+        {
+            AddAgentMessage("Countermeasure deployment blocked by safety policy. Review the output above.", true);
+            return;
+        }
+
+        if (_dialogService == null)
+        {
+            AddAgentMessage("Dialog service unavailable — cannot confirm live deployment.", true);
+            return;
+        }
+
+        var confirm = await _dialogService.ShowSelectionDialogAsync(
+            "Deploy Countermeasures",
+            "Dry-run completed successfully. Proceed with live deployment?",
+            new[] { "Deploy Live", "Cancel" },
+            defaultIndex: 1);
+
+        if (confirm != 0)
+        {
+            AddAgentMessage("Live deployment cancelled.", true);
+            return;
+        }
+
+        AddAgentMessage("Deploying countermeasures live...", true);
+        var liveResult = await _remediationExecutor.ExecuteAsync(plan, policy, dryRun: false);
+        AddAgentMessage($"[LIVE] {liveResult.Summary}", liveResult.Sections.All(s => s.ApplyResults.All(r => r.Skipped || r.Success)));
+
+        if (liveResult.Sections.Any(s => s.RollbackResults.Count > 0))
+        {
+            AddAgentMessage("Rollback was executed automatically because one or more commands failed.", true);
+        }
     }
 
     /// <inheritdoc />

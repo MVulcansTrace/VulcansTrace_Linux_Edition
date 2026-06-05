@@ -6,6 +6,7 @@ using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using Xunit;
@@ -20,7 +21,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.Empty(vm.History);
 
@@ -37,7 +38,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         for (int i = 0; i < 25; i++)
         {
@@ -52,7 +53,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         vm.LogText = "";
         await RunFullAuditAsync(vm);
@@ -71,7 +72,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.False(vm.CanCompareAudits);
         Assert.False(vm.CompareAuditsCommand.CanExecute(null));
@@ -92,7 +93,7 @@ public class AgentViewModelHistoryTests
     {
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         await RunFullAuditAsync(vm);
 
@@ -111,7 +112,7 @@ public class AgentViewModelHistoryTests
         store.Append(CreateHistoryEntry("snap-1"));
         store.Append(CreateHistoryEntry("snap-2"));
 
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.Equal(2, vm.History.Count);
         Assert.Equal("snap-2", vm.History[0].SnapshotId);
@@ -124,7 +125,7 @@ public class AgentViewModelHistoryTests
         var agent = new MockHistoryAgent();
         var store = new InMemoryAuditHistoryStore("Audit history persistence is unavailable.", maxEntries: 20);
 
-        var vm = new AgentViewModel(agent, store, PlanBuilder);
+        var vm = new AgentViewModel(agent, store, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.Contains(vm.Messages, message => message.Text == "Audit history persistence is unavailable." && message.IsInfo);
     }

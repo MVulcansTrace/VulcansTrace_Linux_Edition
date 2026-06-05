@@ -3,7 +3,9 @@ using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 
@@ -18,7 +20,7 @@ public class AgentViewModelTests
     {
         var selected = CreateFinding();
         var hasSelection = false;
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             SelectedFindingProvider = () => hasSelection ? selected : null
         };
@@ -42,7 +44,7 @@ public class AgentViewModelTests
     [Fact]
     public void SelectedChatCategoryFilter_AllCategories_KeepsFindingMessagesVisible()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         var firewallMessage = new AgentMessageViewModel
         {
             Text = "Firewall finding",
@@ -76,7 +78,7 @@ public class AgentViewModelTests
     public async Task SendQueryCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
-        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "is my system secure?"
         };
@@ -92,7 +94,7 @@ public class AgentViewModelTests
     public async Task FullAuditCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
-        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder);
+        var vm = new AgentViewModel(new CapabilityReportAgent(capabilityReport), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         vm.FullAuditCommand.Execute(null);
         await vm.FullAuditCommand.ExecutionTask;
@@ -105,7 +107,7 @@ public class AgentViewModelTests
     public async Task SendQueryCommand_TypedSshAudit_AppendsHistoryAndEnablesExport()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -123,7 +125,7 @@ public class AgentViewModelTests
     public async Task SendQueryCommand_TypedYaraAudit_AppendsHistoryAndEnablesExport()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "run a yara scan"
         };
@@ -141,7 +143,7 @@ public class AgentViewModelTests
     public async Task YaraCommand_RunsYaraAudit()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         vm.YaraCommand.Execute(null);
         await vm.YaraCommand.ExecutionTask;
@@ -157,7 +159,7 @@ public class AgentViewModelTests
     public async Task CheckDriftCommand_AfterShowBaseline_UsesLastAuditIntent()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -181,7 +183,7 @@ public class AgentViewModelTests
     [Fact]
     public void SetBaselineCommand_IsDisabledBeforeAudit()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
     }
@@ -189,7 +191,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetAgent_ClearsStaleAuditState()
     {
-        var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -210,7 +212,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check firewall"
         };
@@ -226,7 +228,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task CancelQueryCommand_CancelsActiveOperationAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check firewall"
         };
@@ -246,7 +248,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetBaselineCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -265,7 +267,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task CancelQueryCommand_CancelsActiveDriftOperationAndClearsBusyState()
     {
-        var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -288,7 +290,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task ShowBaselineCommand_SuppressesCapabilityPassedAndWarningSections()
     {
-        var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -312,7 +314,7 @@ public class AgentViewModelTests
     {
         var finding = CreateFinding();
         var agent = new ExplainFindingAgent(finding);
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             SelectedFindingProvider = () => finding
         };
@@ -332,7 +334,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task ExplainSelectedCommand_NoSelection_AddsGuidanceMessage()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             SelectedFindingProvider = () => null
         };
@@ -348,7 +350,7 @@ public class AgentViewModelTests
     [Fact]
     public async Task SetBaselineCommand_AfterAudit_DisplaysBaselineSummary()
     {
-        var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -372,7 +374,7 @@ public class AgentViewModelTests
     public async Task CheckDriftCommand_AfterAudit_DisplaysDriftResult()
     {
         var agent = new DriftResultAgent();
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "check ssh"
         };
@@ -395,7 +397,7 @@ public class AgentViewModelTests
     public async Task ExportSessionCommand_WithSessionResult_InvokesExportCallbackAndRefreshesTimeline()
     {
         var agent = new SessionResultAgent();
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "guided fix FW-001"
         };
@@ -429,7 +431,7 @@ public class AgentViewModelTests
     public async Task ExportSessionCommand_WhenSaveIsCancelled_DoesNotMarkSessionExported()
     {
         var agent = new SessionResultAgent();
-        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder)
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
         {
             UserQuery = "guided fix FW-001"
         };
@@ -878,7 +880,7 @@ public class AgentViewModelTests
         };
         store.Save(session);
 
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, store);
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), store);
 
         Assert.Single(vm.Sessions);
         Assert.Equal("abc12345", vm.Sessions[0].SessionId);
@@ -903,7 +905,7 @@ public class AgentViewModelTests
             RemediationPlan = new RemediationPlan { Sections = Array.Empty<RemediationSection>() },
             StepStates = new Dictionary<string, RemediationStepState>()
         });
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, firstStore);
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), firstStore);
 
         vm.SetAgent(new StubAgent(), secondStore);
 
@@ -915,7 +917,7 @@ public class AgentViewModelTests
     [Fact]
     public void SelectedSession_Set_RaisesCanExecuteChanged()
     {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder);
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         var resumed = false;
         var deleted = false;
         vm.ResumeSessionCommand.CanExecuteChanged += (_, _) => resumed = true;
@@ -931,6 +933,36 @@ public class AgentViewModelTests
 
         Assert.True(resumed);
         Assert.True(deleted);
+    }
+
+    [Fact]
+    public void AddCountermeasureMessage_DuplicateSection_IsNotAddedTwice()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "COUNTERMEASURE",
+            FindingSummary = "[Critical] Incident response",
+            RiskNote = "Active defense countermeasures.",
+            CountermeasureCommands = new[]
+            {
+                new CountermeasureCommand
+                {
+                    Command = "sudo iptables -A INPUT -s 10.0.0.5 -j DROP",
+                    RollbackCommand = "sudo iptables -D INPUT -s 10.0.0.5 -j DROP",
+                    Safety = CommandSafety.ConfigChange,
+                    Analysis = new CommandAnalysis { RequiresSudo = true },
+                    Type = CountermeasureType.IptablesDrop,
+                    TargetHost = "10.0.0.5"
+                }
+            },
+            HasExplicitRollbackGuidance = true
+        };
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.AddCountermeasureMessage(section);
+        vm.AddCountermeasureMessage(section);
+
+        Assert.Single(vm.Messages, message => message.RemediationSection?.RuleId == "COUNTERMEASURE");
     }
 
     private sealed class DriftResultAgent : StubAgent
@@ -951,5 +983,128 @@ public class AgentViewModelTests
                 CapabilityReport = "hidden capability report",
                 PassedCount = 3
             });
+    }
+
+    [Fact]
+    public async Task DeployCountermeasuresCommand_DryRun_PostsSummaryMessage()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "COUNTERMEASURE",
+            FindingSummary = "[Critical] Incident response: Beaconing → LateralMovement → PrivilegeEscalation on 192.168.1.100",
+            RiskNote = "Active defense countermeasures.",
+            CountermeasureCommands = new[]
+            {
+                new CountermeasureCommand
+                {
+                    Command = "sudo iptables -A INPUT -s 10.0.0.5 -j DROP",
+                    RollbackCommand = "sudo iptables -D INPUT -s 10.0.0.5 -j DROP",
+                    Safety = CommandSafety.ConfigChange,
+                    Analysis = new CommandAnalysis { RequiresSudo = true },
+                    Type = CountermeasureType.IptablesDrop,
+                    TargetHost = "10.0.0.5"
+                }
+            },
+            ApplyCommands = new[]
+            {
+                new RemediationCommand { Command = "sudo iptables -A INPUT -s 10.0.0.5 -j DROP", Safety = CommandSafety.ConfigChange, Analysis = new CommandAnalysis { RequiresSudo = true } }
+            },
+            RollbackCommands = new[]
+            {
+                new RemediationCommand { Command = "sudo iptables -D INPUT -s 10.0.0.5 -j DROP", Safety = CommandSafety.ConfigChange, Analysis = new CommandAnalysis { RequiresSudo = true } }
+            },
+            HasExplicitRollbackGuidance = true
+        };
+
+        var fakeRunner = new FakeProcessRunner();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(fakeRunner));
+        vm.DeployCountermeasuresCommand.Execute(section);
+        await vm.DeployCountermeasuresCommand.ExecutionTask!;
+
+        var texts = vm.Messages.Select(m => m.Text).ToList();
+        Assert.Contains(texts, t => t.Contains("DRY-RUN"));
+        Assert.Contains(texts, t => t.Contains("Dialog service unavailable"));
+        // Dry-run does not invoke the process runner (commands are skipped internally)
+        Assert.False(fakeRunner.WasCalled);
+    }
+
+    [Fact]
+    public async Task DeployCountermeasuresCommand_LiveRun_WithConfirmation_Executes()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "COUNTERMEASURE",
+            FindingSummary = "[Critical] Incident response",
+            RiskNote = "Active defense countermeasures.",
+            CountermeasureCommands = new[]
+            {
+                new CountermeasureCommand
+                {
+                    Command = "echo test",
+                    RollbackCommand = "echo rollback",
+                    Safety = CommandSafety.ReadOnly,
+                    Analysis = new CommandAnalysis(),
+                    Type = CountermeasureType.IptablesDrop,
+                    TargetHost = "10.0.0.5"
+                }
+            },
+            ApplyCommands = new[]
+            {
+                new RemediationCommand { Command = "echo test", Safety = CommandSafety.ReadOnly, Analysis = new CommandAnalysis() }
+            },
+            RollbackCommands = new[]
+            {
+                new RemediationCommand { Command = "echo rollback", Safety = CommandSafety.ReadOnly, Analysis = new CommandAnalysis() }
+            },
+            HasExplicitRollbackGuidance = true
+        };
+
+        var fakeRunner = new FakeProcessRunner();
+        var executor = new RemediationExecutor(fakeRunner);
+        var dialog = new FakeDialogService(confirmIndex: 0); // "Deploy Live"
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, executor, dialogService: dialog);
+        vm.DeployCountermeasuresCommand.Execute(section);
+        await vm.DeployCountermeasuresCommand.ExecutionTask!;
+
+        Assert.Contains(vm.Messages, m => m.Text.Contains("DRY-RUN"));
+        Assert.Contains(vm.Messages, m => m.Text.Contains("LIVE"));
+        // Verify the fake runner was actually invoked for both dry-run AND live execution
+        Assert.True(fakeRunner.WasCalled);
+    }
+
+    private sealed class FakeDialogService : IDialogService
+    {
+        private readonly int? _confirmIndex;
+
+        public FakeDialogService(int? confirmIndex = null)
+        {
+            _confirmIndex = confirmIndex;
+        }
+
+        public void ShowMessage(string message, string title) { }
+        public void ShowError(string message, string title) { }
+        public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName) => Task.FromResult<string?>(null);
+        public Task<string?> ShowOpenFileDialogAsync(string title, string filter) => Task.FromResult<string?>(null);
+        public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "") => Task.FromResult<string?>(null);
+        public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0) => Task.FromResult<int?>(_confirmIndex);
+    }
+
+    private sealed class FakeProcessRunner : IProcessRunner
+    {
+        public bool WasCalled { get; private set; }
+        public List<string> ExecutedCommands { get; } = new();
+
+        public Task<ProcessResult> RunAsync(string command, TimeSpan timeout, CancellationToken ct = default)
+        {
+            WasCalled = true;
+            ExecutedCommands.Add(command);
+            return Task.FromResult(new ProcessResult
+            {
+                Success = true,
+                ExitCode = 0,
+                StdOut = "",
+                StdErr = ""
+            });
+        }
     }
 }

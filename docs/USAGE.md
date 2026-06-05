@@ -101,6 +101,22 @@ Notes support lightweight evidence syntax: wrap references in brackets (`[ticket
 
 **Remediation Session History Browser** — The Avalonia UI includes a **Remediation Sessions** expander below the audit history. It lists all persisted sessions with their ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel, or click **Delete** to remove it from the store. You can also type `list my sessions` or `show sessions` in chat to list sessions, and `resume session <id>` to load a specific session.
 
+**Automated Incident Response Playbooks** — When `TraceMapCorrelator` detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same host), the Security Agent panel surfaces an active countermeasure card:
+
+1. A chat message appears describing the critical chain with the attacker's C2 IP, compromised host, and a **Deploy Countermeasures** button.
+2. Click **Deploy Countermeasures** to start the workflow:
+   - **Dry-run preview** — the system builds the remediation plan, validates the attacker IP, and shows what commands would execute without making any changes. Results are posted to chat.
+   - **Confirmation dialog** — if the dry-run succeeds, a dialog asks `Deploy Live` or `Cancel`.
+   - **Live execution** — if confirmed, the executor runs backup commands first, then applies the countermeasures (firewall DROP + tagged auditd connect telemetry), then verifies the firewall rule is active using an exact rule check.
+3. If the attacker IP is invalid, the plan is blocked with a `COUNTERMEASURE-BLOCKED` section and a clear risk note — no shell commands are generated.
+4. If multiple critical chains target the same attacker IP, only one countermeasure section is created (deduplicated by IP).
+5. Safety properties:
+   - Attacker IP parsed and validated before command generation
+   - Auditd telemetry is tagged for correlation; the firewall rule performs the IP-specific enforcement
+   - Verification uses an exact firewall rule check, not `grep`
+   - Commands feed through bash stdin (not `-c` wrapping) to prevent injection
+   - Dry-run always runs first; live deployment requires explicit confirmation
+
 The agent reads local host state through Linux tools such as `iptables`, `nft`, `ss`, `netstat`, `systemctl`, and `ip`. It reports scanner permission or availability issues as warnings and as a capability report that is also included in Markdown and HTML evidence exports. The main log input is shared with the agent, so pasted firewall logs can be included when the agent runs log analysis.
 
 For the full capability list and limitations, see [Security Agent](SECURITY_AGENT.md).

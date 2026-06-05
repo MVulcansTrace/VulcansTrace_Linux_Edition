@@ -48,6 +48,7 @@ If you want the full end-to-end story, read in this order:
 - How MITRE ATT&CK Navigator layer export turns findings into importable threat-intelligence overlays
 - How the Avalonia application exposes the workflow to an analyst
 - How the local Security Agent answers plain-English posture questions from live host state
+- How automated incident response playbooks detect critical attack chains and deploy active countermeasures with dry-run preview and explicit confirmation
 - How configuration baselines and drift detection turn point-in-time audits into continuous posture monitoring
 - How the CIS Compliance Scorecard turns raw rule results into manager-readable pass/fail/warn summaries with trend visualization
 - How the Risk Scorecard aggregates findings into a letter grade and numeric score weighted by severity and CIS control importance

@@ -210,6 +210,35 @@ After running any audit, you can ask the agent for either a single-finding remed
 6. Use **Export Session** to save a markdown session report with step state, blocked reasons, before snapshot, remediation plan, and verification diff. The `Exported` timeline event is recorded only after the report is written successfully.
 7. If the finding's explanation template lacks rollback guidance for risky commands, the plan/session is blocked for safety. Blocked sessions remain visible for auditability but do not expose copyable remediation commands or allow verification as completed remediation.
 
+## Security Agent — Automated Incident Response Playbooks
+
+When the Trace Map detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same compromised host), the agent can deploy active countermeasures directly from the chat panel:
+
+1. Paste or analyze a firewall log that triggers Beaconing, LateralMovement, and PrivilegeEscalation findings on the same source host (for example, `192.168.1.100` beaconing to `10.0.0.5:443`, then pivoting internally, then scanning admin ports).
+2. The Security Agent chat panel displays a critical chain message with:
+   - Compromised host (`192.168.1.100`)
+   - Attacker C2 IP (`10.0.0.5`)
+   - Attack stage narrative (`Beaconing → LateralMovement → PrivilegeEscalation`)
+   - A **Deploy Countermeasures** button
+3. Click **Deploy Countermeasures**. The system runs a dry-run preview first:
+   - Parses and validates the attacker IP (`10.0.0.5`) before command generation
+   - Generates `iptables -A INPUT -s 10.0.0.5 -j DROP` and tagged `auditctl -a ... -S connect -k vulcanstrace_countermeasure_10_0_0_5` telemetry
+   - Shows `[DRY-RUN]` results in chat
+4. If the dry-run passes, a confirmation dialog appears with two options:
+   - **Deploy Live** — execute the countermeasures
+   - **Cancel** — abort without changes
+5. Click **Deploy Live** to execute:
+   - Backup commands run first (if any)
+   - Apply commands: firewall DROP + tagged auditd connect telemetry
+   - Verification: `iptables -C INPUT -s 10.0.0.5 -j DROP` confirms the rule is active
+6. Results are posted to chat with `[LIVE]` prefix. If any apply command fails, automatic rollback runs for that section.
+
+**Safety notes:**
+- Invalid attacker IPs (e.g., `not-an-ip:443`) produce a blocked section with a clear risk note — no commands are generated
+- Multiple critical chains targeting the same attacker IP are deduplicated to a single section
+- Verification uses `iptables -C` exact-rule checking, not `grep`
+- All commands feed through bash stdin to prevent shell injection
+
 ## Security Agent — Auto-Fix (Batch Remediation)
 
 The headless CLI can automatically remediate multiple findings after an audit:

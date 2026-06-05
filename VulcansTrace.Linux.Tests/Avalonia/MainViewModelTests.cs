@@ -4,6 +4,7 @@ using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -243,6 +244,7 @@ also not a firewall line";
             traceMapJsonFormatter: new TraceMapJsonFormatter());
 
         var liveStreamAnalyzer = new LiveStreamAnalyzer(analyzer, profileProvider);
+        var remediationExecutor = new RemediationExecutor(new ProcessRunner());
 
         return new MainViewModel(
             analyzer,
@@ -253,6 +255,7 @@ also not a firewall line";
             suppressionStore ?? new InMemorySuppressionStore(),
             new InMemoryAuditHistoryStore(),
             new RemediationPlanBuilder(new ExplanationProvider()),
+            remediationExecutor,
             new TraceMapCorrelator(),
             liveStreamAnalyzer);
     }

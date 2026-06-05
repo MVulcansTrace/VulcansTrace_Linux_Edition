@@ -472,4 +472,449 @@ The policy should show `DROP` and nothing else.
         Assert.False(preview.IsVerificationCommand);
         Assert.Equal(RemediationPreviewTextKind.ManualFallback, preview.VerificationKind);
     }
+
+    [Fact]
+    public void BuildCountermeasures_EmptyCriticalChains_ReturnsEmptyPlan()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var traceMap = new TraceMapResult
+        {
+            Findings = Array.Empty<Finding>(),
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = Array.Empty<CriticalChain>()
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Empty(plan.Sections);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_CriticalChain_GeneratesCountermeasureCommands()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { beaconing, lateral, privEsc },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "192.168.1.100",
+                    Narrative = "Critical chain detected",
+                    FindingIds = new[] { beaconing.Id, lateral.Id, privEsc.Id }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Single(plan.Sections);
+        var section = plan.Sections[0];
+        Assert.Equal("COUNTERMEASURE", section.RuleId);
+        Assert.Contains("Beaconing → LateralMovement → PrivilegeEscalation", section.FindingSummary);
+
+        // C-1: ApplyCommands populated so executor actually runs countermeasures
+        Assert.Equal(2, section.ApplyCommands.Count);
+        Assert.Contains(section.ApplyCommands, c => c.Command.Contains("iptables -A INPUT -s 10.0.0.5"));
+        Assert.Contains(section.ApplyCommands, c => c.Command.Contains("auditctl -a"));
+
+        Assert.Equal(2, section.CountermeasureCommands.Count);
+        var iptables = section.CountermeasureCommands.First(c => c.Type == CountermeasureType.IptablesDrop);
+        var auditd = section.CountermeasureCommands.First(c => c.Type == CountermeasureType.AuditdMonitor);
+
+        Assert.Contains("iptables -A INPUT -s 10.0.0.5", iptables.Command);
+        Assert.Contains("iptables -D INPUT -s 10.0.0.5", iptables.RollbackCommand);
+        Assert.Equal(CommandSafety.ConfigChange, iptables.Safety);
+        Assert.True(iptables.Analysis.RequiresSudo);
+
+        // Auditd cannot filter connect syscalls by remote IP; it tags telemetry for correlation.
+        Assert.Contains("auditctl -a", auditd.Command);
+        Assert.DoesNotContain("-F addr=", auditd.Command);
+        Assert.Contains("vulcanstrace_countermeasure_10_0_0_5", auditd.Command);
+        Assert.Contains("auditctl -d", auditd.RollbackCommand);
+        Assert.DoesNotContain("-F addr=", auditd.RollbackCommand);
+        Assert.Equal(CommandSafety.ConfigChange, auditd.Safety);
+        Assert.True(auditd.Analysis.RequiresSudo);
+
+        Assert.Equal(2, section.RollbackCommands.Count);
+        Assert.True(section.HasExplicitRollbackGuidance);
+        Assert.NotNull(section.ImpactPreview);
+        Assert.Contains("10.0.0.5", section.ImpactPreview.ExpectedImpact);
+
+        // M-2: Verification uses iptables -C (exact rule check), not grep
+        Assert.Contains("iptables -C INPUT -s 10.0.0.5 -j DROP", section.VerificationCommands[0].Command);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_OutOfOrderTimestamps_LooksUpByCategory()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        // C-2: LateralMovement occurs BEFORE Beaconing chronologically
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.99:443",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { lateral, beaconing, privEsc },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "192.168.1.100",
+                    Narrative = "Critical chain detected",
+                    // FindingIds sorted by timestamp: lateral first, then beaconing, then privEsc
+                    FindingIds = new[] { lateral.Id, beaconing.Id, privEsc.Id }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Single(plan.Sections);
+        var section = plan.Sections[0];
+        // Should still extract attacker IP from Beaconing finding (10.0.0.99), not lateral
+        Assert.Contains("iptables -A INPUT -s 10.0.0.99", section.ApplyCommands[0].Command);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_InvalidAttackerIp_GeneratesBlockedSection()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "not-an-ip:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { beaconing, lateral, privEsc },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "192.168.1.100",
+                    Narrative = "Critical chain detected",
+                    FindingIds = new[] { beaconing.Id, lateral.Id, privEsc.Id }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Single(plan.Sections);
+        var section = plan.Sections[0];
+        Assert.Equal("COUNTERMEASURE-BLOCKED", section.RuleId);
+        Assert.Contains("does not contain a valid IP address", section.RiskNote);
+        Assert.Empty(section.ApplyCommands);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_StaleFindingId_SkipsMalformedChain()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { beaconing, lateral },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "192.168.1.100",
+                    Narrative = "Stale chain",
+                    FindingIds = new[] { beaconing.Id, lateral.Id, Guid.NewGuid() }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Empty(plan.Sections);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_Ipv6Endpoint_UsesIp6tablesAndTaggedAuditTelemetry()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "2001:db8::100",
+            Target = "[2001:db8::5]:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "2001:db8::100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "2001:db8::100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { beaconing, lateral, privEsc },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "2001:db8::100",
+                    Narrative = "IPv6 critical chain",
+                    FindingIds = new[] { beaconing.Id, lateral.Id, privEsc.Id }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        Assert.Single(plan.Sections);
+        var section = plan.Sections[0];
+        Assert.Contains("ip6tables -A INPUT -s 2001:db8::5 -j DROP", section.ApplyCommands[0].Command);
+        Assert.Contains("ip6tables -C INPUT -s 2001:db8::5 -j DROP", section.VerificationCommands[0].Command);
+        var auditd = section.CountermeasureCommands.First(c => c.Type == CountermeasureType.AuditdMonitor);
+        Assert.Contains("auditctl -a always,exit -F arch=b64 -S connect", auditd.Command);
+        Assert.Contains("vulcanstrace_countermeasure_2001_db8__5", auditd.Command);
+        Assert.DoesNotContain("-F addr=", auditd.Command);
+    }
+
+    [Fact]
+    public void BuildCountermeasures_DuplicateAttackerIp_Deduplicates()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var baseTime = DateTime.UtcNow;
+        var beaconing1 = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral1 = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc1 = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        // Second chain on a different host but same attacker IP
+        var beaconing2 = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.200",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing",
+            Details = "Regular intervals"
+        };
+        var lateral2 = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.200",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc2 = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.200",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation",
+            Details = "6 admin port attempts"
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { beaconing1, lateral1, privEsc1, beaconing2, lateral2, privEsc2 },
+            Edges = Array.Empty<CorrelationEdge>(),
+            CriticalChains = new[]
+            {
+                new CriticalChain
+                {
+                    Host = "192.168.1.100",
+                    Narrative = "Critical chain 1",
+                    FindingIds = new[] { beaconing1.Id, lateral1.Id, privEsc1.Id }
+                },
+                new CriticalChain
+                {
+                    Host = "192.168.1.200",
+                    Narrative = "Critical chain 2",
+                    FindingIds = new[] { beaconing2.Id, lateral2.Id, privEsc2.Id }
+                }
+            }
+        };
+
+        var plan = builder.BuildCountermeasures(traceMap);
+
+        // M-1: Only one section should be generated because both chains target the same attacker IP
+        Assert.Single(plan.Sections);
+        Assert.Equal("COUNTERMEASURE", plan.Sections[0].RuleId);
+    }
 }

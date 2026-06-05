@@ -11,4 +11,7 @@ public sealed record TraceMapResult
 
     /// <summary>Directed correlation edges between findings.</summary>
     public required IReadOnlyList<CorrelationEdge> Edges { get; init; }
+
+    /// <summary>Critical attack chains detected across multiple categories.</summary>
+    public IReadOnlyList<CriticalChain> CriticalChains { get; init; } = Array.Empty<CriticalChain>();
 }

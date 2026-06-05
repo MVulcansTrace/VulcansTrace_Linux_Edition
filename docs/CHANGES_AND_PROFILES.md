@@ -5,9 +5,27 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 ## 1) Changes Added (What Was Implemented)
+
+### Automated Incident Response Playbooks
+- **Critical Chain Detection**: `TraceMapCorrelator` detects Beaconing → LateralMovement → PrivilegeEscalation triplets on the same host and produces `CriticalChain` records with chronologically sorted `FindingIds`.
+  - Code: `VulcansTrace.Linux.Engine/TraceMapCorrelator.cs`
+- **Countermeasure Generation**: `RemediationPlanBuilder.BuildCountermeasures(TraceMapResult)` generates active defense commands:
+  - `IptablesDrop`: blocks the attacker's C2 IP with `iptables -A INPUT -s <ip> -j DROP` or `ip6tables -A INPUT -s <ip> -j DROP`
+  - `AuditdMonitor`: tags connect telemetry with `auditctl -a always,exit -F arch=b64 -S connect -k vulcanstrace_countermeasure_<ip>` for analyst correlation
+  - Code: `VulcansTrace.Linux.Agent/Reports/RemediationPlanBuilder.cs`
+- **Safety and Validation**:
+  - Attacker IP extracted from Beaconing `Target` and validated before command generation
+  - Invalid IPs produce `COUNTERMEASURE-BLOCKED` sections instead of malformed shell commands
+  - Duplicate attacker IPs deduplicated via `HashSet<string>` across multiple critical chains
+  - Verification uses `iptables -C` exact-rule checking (not `grep`)
+  - Countermeasure commands populate `ApplyCommands` so `RemediationExecutor` actually executes them
+- **UI Integration**: Avalonia UI shows **Deploy Countermeasures** button on critical chain messages. Workflow: dry-run preview → confirmation dialog → live execution. Results posted to chat panel.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `AgentView.axaml`
+- **Tests**: 4 new tests covering critical chain generation, out-of-order timestamp handling, invalid IP rejection, and attacker-IP deduplication. 2 updated view-model tests verifying `FakeProcessRunner` invocation during live execution.
+  - Code: `VulcansTrace.Linux.Tests/Engine/TraceMapCorrelatorTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationPlanBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentViewModelTests.cs`
 
 ### Detection and analysis
 - C2 Channel Detection: tightened grouping (ignore source port) and guarded

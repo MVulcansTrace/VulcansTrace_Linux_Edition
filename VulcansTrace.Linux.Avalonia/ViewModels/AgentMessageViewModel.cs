@@ -180,6 +180,8 @@ public sealed class AgentMessageViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ImpactPreviewExpectedImpactSource));
                 OnPropertyChanged(nameof(ImpactPreviewRollbackPathKind));
                 OnPropertyChanged(nameof(ImpactPreviewVerificationKind));
+                OnPropertyChanged(nameof(HasCountermeasureCommands));
+                OnPropertyChanged(nameof(CountermeasureCommands));
             }
         }
     }
@@ -201,6 +203,13 @@ public sealed class AgentMessageViewModel : ViewModelBase
 
     /// <summary>Gets whether the remediation section has verification commands.</summary>
     public bool HasRemediationVerificationCommands => _remediationSection?.VerificationCommands.Count > 0;
+
+    /// <summary>Gets whether the remediation section has countermeasure commands.</summary>
+    public bool HasCountermeasureCommands => _remediationSection?.CountermeasureCommands.Count > 0;
+
+    /// <summary>Gets the countermeasure commands as copyable commands.</summary>
+    public IReadOnlyList<CopyableCommand> CountermeasureCommands =>
+        ToCopyableCommands(_remediationSection?.CountermeasureCommands);
 
     /// <summary>Gets the preconditions for the remediation.</summary>
     public IReadOnlyList<string> RemediationPreconditions =>
@@ -271,6 +280,20 @@ public sealed class AgentMessageViewModel : ViewModelBase
     public string ImpactPreviewVerificationFontFamily => IsImpactPreviewVerificationCommand ? "Consolas,Monospace" : "";
 
     private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<RemediationCommand>? commands)
+    {
+        if (commands == null || commands.Count == 0)
+            return Array.Empty<CopyableCommand>();
+
+        return commands.Select(c => new CopyableCommand
+        {
+            DisplayText = c.Command,
+            FullCommand = c.Command,
+            Safety = c.Safety,
+            Analysis = c.Analysis
+        }).ToList();
+    }
+
+    private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<CountermeasureCommand>? commands)
     {
         if (commands == null || commands.Count == 0)
             return Array.Empty<CopyableCommand>();

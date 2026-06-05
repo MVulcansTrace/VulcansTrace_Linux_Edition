@@ -90,6 +90,20 @@ The **Auto-Fix pipeline** extends the Security Agent to headless batch remediati
 6. `ProcessRunner` executes shell commands via bash stdin (not `-c` argument wrapping) to avoid shell escaping vulnerabilities, with configurable timeout and cancellation support.
 7. `RemediationConsoleFormatter` renders dry-run previews and execution results for CLI output.
 
+The **Automated Incident Response Playbooks** layer extends the Trace Map correlation engine with active countermeasures:
+
+1. `TraceMapCorrelator` detects critical attack chains — a Beaconing → LateralMovement → PrivilegeEscalation triplet on the same host within a correlated time window — and produces a `CriticalChain` record with chronologically sorted `FindingIds`.
+2. `RemediationPlanBuilder.BuildCountermeasures(TraceMapResult)` looks up findings by category (not positional index) to extract the attacker's C2 IP from the Beaconing finding's `Target` field.
+3. The attacker IP is parsed and validated before any commands are generated; invalid IPs produce a `COUNTERMEASURE-BLOCKED` section with a clear risk note instead of potentially malformed shell commands.
+4. Valid attacker IPs generate two countermeasure commands:
+   - `IptablesDrop`: `iptables -A INPUT -s <attackerIp> -j DROP` or `ip6tables -A INPUT -s <attackerIp> -j DROP` with matching rollback
+   - `AuditdMonitor`: `auditctl -a always,exit -F arch=b64 -S connect -k vulcanstrace_countermeasure_<ip>` with rollback `auditctl -d ...`
+5. Countermeasure commands are deduplicated by attacker IP via a `HashSet<string>` so multiple critical chains targeting the same C2 IP produce only one section.
+6. Verification uses an exact firewall rule check (`iptables -C ...` or `ip6tables -C ...`) rather than `grep`, so verification succeeds only when the rule is actually present in the kernel's netfilter tables.
+7. Both countermeasure commands are added to `RemediationSection.ApplyCommands` so the `RemediationExecutor` actually executes them during live deployment.
+8. The Avalonia UI surfaces a **Deploy Countermeasures** button on critical chain messages. Clicking it runs a dry-run preview first, then shows a confirmation dialog (Deploy Live / Cancel), and only then executes the plan live. Dry-run results are posted to the chat panel.
+9. Auditd connect syscall rules are tagged for later correlation because auditd cannot filter `connect` events by remote IP address directly.
+
 The Scheduling layer provides recurring audit automation:
 
 1. `AuditSchedule` records define intent, cron expression, machine role, notification channel, and enabled state.
@@ -129,6 +143,9 @@ Notification services are pluggable:
 - `LiveWindowMetrics`: live stream statistics (event rate, window size, analysis run count).
 - `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
 - `IocEntry`: immutable IOC record (`Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`).
+- `CriticalChain`: record representing a detected critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) on a single host, with chronologically sorted `FindingIds`.
+- `CountermeasureCommand`: record representing an active defense command (`IptablesDrop` or `AuditdMonitor`) with apply command, rollback command, safety classification, and target host.
+- `CountermeasureType`: enum discriminating `IptablesDrop` and `AuditdMonitor` countermeasure kinds.
 - `FileHashEntry`: scanner output pairing a file path with its SHA-256 hash (`Path`, `Hash`, `Algorithm`).
 - `YaraMatchEntry`: scanner output for a YARA rule match, including the target path, target kind, matching rule identifier, optional process ID, and optional match description.
 

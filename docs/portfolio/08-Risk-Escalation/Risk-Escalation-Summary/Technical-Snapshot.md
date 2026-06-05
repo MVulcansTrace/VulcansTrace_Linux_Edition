@@ -8,6 +8,8 @@ A one-page overview of how VulcansTrace Linux Edition correlates individual dete
 
 The risk escalation subsystem receives findings from all detectors, groups them by source host, checks whether any combination of categories on the same host matches a known high-severity correlation rule within the time window, and upgrades qualifying findings to Critical severity. It runs before Beaconing/C2 deduplication, severity filtering, and the per-category finding cap in the `SentryAnalyzer` pipeline.
 
+The subsystem also detects **critical attack chains** — Beaconing → LateralMovement → PrivilegeEscalation triplets on the same host — which trigger the Automated Incident Response Playbooks layer for active defense.
+
 ---
 
 ## How It Works
@@ -34,11 +36,12 @@ The risk escalation subsystem receives findings from all detectors, groups them 
 
 | Metric | Value |
 |--------|-------|
-| Correlation rules | 3 |
+| Correlation rules | 3 pair rules + 1 critical triplet rule |
 | Detection layers | 3 (baseline, Linux deep inspection, advanced) |
 | Parse error cap | 500 |
 | Immutable escalation | Yes — `with` expression on record |
 | Fault isolation | Per-detector try/catch |
+| Critical chain → countermeasure | Yes — auto-generated iptables + auditd commands |
 | Integration test count | 15+ across SentryAnalyzerTests and RealWorldAttackScenarioTests |
 
 ---
@@ -48,12 +51,16 @@ The risk escalation subsystem receives findings from all detectors, groups them 
 | Artifact | Location |
 |----------|----------|
 | Correlation engine | [RiskEscalator.cs](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs) |
+| Critical chain detection | [TraceMapCorrelator.cs](../../../../VulcansTrace.Linux.Engine/TraceMapCorrelator.cs) |
+| Countermeasure generation | [RemediationPlanBuilder.cs](../../../../VulcansTrace.Linux.Agent/Reports/RemediationPlanBuilder.cs) |
 | Pipeline orchestrator | [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) |
 | Profile configuration | [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) |
 | Finding record | [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs) |
 | Severity enum | [Severity.cs](../../../../VulcansTrace.Linux.Core/Severity.cs) |
 | Integration tests | [SentryAnalyzerTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/SentryAnalyzerTests.cs) |
 | Attack scenario tests | [RealWorldAttackScenarioTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/RealWorldAttackScenarioTests.cs) |
+| Critical chain tests | [TraceMapCorrelatorTests.cs](../../../../VulcansTrace.Linux.Tests/Engine/TraceMapCorrelatorTests.cs) |
+| Countermeasure tests | [RemediationPlanBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Agent/RemediationPlanBuilderTests.cs) |
 
 ---
 

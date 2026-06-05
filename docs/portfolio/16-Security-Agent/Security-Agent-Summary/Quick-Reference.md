@@ -182,6 +182,7 @@ User query
 | Guided Remediation Session | `remediate FW-001` creates a persisted session. Active sessions can be verified; blocked sessions show safety reasons without exposing command cards. Verification failure, verification completion, and successful export are terminal timeline events |
 | Remediation Session History Browser | **Remediation Sessions** expander lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into chat, or **Delete** to remove it. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same functionality |
 | Auto-Fix (CLI) | `--auto-fix` applies safe remediation commands in batch. `--dry-run` previews changes without execution. Policy gates determine which `CommandSafety` levels are permitted. Automatically rolls back on apply failure. Exit codes: 0=success, 1=error, 2=unsafe skipped, 3=apply/rollback failure. |
+| Automated Incident Response Playbooks | When a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) is detected, a **Deploy Countermeasures** button appears on the chain message. Workflow: dry-run preview → confirmation dialog → live execution. Generates `iptables`/`ip6tables` DROP rules and tagged `auditctl -a ... -S connect -k vulcanstrace_countermeasure_<ip>` telemetry. Validates attacker IPs, deduplicates by IP, and verifies firewall rules with exact-rule checks. Blocked if IP is invalid or safety policy rejects the commands. |
 
 ---
 
@@ -197,3 +198,6 @@ User query
 - The desktop UI currently uses the `Workstation` role until a role selector exists.
 - The agent is deterministic and rule-based, not a general LLM conversation layer.
 - Auto-fix is CLI-only. The desktop UI does not yet expose batch remediation; use `fix <rule-id>` for interactive single-finding remediation in the UI.
+- Countermeasures require a detected Beaconing → LateralMovement → PrivilegeEscalation triplet and a valid attacker IP. If any stage is missing or the IP is malformed, no countermeasures are generated.
+- Countermeasures are desktop UI-only; there is no CLI equivalent for incident response playbooks.
+- Countermeasure commands require `sudo` (iptables and auditctl). The executor checks for `RequiresSudo` but does not elevate automatically.

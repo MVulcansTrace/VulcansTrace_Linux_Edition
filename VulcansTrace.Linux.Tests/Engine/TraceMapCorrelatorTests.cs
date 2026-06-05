@@ -607,4 +607,134 @@ public class TraceMapCorrelatorTests
         Assert.Equal(Severity.Medium, result.Findings[0].Severity);
         Assert.Equal(Severity.High, result.Findings[1].Severity);
     }
+
+    [Fact]
+    public void Correlate_CriticalChain_BeaconingLateralMovementPrivilegeEscalation_Detected()
+    {
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing detected",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement detected",
+            Details = "Contacted 5 internal hosts"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(20),
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Privilege escalation indicator",
+            Details = "Detected 6 admin port access attempts"
+        };
+
+        var result = _correlator.Correlate(new[] { beaconing, lateral, privEsc });
+
+        Assert.Single(result.CriticalChains);
+        var chain = result.CriticalChains[0];
+        Assert.Equal("192.168.1.100", chain.Host);
+        Assert.Contains("Beaconing", chain.Narrative);
+        Assert.Contains("PrivilegeEscalation", chain.Narrative);
+        Assert.Equal(3, chain.FindingIds.Count);
+        Assert.Equal(beaconing.Id, chain.FindingIds[0]);
+        Assert.Equal(lateral.Id, chain.FindingIds[1]);
+        Assert.Equal(privEsc.Id, chain.FindingIds[2]);
+    }
+
+    [Fact]
+    public void Correlate_NoCriticalChain_MissingOneCategory_ReturnsEmpty()
+    {
+        var baseTime = DateTime.UtcNow;
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing detected",
+            Details = "Regular intervals"
+        };
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime.AddMinutes(10),
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Lateral movement detected",
+            Details = "Contacted 5 internal hosts"
+        };
+
+        var result = _correlator.Correlate(new[] { beaconing, lateral });
+
+        Assert.Empty(result.CriticalChains);
+    }
+
+    [Fact]
+    public void Correlate_CriticalChain_ShuffledInput_FindingIdsSortedByTimestamp()
+    {
+        var baseTime = DateTime.UtcNow;
+        // Create findings with deliberate out-of-order timestamps
+        var lateral = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "multiple internal hosts",
+            TimeRangeStart = baseTime,                    // earliest
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Lateral movement first"
+        };
+        var privEsc = new Finding
+        {
+            Category = FindingCategories.PrivilegeEscalation,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.100",
+            Target = "admin ports in 5min window",
+            TimeRangeStart = baseTime.AddMinutes(10),    // middle
+            TimeRangeEnd = baseTime.AddMinutes(15),
+            ShortDescription = "Privilege escalation middle"
+        };
+        var beaconing = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime.AddMinutes(20),    // latest
+            TimeRangeEnd = baseTime.AddMinutes(25),
+            ShortDescription = "Beaconing last"
+        };
+
+        // Pass findings in random order
+        var result = _correlator.Correlate(new[] { privEsc, beaconing, lateral });
+
+        Assert.Single(result.CriticalChains);
+        var chain = result.CriticalChains[0];
+        // FindingIds must be sorted by timestamp regardless of input order
+        Assert.Equal(lateral.Id, chain.FindingIds[0]);
+        Assert.Equal(privEsc.Id, chain.FindingIds[1]);
+        Assert.Equal(beaconing.Id, chain.FindingIds[2]);
+    }
 }

@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -306,6 +307,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ISuppressionStore suppressionStore,
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
+        RemediationExecutor remediationExecutor,
         TraceMapCorrelator traceMapCorrelator,
         LiveStreamAnalyzer liveStreamAnalyzer,
         IScheduleStore? scheduleStore = null,
@@ -336,7 +338,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, sessionStore, threatIntelStore, dialogService)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),
@@ -502,6 +504,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings.LoadResults(result);
         Timeline.LoadAnalysisResult(result, traceMap.Edges);
         RiskScorecard.LoadScorecard(result.RiskScorecard);
+        InjectCountermeasureMessages(traceMap);
 
         // Build summary text
         var total = Findings.FindingsCount;
@@ -641,6 +644,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown, agentTraceMap);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
+        InjectCountermeasureMessages(agentTraceMap);
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);
         ComplianceScorecard.LoadScorecard(agentResult.Scorecard);
@@ -780,6 +784,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             profile = profile with { InterfaceHoppingWindowMinutes = InterfaceHoppingWindowMinutes };
 
         return _analyzer.Analyze(logText, intensity, token, profile);
+    }
+
+    private void InjectCountermeasureMessages(TraceMapResult traceMap)
+    {
+        if (traceMap.CriticalChains.Count == 0)
+            return;
+
+        var countermeasurePlan = _remediationPlanBuilder.BuildCountermeasures(traceMap);
+        foreach (var section in countermeasurePlan.Sections)
+        {
+            Agent.AddCountermeasureMessage(section);
+        }
     }
 
     private void UpdateAdvisorMessage(AnalysisResult result, int highCritical, int totalFindings)

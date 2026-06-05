@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Core;
@@ -39,6 +41,198 @@ public sealed class RemediationPlanBuilder
         {
             Sections = sections
         };
+    }
+
+    /// <summary>
+    /// Builds an incident-response countermeasure plan from critical chains detected in a Trace Map.
+    /// </summary>
+    public RemediationPlan BuildCountermeasures(TraceMapResult traceMap)
+    {
+        var sections = new List<RemediationSection>();
+        var findingById = traceMap.Findings.ToDictionary(f => f.Id);
+        var blockedIps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var chain in traceMap.CriticalChains)
+        {
+            if (chain.FindingIds.Count < 3)
+                continue;
+
+            var chainFindings = chain.FindingIds
+                .Select(id => findingById.TryGetValue(id, out var finding) ? finding : null)
+                .Where(finding => finding != null)
+                .Select(finding => finding!)
+                .ToList();
+
+            if (chainFindings.Count < 3)
+                continue;
+
+            var beaconing = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.Beaconing));
+            var lateral = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.LateralMovement));
+            var privEsc = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.PrivilegeEscalation));
+
+            if (beaconing == null || lateral == null || privEsc == null)
+                continue;
+
+            var compromisedHost = lateral.SourceHost;
+
+            if (!TryExtractIpAddress(beaconing.Target, out var attackerAddress, out var attackerIp))
+            {
+                sections.Add(new RemediationSection
+                {
+                    RuleId = "COUNTERMEASURE-BLOCKED",
+                    FindingSummary = $"[Critical] Incident response blocked on {compromisedHost}",
+                    RiskNote = $"Countermeasure generation blocked: beaconing target '{beaconing.Target}' does not contain a valid IP address.",
+                    MitreTechniques = Array.Empty<MitreTechnique>(),
+                    Preconditions = Array.Empty<string>(),
+                    BackupCommands = Array.Empty<RemediationCommand>(),
+                    ApplyCommands = Array.Empty<RemediationCommand>(),
+                    RollbackCommands = Array.Empty<RemediationCommand>(),
+                    RollbackHints = Array.Empty<string>(),
+                    VerificationCommands = Array.Empty<RemediationCommand>(),
+                    HasExplicitRollbackGuidance = true,
+                    CountermeasureCommands = Array.Empty<CountermeasureCommand>()
+                });
+                continue;
+            }
+
+            // M-1 Fix: Deduplicate by attacker IP — skip if we already generated a rule for this IP
+            if (!blockedIps.Add(attackerIp))
+                continue;
+
+            var firewallTool = attackerAddress.AddressFamily == AddressFamily.InterNetworkV6 ? "ip6tables" : "iptables";
+            var iptablesApply = $"sudo {firewallTool} -A INPUT -s {attackerIp} -j DROP";
+            var iptablesRollback = $"sudo {firewallTool} -D INPUT -s {attackerIp} -j DROP";
+
+            var auditKey = BuildAuditKey(attackerIp);
+            var auditdApply = $"sudo auditctl -a always,exit -F arch=b64 -S connect -k {auditKey}";
+            var auditdRollback = $"sudo auditctl -d always,exit -F arch=b64 -S connect -k {auditKey}";
+
+            var iptablesAnalysis = new CommandAnalysis { Safety = CommandSafety.ConfigChange, RequiresSudo = true };
+            var auditdAnalysis = new CommandAnalysis { Safety = CommandSafety.ConfigChange, RequiresSudo = true };
+
+            var countermeasures = new List<CountermeasureCommand>
+            {
+                new()
+                {
+                    Command = iptablesApply,
+                    RollbackCommand = iptablesRollback,
+                    Safety = iptablesAnalysis.Safety,
+                    Analysis = iptablesAnalysis,
+                    Type = CountermeasureType.IptablesDrop,
+                    TargetHost = attackerIp
+                },
+                new()
+                {
+                    Command = auditdApply,
+                    RollbackCommand = auditdRollback,
+                    Safety = auditdAnalysis.Safety,
+                    Analysis = auditdAnalysis,
+                    Type = CountermeasureType.AuditdMonitor,
+                    TargetHost = attackerIp
+                }
+            };
+
+            // C-1 Fix: Populate ApplyCommands so RemediationExecutor actually runs the countermeasures
+            var applyCommands = new List<RemediationCommand>
+            {
+                new() { Command = iptablesApply, Safety = iptablesAnalysis.Safety, Analysis = iptablesAnalysis },
+                new() { Command = auditdApply, Safety = auditdAnalysis.Safety, Analysis = auditdAnalysis }
+            };
+
+            var rollbackCommands = new List<RemediationCommand>
+            {
+                new() { Command = iptablesRollback, Safety = iptablesAnalysis.Safety, Analysis = iptablesAnalysis },
+                new() { Command = auditdRollback, Safety = auditdAnalysis.Safety, Analysis = auditdAnalysis }
+            };
+
+            // M-2 Fix: Use iptables -C (exact rule check) instead of grep
+            var verificationCommand = $"sudo {firewallTool} -C INPUT -s {attackerIp} -j DROP";
+
+            var impactPreview = new RemediationImpactPreview
+            {
+                ExpectedImpact = $"Applying this step will block inbound traffic from {attackerIp} and enable tagged auditd connect telemetry for analyst correlation with that IP.",
+                ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
+                RollbackPath = iptablesRollback,
+                RollbackPathKind = RemediationPreviewTextKind.Command,
+                VerificationCommand = verificationCommand,
+                IsVerificationCommand = true,
+                VerificationKind = RemediationPreviewTextKind.Command
+            };
+
+            sections.Add(new RemediationSection
+            {
+                RuleId = "COUNTERMEASURE",
+                FindingSummary = $"[Critical] Incident response: Beaconing → LateralMovement → PrivilegeEscalation on {compromisedHost}",
+                RiskNote = "Active defense countermeasures. Review before deploying. Rollback commands are pre-generated. Auditd cannot filter connect syscalls by remote IP, so the audit rule tags connection telemetry for correlation while the firewall rule enforces the IP-specific block.",
+                MitreTechniques = Array.Empty<MitreTechnique>(),
+                Preconditions = new[] { "Root or sudo access required.", $"{firewallTool} and auditctl must be available.", "Auditd connect telemetry is host-wide and must be correlated with the attacker IP during review." },
+                BackupCommands = Array.Empty<RemediationCommand>(),
+                ApplyCommands = applyCommands,
+                RollbackCommands = rollbackCommands,
+                RollbackHints = Array.Empty<string>(),
+                VerificationCommands = new List<RemediationCommand>
+                {
+                    new() { Command = verificationCommand, Safety = CommandSafety.ReadOnly, Analysis = new CommandAnalysis { RequiresSudo = true } }
+                },
+                HasExplicitRollbackGuidance = true,
+                ImpactPreview = impactPreview,
+                CountermeasureCommands = countermeasures
+            });
+        }
+
+        return new RemediationPlan { Sections = sections };
+    }
+
+    private static bool IsCategory(Finding f, string category) =>
+        string.Equals(f.Category, category, StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryExtractIpAddress(string target, out IPAddress address, out string normalized)
+    {
+        var trimmed = target.Trim();
+
+        if (IPAddress.TryParse(trimmed.Trim(new[] { '[', ']' }), out address!))
+        {
+            normalized = address.ToString();
+            return true;
+        }
+
+        if (trimmed.StartsWith("[", StringComparison.Ordinal))
+        {
+            var endBracket = trimmed.IndexOf(']');
+            if (endBracket > 1 && IPAddress.TryParse(trimmed[1..endBracket], out address!))
+            {
+                normalized = address.ToString();
+                return true;
+            }
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            IPAddress.TryParse(uri.Host, out address!))
+        {
+            normalized = address.ToString();
+            return true;
+        }
+
+        var colonCount = trimmed.Count(c => c == ':');
+        if (colonCount == 1)
+        {
+            var hostPart = trimmed[..trimmed.IndexOf(':')];
+            if (IPAddress.TryParse(hostPart, out address!))
+            {
+                normalized = address.ToString();
+                return true;
+            }
+        }
+
+        address = IPAddress.None;
+        normalized = string.Empty;
+        return false;
+    }
+
+    private static string BuildAuditKey(string attackerIp)
+    {
+        var safeIp = Regex.Replace(attackerIp, "[^A-Za-z0-9]", "_");
+        return $"vulcanstrace_countermeasure_{safeIp}";
     }
 
     private static RemediationSection BuildSection(Finding finding, StructuredExplanation structured)

@@ -63,6 +63,31 @@ public sealed class TraceMapCorrelator
             }
         }
 
+        // Detect critical triple chains
+        var criticalChains = new List<CriticalChain>();
+        foreach (var group in byHost)
+        {
+            var groupFindings = group.ToList();
+            var categories = groupFindings.Select(f => f.Category).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (categories.Contains(FindingCategories.Beaconing) &&
+                categories.Contains(FindingCategories.LateralMovement) &&
+                categories.Contains(FindingCategories.PrivilegeEscalation))
+            {
+                var beaconing = groupFindings.Where(f => IsCategory(f, FindingCategories.Beaconing)).OrderBy(f => f.TimeRangeStart).First();
+                var lateral = groupFindings.Where(f => IsCategory(f, FindingCategories.LateralMovement)).OrderBy(f => f.TimeRangeStart).First();
+                var privEsc = groupFindings.Where(f => IsCategory(f, FindingCategories.PrivilegeEscalation)).OrderBy(f => f.TimeRangeStart).First();
+                var ordered = new[] { beaconing, lateral, privEsc }.OrderBy(f => f.TimeRangeStart).ToList();
+
+                criticalChains.Add(new CriticalChain
+                {
+                    Host = group.Key,
+                    Narrative = $"Critical chain detected on {group.Key}: Beaconing → LateralMovement → PrivilegeEscalation.",
+                    FindingIds = ordered.Select(f => f.Id).ToList()
+                });
+            }
+        }
+
         // Track which finding pairs are already connected so we don't add weaker duplicates
         var connectedPairs = edges
             .Select(e => (e.FromFindingId, e.ToFindingId))
@@ -155,7 +180,8 @@ public sealed class TraceMapCorrelator
         return new TraceMapResult
         {
             Findings = findings,
-            Edges = deduped
+            Edges = deduped,
+            CriticalChains = criticalChains
         };
     }
 

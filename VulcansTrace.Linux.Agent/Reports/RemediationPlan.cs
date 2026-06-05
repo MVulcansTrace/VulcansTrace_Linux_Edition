@@ -52,6 +52,9 @@ public sealed record RemediationSection
     /// <summary>Verification commands to confirm the fix, with safety classifications.</summary>
     public IReadOnlyList<RemediationCommand> VerificationCommands { get; init; } = Array.Empty<RemediationCommand>();
 
+    /// <summary>Active countermeasure commands for incident response playbooks.</summary>
+    public IReadOnlyList<CountermeasureCommand> CountermeasureCommands { get; init; } = Array.Empty<CountermeasureCommand>();
+
     /// <summary>
     /// Whether rollback guidance was explicitly provided in the explanation template.
     /// False when only generic category-based fallback hints are available.
