@@ -42,6 +42,11 @@ public sealed class LiveStreamAnalyzer : IDisposable
     public event EventHandler<Exception>? StreamFaulted;
 
     /// <summary>
+    /// Raised whenever a live analysis window completes.
+    /// </summary>
+    public event EventHandler<LiveAnalysisResult>? ResultProduced;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="LiveStreamAnalyzer"/> class.
     /// </summary>
     public LiveStreamAnalyzer(
@@ -192,6 +197,7 @@ public sealed class LiveStreamAnalyzer : IDisposable
         }
         finally
         {
+            await AnalyzeWindowAsync(window, source.DisplayName, intensity, profile, CancellationToken.None).ConfigureAwait(false);
             window.Clear();
             if (ReferenceEquals(_currentSource, source))
             {
@@ -261,6 +267,7 @@ public sealed class LiveStreamAnalyzer : IDisposable
         };
 
         await _resultChannel.Writer.WriteAsync(liveResult, cancellationToken).ConfigureAwait(false);
+        ResultProduced?.Invoke(this, liveResult);
     }
 
     private void PruneExpiredFingerprints()

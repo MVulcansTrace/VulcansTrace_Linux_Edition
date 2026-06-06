@@ -325,7 +325,8 @@ public static class AgentFactory
         };
         var liveStreamSentryAnalyzer = new SentryAnalyzer(
             logNormalizer, profileProvider, baselineDetectors, linuxDetectors, liveStreamAdvancedDetectors, riskEscalator, logSink);
-        var liveStreamAnalyzer = new LiveStreamAnalyzer(liveStreamSentryAnalyzer, profileProvider, logSink);
+        var liveStreamAnalyzer = new LiveStreamAnalyzer(liveStreamSentryAnalyzer, profileProvider, logSink, timeWindow: TimeSpan.FromSeconds(180));
+        var traceMapCorrelator = new TraceMapCorrelator();
 
         return new AgentServices
         {
@@ -346,6 +347,7 @@ public static class AgentFactory
             RemediationPlanBuilder = remediationPlanBuilder,
             SessionStore = sessionStore,
             LiveStreamAnalyzer = liveStreamAnalyzer,
+            TraceMapCorrelator = traceMapCorrelator,
             ThreatIntelStore = threatIntelStore
         };
     }
@@ -444,6 +446,9 @@ public sealed record AgentServices : IDisposable
 
     /// <summary>Orchestrates live kernel stream analysis.</summary>
     public required LiveStreamAnalyzer LiveStreamAnalyzer { get; init; }
+
+    /// <summary>Correlates findings into trace-map edges and critical chains.</summary>
+    public required TraceMapCorrelator TraceMapCorrelator { get; init; }
 
     /// <summary>Store for imported threat intelligence IOCs.</summary>
     public required IThreatIntelStore ThreatIntelStore { get; init; }

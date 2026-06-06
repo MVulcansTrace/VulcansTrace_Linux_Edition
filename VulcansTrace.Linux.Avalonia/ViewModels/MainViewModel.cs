@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -40,6 +41,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly EventHandler _evidenceExportCompletedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
     private readonly EventHandler<LiveAnalysisResult> _liveResultHandler;
+    private readonly EventHandler<DemoCompletedEventArgs> _demoCompletedHandler;
 
     private string _logText = "";
     private string _summaryText = "";
@@ -380,6 +382,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         };
         LiveStream.LiveResultReceived += _liveResultHandler;
 
+        _demoCompletedHandler = (_, e) => OnDemoCompleted(e);
+        LiveStream.DemoCompleted += _demoCompletedHandler;
+
         AcceptRiskCommand = new AsyncRelayCommand(
             async _ => await AcceptRiskAsync(),
             _ => Findings.SelectedItem != null,
@@ -659,6 +664,45 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SummaryText = agentResult.Summary;
     }
 
+    private void OnDemoCompleted(DemoCompletedEventArgs e)
+    {
+        var findings = e.Findings.ToList();
+        if (findings.Count == 0)
+        {
+            Findings.Clear();
+            Timeline.LoadAnalysisResult(null);
+            IncidentStory.LoadTraceMap(null);
+            RiskScorecard.LoadScorecard(null);
+            SummaryText = $"Demo complete: {e.ScenarioName} — no findings.";
+            return;
+        }
+
+        var traceMap = _traceMapCorrelator.Correlate(findings);
+        var riskBuilder = new RiskScorecardBuilder();
+        var analysisResult = new AnalysisResult
+        {
+            Findings = findings,
+            TimeRangeStart = e.StartTime,
+            TimeRangeEnd = e.EndTime,
+            TotalLines = 0,
+            ParsedLines = 0,
+            Warnings = Array.Empty<string>(),
+            ParseErrors = Array.Empty<string>(),
+            ActiveSuppressions = Array.Empty<SuppressionSummary>(),
+            RiskScorecard = riskBuilder.Build(findings)
+        };
+
+        Evidence.SetEvidenceContext(analysisResult, $"Synthetic demo: {e.ScenarioName}", e.EndTime, traceMap: traceMap);
+        Findings.LoadResults(analysisResult);
+        Timeline.LoadAnalysisResult(analysisResult, traceMap.Edges);
+        IncidentStory.LoadTraceMap(traceMap);
+        RiskScorecard.LoadScorecard(analysisResult.RiskScorecard);
+
+        var highOrCritical = findings.Count(f => f.Severity is Severity.High or Severity.Critical);
+        SummaryText = $"Demo complete: {e.ScenarioName} — {findings.Count} finding(s), {highOrCritical} High/Critical.";
+        AdvisorMessage = "Demo findings are ready. Switch to the Evidence tab to export a signed bundle.";
+    }
+
     private async Task ExportRemediationPlanAsync(string markdown)
     {
         var path = await _dialogService.ShowSaveFileDialogAsync(
@@ -875,6 +919,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (LiveStream != null)
         {
             LiveStream.LiveResultReceived -= _liveResultHandler;
+            LiveStream.DemoCompleted -= _demoCompletedHandler;
             LiveStream.Dispose();
         }
     }

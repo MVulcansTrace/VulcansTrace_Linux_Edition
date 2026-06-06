@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
@@ -184,6 +185,32 @@ also not a firewall line";
         Assert.Empty(vm.Suppressions.ReviewQueueItems);
     }
 
+    [Fact]
+    public void DemoCompleted_ReplacesStaleFindingsWithDemoFindings()
+    {
+        var oldFinding = CreateFinding(FindingCategories.PortScan, "10.0.0.1");
+        var demoFinding = CreateFinding(FindingCategories.Flood, "10.99.99.100");
+        _vm.Findings.AddFinding(oldFinding);
+
+        var method = typeof(MainViewModel).GetMethod("OnDemoCompleted", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(method);
+        method.Invoke(_vm, new object[]
+        {
+            new DemoCompletedEventArgs(
+                "Demo: SSH Brute Force",
+                new[] { demoFinding },
+                true,
+                TimeSpan.FromSeconds(60),
+                DateTime.UtcNow.AddSeconds(-60),
+                DateTime.UtcNow)
+        });
+
+        Assert.Single(_vm.Findings.Items);
+        Assert.Equal(FindingCategories.Flood, _vm.Findings.Items[0].Finding.Category);
+        Assert.DoesNotContain(_vm.Findings.Items, item => item.Finding.Category == FindingCategories.PortScan);
+        Assert.True(_vm.Evidence.ExportEvidenceCommand.CanExecute(null));
+    }
+
     private static async Task WaitForBusyAsync(MainViewModel vm, int timeoutMs = 10000)
     {
         var deadline = Environment.TickCount64 + timeoutMs;
@@ -191,6 +218,23 @@ also not a firewall line";
         {
             await Task.Delay(50);
         }
+    }
+
+    private static Finding CreateFinding(string category, string sourceHost)
+    {
+        var now = DateTime.UtcNow;
+        return new Finding
+        {
+            Category = category,
+            Severity = Severity.High,
+            Confidence = DetectionConfidence.High,
+            SourceHost = sourceHost,
+            Target = "demo-target",
+            TimeRangeStart = now,
+            TimeRangeEnd = now.AddSeconds(1),
+            ShortDescription = $"{category} test finding",
+            Details = $"{category} test details"
+        };
     }
 
     private static MainViewModel BuildViewModel(

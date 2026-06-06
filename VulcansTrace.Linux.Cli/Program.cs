@@ -12,10 +12,12 @@ using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
+using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.LogDiff;
+using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
@@ -45,6 +47,7 @@ public static class Program
             return command switch
             {
                 "audit" => await RunAuditAsync(args),
+                "demo" => await RunDemoAsync(args),
                 "diff" => await RunDiffAsync(args),
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
@@ -153,6 +156,198 @@ public static class Program
         var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
         var auditExitCode = criticalCount > 0 ? 2 : 0;
         return Math.Max(auditExitCode, autoFixExitCode);
+    }
+
+    private static async Task<int> RunDemoAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return PrintError("Demo subcommand required: list, run");
+        }
+
+        var sub = args[1].ToLowerInvariant();
+
+        return sub switch
+        {
+            "list" => RunDemoList(),
+            "run" => await RunDemoRunAsync(args),
+            _ => PrintError($"Unknown demo subcommand: {sub}")
+        };
+    }
+
+    private static int RunDemoList()
+    {
+        Console.WriteLine("Available demo scenarios:");
+        Console.WriteLine();
+        foreach (var scenario in Enum.GetValues<DemoScenario>())
+        {
+            var keyword = DemoScenarioNames.ToCliKeyword(scenario);
+            var description = DemoScenarioNames.GetDescription(scenario);
+            Console.WriteLine($"  {keyword,-22} {description}");
+        }
+        return 0;
+    }
+
+    private static async Task<int> RunDemoRunAsync(string[] args)
+    {
+        var scenarioKeyword = ParseArg(args, "--scenario", null);
+        var durationSeconds = int.TryParse(ParseArg(args, "--duration", "150")!, out var d) ? d : 150;
+        var intensityArg = ParseArg(args, "--intensity", "High")!;
+        var seed = int.TryParse(ParseArg(args, "--seed", null) ?? string.Empty, out var s) ? (int?)s : null;
+        var outputEvidence = ParseArg(args, "--output-evidence", null);
+        var outputJson = ParseArg(args, "--output-json", null);
+        var outputHtml = ParseArg(args, "--output-html", null);
+        var outputMitre = ParseArg(args, "--output-mitre", null);
+        var signingKeyHex = ParseArg(args, "--signing-key", null);
+
+        if (string.IsNullOrWhiteSpace(scenarioKeyword))
+            return PrintError("--scenario is required");
+
+        if (!Enum.TryParse<IntensityLevel>(intensityArg, true, out var intensity))
+            return PrintError($"Unknown intensity: {intensityArg}. Use Low, Medium, or High.");
+
+        DemoScenario scenario;
+        try
+        {
+            scenario = DemoScenarioNames.FromCliKeyword(scenarioKeyword);
+        }
+        catch (ArgumentException)
+        {
+            return PrintError($"Unknown scenario: {scenarioKeyword}. Use 'vulcanstrace demo list' to see available scenarios.");
+        }
+
+        Console.WriteLine($"Running demo: {scenarioKeyword} (intensity: {intensity}, duration: {durationSeconds}s, seed: {seed?.ToString() ?? "random"})");
+
+        using var services = AgentFactory.Create();
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var runner = new DemoRunner(services.LiveStreamAnalyzer, services.TraceMapCorrelator);
+        var result = await runner.RunAsync(scenario, TimeSpan.FromSeconds(durationSeconds), intensity, seed, cts.Token);
+
+        // Build risk scorecard so evidence export includes risk-scorecard.html/md
+        var riskBuilder = new VulcansTrace.Linux.Agent.Reports.RiskScorecardBuilder();
+        result = result with
+        {
+            AnalysisResult = result.AnalysisResult with
+            {
+                RiskScorecard = riskBuilder.Build(result.AnalysisResult.Findings)
+            }
+        };
+
+        var findings = result.AnalysisResult.Findings;
+        var criticalCount = findings.Count(f => f.Severity == Severity.Critical);
+        var highCount = findings.Count(f => f.Severity == Severity.High);
+        var mediumCount = findings.Count(f => f.Severity == Severity.Medium);
+        var lowCount = findings.Count(f => f.Severity == Severity.Low);
+
+        Console.WriteLine();
+        Console.WriteLine($"Demo complete: {findings.Count} finding(s)");
+        Console.WriteLine($"  Critical: {criticalCount}, High: {highCount}, Medium: {mediumCount}, Low: {lowCount}");
+        if (result.TraceMap.Edges.Count > 0)
+            Console.WriteLine($"  Correlated edges: {result.TraceMap.Edges.Count}");
+
+        // Export evidence
+        if (!string.IsNullOrEmpty(outputEvidence))
+        {
+            if (Directory.Exists(outputEvidence))
+            {
+                Console.WriteLine($"  Error: --output-evidence path is a directory: {outputEvidence}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputEvidence);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            byte[] signingKey;
+            if (!string.IsNullOrWhiteSpace(signingKeyHex))
+            {
+                signingKey = Convert.FromHexString(signingKeyHex);
+            }
+            else
+            {
+                signingKey = new byte[32];
+                Random.Shared.NextBytes(signingKey);
+                Console.WriteLine($"  Generated signing key (save this to verify the evidence package): {Convert.ToHexString(signingKey)}");
+            }
+
+            var evidenceBytes = services.EvidenceBuilder.Build(
+                result.AnalysisResult,
+                result.RawLogDescription,
+                signingKey,
+                analysisTimestampUtc: result.StartTime,
+                cancellationToken: cts.Token,
+                remediationPlanMarkdown: null,
+                traceMap: result.TraceMap);
+
+            await File.WriteAllBytesAsync(outputEvidence, evidenceBytes, cts.Token);
+            Console.WriteLine($"  Evidence package written to: {outputEvidence}");
+        }
+
+        // Export JSON
+        if (!string.IsNullOrEmpty(outputJson))
+        {
+            if (Directory.Exists(outputJson))
+            {
+                Console.WriteLine($"  Error: --output-json path is a directory: {outputJson}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputJson);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var json = JsonSerializer.Serialize(result.AnalysisResult, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            await File.WriteAllTextAsync(outputJson, json, cts.Token);
+            Console.WriteLine($"  JSON output written to: {outputJson}");
+        }
+
+        // Export HTML
+        if (!string.IsNullOrEmpty(outputHtml))
+        {
+            if (Directory.Exists(outputHtml))
+            {
+                Console.WriteLine($"  Error: --output-html path is a directory: {outputHtml}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputHtml);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var html = new VulcansTrace.Linux.Evidence.Formatters.HtmlFormatter().ToHtml(result.AnalysisResult);
+            await File.WriteAllTextAsync(outputHtml, html, cts.Token);
+            Console.WriteLine($"  HTML output written to: {outputHtml}");
+        }
+
+        // Export MITRE layer
+        if (!string.IsNullOrEmpty(outputMitre))
+        {
+            if (Directory.Exists(outputMitre))
+            {
+                Console.WriteLine($"  Error: --output-mitre path is a directory: {outputMitre}");
+                return 1;
+            }
+
+            var directory = Path.GetDirectoryName(outputMitre);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var layer = new MitreLayerBuilder().BuildCoverageLayer(services.MitreCoverageSources, findings);
+            await File.WriteAllTextAsync(outputMitre, layer, cts.Token);
+            Console.WriteLine($"  MITRE layer written to: {outputMitre}");
+        }
+
+        return 0;
     }
 
     private static async Task<int> RunDiffAsync(string[] args)
@@ -1059,6 +1254,8 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>] [--auto-fix [--dry-run] [--yes] [--allow-restart] [--allow-packages]]");
+        Console.WriteLine("  vulcanstrace demo list");
+        Console.WriteLine("  vulcanstrace demo run --scenario <name> [--duration <seconds>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>]");
         Console.WriteLine("  vulcanstrace diff --baseline <file> --incident <file> [--output-json <file>] [--output-html <file>] [--output-evidence <zip>] [--signing-key <hex>]");
         Console.WriteLine("  vulcanstrace schedule list");
         Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
@@ -1078,6 +1275,9 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");
+        Console.WriteLine("  --scenario <name>          Demo scenario: random-mix, c2-beaconing, ssh-bruteforce, privilege-escalation");
+        Console.WriteLine("  --duration <seconds>       Demo run duration in seconds (default: 150)");
+        Console.WriteLine("  --seed <int>               Random seed for reproducible demo output");
         Console.WriteLine("  --baseline <file>          Baseline log file for diff comparison");
         Console.WriteLine("  --incident <file>          Incident log file for diff comparison");
         Console.WriteLine("  --intensity <level>        Diff analysis intensity: Low, Medium, High (default: Medium)");

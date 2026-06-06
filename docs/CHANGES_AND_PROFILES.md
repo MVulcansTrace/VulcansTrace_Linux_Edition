@@ -470,6 +470,30 @@ Last updated: 2026-06-06
 - **30 bug fixes** during code review: correct `AF_NETLINK` family, flat attribute flags, NFLOG payload/HWADDR/UID constants, `NFULNL_COPY_PACKET` mode request, double-close race, intensity threading, async stop, bounded findings, IDisposable caching, dedicated analyzer, result channel backpressure, realistic TTL, NFLOG timestamp parsing, kernel source fault surfacing, capability-aware source availability, retained parse-error samples, null guards, send errno handling, BPF length guards, delay clamping, structured overload, `LiveResultReceived` wiring, source name constants, and focused tests (VM, parser, config, formatter, stress).
 - Code: `VulcansTrace.Linux.Engine/Live/*.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/LiveStreamViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/LiveStreamView.axaml`, `VulcansTrace.Linux.Tests/Engine/Live/*`
 
+### Safe Attack Replay / Demo Mode
+- Added scenario-based safe attack replay on top of the live-stream pipeline. No privileges required; generates synthetic traffic that exercises real detectors.
+- **Scenarios (`DemoScenario`):**
+  - `RandomMix` — probabilistic blend of port scans, beaconing, and floods (legacy synthetic behavior).
+  - `C2Beaconing` — zero-jitter periodic beaconing to an external destination; triggers `BeaconingDetector` and `C2ChannelDetector` and may emit an early low-severity `Novelty` signal before the repeated pattern matures. Recommended duration **150 s** at High intensity because `BeaconMinDurationSeconds = 120`.
+  - `SshBruteforce` — high-volume SYN flood targeted at TCP/22; triggers `FloodDetector` plus admin-port spike evidence from `PrivilegeEscalationDetector`. Recommended duration **60 s** at High intensity.
+  - `PrivilegeEscalation` — controlled sweep across admin ports (22, 3389, 5900, …); triggers `PrivilegeEscalationDetector` while staying below flood volume. Recommended duration **60 s** at High intensity.
+- **Engine components:**
+  - `DemoPatterns` — returns `SyntheticPatterns` per scenario (intervals, port targets, event volumes).
+  - Named scenarios disable unrelated background traffic and use fixed sources/targets so exported demo evidence reflects the selected scenario. `RandomMix` keeps the older probabilistic stream.
+  - `DemoRunner` — orchestrates a headless demo run via `LiveStreamAnalyzer`, collects findings, and returns `DemoResult` with `AnalysisResult`, `TraceMap`, actual elapsed `Duration`, and raw-log description for evidence export.
+  - `DemoResult.Duration` stores **actual elapsed time** (`EndTime - StartTime`), not the configured parameter.
+  - `DemoCompletedEventArgs` — surfaced by `LiveStreamViewModel` when a scenario finishes (auto-stop or manual stop).
+- **CLI:** `vulcanstrace demo list` and `vulcanstrace demo run --scenario <keyword> [--duration <s>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>] [--signing-key <hex>]`.
+  - Default duration is **150 s** so C2 beaconing works out of the box.
+  - CLI demo evidence export now includes `risk-scorecard.html` and `risk-scorecard.md` because `RiskScorecardBuilder` is invoked after the run.
+- **Avalonia UI:** Live Stream tab includes a scenario dropdown and a duration `NumericUpDown`. Selecting a scenario auto-sets the recommended duration (C2 Beaconing → 150 s; others → 60 s). Auto-stop timer fires after the configured duration and raises `DemoCompleted`, which `MainViewModel` handles to sync evidence, timeline, incident story, and risk scorecard.
+- **Safety:** `LiveStreamViewModel.StopAsync()` uses `Interlocked.CompareExchange` reentrancy guard and marshals `DemoCompleted` to the UI thread via `Dispatcher.UIThread.Post` to prevent `ObservableCollection` modification from a background thread.
+- `TraceMapCorrelator` is now wired into `AgentFactory.AgentServices` so demo evidence exports include correlated `trace-map.md`, `trace-map.json`, and `incident-story.md`.
+- Code: `VulcansTrace.Linux.Engine/Live/DemoScenario.cs`, `DemoPatterns.cs`, `DemoRunner.cs`, `DemoResult.cs`, `DemoCompletedEventArgs.cs`
+- Code: `VulcansTrace.Linux.Cli/Program.cs`
+- Code: `VulcansTrace.Linux.Avalonia/ViewModels/LiveStreamViewModel.cs`, `MainViewModel.cs`, `MainWindow.axaml.cs`
+- Tests: `DemoPatternsTests`, `DemoRunnerTests`, `LiveStreamViewModelTests`
+
 ### Tooling
 - CLI test runner supports `--intensity`, `--all`, `--export`.
   - Tool: `tools/TestAnalysis/Program.cs`

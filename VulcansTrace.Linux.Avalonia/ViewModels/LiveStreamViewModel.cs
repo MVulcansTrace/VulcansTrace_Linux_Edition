@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -21,29 +22,42 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
 {
     private readonly LiveStreamAnalyzer _analyzer;
     private readonly Func<IntensityLevel> _intensityProvider;
-    private CancellationTokenSource? _resultCts;
-    private Task? _resultTask;
+    private readonly EventHandler<LiveAnalysisResult> _resultProducedHandler;
+    private readonly object _demoFindingsLock = new();
+    private readonly List<Finding> _currentDemoFindings = new();
+    private IReadOnlyList<Finding> _latestDemoAnalysisFindings = Array.Empty<Finding>();
     private IEventSource? _resolvedSource;
     private bool _disposed;
     private const int MaxLiveFindings = 1000;
 
     private bool _isRunning;
     private string _statusText = "Stopped";
-    private string _selectedSourceName = SourceNames.Synthetic;
+    private string _selectedSourceName = SourceNames.DemoRandom;
     private double _eventsPerSecond;
     private int _windowEventCount;
     private int _analysisRunCount;
     private int _totalDeltaFindings;
+    private int _scenarioDurationSeconds = 60;
+    private CancellationTokenSource? _autoStopCts;
+    private Task? _autoStopTask;
+    private bool _isAutoStopping;
+    private int _isStopping;
+    private DateTime _demoStartTime;
 
     public LiveStreamViewModel(LiveStreamAnalyzer analyzer, Func<IntensityLevel>? intensityProvider = null)
     {
         _analyzer = analyzer ?? throw new ArgumentNullException(nameof(analyzer));
         _intensityProvider = intensityProvider ?? (() => IntensityLevel.Medium);
         _analyzer.StreamFaulted += OnStreamFaulted;
+        _resultProducedHandler = (_, result) => OnResultProduced(result);
+        _analyzer.ResultProduced += _resultProducedHandler;
 
         AvailableSources = new ObservableCollection<string>
         {
-            SourceNames.Synthetic,
+            SourceNames.DemoRandom,
+            SourceNames.DemoC2Beaconing,
+            SourceNames.DemoSshBruteforce,
+            SourceNames.DemoPrivilegeEscalation,
             SourceNames.PacketCapture,
             SourceNames.Nflog
         };
@@ -60,6 +74,11 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
     /// MainViewModel can subscribe to merge findings into the main grid.
     /// </summary>
     public event EventHandler<LiveAnalysisResult>? LiveResultReceived;
+
+    /// <summary>
+    /// Raised when a scenario demo completes (auto-stop or manual stop).
+    /// </summary>
+    public event EventHandler<DemoCompletedEventArgs>? DemoCompleted;
 
     public ObservableCollection<string> AvailableSources { get; }
 
@@ -97,6 +116,8 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
                 (StartCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 ReleaseResolvedSource();
                 UpdateStatusForSelection();
+                ScenarioDurationSeconds = GetRecommendedDuration(value);
+                OnPropertyChanged(nameof(IsScenarioSource));
             }
         }
     }
@@ -124,6 +145,23 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         get => _totalDeltaFindings;
         private set => SetField(ref _totalDeltaFindings, value);
     }
+
+    /// <summary>
+    /// Duration in seconds for scenario demo runs.
+    /// </summary>
+    public int ScenarioDurationSeconds
+    {
+        get => _scenarioDurationSeconds;
+        set => SetField(ref _scenarioDurationSeconds, value);
+    }
+
+    /// <summary>
+    /// Whether the currently selected source is a demo scenario.
+    /// </summary>
+    public bool IsScenarioSource => SelectedSourceName == SourceNames.DemoRandom
+                                 || SelectedSourceName == SourceNames.DemoC2Beaconing
+                                 || SelectedSourceName == SourceNames.DemoSshBruteforce
+                                 || SelectedSourceName == SourceNames.DemoPrivilegeEscalation;
 
     private void UpdateStatusForSelection()
     {
@@ -160,6 +198,11 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         AnalysisRunCount = 0;
         EventsPerSecond = 0;
         WindowEventCount = 0;
+        lock (_demoFindingsLock)
+        {
+            _currentDemoFindings.Clear();
+            _latestDemoAnalysisFindings = Array.Empty<Finding>();
+        }
 
         IsRunning = true;
         StatusText = $"Capturing: {source.DisplayName}";
@@ -176,8 +219,25 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _resultCts = new CancellationTokenSource();
-        _resultTask = Task.Run(() => ConsumeResultsAsync(_resultCts.Token));
+        if (IsScenarioSource && ScenarioDurationSeconds > 0)
+        {
+            _demoStartTime = DateTime.UtcNow;
+            _autoStopCts = new CancellationTokenSource();
+            _isAutoStopping = false;
+            _autoStopTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(ScenarioDurationSeconds), _autoStopCts.Token).ConfigureAwait(false);
+                    _isAutoStopping = true;
+                    await StopAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when user clicks Stop manually
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -187,11 +247,7 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
     {
         if (!IsRunning) return;
 
-        _resultCts?.Cancel();
         _analyzer.Stop();
-        _resultCts?.Dispose();
-        _resultCts = null;
-        _resultTask = null;
 
         IsRunning = false;
         StatusText = "Stopped";
@@ -203,91 +259,101 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
     /// </summary>
     private async Task StopAsync()
     {
-        if (!IsRunning) return;
+        if (Interlocked.CompareExchange(ref _isStopping, 1, 0) != 0)
+            return;
 
-        _resultCts?.Cancel();
-
-        await _analyzer.StopAsync().ConfigureAwait(false);
-
-        if (_resultTask != null)
-        {
-            try
-            {
-                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                await _resultTask.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected on timeout or cancellation
-            }
-            catch (Exception ex)
-            {
-                StatusText = $"Shutdown error: {ex.Message}";
-            }
-        }
-
-        _resultCts?.Dispose();
-        _resultCts = null;
-        _resultTask = null;
-
-        IsRunning = false;
-        StatusText = "Stopped";
-    }
-
-    private async Task ConsumeResultsAsync(CancellationToken cancellationToken)
-    {
         try
         {
-            await foreach (var result in _analyzer.ResultsAsync(cancellationToken).ConfigureAwait(false))
+            if (!IsRunning) return;
+
+            var wasAutoStop = _isAutoStopping;
+            _isAutoStopping = false;
+            _autoStopCts?.Cancel();
+
+            await _analyzer.StopAsync().ConfigureAwait(false);
+
+            _autoStopCts?.Dispose();
+            _autoStopCts = null;
+            _autoStopTask = null;
+
+            IsRunning = false;
+
+            if (IsScenarioSource)
             {
-                if (cancellationToken.IsCancellationRequested)
-                    break;
-
-                Dispatcher.UIThread.Post(() =>
+                var duration = DateTime.UtcNow - _demoStartTime;
+                StatusText = $"Demo complete: {TotalDeltaFindings} finding(s)";
+                IReadOnlyList<Finding> demoFindings;
+                lock (_demoFindingsLock)
                 {
-                    EventsPerSecond = result.WindowMetrics.EventsPerSecond;
-                    WindowEventCount = result.WindowMetrics.EventCount;
-                    AnalysisRunCount = result.AnalysisRunCount;
+                    demoFindings = _latestDemoAnalysisFindings.Count > 0
+                        ? _latestDemoAnalysisFindings.ToList()
+                        : _currentDemoFindings.ToList();
+                }
 
-                    foreach (var finding in result.DeltaFindings)
-                    {
-                        LiveFindings.Add(finding);
-                        TotalDeltaFindings++;
-                    }
-
-                    // Evict oldest findings to prevent unbounded UI growth
-                    while (LiveFindings.Count > MaxLiveFindings)
-                    {
-                        LiveFindings.RemoveAt(0);
-                    }
-
-                    LiveResultReceived?.Invoke(this, result);
-                });
+                var args = new DemoCompletedEventArgs(
+                    SelectedSourceName,
+                    demoFindings,
+                    wasAutoStop,
+                    duration,
+                    _demoStartTime,
+                    DateTime.UtcNow);
+                Dispatcher.UIThread.Post(() => DemoCompleted?.Invoke(this, args));
+            }
+            else
+            {
+                StatusText = "Stopped";
             }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            // Expected on stop
+            Interlocked.Exchange(ref _isStopping, 0);
         }
-        catch (Exception ex)
+    }
+
+    private void OnResultProduced(LiveAnalysisResult result)
+    {
+        if (IsScenarioSource && result.DeltaFindings.Count > 0)
         {
-            Dispatcher.UIThread.Post(() =>
+            lock (_demoFindingsLock)
             {
-                StatusText = $"Stream error: {ex.Message}";
-                IsRunning = false;
-            });
+                _currentDemoFindings.AddRange(result.DeltaFindings);
+                _latestDemoAnalysisFindings = result.Analysis.Findings.ToList();
+            }
         }
+        else if (IsScenarioSource)
+        {
+            lock (_demoFindingsLock)
+            {
+                _latestDemoAnalysisFindings = result.Analysis.Findings.ToList();
+            }
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            EventsPerSecond = result.WindowMetrics.EventsPerSecond;
+            WindowEventCount = result.WindowMetrics.EventCount;
+            AnalysisRunCount = result.AnalysisRunCount;
+
+            foreach (var finding in result.DeltaFindings)
+            {
+                LiveFindings.Add(finding);
+                TotalDeltaFindings++;
+            }
+
+            // Evict oldest findings to prevent unbounded UI growth
+            while (LiveFindings.Count > MaxLiveFindings)
+            {
+                LiveFindings.RemoveAt(0);
+            }
+
+            LiveResultReceived?.Invoke(this, result);
+        });
     }
 
     private void OnStreamFaulted(object? sender, Exception ex)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            _resultCts?.Cancel();
-            _resultCts?.Dispose();
-            _resultCts = null;
-            _resultTask = null;
-
             IsRunning = false;
             StatusText = $"Stream error: {ex.Message}";
         });
@@ -302,15 +368,30 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         {
             SourceNames.PacketCapture => new PacketCaptureEventSource(),
             SourceNames.Nflog => new NflogEventSource(),
-            SourceNames.Synthetic => new SyntheticEventSource(),
+            SourceNames.DemoRandom => new SyntheticEventSource(),
+            SourceNames.DemoC2Beaconing => new SyntheticEventSource(DemoPatterns.For(DemoScenario.C2Beaconing)),
+            SourceNames.DemoSshBruteforce => new SyntheticEventSource(DemoPatterns.For(DemoScenario.SshBruteforce)),
+            SourceNames.DemoPrivilegeEscalation => new SyntheticEventSource(DemoPatterns.For(DemoScenario.PrivilegeEscalation)),
             _ => throw new InvalidOperationException($"Unknown source name: '{SelectedSourceName}'")
         };
         return _resolvedSource;
     }
 
+    private static int GetRecommendedDuration(string sourceName)
+    {
+        return sourceName switch
+        {
+            SourceNames.DemoC2Beaconing => 150,
+            _ => 60
+        };
+    }
+
     private static class SourceNames
     {
-        public const string Synthetic = "Synthetic Demo Stream";
+        public const string DemoRandom = "Demo: Random Mix";
+        public const string DemoC2Beaconing = "Demo: C2 Beaconing";
+        public const string DemoSshBruteforce = "Demo: SSH Brute Force";
+        public const string DemoPrivilegeEscalation = "Demo: Privilege Escalation";
         public const string PacketCapture = "Kernel Packet Capture (AF_PACKET + BPF)";
         public const string Nflog = "NFLOG Netlink (AF_NETLINK)";
     }
@@ -327,6 +408,7 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         _disposed = true;
 
         _analyzer.StreamFaulted -= OnStreamFaulted;
+        _analyzer.ResultProduced -= _resultProducedHandler;
         Stop();
         ReleaseResolvedSource();
     }

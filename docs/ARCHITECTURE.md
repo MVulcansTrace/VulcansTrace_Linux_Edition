@@ -26,6 +26,16 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `LiveStreamViewModel` — Avalonia UI logic for source selection, start/stop, and metrics.
 - `LiveAnalysisResult` — delta findings and window metrics for UI display.
 
+## Demo Mode Components
+
+- `DemoScenario` — enum identifying pre-defined safe attack-replay scenarios (`RandomMix`, `C2Beaconing`, `SshBruteforce`, `PrivilegeEscalation`).
+- `DemoScenarioNames` — display-name, CLI keyword, and description mappings with round-trip parsing.
+- `DemoPatterns` — returns `SyntheticPatterns` per scenario (beacon intervals, port targets, event volumes, admin port sweeps).
+- `DemoRunner` — orchestrates headless demo runs through `LiveStreamAnalyzer`, aggregates findings, builds `TraceMap` via `TraceMapCorrelator`, and returns `DemoResult` with actual elapsed duration.
+- `DemoResult` — completed artifacts: `AnalysisResult`, `TraceMap`, `RawLogDescription`, `Duration` (actual, not configured), and timing metadata.
+- `DemoCompletedEventArgs` — event args raised by `LiveStreamViewModel` when a scenario finishes, including the findings from that demo run only. `MainViewModel` consumes it to sync evidence, timeline, incident story, and risk scorecard without mixing in stale audit findings.
+- `TraceMapCorrelator` — wired into `AgentFactory.AgentServices` so demo evidence exports include correlated attack chains (`trace-map.md`, `trace-map.json`, `incident-story.md`).
+
 ## Data Flow
 
 1. Raw firewall log text is provided by the UI or a tool.

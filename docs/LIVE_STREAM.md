@@ -17,17 +17,23 @@ VulcansTrace can capture live network events directly from the Linux kernel and 
 
 | Source | Kernel API | Privileges | Description |
 |--------|-----------|------------|-------------|
-| **Synthetic Demo** | N/A | None | Generates realistic traffic for testing (port scans, beaconing, floods). |
+| **Demo: Random Mix** | N/A | None | Probabilistic blend of port scans, beaconing, and floods. |
+| **Demo: C2 Beaconing** | N/A | None | Periodic beaconing to an external destination; exported as a C2 finding with Beaconing overlap evidence. Recommended **150 s** at High intensity. |
+| **Demo: SSH Brute Force** | N/A | None | High-volume SYN flood targeted at TCP/22; surfaces flood and admin-port spike evidence. Recommended **60 s** at High intensity. |
+| **Demo: Privilege Escalation** | N/A | None | Controlled sweep across admin ports (22, 3389, 5900, …) tuned below flood volume. Recommended **60 s** at High intensity. |
 | **Kernel Packet Capture** | `AF_PACKET` + classic BPF | Root or `CAP_NET_RAW` | Captures all IPv4 TCP/UDP packets and parses IP/transport headers. |
 | **NFLOG Netlink** | `AF_NETLINK` + NFLOG | Root or `CAP_NET_ADMIN` | Reads structured firewall events from the netfilter NFLOG subsystem. |
 
-> **Note:** The desktop UI automatically detects whether root privileges are available and disables kernel sources with a reason message when they are unavailable.
+> **Note:** The desktop UI automatically detects whether root privileges are available and disables kernel sources with a reason message when they are unavailable. Selecting a demo scenario auto-sets the recommended duration. Named demo scenarios use isolated synthetic traffic; Random Mix keeps the older probabilistic blend.
 
 ## Source Name Constants
 
 Source names are defined as constants in `LiveStreamViewModel.SourceNames` to prevent fragile string matching:
 
-- `Synthetic Demo Stream`
+- `Demo: Random Mix`
+- `Demo: C2 Beaconing`
+- `Demo: SSH Brute Force`
+- `Demo: Privilege Escalation`
 - `Kernel Packet Capture (AF_PACKET + BPF)`
 - `NFLOG Netlink (AF_NETLINK)`
 
@@ -37,13 +43,14 @@ Unknown source names throw at resolution time rather than silently failing.
 
 1. Open the **Live Stream** tab.
 2. Select a source from the dropdown:
-   - *Synthetic Demo Stream* — works without root, ideal for demos.
+   - *Demo scenarios* — works without root; choose a scenario and the duration auto-adjusts.
    - *Kernel Packet Capture* — requires root.
    - *NFLOG Netlink* — requires root + an active NFLOG rule.
 3. Click **Start**.
 4. Watch the metrics panel (events/sec, window size, analysis runs, delta findings).
 5. New findings appear in the grid below.
 6. Click **Stop** to end the session gracefully (uses `StopAsync()` for clean async shutdown).
+7. Demo scenarios auto-stop when the timer expires and raise `DemoCompleted`, which syncs findings to the main view.
 
 ## Setting Up NFLOG (Optional)
 
@@ -138,6 +145,19 @@ The live stream pipeline was hardened through 30 focused bug fixes:
 - Kernel-source tests use conditional skips when root is unavailable so CI passes without privileges.
 - The synthetic source can generate port scans, beaconing, and floods on demand for deterministic testing.
 
-## CLI (Future)
+## CLI Demo Mode
 
-A headless live-stream mode for the CLI is planned. For now, live stream is available only in the Avalonia desktop UI.
+The CLI supports headless demo runs via the live-stream pipeline:
+
+```bash
+# List scenarios
+vulcanstrace demo list
+
+# Run a scenario with defaults (150 s, High intensity, random seed)
+vulcanstrace demo run --scenario c2-beaconing
+
+# Run with custom parameters and export evidence
+vulcanstrace demo run --scenario ssh-bruteforce --duration 60 --intensity High --seed 42 --output-evidence demo.zip
+```
+
+The CLI demo produces the same `AnalysisResult`, `TraceMap`, and evidence artifacts as the Avalonia UI. Default duration is **150 s** so C2 beaconing reliably produces findings. The evidence ZIP includes `risk-scorecard.html/md` because the CLI invokes `RiskScorecardBuilder` after the run.

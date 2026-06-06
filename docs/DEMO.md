@@ -60,6 +60,55 @@ Click **Export Evidence** to generate a signed ZIP bundle containing:
 | `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer v4.5 with detector/rule coverage and observed finding scoring |
 | `manifest.json` + `manifest.hmac` | HMAC integrity verification |
 
+## Safe Attack Replay / Demo Scenarios
+
+VulcansTrace includes a **safe attack replay** system that generates synthetic network traffic through the live-stream pipeline. No root privileges are required, and the traffic exercises real detectors against realistic patterns.
+
+### Available Scenarios
+
+| Scenario | Detectors Triggered | Recommended Duration | Recommended Intensity |
+|----------|--------------------|---------------------|----------------------|
+| **Random Mix** | PortScan, Beaconing, Flood | 60 s | High |
+| **C2 Beaconing** | Beaconing, C2Channel; may include early Novelty | **150 s** | High |
+| **SSH Brute Force** | Flood, PrivilegeEscalation | 60 s | High |
+| **Privilege Escalation** | PrivilegeEscalation | 60 s | High |
+
+> **Note:** C2 Beaconing requires at least **120 s** at High intensity because `BeaconMinDurationSeconds = 120`. The CLI default and UI recommended duration are 150 s to ensure findings are produced. Named scenarios use isolated synthetic traffic so their exported evidence reflects the selected scenario rather than unrelated background noise.
+
+When C2 Beaconing triggers both detectors on the same tuple, the analyzer keeps the higher-severity `C2Channel` finding and records the `Beaconing` evidence in its overlap note.
+
+### Avalonia UI
+
+1. Open the **Live Stream** tab.
+2. Select a scenario from the dropdown (e.g., **Demo: C2 Beaconing**).
+3. The duration automatically adjusts to the scenario's recommended value.
+4. Select **High** intensity.
+5. Click **Start**.
+6. Watch live metrics and findings appear in real time.
+7. The demo auto-stops after the configured duration, or click **Stop** to end early.
+8. When the demo completes, the findings, timeline, incident story, and risk scorecard are automatically synced to the main view.
+
+### CLI
+
+```bash
+# List available scenarios
+vulcanstrace demo list
+
+# Run a scenario with defaults (150 s, High intensity, random seed)
+vulcanstrace demo run --scenario c2-beaconing
+
+# Run with custom duration and seed for reproducible output
+vulcanstrace demo run --scenario ssh-bruteforce --duration 60 --intensity High --seed 42
+
+# Export signed evidence
+vulcanstrace demo run --scenario privilege-escalation --output-evidence demo-evidence.zip
+
+# Export MITRE ATT&CK Navigator layer
+vulcanstrace demo run --scenario random-mix --output-mitre demo-mitre.json
+```
+
+The evidence ZIP includes all standard artifacts (`findings.csv`, `report.html`, `summary.md`, `risk-scorecard.html/md`, `incident-story.md`, `trace-map.md/json`, `mitre-navigator-layer.json`, and the HMAC-signed manifest).
+
 ## Sample Attack Scenarios
 
 The sample log (`iptables-attack.log`) demonstrates a **port scan** — one source host probing 39 distinct destination ports in rapid succession. It reliably surfaces PortScan findings at Medium and High intensity. At Low intensity, the detector still evaluates the traffic, but standalone PortScan findings are emitted at Medium severity and are hidden by Low's High/Critical visibility filter unless they are escalated by correlation.

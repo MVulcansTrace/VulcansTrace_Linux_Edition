@@ -477,7 +477,7 @@ The Avalonia UI includes a **Live Stream** tab for real-time kernel telemetry an
 
 1. Open the **Live Stream** tab.
 2. Select a source:
-   - **Synthetic Demo Stream** — no privileges required; generates realistic traffic patterns.
+   - **Demo scenarios** — no privileges required; choose from C2 Beaconing, SSH Brute Force, Privilege Escalation, or Random Mix. Duration auto-adjusts per scenario (C2 Beaconing defaults to 150 s; others to 60 s). Named scenarios isolate synthetic traffic so completed evidence reflects the selected scenario.
    - **Kernel Packet Capture** — requires root or `CAP_NET_RAW`; captures IPv4 TCP/UDP via `AF_PACKET`.
    - **NFLOG Netlink** — requires root or `CAP_NET_ADMIN`; reads structured events from netfilter NFLOG.
 3. Select an analysis intensity.
@@ -485,6 +485,23 @@ The Avalonia UI includes a **Live Stream** tab for real-time kernel telemetry an
 5. Watch live metrics (events/sec, window size, analysis runs, delta findings).
 6. New findings appear in the live grid and are added to the main findings grid.
 7. Click **Stop** for graceful async shutdown.
+
+### Demo Scenarios (CLI)
+
+Run safe attack replay scenarios from the command line:
+
+```bash
+# List available scenarios
+vulcanstrace demo list
+
+# Run a scenario
+vulcanstrace demo run --scenario c2-beaconing --duration 150 --intensity High --seed 42
+
+# Export evidence
+vulcanstrace demo run --scenario ssh-bruteforce --output-evidence demo.zip
+```
+
+Demo runs return exit code `0` when the scenario completes successfully, even when detections are produced. Export/path errors still return a non-zero code.
 
 ### NFLOG Setup
 

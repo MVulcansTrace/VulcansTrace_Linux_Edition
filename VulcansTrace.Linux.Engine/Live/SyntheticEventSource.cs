@@ -37,9 +37,9 @@ public sealed class SyntheticEventSource : IEventSource
         var startTime = DateTime.UtcNow;
 
         // Beaconing state
-        var beaconNextTime = startTime + TimeSpan.FromSeconds(_patterns.BeaconIntervalSeconds);
-        var beaconSource = attackIps[0];
-        var beaconDest = normalIps[0];
+        var beaconNextTime = startTime + TimeSpan.FromSeconds(_patterns.BeaconInitialDelaySeconds);
+        var beaconSource = _patterns.FixedAttackSourceIp ?? attackIps[0];
+        var beaconDest = _patterns.BeaconDestinationIp;
         var beaconPort = 443;
 
         while (!cancellationToken.IsCancellationRequested)
@@ -56,8 +56,8 @@ public sealed class SyntheticEventSource : IEventSource
                 roll < _patterns.PortScanProbability)
             {
                 // Emit a port-scan burst
-                var attacker = attackIps[_rng.Next(attackIps.Length)];
-                var target = normalIps[_rng.Next(normalIps.Length)];
+                var attacker = _patterns.FixedAttackSourceIp ?? attackIps[_rng.Next(attackIps.Length)];
+                var target = _patterns.FixedTargetIp ?? normalIps[_rng.Next(normalIps.Length)];
                 int portsInBurst = _rng.Next(3, 8);
                 for (int i = 0; i < portsInBurst; i++)
                 {
@@ -87,7 +87,57 @@ public sealed class SyntheticEventSource : IEventSource
                     "DROP",
                     PickTtl(_rng));
 
-                beaconNextTime = now + TimeSpan.FromSeconds(_patterns.BeaconIntervalSeconds + _rng.NextDouble() * 2 - 1);
+                var jitter = _patterns.BeaconJitterSeconds <= 0
+                    ? 0
+                    : (_rng.NextDouble() * 2 * _patterns.BeaconJitterSeconds) - _patterns.BeaconJitterSeconds;
+                beaconNextTime = now + TimeSpan.FromSeconds(_patterns.BeaconIntervalSeconds + jitter);
+            }
+            else if (_patterns.AdminPortSweepEnabled &&
+                     elapsed >= _patterns.AdminPortSweepStart &&
+                     elapsed <= _patterns.AdminPortSweepEnd &&
+                     roll < _patterns.AdminPortSweepProbability)
+            {
+                // Emit admin-port sweep burst
+                var attacker = _patterns.FixedAttackSourceIp ?? attackIps[_rng.Next(attackIps.Length)];
+                var target = _patterns.FixedTargetIp ?? normalIps[_rng.Next(normalIps.Length)];
+                int portsInBurst = _rng.Next(_patterns.AdminPortSweepMinEventsPerBurst, _patterns.AdminPortSweepMaxEventsPerBurst + 1);
+                for (int i = 0; i < portsInBurst; i++)
+                {
+                    var adminPort = _patterns.AdminPorts[(eventCounter + i) % _patterns.AdminPorts.Length];
+                    yield return CreateEvent(
+                        now.AddMilliseconds(_rng.Next(50)),
+                        attacker,
+                        _rng.Next(40000, 60000),
+                        target,
+                        adminPort,
+                        "TCP",
+                        "SYN",
+                        "DROP",
+                        PickTtl(_rng));
+                }
+            }
+            else if (_patterns.TargetedFloodEnabled &&
+                     elapsed >= _patterns.TargetedFloodStart &&
+                     elapsed <= _patterns.TargetedFloodEnd &&
+                     roll < _patterns.TargetedFloodProbability)
+            {
+                // Emit targeted flood burst
+                var attacker = _patterns.FixedAttackSourceIp ?? attackIps[_rng.Next(attackIps.Length)];
+                var target = _patterns.FixedTargetIp ?? normalIps[_rng.Next(normalIps.Length)];
+                int burst = _rng.Next(15, 25);
+                for (int i = 0; i < burst; i++)
+                {
+                    yield return CreateEvent(
+                        now.AddMilliseconds(_rng.Next(20)),
+                        attacker,
+                        _rng.Next(40000, 60000),
+                        target,
+                        _patterns.TargetedFloodPort,
+                        "TCP",
+                        "SYN",
+                        "DROP",
+                        PickTtl(_rng));
+                }
             }
             else if (_patterns.FloodEnabled &&
                      elapsed >= _patterns.FloodStart &&
@@ -95,8 +145,8 @@ public sealed class SyntheticEventSource : IEventSource
                      roll < _patterns.FloodProbability)
             {
                 // Emit flood burst
-                var attacker = attackIps[_rng.Next(attackIps.Length)];
-                var target = normalIps[_rng.Next(normalIps.Length)];
+                var attacker = _patterns.FixedAttackSourceIp ?? attackIps[_rng.Next(attackIps.Length)];
+                var target = _patterns.FixedTargetIp ?? normalIps[_rng.Next(normalIps.Length)];
                 int burst = _rng.Next(5, 15);
                 for (int i = 0; i < burst; i++)
                 {
@@ -112,7 +162,7 @@ public sealed class SyntheticEventSource : IEventSource
                         PickTtl(_rng));
                 }
             }
-            else
+            else if (_patterns.BackgroundTrafficEnabled)
             {
                 // Normal background traffic
                 yield return CreateEvent(
@@ -207,6 +257,15 @@ public sealed record SyntheticPatterns
     /// <summary>Base interval between beacon events in seconds.</summary>
     public double BeaconIntervalSeconds { get; init; } = 12.0;
 
+    /// <summary>Delay before the first beacon event.</summary>
+    public double BeaconInitialDelaySeconds { get; init; } = 12.0;
+
+    /// <summary>Maximum positive or negative jitter added to beacon intervals.</summary>
+    public double BeaconJitterSeconds { get; init; } = 1.0;
+
+    /// <summary>Destination used for beaconing. Defaults to a public resolver so BeaconingDetector can classify it as external.</summary>
+    public string BeaconDestinationIp { get; init; } = "8.8.8.8";
+
     /// <summary>Whether to simulate flood bursts.</summary>
     public bool FloodEnabled { get; init; } = true;
 
@@ -218,4 +277,53 @@ public sealed record SyntheticPatterns
 
     /// <summary>Probability per tick of emitting a flood burst.</summary>
     public double FloodProbability { get; init; } = 0.08;
+
+    /// <summary>Whether to emit benign filler events when no attack pattern fires.</summary>
+    public bool BackgroundTrafficEnabled { get; init; } = true;
+
+    /// <summary>Optional fixed attacker IP for deterministic scenario demos.</summary>
+    public string? FixedAttackSourceIp { get; init; }
+
+    /// <summary>Optional fixed target IP for deterministic scenario demos.</summary>
+    public string? FixedTargetIp { get; init; }
+
+    // Admin port sweep
+
+    /// <summary>Whether to simulate admin-port sweep bursts.</summary>
+    public bool AdminPortSweepEnabled { get; init; } = false;
+
+    /// <summary>Time after start when admin-port sweep begins.</summary>
+    public TimeSpan AdminPortSweepStart { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>Time after start when admin-port sweep ends.</summary>
+    public TimeSpan AdminPortSweepEnd { get; init; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>Probability per tick of emitting an admin-port sweep burst.</summary>
+    public double AdminPortSweepProbability { get; init; } = 0.2;
+
+    /// <summary>Admin ports to sweep.</summary>
+    public int[] AdminPorts { get; init; } = new[] { 22, 3389, 5900, 5432, 3306 };
+
+    /// <summary>Minimum events emitted per admin-port sweep burst.</summary>
+    public int AdminPortSweepMinEventsPerBurst { get; init; } = 3;
+
+    /// <summary>Maximum events emitted per admin-port sweep burst.</summary>
+    public int AdminPortSweepMaxEventsPerBurst { get; init; } = 5;
+
+    // Targeted flood
+
+    /// <summary>Whether to simulate targeted flood bursts.</summary>
+    public bool TargetedFloodEnabled { get; init; } = false;
+
+    /// <summary>Target port for the flood burst.</summary>
+    public int TargetedFloodPort { get; init; } = 22;
+
+    /// <summary>Time after start when targeted flood begins.</summary>
+    public TimeSpan TargetedFloodStart { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>Time after start when targeted flood ends.</summary>
+    public TimeSpan TargetedFloodEnd { get; init; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>Probability per tick of emitting a targeted flood burst.</summary>
+    public double TargetedFloodProbability { get; init; } = 0.25;
 }

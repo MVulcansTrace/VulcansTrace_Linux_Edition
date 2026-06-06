@@ -5,6 +5,7 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
 
+[Collection("EnvironmentVariableTests")]
 public class JsonFileBaselineStoreTests : IDisposable
 {
     private readonly string _tempFile;
