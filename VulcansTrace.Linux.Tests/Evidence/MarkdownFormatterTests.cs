@@ -254,4 +254,53 @@ public class MarkdownFormatterTests
         Assert.Contains("High", md);
         Assert.Contains("Periodic outbound traffic", md);
     }
+
+    [Fact]
+    public void ToMarkdown_GroupedFinding_IncludesCountBadge()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Beaconing",
+            Severity = Severity.Critical,
+            SourceHost = "10.0.0.1",
+            Target = "8.8.8.8",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "Beaconing",
+            Details = "details",
+            GroupedCount = 4,
+            RepresentativeTargets = ["8.8.8.8:443"],
+            RiskDrivers = ["8.8.8.8"]
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("| Count |", md);
+        Assert.Contains("| Representative Targets |", md);
+        Assert.Contains("| Risk Drivers |", md);
+        Assert.Contains("×4", md);
+        Assert.Contains("8.8.8.8:443", md);
+        Assert.Contains("8.8.8.8", md);
+    }
+
+    [Fact]
+    public void ToMarkdown_NonGroupedFinding_CountCellIsEmpty()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "PortScan",
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "10.0.0.5",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "Scan",
+            Details = "details"
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        // The row should not contain "| 1 |" in the Count position
+        Assert.DoesNotContain("| 1 |", md);
+    }
 }

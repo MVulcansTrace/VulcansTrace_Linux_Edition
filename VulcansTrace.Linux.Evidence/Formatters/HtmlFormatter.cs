@@ -98,7 +98,7 @@ public sealed class HtmlFormatter : IEvidenceFormatter
 
         sb.AppendLine("<h2>Findings</h2>");
         sb.AppendLine("<table>");
-        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Confidence</th><th>Evidence Signals</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th><th>CIS Control</th><th>CIS Benchmark</th><th>MITRE Technique</th></tr>");
+        sb.AppendLine("<tr><th>Rule ID</th><th>Category</th><th>Severity</th><th>Count</th><th>Representative Targets</th><th>Risk Drivers</th><th>Confidence</th><th>Evidence Signals</th><th>Source</th><th>Target</th><th>Start</th><th>End</th><th>Description</th><th>CIS Control</th><th>CIS Benchmark</th><th>MITRE Technique</th></tr>");
 
         foreach (var f in result.Findings)
         {
@@ -106,10 +106,16 @@ public sealed class HtmlFormatter : IEvidenceFormatter
             var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
             var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
             var signals = string.Join("; ", f.EvidenceSignals.Select(s => s.Name));
+            var representativeTargets = string.Join("; ", f.RepresentativeTargets);
+            var riskDrivers = string.Join("; ", f.RiskDrivers);
             sb.AppendLine("<tr>");
+            var groupBadge = f.GroupedCount > 1 ? $"×{f.GroupedCount}" : string.Empty;
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.RuleId ?? string.Empty)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Category)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Severity.ToString())}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(groupBadge)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(representativeTargets)}</td>");
+            sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(riskDrivers)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.Confidence.ToString())}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(signals)}</td>");
             sb.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(f.SourceHost)}</td>");

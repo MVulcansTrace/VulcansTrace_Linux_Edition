@@ -40,6 +40,15 @@ public sealed class FindingItemViewModel
     /// <summary>Gets the formatted MITRE ATT&CK technique IDs for display.</summary>
     public string MitreTechniquesDisplay { get; }
 
+    /// <summary>Gets the number of raw findings grouped into this representative.</summary>
+    public int GroupedCount => Finding.GroupedCount;
+
+    /// <summary>Gets whether this finding represents a grouped set.</summary>
+    public bool HasGrouping => Finding.GroupedCount > 1;
+
+    /// <summary>Gets a compact badge like "×438" for grouped findings.</summary>
+    public string GroupBadge => HasGrouping ? $"×{Finding.GroupedCount}" : string.Empty;
+
     /// <summary>Gets the underlying finding.</summary>
     public Finding Finding { get; }
 

@@ -42,6 +42,9 @@ internal sealed class AgentHistoryCoordinator
             EvidenceSignals = f.EvidenceSignals,
             ShortDescription = f.ShortDescription,
             Category = f.Category,
+            GroupedCount = f.GroupedCount,
+            RepresentativeTargets = f.RepresentativeTargets,
+            RiskDrivers = f.RiskDrivers,
             Fingerprint = f.Fingerprint
         }).ToList();
 

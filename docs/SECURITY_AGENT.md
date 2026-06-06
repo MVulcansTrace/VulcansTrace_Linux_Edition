@@ -335,7 +335,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
-- Agent findings grouped by category with compact severity summaries.
+- Agent findings grouped by category with compact severity summaries. Similar repeated findings are also collapsed by the shared noise-budget pipeline, preserving `GroupedCount`, representative targets, and risk drivers in chat, the findings grid, history, drift, and exports.
 - Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
 - A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
 - A Compliance tab showing the CIS Compliance Scorecard with an overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid with score and status, and a mini bar-chart trend visualization of previous audits.

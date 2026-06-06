@@ -15,10 +15,10 @@ Intensity profiles solve this by encoding expert tuning decisions into three nam
 The profile subsystem consists of three files working together:
 
 1. **IntensityLevel** — a three-valued enum (Low, Medium, High) representing the user-facing sensitivity concept
-2. **AnalysisProfile** — a sealed record holding every configuration knob: 13 enable flags, 20+ thresholds, 2 policy lists, an output severity filter, and a per-category finding cap
+2. **AnalysisProfile** — a sealed record holding every configuration knob: 13 enable flags, 20+ thresholds, 2 policy lists, an output severity filter, and a per-category noise budget
 3. **AnalysisProfileProvider** — a factory class with a single switch expression that maps each IntensityLevel to a fully populated AnalysisProfile
 
-The `SentryAnalyzer` orchestrator resolves the profile once per analysis call (line 114: `overrideProfile ?? _profileProvider.GetProfile(intensity)`), then distributes it to all detectors and later uses it for output filtering and finding caps. This ensures every detector reads from the same immutable configuration object for the duration of the detection run.
+The `SentryAnalyzer` orchestrator resolves the profile once per analysis call (line 114: `overrideProfile ?? _profileProvider.GetProfile(intensity)`), then distributes it to all detectors and later uses it for output filtering and the noise budget. This ensures every detector reads from the same immutable configuration object for the duration of the detection run.
 
 ---
 
@@ -56,7 +56,7 @@ The `SentryAnalyzer` orchestrator resolves the profile once per analysis call (l
 
 ---
 
-> **Elevator Pitch:** Intensity profiles are the single knob that turns a raw detection engine into an analyst-friendly tool. One selection — Low, Medium, or High — configures 14 detectors, 20+ thresholds, an output filter, and finding caps into a coherent, tested, reproducible analysis strategy. It's the difference between "configure 30 parameters correctly" and "pick a sensitivity level."
+> **Elevator Pitch:** Intensity profiles are the single knob that turns a raw detection engine into an analyst-friendly tool. One selection — Low, Medium, or High — configures 14 detectors, 20+ thresholds, an output filter, and the noise budget into a coherent, tested, reproducible analysis strategy. It's the difference between "configure 30 parameters correctly" and "pick a sensitivity level."
 
 ---
 

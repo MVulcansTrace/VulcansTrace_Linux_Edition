@@ -155,7 +155,10 @@ internal sealed class BaselineDriftService
                 ShortDescription = sf.ShortDescription,
                 Details = $"Part of baseline '{baseline.Name}' created {baseline.CreatedUtc:yyyy-MM-dd HH:mm} UTC.",
                 TimeRangeStart = baseline.CreatedUtc,
-                TimeRangeEnd = baseline.CreatedUtc
+                TimeRangeEnd = baseline.CreatedUtc,
+                GroupedCount = sf.GroupedCount,
+                RepresentativeTargets = sf.RepresentativeTargets,
+                RiskDrivers = sf.RiskDrivers
             }).ToList();
 
         var parts = new List<string>
@@ -232,6 +235,9 @@ internal sealed class BaselineDriftService
                 Confidence = w.NewConfidence,
                 EvidenceSignals = w.EvidenceSignals,
                 ShortDescription = w.ShortDescription,
+                GroupedCount = w.GroupedCount,
+                RepresentativeTargets = w.RepresentativeTargets,
+                RiskDrivers = w.RiskDrivers,
                 Fingerprint = w.Fingerprint
             })))
             {
@@ -247,7 +253,10 @@ internal sealed class BaselineDriftService
                     ShortDescription = df.ShortDescription,
                     Details = "This finding is new or worsened compared to the baseline.",
                     TimeRangeStart = DateTime.UtcNow,
-                    TimeRangeEnd = DateTime.UtcNow
+                    TimeRangeEnd = DateTime.UtcNow,
+                    GroupedCount = df.GroupedCount,
+                    RepresentativeTargets = df.RepresentativeTargets,
+                    RiskDrivers = df.RiskDrivers
                 });
             }
 
@@ -281,6 +290,9 @@ internal sealed class BaselineDriftService
         EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
+        GroupedCount = f.GroupedCount,
+        RepresentativeTargets = f.RepresentativeTargets,
+        RiskDrivers = f.RiskDrivers,
         Fingerprint = f.Fingerprint
     };
 

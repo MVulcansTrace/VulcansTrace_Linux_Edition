@@ -25,7 +25,7 @@ Documentation is organized for two audiences:
 - **Three correlation rules** — Beaconing + LateralMovement, FlagAnomaly + PortScan, MacSpoofing + InterfaceHopping each escalate to Critical
 - **Critical chain detection** — Beaconing + LateralMovement + PrivilegeEscalation triplets on the same host produce a `CriticalChain` record that triggers Automated Incident Response Playbooks
 - **Immutable escalation** — original findings are never mutated; escalated copies are produced via C# `with` expressions on the `Finding` record
-- **Pipeline orchestration** — `SentryAnalyzer` coordinates normalization, three detection layers with fault isolation, escalation, Beaconing/C2 deduplication, severity filtering, and finding caps in a single pass
+- **Pipeline orchestration** — `SentryAnalyzer` coordinates normalization, three detection layers with fault isolation, escalation, Beaconing/C2 deduplication, severity filtering, and the noise budget in a single pass
 - **Fault isolation** — each detector is wrapped in a try/catch so a crash in one detector cannot prevent escalation of findings from other detectors
 
 ## Implementation Evidence

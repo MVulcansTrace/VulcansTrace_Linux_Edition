@@ -59,6 +59,9 @@ public class JsonFormatter : IEvidenceFormatter
                 TimeRangeEnd = f.TimeRangeEnd,
                 ShortDescription = f.ShortDescription,
                 Details = f.Details,
+                GroupedCount = f.GroupedCount,
+                RepresentativeTargets = f.RepresentativeTargets.ToArray(),
+                RiskDrivers = f.RiskDrivers.ToArray(),
                 CisMappings = f.CisMappings.Select(m => new CisMappingExportModel
                 {
                     ControlId = m.ControlId,
@@ -163,6 +166,9 @@ public class FindingExportModel
     public DateTime TimeRangeEnd { get; set; }
     public string ShortDescription { get; set; } = string.Empty;
     public string Details { get; set; } = string.Empty;
+    public int GroupedCount { get; set; } = 1;
+    public string[] RepresentativeTargets { get; set; } = Array.Empty<string>();
+    public string[] RiskDrivers { get; set; } = Array.Empty<string>();
     public CisMappingExportModel[] CisMappings { get; set; } = Array.Empty<CisMappingExportModel>();
     public MitreTechniqueExportModel[] MitreTechniques { get; set; } = Array.Empty<MitreTechniqueExportModel>();
 }

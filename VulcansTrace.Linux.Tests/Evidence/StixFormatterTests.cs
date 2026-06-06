@@ -550,4 +550,37 @@ public class StixFormatterTests
         Assert.Contains("Confidence: Confirmed", content);
         Assert.Contains("Evidence Signals: Periodic outbound traffic; Known malicious IP", content);
     }
+
+    [Fact]
+    public void Format_GroupedFinding_IncludesGroupingMetadataInNoteContent()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Beaconing",
+            Severity = Severity.Critical,
+            SourceHost = "10.0.0.1",
+            Target = "8.8.8.8",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "Beaconing detected",
+            Details = "Periodic outbound traffic",
+            GroupedCount = 4,
+            RepresentativeTargets = ["8.8.8.8:443", "8.8.8.8:80"],
+            RiskDrivers = ["8.8.8.8"]
+        });
+
+        var stix = _formatter.Format(result, "");
+        var doc = JsonDocument.Parse(stix);
+
+        var notes = doc.RootElement.GetProperty("objects")
+            .EnumerateArray()
+            .Where(o => o.TryGetProperty("type", out var t) && t.GetString() == "note")
+            .ToList();
+
+        var note = Assert.Single(notes);
+        var content = note.GetProperty("content").GetString()!;
+        Assert.Contains("Grouped findings: 4", content);
+        Assert.Contains("Representative targets: 8.8.8.8:443; 8.8.8.8:80", content);
+        Assert.Contains("Risk drivers: 8.8.8.8", content);
+    }
 }

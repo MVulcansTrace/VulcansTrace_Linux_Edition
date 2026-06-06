@@ -5,7 +5,7 @@
 1. **Select intensity** — user or caller chooses Low, Medium, or High
 2. **Resolve profile** — `AnalysisProfileProvider.GetProfile(level)` maps enum to sealed record
 3. **Override check** — SentryAnalyzer applies optional `overrideProfile` if provided (line 114)
-4. **Distribute** — resolved profile passed to every detector and later used for severity filtering and finding caps
+4. **Distribute** — resolved profile passed to every detector and later used for severity filtering and the noise budget
 5. **Execute** — all detectors read enable flags and thresholds from the shared profile object
 
 ---
@@ -119,5 +119,5 @@
 
 - 7 of 14 detectors are enabled in all profiles; 6 advanced detectors activate only at Medium and above
 - Thresholds decrease roughly 2x from Low to Medium and 2x again from Medium to High
-- MinSeverityToShow is the visibility gate before the per-category finding cap — Low profile may detect Medium-severity findings but filters them before output
+- MinSeverityToShow is the visibility gate before the per-category noise budget — Low profile may detect Medium-severity findings but filters them before output
 - Shared policy lists (AdminPorts, DisallowedOutboundPorts) ensure consistent policy enforcement regardless of intensity

@@ -100,10 +100,10 @@ The `??` operator resolves the override: if `overrideProfile` is not null, use i
 
 ```csharp
 var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
+var filteredFindings = ApplyNoiseBudget(visibleFindings, profile, warnings);
 ```
 
-The `Severity` enum values are ordered (Info < Low < Medium < High < Critical), so the `>=` comparison implements a threshold filter. With `MinSeverityToShow = Severity.High` (Low profile), only High and Critical findings pass. With `MinSeverityToShow = Severity.Info` (High profile), all findings pass. The finding cap is applied after severity filtering so hidden low-severity findings cannot consume the per-category cap.
+The `Severity` enum values are ordered (Info < Low < Medium < High < Critical), so the `>=` comparison implements a threshold filter. With `MinSeverityToShow = Severity.High` (Low profile), only High and Critical findings pass. With `MinSeverityToShow = Severity.Info` (High profile), all findings pass. The noise budget is applied after severity filtering so hidden low-severity findings cannot consume the per-category group cap.
 
 ---
 
@@ -122,7 +122,7 @@ Every detector checks its enable flag first. When a detector is disabled (e.g., 
 
 - [AnalysisProfile.cs](../../../../VulcansTrace.Linux.Engine/AnalysisProfile.cs) — sealed record definition
 - [AnalysisProfileProvider.cs](../../../../VulcansTrace.Linux.Engine/Configuration/AnalysisProfileProvider.cs) — factory with switch expression
-- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution, distribution, filtering, and finding caps
+- [SentryAnalyzer.cs](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs) — profile resolution, distribution, filtering, and noise budget
 - [ProfileComparisonTests.cs](../../../../VulcansTrace.Linux.Tests/Integration/ProfileComparisonTests.cs) — cross-profile test
 
 ---

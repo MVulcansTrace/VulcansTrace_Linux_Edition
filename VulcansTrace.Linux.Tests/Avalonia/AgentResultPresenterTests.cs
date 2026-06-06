@@ -119,6 +119,26 @@ public class AgentResultPresenterTests
     }
 
     [Fact]
+    public void AddAgentFinding_GroupedFinding_IncludesNoiseBudgetDetails()
+    {
+        var harness = new PresenterHarness();
+        var finding = CreateFinding("FS-001", "FilesystemAudit", Severity.High, "World writable file") with
+        {
+            GroupedCount = 3,
+            RepresentativeTargets = ["/tmp/a", "/tmp/b", "/var/log/c"],
+            RiskDrivers = ["/tmp", "/var/log"]
+        };
+
+        harness.Presenter.AddAgentFinding(finding);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.Equal("[FS-001] [High] World writable file x3", message.Text);
+        Assert.Contains("Grouped findings: 3", message.Details);
+        Assert.Contains("Representative targets: /tmp/a; /tmp/b; /var/log/c", message.Details);
+        Assert.Contains("Risk drivers: /tmp; /var/log", message.Details);
+    }
+
+    [Fact]
     public void PresentFindings_FixFindingWithSingleRemediationSection_AddsInteractiveMessage()
     {
         var harness = new PresenterHarness();

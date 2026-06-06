@@ -248,7 +248,7 @@ public sealed class SentryAnalyzer
         // Filter by minimum severity before applying the per-category cap so
         // hidden low-severity findings cannot displace visible higher-severity ones.
         var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-        return ApplyFindingCap(visibleFindings, profile, warnings);
+        return ApplyNoiseBudget(visibleFindings, profile, warnings);
     }
 
     private static Core.AnalysisResult BuildAnalysisResult(
@@ -279,30 +279,21 @@ public sealed class SentryAnalyzer
     }
 
     /// <summary>
-    /// Applies a per-category cap on findings when MaxFindingsPerDetector is configured.
+    /// Applies a per-category noise budget by grouping semantically similar findings
+    /// by fingerprint, enriching representatives with grouped metadata, and capping
+    /// the number of representatives per category.
     /// </summary>
-    private static IReadOnlyList<Core.Finding> ApplyFindingCap(
+    internal static IReadOnlyList<Core.Finding> ApplyNoiseBudget(
         IReadOnlyList<Core.Finding> findings,
         AnalysisProfile profile,
         List<string> warnings)
     {
-        if (profile.MaxFindingsPerDetector <= 0 || findings.Count == 0)
-            return findings;
+        return Core.FindingNoiseBudget.Apply(findings, profile.MaxFindingsPerDetector, warnings);
+    }
 
-        var result = new List<Core.Finding>(findings.Count);
-        var byCategory = findings.GroupBy(f => f.Category);
-
-        foreach (var group in byCategory)
-        {
-            if (group.Count() > profile.MaxFindingsPerDetector)
-            {
-                warnings.Add($"{group.Key} detector produced {group.Count()} findings, truncated to {profile.MaxFindingsPerDetector}.");
-            }
-
-            result.AddRange(group.Take(profile.MaxFindingsPerDetector));
-        }
-
-        return result;
+    internal static IReadOnlyList<string> DeriveRiskDrivers(IEnumerable<Core.Finding> group)
+    {
+        return Core.FindingNoiseBudget.DeriveRiskDrivers(group);
     }
 
     /// <summary>

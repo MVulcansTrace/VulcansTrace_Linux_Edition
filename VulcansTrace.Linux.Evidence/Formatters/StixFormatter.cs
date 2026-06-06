@@ -259,6 +259,9 @@ public sealed class StixFormatter : IEvidenceFormatter
                mitre +
                confidence +
                evidenceSignals +
+               (finding.GroupedCount > 1 ? $"Grouped findings: {finding.GroupedCount}\n" : string.Empty) +
+               (finding.RepresentativeTargets.Count > 0 ? "Representative targets: " + string.Join("; ", finding.RepresentativeTargets) + "\n" : string.Empty) +
+               (finding.RiskDrivers.Count > 0 ? "Risk drivers: " + string.Join("; ", finding.RiskDrivers) + "\n" : string.Empty) +
                $"Category: {finding.Category}\n" +
                $"Severity: {finding.Severity}\n" +
                $"Source: {finding.SourceHost}\n" +

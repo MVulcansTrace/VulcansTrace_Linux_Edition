@@ -268,4 +268,35 @@ public class CsvFormatterTests
         Assert.Contains("High", csv);
         Assert.Contains("Periodic outbound traffic", csv);
     }
+
+    [Fact]
+    public void ToCsv_GroupedFinding_IncludesGroupingColumns()
+    {
+        var formatter = new CsvFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "Beaconing",
+                    Severity = Severity.Critical,
+                    SourceHost = "10.0.0.1",
+                    Target = "8.8.8.8",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Beaconing",
+                    Details = "details",
+                    GroupedCount = 4,
+                    RepresentativeTargets = ["8.8.8.8:443"],
+                    RiskDrivers = ["8.8.8.8"]
+                }
+            ]
+        };
+
+        var csv = formatter.ToCsv(result);
+
+        Assert.Contains("GroupedCount,RepresentativeTargets,RiskDrivers", csv);
+        Assert.Contains("4,8.8.8.8:443,8.8.8.8", csv);
+    }
 }

@@ -61,7 +61,7 @@ A single-page reference for the detection pipeline, correlation rules, severity 
     |
     v
 +---------------------------+
-|  Finding Cap              |   Apply MaxFindingsPerDetector
+|  Noise Budget             |   Apply MaxFindingsPerDetector
 |                           |   after severity filtering
 +---------------------------+
     |

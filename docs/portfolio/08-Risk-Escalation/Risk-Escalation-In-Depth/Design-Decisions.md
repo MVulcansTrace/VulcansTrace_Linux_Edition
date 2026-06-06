@@ -91,10 +91,10 @@ var errorsToKeep = normalized.Errors.Take(MaxParseErrorsToKeep).ToList();
 var escalated = _riskEscalator.Escalate(allFindings);
 var deduped = DeduplicateBeaconingC2Overlap(escalated);
 var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
+var filteredFindings = ApplyNoiseBudget(visibleFindings, profile, warnings);
 ```
 
-**Rationale**: If filtering happened before escalation, a finding at Medium severity that would be escalated to Critical could be filtered out before the escalator ever sees it. Post-escalation filtering ensures that Critical findings are included in the output regardless of the intensity profile. Filtering also happens before the per-category cap so hidden low-severity findings cannot consume the cap and displace visible findings.
+**Rationale**: If filtering happened before escalation, a finding at Medium severity that would be escalated to Critical could be filtered out before the escalator ever sees it. Post-escalation filtering ensures that Critical findings are included in the output regardless of the intensity profile. Filtering also happens before the noise budget so hidden low-severity findings cannot consume the group cap and displace visible findings.
 
 **Trade-off**: The escalator processes all findings including those that would be filtered out anyway. This is a minor performance cost for correctness.
 

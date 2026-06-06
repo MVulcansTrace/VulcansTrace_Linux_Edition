@@ -311,6 +311,29 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task RunAuditAsync_GroupsSimilarAgentFindings()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[]
+            {
+                new SimilarTargetRule("NOISE-001", "/tmp/a"),
+                new SimilarTargetRule("NOISE-001", "/tmp/b"),
+                new SimilarTargetRule("NOISE-001", "/var/log/c")
+            },
+            new ExplanationProvider());
+
+        var result = await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var finding = Assert.Single(result.AgentFindings);
+        Assert.Equal(3, finding.GroupedCount);
+        Assert.Equal(new[] { "/tmp/a", "/tmp/b", "/var/log/c" }, finding.RepresentativeTargets);
+        Assert.Contains("/tmp", finding.RiskDrivers);
+        Assert.Equal(3, result.FailedCount);
+        Assert.Contains("1 issue(s) found", result.Summary);
+    }
+
+    [Fact]
     public async Task RunAuditAsync_PopulatesCapabilityReport_WithRealScanners()
     {
         var agent = CreateAgent();
@@ -579,6 +602,28 @@ public class SecurityAgentTests
         public RuleResult Evaluate(ScanData data)
         {
             throw new InvalidOperationException("Simulated crash");
+        }
+    }
+
+    private sealed class SimilarTargetRule(string id, string target) : IRule
+    {
+        public string Id => id;
+        public string Category => "FilePermission";
+        public string Description => "World writable test file";
+        public string WhatItChecks => "Test repeated noisy findings";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
+        public Severity Severity => Severity.High;
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Fail(
+                Id,
+                Category,
+                Id,
+                Description,
+                Severity,
+                target);
         }
     }
 

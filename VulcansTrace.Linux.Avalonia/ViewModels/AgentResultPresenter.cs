@@ -138,11 +138,13 @@ internal sealed class AgentResultPresenter
     {
         var ruleIdPrefix = string.IsNullOrEmpty(finding.RuleId) ? "" : $"[{finding.RuleId}] ";
         var verificationCommands = VerificationCommandExtractor.ExtractHowToVerify(finding.Details);
+        var groupBadge = FormatGroupBadge(finding);
+        var details = FormatFindingDetails(finding);
 
         _messages.Add(new AgentMessageViewModel
         {
-            Text = $"{ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}",
-            Details = finding.Details,
+            Text = $"{ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}{groupBadge}",
+            Details = details,
             IsUser = false,
             IsInfo = false,
             Severity = finding.Severity,
@@ -155,11 +157,11 @@ internal sealed class AgentResultPresenter
 
     private void AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
     {
-        var critical = findings.Count(f => f.Severity == Severity.Critical);
-        var high = findings.Count(f => f.Severity == Severity.High);
-        var medium = findings.Count(f => f.Severity == Severity.Medium);
-        var low = findings.Count(f => f.Severity == Severity.Low);
-        var info = findings.Count(f => f.Severity == Severity.Info);
+        var critical = findings.Where(f => f.Severity == Severity.Critical).Sum(GetRawFindingCount);
+        var high = findings.Where(f => f.Severity == Severity.High).Sum(GetRawFindingCount);
+        var medium = findings.Where(f => f.Severity == Severity.Medium).Sum(GetRawFindingCount);
+        var low = findings.Where(f => f.Severity == Severity.Low).Sum(GetRawFindingCount);
+        var info = findings.Where(f => f.Severity == Severity.Info).Sum(GetRawFindingCount);
 
         var parts = new List<string>();
         if (critical > 0) parts.Add($"{critical} Critical");
@@ -168,7 +170,11 @@ internal sealed class AgentResultPresenter
         if (low > 0) parts.Add($"{low} Low");
         if (info > 0) parts.Add($"{info} Info");
 
-        var summary = $"Findings: {string.Join(", ", parts)} ({findings.Count} total)";
+        var rawTotal = findings.Sum(GetRawFindingCount);
+        var totalLabel = rawTotal == findings.Count
+            ? $"{findings.Count} total"
+            : $"{findings.Count} representative group(s), {rawTotal} raw findings";
+        var summary = $"Findings: {string.Join(", ", parts)} ({totalLabel})";
         _messages.Add(new AgentMessageViewModel
         {
             Text = summary,
@@ -180,10 +186,14 @@ internal sealed class AgentResultPresenter
 
     private void AddAgentFindingGroup(string category, IReadOnlyList<Finding> findings)
     {
-        var highCritical = findings.Count(f => f.Severity >= Severity.High);
+        var rawTotal = findings.Sum(GetRawFindingCount);
+        var highCritical = findings.Where(f => f.Severity >= Severity.High).Sum(GetRawFindingCount);
+        var countLabel = rawTotal == findings.Count
+            ? $"{findings.Count} finding(s)"
+            : $"{findings.Count} representative group(s), {rawTotal} raw finding(s)";
         var header = highCritical > 0
-            ? $"[{category}] {findings.Count} finding(s) — {highCritical} High/Critical"
-            : $"[{category}] {findings.Count} finding(s)";
+            ? $"[{category}] {countLabel} — {highCritical} High/Critical"
+            : $"[{category}] {countLabel}";
 
         var details = new StringBuilder();
         foreach (var finding in findings)
@@ -194,7 +204,7 @@ internal sealed class AgentResultPresenter
                 : $" confidence {finding.Confidence}";
             var signals = FormatEvidenceSignals(finding.EvidenceSignals);
             var signalText = string.IsNullOrEmpty(signals) ? string.Empty : $" ({signals})";
-            details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}{confidence}] {finding.ShortDescription}{signalText}");
+            details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}{confidence}] {finding.ShortDescription}{FormatGroupBadge(finding)}{signalText}");
         }
 
         _messages.Add(new AgentMessageViewModel
@@ -209,6 +219,45 @@ internal sealed class AgentResultPresenter
             Timestamp = DateTime.Now,
             Category = category
         });
+    }
+
+    private static string FormatGroupBadge(Finding finding) =>
+        finding.GroupedCount > 1 ? $" x{finding.GroupedCount}" : string.Empty;
+
+    private static int GetRawFindingCount(Finding finding) => Math.Max(1, finding.GroupedCount);
+
+    private static string FormatFindingDetails(Finding finding)
+    {
+        if (finding.GroupedCount <= 1 &&
+            finding.RepresentativeTargets.Count == 0 &&
+            finding.RiskDrivers.Count == 0)
+        {
+            return finding.Details;
+        }
+
+        var details = new StringBuilder(finding.Details.TrimEnd());
+        if (details.Length > 0)
+        {
+            details.AppendLine();
+            details.AppendLine();
+        }
+
+        if (finding.GroupedCount > 1)
+        {
+            details.AppendLine($"Grouped findings: {finding.GroupedCount}");
+        }
+
+        if (finding.RepresentativeTargets.Count > 0)
+        {
+            details.AppendLine($"Representative targets: {string.Join("; ", finding.RepresentativeTargets)}");
+        }
+
+        if (finding.RiskDrivers.Count > 0)
+        {
+            details.AppendLine($"Risk drivers: {string.Join("; ", finding.RiskDrivers)}");
+        }
+
+        return details.ToString().TrimEnd();
     }
 
     private void AddInteractiveRemediationMessage(AgentResult result)

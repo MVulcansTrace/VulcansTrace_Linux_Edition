@@ -121,6 +121,9 @@ internal sealed class AgentFollowUpService
             Confidence = w.NewConfidence,
             EvidenceSignals = w.EvidenceSignals,
             ShortDescription = w.ShortDescription,
+            GroupedCount = w.GroupedCount,
+            RepresentativeTargets = w.RepresentativeTargets,
+            RiskDrivers = w.RiskDrivers,
             Fingerprint = w.Fingerprint
         })))
         {
@@ -136,7 +139,10 @@ internal sealed class AgentFollowUpService
                 ShortDescription = df.ShortDescription,
                 Details = $"This finding is new or worsened since the last audit.",
                 TimeRangeStart = DateTime.UtcNow,
-                TimeRangeEnd = DateTime.UtcNow
+                TimeRangeEnd = DateTime.UtcNow,
+                GroupedCount = df.GroupedCount,
+                RepresentativeTargets = df.RepresentativeTargets,
+                RiskDrivers = df.RiskDrivers
             });
         }
 
@@ -365,6 +371,9 @@ internal sealed class AgentFollowUpService
         EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
+        GroupedCount = f.GroupedCount,
+        RepresentativeTargets = f.RepresentativeTargets,
+        RiskDrivers = f.RiskDrivers,
         Fingerprint = f.Fingerprint
     };
 

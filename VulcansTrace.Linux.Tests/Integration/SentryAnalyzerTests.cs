@@ -597,11 +597,11 @@ Another invalid line";
     }
 
     [Fact]
-    public void Analyze_MaxFindingsPerDetector_TruncatesByCategoryAndWarns()
+    public void Analyze_MaxFindingsPerDetector_GroupsByFingerprint_NoWarningBelowCap()
     {
         // Arrange — build 8 separate scan bursts separated by quiet gaps.
-        // Each burst is a short burst of distinct-port events, producing one PortScan finding.
-        // With MaxFindingsPerDetector=5, the cap triggers and emits a warning.
+        // All bursts share the same source IP and target, so they collapse to one representative.
+        // Cap is 5, but 1 representative is below it, so no warning should be emitted.
         var startTime = DateTime.UtcNow;
         var events = new List<UnifiedEvent>();
         var srcIp = "10.0.0.99";
@@ -630,19 +630,62 @@ Another invalid line";
         var profile = _profileProvider.GetProfile(IntensityLevel.Medium) with
         {
             MaxFindingsPerDetector = 5,
-            MinSeverityToShow = Severity.Info // show everything so cap is visible
+            MinSeverityToShow = Severity.Info
         };
 
         // Act
         var result = _analyzer.Analyze(log, IntensityLevel.Medium, CancellationToken.None, profile);
 
-        // Assert — PortScan category should be capped at 5
+        // Assert
         var portScanFindings = result.Findings.Where(f => f.Category == "PortScan").ToList();
-        Assert.True(portScanFindings.Count <= 5,
-            $"PortScan findings should be capped at 5, got {portScanFindings.Count}");
+        Assert.Single(portScanFindings);
+        Assert.Equal(8, portScanFindings[0].GroupedCount);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("grouped"));
+    }
 
-        // A warning should be emitted about the truncation
-        Assert.Contains(result.Warnings, w => w.Contains("PortScan") && w.Contains("truncated"));
+    [Fact]
+    public void Analyze_MaxFindingsPerDetector_GroupsByFingerprint_WarnsWhenRepresentativesExceedCap()
+    {
+        // Arrange — build 12 bursts from 12 different source IPs.
+        // Each burst produces one PortScan finding with a unique fingerprint.
+        // Cap is 5, so 12 representatives triggers a warning.
+        var startTime = DateTime.UtcNow;
+        var events = new List<UnifiedEvent>();
+
+        for (int burst = 0; burst < 12; burst++)
+        {
+            for (int port = 0; port < 20; port++)
+            {
+                events.Add(new UnifiedEvent
+                {
+                    Timestamp = startTime.AddMinutes(burst * 30).AddSeconds(port),
+                    SourceIP = $"10.0.0.{burst + 1}",
+                    DestinationIP = "192.168.1.1",
+                    DestinationPort = 1000 + (burst * 20) + port,
+                    Protocol = "TCP",
+                    LogFormat = LogFormat.Iptables
+                });
+            }
+        }
+
+        var logLines = events.Select(e =>
+            $"kernel: {e.Timestamp:MMM dd HH:mm:ss} server IN=eth0 SRC={e.SourceIP} DST={e.DestinationIP} PROTO=TCP SPT=12345 DPT={e.DestinationPort}")
+            .ToList();
+        var log = string.Join("\n", logLines);
+
+        var profile = _profileProvider.GetProfile(IntensityLevel.Medium) with
+        {
+            MaxFindingsPerDetector = 5,
+            MinSeverityToShow = Severity.Info
+        };
+
+        // Act
+        var result = _analyzer.Analyze(log, IntensityLevel.Medium, CancellationToken.None, profile);
+
+        // Assert
+        var portScanFindings = result.Findings.Where(f => f.Category == "PortScan").ToList();
+        Assert.Equal(5, portScanFindings.Count);
+        Assert.Contains(result.Warnings, w => w.Contains("PortScan") && w.Contains("grouped into") && w.Contains("showing top 5"));
     }
 
     [Fact]
@@ -663,8 +706,8 @@ Another invalid line";
         // Act
         var result = _analyzer.Analyze(log, IntensityLevel.Medium, CancellationToken.None, profile);
 
-        // Assert — no truncation warning about PortScan should appear
-        Assert.DoesNotContain(result.Warnings, w => w.Contains("truncated"));
+        // Assert — no grouping warning about PortScan should appear
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("grouped"));
     }
 
     [Fact]

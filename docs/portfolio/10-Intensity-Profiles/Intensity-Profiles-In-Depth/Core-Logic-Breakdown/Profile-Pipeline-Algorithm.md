@@ -158,11 +158,11 @@ foreach (var detector in _baselineDetectors)
 
 The resolved profile is passed to every detector's `Detect` method. Each detector reads its own enable flag and thresholds from the shared profile object. No detector receives a different configuration — the profile is resolved once and distributed uniformly.
 
-After all detectors run, the profile is used for output visibility and per-category caps after escalation and Beaconing/C2 overlap deduplication:
+After all detectors run, the profile is used for output visibility and the per-category noise budget after escalation and Beaconing/C2 overlap deduplication:
 
 ```csharp
 var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
+var filteredFindings = ApplyNoiseBudget(visibleFindings, profile, warnings);
 ```
 
 ---

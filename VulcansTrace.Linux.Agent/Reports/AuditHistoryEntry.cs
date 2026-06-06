@@ -72,6 +72,9 @@ public sealed record AuditSnapshotFinding
     public IReadOnlyList<EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<EvidenceSignal>();
     public required string ShortDescription { get; init; }
     public string Category { get; init; } = string.Empty;
+    public int GroupedCount { get; init; } = 1;
+    public IReadOnlyList<string> RepresentativeTargets { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RiskDrivers { get; init; } = Array.Empty<string>();
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>
     public string? Fingerprint { get; init; }

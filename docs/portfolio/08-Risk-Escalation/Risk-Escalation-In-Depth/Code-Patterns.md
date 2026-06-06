@@ -137,10 +137,10 @@ if (participates && f.Severity < Core.Severity.Critical)
 ```csharp
 // SentryAnalyzer.cs:198-199
 var visibleFindings = deduped.Where(f => f.Severity >= profile.MinSeverityToShow).ToList();
-var filteredFindings = ApplyFindingCap(visibleFindings, profile, warnings);
+var filteredFindings = ApplyNoiseBudget(visibleFindings, profile, warnings);
 ```
 
-**Why it matters**: `Severity` is an `enum` with explicit numeric values (Info=0, Low=1, Medium=2, High=3, Critical=4). The `<` and `>=` operators work on the underlying integers. The `participates` check ensures that only findings whose categories are part of a fired correlation rule are escalated -- unrelated findings on the same host pass through unchanged. The severity filter runs after deduplication but before the per-category cap in `SentryAnalyzer`, so hidden low-severity findings cannot displace visible findings.
+**Why it matters**: `Severity` is an `enum` with explicit numeric values (Info=0, Low=1, Medium=2, High=3, Critical=4). The `<` and `>=` operators work on the underlying integers. The `participates` check ensures that only findings whose categories are part of a fired correlation rule are escalated -- unrelated findings on the same host pass through unchanged. The severity filter runs after deduplication but before the noise budget in `SentryAnalyzer`, so hidden low-severity findings cannot displace visible findings.
 
 **Where it appears**: [RiskEscalator.cs:58-64](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs), [SentryAnalyzer.cs:198](../../../../VulcansTrace.Linux.Engine/SentryAnalyzer.cs), [Severity.cs](../../../../VulcansTrace.Linux.Core/Severity.cs)
 

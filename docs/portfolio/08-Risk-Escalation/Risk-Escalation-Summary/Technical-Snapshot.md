@@ -6,7 +6,7 @@ A one-page overview of how VulcansTrace Linux Edition correlates individual dete
 
 ## What It Does
 
-The risk escalation subsystem receives findings from all detectors, groups them by source host, checks whether any combination of categories on the same host matches a known high-severity correlation rule within the time window, and upgrades qualifying findings to Critical severity. It runs before Beaconing/C2 deduplication, severity filtering, and the per-category finding cap in the `SentryAnalyzer` pipeline.
+The risk escalation subsystem receives findings from all detectors, groups them by source host, checks whether any combination of categories on the same host matches a known high-severity correlation rule within the time window, and upgrades qualifying findings to Critical severity. It runs before Beaconing/C2 deduplication, severity filtering, and the per-category noise budget in the `SentryAnalyzer` pipeline.
 
 The subsystem also detects **critical attack chains** — Beaconing → LateralMovement → PrivilegeEscalation triplets on the same host — which trigger the Automated Incident Response Playbooks layer for active defense.
 

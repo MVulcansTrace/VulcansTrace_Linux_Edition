@@ -466,7 +466,7 @@ See `docs/HMAC_EVIDENCE.md` for the step-by-step HMAC signing key flow.
 
 - Log input is capped at 100,000,000 characters.
 - Parse errors are captured in analysis results, with up to 500 retained.
-- Each detector is capped at 100 findings per category. If a detector exceeds this, a truncation warning is emitted.
+- Each detector category has a noise budget of 100 representative findings (`MaxFindingsPerDetector`). Findings are grouped by a semantic key before the budget is applied: rule-backed findings use rule ID, category, source host, and short description, while detector findings without a rule ID also include details so distinct C2 intervals stay separate. The cap limits group count rather than raw findings. If a category exceeds the budget, a warning is emitted showing how many raw findings were grouped into how many representatives. Security Agent audits use the same grouping metadata in the Avalonia chat, findings grid, history, drift, and exports.
 - Some detectors may also emit warnings when individual analysis windows are truncated (for example, port scan event caps).
 
 ## Live Stream

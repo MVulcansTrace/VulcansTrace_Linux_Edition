@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ## 1) Changes Added (What Was Implemented)
 
@@ -66,6 +66,24 @@ Last updated: 2026-06-05
   - Code: `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`
 - Evidence bundle validation added to the CLI utility.
   - Code: `tools/TestAnalysis/Program.cs`
+
+### Finding Deduplication + Noise Budget
+- Replaced the old per-category truncation (`ApplyFindingCap`) with a noise-budget grouping pipeline (`ApplyNoiseBudget`).
+- Findings are grouped by a semantic noise key. Rule-backed findings use rule ID, category, source host, and short description so repeated findings with different targets collapse into one representative. Detector findings without a rule ID also include details, keeping distinct C2 intervals separate.
+- Each group produces a representative `Finding` enriched with:
+  - `GroupedCount` — how many raw findings were collapsed into this group (default 1, always ≥ 1)
+  - `RepresentativeTargets` — up to 5 distinct targets from the grouped findings
+  - `RiskDrivers` — top 3 directories for path targets, extracted IPs for IP:port targets, or top source hosts as fallback
+- The per-category cap (`MaxFindingsPerDetector = 100`) now limits group count, not raw findings. When the budget is exceeded, a warning is emitted: `"X detector produced N findings, grouped into M representatives (showing top K)."`
+- Representatives are ordered by severity desc, then grouped count desc, then fingerprint for deterministic selection.
+- `DeriveRiskDrivers` handles IPv4, IPv6 (bracket notation), and path targets with strict validation — malformed inputs fall back to source hosts.
+- All 5 evidence formatters (CSV, HTML, Markdown, JSON, STIX) include `GroupedCount`, `RepresentativeTargets`, and `RiskDrivers` in their output.
+- Avalonia UI shows grouping in both the Agent chat and the findings DataGrid, with a count badge when `GroupedCount > 1`.
+- Code: `VulcansTrace.Linux.Core/Finding.cs`
+- Code: `VulcansTrace.Linux.Engine/SentryAnalyzer.cs`
+- Code: `VulcansTrace.Linux.Evidence/Formatters/*.cs`
+- Code: `VulcansTrace.Linux.Avalonia/ViewModels/FindingItemViewModel.cs`, `MainWindow.axaml`
+- Tests: `NoiseBudgetTests` (11 unit tests + integration coverage), `SecurityAgentTests`, and evidence formatter tests for grouping metadata
 
 ### UI and UX
 - Timeline visualization: normalized placement, severity-based colors,
@@ -535,7 +553,7 @@ LOW (Conservative)
     PacketSizeMinAvgForVariance = 150
 - AdminPorts = [445, 3389, 22]
 - DisallowedOutboundPorts = [21, 23, 445]
-- MaxFindingsPerDetector = 100
+- MaxFindingsPerDetector = 100 (group cap — similar findings are grouped before the budget is applied)
 - MinSeverityToShow = High
 
 MEDIUM (Balanced)
@@ -562,7 +580,7 @@ MEDIUM (Balanced)
     PacketSizeMinAvgForVariance = 100
 - AdminPorts = [445, 3389, 22]
 - DisallowedOutboundPorts = [21, 23, 445]
-- MaxFindingsPerDetector = 100
+- MaxFindingsPerDetector = 100 (group cap — similar findings are grouped before the budget is applied)
 - MinSeverityToShow = Medium
 
 HIGH (Aggressive)
@@ -587,7 +605,7 @@ HIGH (Aggressive)
     PacketSizeMinAvgForVariance = 80
 - AdminPorts = [445, 3389, 22]
 - DisallowedOutboundPorts = [21, 23, 445]
-- MaxFindingsPerDetector = 100
+- MaxFindingsPerDetector = 100 (group cap — similar findings are grouped before the budget is applied)
 - MinSeverityToShow = Info
 
 ## 3) Notes on Findings Behavior
@@ -599,6 +617,11 @@ HIGH (Aggressive)
   acceptable in exchange for coverage.
 - FlagAnomaly ignores missing flags to avoid false positives from incomplete
   log lines.
+- The per-category noise budget groups semantically similar findings before capping.
+  A detector or Agent rule that produces 500 repeated findings for different
+  targets can emit one representative group with `GroupedCount = 500`, not 500
+  separate rows. The budget only trims when there are more than 100 distinct
+  semantic groups in the same category.
 
 ## 4) Quick Capability Mapping (Logs in the Chatbox)
 

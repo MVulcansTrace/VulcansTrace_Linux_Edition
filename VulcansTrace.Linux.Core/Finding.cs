@@ -151,6 +151,31 @@ public sealed record Finding
         init => _mitreTechniques = value ?? throw new ArgumentNullException(nameof(MitreTechniques));
     }
 
+    private int _groupedCount = 1;
+    private IReadOnlyList<string> _representativeTargets = Array.Empty<string>();
+    private IReadOnlyList<string> _riskDrivers = Array.Empty<string>();
+
+    /// <summary>Number of raw findings grouped into this representative. 1 if not grouped.</summary>
+    public int GroupedCount
+    {
+        get => _groupedCount;
+        init => _groupedCount = value > 0 ? value : 1;
+    }
+
+    /// <summary>Example targets from the grouped findings (top N representatives).</summary>
+    public IReadOnlyList<string> RepresentativeTargets
+    {
+        get => _representativeTargets;
+        init => _representativeTargets = value ?? throw new ArgumentNullException(nameof(RepresentativeTargets));
+    }
+
+    /// <summary>Derived risk drivers (e.g., common path prefixes, frequent source hosts).</summary>
+    public IReadOnlyList<string> RiskDrivers
+    {
+        get => _riskDrivers;
+        init => _riskDrivers = value ?? throw new ArgumentNullException(nameof(RiskDrivers));
+    }
+
     private static string NormalizeNonEmpty(string value, string name)
     {
         if (string.IsNullOrWhiteSpace(value))

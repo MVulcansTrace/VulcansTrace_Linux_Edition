@@ -49,6 +49,9 @@ public static class AuditDiffCalculator
                         NewConfidence = afterFinding.Confidence,
                         EvidenceSignals = afterFinding.EvidenceSignals,
                         ShortDescription = afterFinding.ShortDescription,
+                        GroupedCount = afterFinding.GroupedCount,
+                        RepresentativeTargets = afterFinding.RepresentativeTargets,
+                        RiskDrivers = afterFinding.RiskDrivers,
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
@@ -64,6 +67,9 @@ public static class AuditDiffCalculator
                         NewConfidence = afterFinding.Confidence,
                         EvidenceSignals = afterFinding.EvidenceSignals,
                         ShortDescription = afterFinding.ShortDescription,
+                        GroupedCount = afterFinding.GroupedCount,
+                        RepresentativeTargets = afterFinding.RepresentativeTargets,
+                        RiskDrivers = afterFinding.RiskDrivers,
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
@@ -78,6 +84,9 @@ public static class AuditDiffCalculator
                         NewConfidence = afterFinding.Confidence,
                         EvidenceSignals = afterFinding.EvidenceSignals,
                         ShortDescription = afterFinding.ShortDescription,
+                        GroupedCount = afterFinding.GroupedCount,
+                        RepresentativeTargets = afterFinding.RepresentativeTargets,
+                        RiskDrivers = afterFinding.RiskDrivers,
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
@@ -170,6 +179,9 @@ public static class AuditDiffCalculator
         Confidence = f.Confidence,
         EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
+        GroupedCount = f.GroupedCount,
+        RepresentativeTargets = f.RepresentativeTargets,
+        RiskDrivers = f.RiskDrivers,
         Fingerprint = f.Fingerprint
     };
 

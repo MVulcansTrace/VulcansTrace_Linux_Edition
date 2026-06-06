@@ -824,6 +824,9 @@ internal sealed class GuidedRemediationService
         EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
+        GroupedCount = f.GroupedCount,
+        RepresentativeTargets = f.RepresentativeTargets,
+        RiskDrivers = f.RiskDrivers,
         Fingerprint = f.Fingerprint
     };
 
@@ -835,6 +838,9 @@ internal sealed class GuidedRemediationService
         Confidence = f.Confidence,
         EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
+        GroupedCount = f.GroupedCount,
+        RepresentativeTargets = f.RepresentativeTargets,
+        RiskDrivers = f.RiskDrivers,
         Fingerprint = f.Fingerprint
     };
 

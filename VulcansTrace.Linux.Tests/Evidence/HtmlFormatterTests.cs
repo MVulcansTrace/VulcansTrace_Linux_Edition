@@ -232,4 +232,68 @@ public class HtmlFormatterTests
         Assert.Contains("High", html);
         Assert.Contains("Periodic outbound traffic", html);
     }
+
+    [Fact]
+    public void ToHtml_GroupedFinding_IncludesCountBadge()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "Beaconing",
+                    Severity = Severity.Critical,
+                    SourceHost = "10.0.0.1",
+                    Target = "8.8.8.8",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Beaconing",
+                    Details = "details",
+                    GroupedCount = 4,
+                    RepresentativeTargets = ["8.8.8.8:443"],
+                    RiskDrivers = ["8.8.8.8"]
+                }
+            ]
+        };
+
+        var html = formatter.ToHtml(result);
+
+        Assert.Contains("<th>Count</th>", html);
+        Assert.Contains("<th>Representative Targets</th>", html);
+        Assert.Contains("<th>Risk Drivers</th>", html);
+        Assert.Contains("&#215;4", html);
+        Assert.Contains("8.8.8.8:443", html);
+        Assert.Contains("8.8.8.8", html);
+    }
+
+    [Fact]
+    public void ToHtml_NonGroupedFinding_CountCellIsEmpty()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "PortScan",
+                    Severity = Severity.High,
+                    SourceHost = "192.168.1.10",
+                    Target = "10.0.0.5",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Scan",
+                    Details = "details"
+                }
+            ]
+        };
+
+        var html = formatter.ToHtml(result);
+
+        // The Count cell next to the Severity cell should be blank for non-grouped findings
+        Assert.Contains("<th>Count</th>", html);
+        Assert.DoesNotContain(">1</td>", html);
+    }
 }

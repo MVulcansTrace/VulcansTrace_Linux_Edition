@@ -169,6 +169,9 @@ public sealed record DiffFinding
         ? string.Empty
         : string.Join(", ", EvidenceSignals.Select(s => s.Name));
     public required string ShortDescription { get; init; }
+    public int GroupedCount { get; init; } = 1;
+    public IReadOnlyList<string> RepresentativeTargets { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RiskDrivers { get; init; } = Array.Empty<string>();
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>
     public string? Fingerprint { get; init; }
@@ -190,6 +193,9 @@ public sealed record SeverityChangeFinding
         ? string.Empty
         : string.Join(", ", EvidenceSignals.Select(s => s.Name));
     public required string ShortDescription { get; init; }
+    public int GroupedCount { get; init; } = 1;
+    public IReadOnlyList<string> RepresentativeTargets { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RiskDrivers { get; init; } = Array.Empty<string>();
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>
     public string? Fingerprint { get; init; }
@@ -210,6 +216,9 @@ public sealed record ConfidenceChangeFinding
         ? string.Empty
         : string.Join(", ", EvidenceSignals.Select(s => s.Name));
     public required string ShortDescription { get; init; }
+    public int GroupedCount { get; init; } = 1;
+    public IReadOnlyList<string> RepresentativeTargets { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RiskDrivers { get; init; } = Array.Empty<string>();
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>
     public string? Fingerprint { get; init; }

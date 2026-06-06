@@ -258,13 +258,20 @@ public sealed class SecurityAgent : IAgent
         var ruleResults = evaluatedRules.RuleResults.ToList();
         warnings.AddRange(evaluatedRules.Warnings);
 
-        // Phase 3: Mark suppression status and convert rule failures to Findings
+        // Phase 3: Mark suppression status, convert rule failures to findings,
+        // and collapse similar active findings into representative groups.
         var findingAssembly = _findingAssemblyService.Assemble(ruleResults);
-        var agentFindings = findingAssembly.AgentFindings;
-        var historyEntries = findingAssembly.HistoryEntries;
         ruleResults = findingAssembly.RuleResults.ToList();
         var suppressedCount = findingAssembly.SuppressedCount;
         warnings.AddRange(findingAssembly.Warnings);
+        var agentFindings = FindingNoiseBudget.Apply(
+            findingAssembly.AgentFindings,
+            FindingNoiseBudget.DefaultMaxRepresentativesPerCategory,
+            warnings,
+            producerLabel: "agent rules");
+        var historyEntries = agentFindings
+            .Select(f => (f.RuleId ?? $"__null-{f.Fingerprint}", f))
+            .ToList();
 
         var passedCount = ruleResults.Count(r => r.Status == RuleStatus.Passed);
         var failedCount = ruleResults.Count(r => r.Status == RuleStatus.Failed);

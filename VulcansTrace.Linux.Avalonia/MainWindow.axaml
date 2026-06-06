@@ -421,6 +421,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="70" />
                             <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="90" />
                             <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="180" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />

@@ -37,7 +37,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 4. `RiskEscalator` increases severity when correlated signals are present.
 5. `TraceMapCorrelator` discovers directed correlation edges between findings: escalation pairs (Beaconing→LateralMovement, FlagAnomaly→PortScan, MacSpoofing→InterfaceHopping), temporal sequences on the same host, and same-host cross-category links. Produces `TraceMapResult` containing the original findings plus `CorrelationEdge` records with confidence levels (High, Medium, Low) derived from time gap.
 6. Overlapping Beaconing and C2Channel findings on the same source-destination tuple are deduplicated (C2Channel absorbs the Beaconing details).
-7. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`) and per-category cap (`MaxFindingsPerDetector`).
+7. Findings are filtered by the profile's minimum severity (`MinSeverityToShow`), then grouped by a semantic noise key and passed through a per-category noise budget (`MaxFindingsPerDetector`). Rule-backed findings group by rule ID, category, source host, and short description; detector findings without a rule ID also include details so distinct C2 intervals stay separate. Each group produces one representative finding with merged time ranges, a `GroupedCount`, `RepresentativeTargets`, and `RiskDrivers`. The budget caps group count, not raw findings, and emits a warning when the budget is exceeded.
 8. `AnalysisResult` is returned with findings, warnings, parse errors, and time range metadata.
 9. The UI renders findings (including timeline and Trace Map visualization), and `EvidenceBuilder` optionally creates a signed bundle that includes a `mitre-navigator-layer.json` built from detector/rule MITRE coverage plus observed finding density.
 
@@ -125,7 +125,7 @@ Notification services are pluggable:
 
 - `UnifiedEvent`: normalized schema for firewall logs, including Linux-specific fields.
 - `AnalysisProfile`: intensity-tuned thresholds for each detector.
-- `Finding`: immutable detector output with severity, detection confidence, evidence signals, time range, and a stable fingerprint for tracking the same issue across audits.
+- `Finding`: immutable detector output with severity, detection confidence, evidence signals, time range, a stable fingerprint for tracking the same issue across audits, and grouping metadata (`GroupedCount`, `RepresentativeTargets`, `RiskDrivers`) when produced by the shared noise-budget pipeline.
 - `AnalysisResult`: complete analysis output with entries, findings, warnings, and optional agent data-source capability context.
 - `TraceMapResult`: container for findings and their directed correlation edges (`CorrelationEdge`), produced by `TraceMapCorrelator`.
 - `CorrelationEdge`: directed edge between two findings (`FromFindingId`, `ToFindingId`, `CorrelationType`, `Narrative`, `CorrelationConfidence`).

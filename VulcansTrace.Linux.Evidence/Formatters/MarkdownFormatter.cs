@@ -87,8 +87,8 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();
-        sb.AppendLine("| Rule ID | Category | Severity | Confidence | Evidence Signals | Source | Target | Start | End | Description | CIS Control | CIS Benchmark | MITRE Technique |");
-        sb.AppendLine("|---------|----------|----------|------------|------------------|--------|--------|-------|-----|-------------|-------------|---------------|-----------------|");
+        sb.AppendLine("| Rule ID | Category | Severity | Count | Representative Targets | Risk Drivers | Confidence | Evidence Signals | Source | Target | Start | End | Description | CIS Control | CIS Benchmark | MITRE Technique |");
+        sb.AppendLine("|---------|----------|----------|-------|------------------------|--------------|------------|------------------|--------|--------|-------|-----|-------------|-------------|---------------|-----------------|");
 
         foreach (var f in result.Findings)
         {
@@ -96,7 +96,10 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
             var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
             var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
             var signals = string.Join("; ", f.EvidenceSignals.Select(s => s.Name));
-            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.Confidence.ToString())} | {Escape(signals)} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} | {Escape(mitreIds)} |");
+            var groupBadge = f.GroupedCount > 1 ? $"×{f.GroupedCount}" : string.Empty;
+            var representativeTargets = string.Join("; ", f.RepresentativeTargets);
+            var riskDrivers = string.Join("; ", f.RiskDrivers);
+            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(groupBadge)} | {Escape(representativeTargets)} | {Escape(riskDrivers)} | {Escape(f.Confidence.ToString())} | {Escape(signals)} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} | {Escape(mitreIds)} |");
         }
 
         var distinctCis = result.Findings

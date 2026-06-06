@@ -1,6 +1,6 @@
 # Intensity Profiles — Technical Snapshot
 
-> The intensity profile subsystem is the central nervous system of Vulcan's Trace. In the production profile code across the profile model, factory, enum, and analyzer, it maps a single user-facing concept — Low, Medium, or High sensitivity — into a fully configured analysis profile with 13 detector enable flags, 20+ threshold knobs, shared policy lists, an output severity filter, and a per-category finding cap. The sealed-record data model ensures immutability, the switch-expression factory provides exhaustive pattern matching, and the orchestrator resolves the profile once per analysis run — making every detection decision traceable to a single configuration object.
+> The intensity profile subsystem is the central nervous system of Vulcan's Trace. In the production profile code across the profile model, factory, enum, and analyzer, it maps a single user-facing concept — Low, Medium, or High sensitivity — into a fully configured analysis profile with 13 detector enable flags, 20+ threshold knobs, shared policy lists, an output severity filter, and a per-category noise budget. The sealed-record data model ensures immutability, the switch-expression factory provides exhaustive pattern matching, and the orchestrator resolves the profile once per analysis run — making every detection decision traceable to a single configuration object.
 >
 > This subsystem demonstrates skills in **configuration-driven architecture**, **sealed-record immutability**, **switch-expression exhaustive matching**, **defense-in-depth threshold tuning**, and **profile-aware feature toggling**.
 
@@ -8,7 +8,7 @@
 
 ## Implementation Overview
 
-The `AnalysisProfile` sealed record holds every config knob: enable flags for 14 detectors, numeric thresholds for port scan, flood, lateral movement, beaconing, C2, and privilege escalation detection, plus shared policy lists (AdminPorts, DisallowedOutboundPorts), the output severity filter (MinSeverityToShow), and the per-category cap (MaxFindingsPerDetector). The `AnalysisProfileProvider` factory maps each `IntensityLevel` enum value to a fully populated profile via a switch expression. The `SentryAnalyzer` resolves the profile once per call (line 114), then passes it to every detector and later uses it for visibility filtering and finding caps.
+The `AnalysisProfile` sealed record holds every config knob: enable flags for 14 detectors, numeric thresholds for port scan, flood, lateral movement, beaconing, C2, and privilege escalation detection, plus shared policy lists (AdminPorts, DisallowedOutboundPorts), the output severity filter (MinSeverityToShow), and the per-category noise budget (MaxFindingsPerDetector). The `AnalysisProfileProvider` factory maps each `IntensityLevel` enum value to a fully populated profile via a switch expression. The `SentryAnalyzer` resolves the profile once per call (line 114), then passes it to every detector and later uses it for visibility filtering and the noise-budget group cap.
 
 ---
 
