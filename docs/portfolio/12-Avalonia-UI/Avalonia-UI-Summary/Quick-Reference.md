@@ -10,6 +10,7 @@
 | `FindingsViewModel` | Items/FilteredItems collections, severity filter, text search, parse errors (capped at 200), warnings display |
 | `EvidenceViewModel` | Export evidence flow, 32-byte signing key generation, save file dialog, clipboard copy. StatusChanged event |
 | `TimelineViewModel` | Groups findings by category, normalizes to 0–1 range, assigns row positions, computes canvas height |
+| `IncidentStoryViewModel` | Builds flowing attack narrative from `TraceMapResult`: beats, likely chain, recommendations, markdown export |
 | `ComplianceScorecardViewModel` | Binds `ComplianceScorecard` to the Compliance tab: overall score, family DataGrid, trend points, and direction text |
 | `FindingItemViewModel` | Adapts a `Finding` for UI display (Category, Severity, Confidence, EvidenceSignals, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
 | `IntensityOption` | DTO binding intensity levels to UI dropdown (Low/Medium/High) |
@@ -30,6 +31,7 @@
 | `ExportEvidenceCommand` | EvidenceViewModel | `LastResult != null && !IsBusy` | Generates 32-byte key, builds ZIP, shows save dialog, writes to disk |
 | `CancelExportCommand` | EvidenceViewModel | `IsBusy && CancellationTokenSource != null && !IsCancellationRequested` | Cancels in-progress export |
 | `CopySigningKeyCommand` | EvidenceViewModel | `!string.IsNullOrEmpty(SigningKey)` | Copies full hex key to system clipboard |
+| `CopyMarkdownCommand` | IncidentStoryViewModel | `HasStory` | Copies the incident story markdown to system clipboard |
 | `ListSessionsCommand` | AgentViewModel | `!IsBusy` | Lists all persisted remediation sessions |
 | `ResumeSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Reloads the selected remediation session into the chat panel |
 | `DeleteSessionCommand` | AgentViewModel | `!IsBusy && SelectedSession != null` | Removes the selected remediation session from the store |

@@ -33,9 +33,13 @@ Verification fails if the manifest HMAC does not match, if any manifest-listed f
 
 ## Trace Map files
 
-When correlated attack chains are detected, the evidence bundle also includes:
+When findings are present, the evidence bundle also includes:
 
-- `incident-story.md` — human-readable narrative of attack chains and unconnected findings
+- `incident-story.md` — flowing attack narrative with time-ordered beats, likely chain summary, and recommended responses (matches the Incident Story tab)
+
+When correlated edges are detected, the evidence bundle also includes:
+
+- `trace-map.md` — technical edge-list Markdown showing correlated findings, per-edge narratives, and CIS mappings
 - `trace-map.json` — Cytoscape.js-compatible graph with findings as nodes and correlations as edges
 
 These files are listed in `manifest.json` and covered by the same HMAC signature as all other evidence files.

@@ -77,6 +77,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for timeline visualization.</summary>
     public TimelineViewModel Timeline { get; }
 
+    /// <summary>Gets the child ViewModel for incident story narrative.</summary>
+    public IncidentStoryViewModel IncidentStory { get; }
+
     /// <summary>Gets the child ViewModel for the security agent chat panel.</summary>
     public AgentViewModel Agent { get; }
 
@@ -337,6 +340,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         // Initialize child ViewModels
         Findings = new FindingsViewModel();
         Timeline = new TimelineViewModel();
+        IncidentStory = new IncidentStoryViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
         Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService)
         {
@@ -503,6 +507,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(_lastResult, logSnapshot, lastAnalysisTimestampUtc, traceMap: traceMap);
         Findings.LoadResults(result);
         Timeline.LoadAnalysisResult(result, traceMap.Edges);
+        IncidentStory.LoadTraceMap(traceMap);
         RiskScorecard.LoadScorecard(result.RiskScorecard);
         InjectCountermeasureMessages(traceMap);
 
@@ -609,6 +614,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.ClearEvidenceContext();
         Findings.Clear();
         Timeline.LoadAnalysisResult(null);
+        IncidentStory.LoadTraceMap(null);
         RiskScorecard.LoadScorecard(null);
 
         if (!string.IsNullOrWhiteSpace(summaryText))
@@ -644,6 +650,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown, agentTraceMap);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
+        IncidentStory.LoadTraceMap(agentTraceMap);
         InjectCountermeasureMessages(agentTraceMap);
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);

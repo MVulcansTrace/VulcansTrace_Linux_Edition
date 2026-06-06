@@ -13,10 +13,10 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 | Metric | Value |
 |---|---|
 | Core source files | EvidenceBuilder, IntegrityHasher, IEvidenceFormatter, and formatter/builder classes under `VulcansTrace.Linux.Evidence/Formatters` |
-| Output formats per archive | Core findings reports, raw log, manifest/signature, optional suppressions/remediation, optional scorecards, optional Trace Map/MITRE artifacts, and optional Log Diff reports |
+| Output formats per archive | Core findings reports, raw log, manifest/signature, optional suppressions/remediation, optional scorecards, optional Trace Map/incident-story artifacts, and optional Log Diff reports |
 | Cryptographic primitives | SHA-256 (per-file) + HMAC-SHA256 (manifest) |
 | Test files | 12 evidence test files covering builder, core formatters, scorecards, MITRE/Trace Map, and Log Diff reports |
-| ZIP archive entries | Core report entries plus conditional `suppressions.csv`, `remediation.md`, scorecards, Trace Map/MITRE artifacts, and Log Diff reports |
+| ZIP archive entries | Core report entries plus conditional `suppressions.csv`, `remediation.md`, scorecards, `incident-story.md`, `trace-map.md`, `trace-map.json`, MITRE layer, and Log Diff reports |
 | STIX 2.1 object types produced | 6 (identity, observed-data, note, ipv4-addr, ipv6-addr, malware) |
 
 ---
@@ -42,8 +42,11 @@ The evidence packaging subsystem is the final stage of the VulcansTrace analysis
 - [JsonFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/JsonFormatter.cs) — SIEM-compatible JSON export
 - [MarkdownFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/MarkdownFormatter.cs) — GFM tables with severity grouping
 - [StixFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs) — STIX 2.1 bundle construction
+- [IncidentStoryFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/IncidentStoryFormatter.cs) — flowing attack narrative with beats, chain summary, and recommendations
+- [TraceMapMarkdownFormatter.cs](../../../../VulcansTrace.Linux.Evidence/Formatters/TraceMapMarkdownFormatter.cs) — technical edge-list Markdown for trace maps
 - [IntegrityHasher.cs](../../../../VulcansTrace.Linux.Core/Security/IntegrityHasher.cs) — SHA-256 and HMAC-SHA256 primitives
 - [EvidenceBuilderTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs) — end-to-end archive verification
+- [IncidentStoryFormatterTests.cs](../../../../VulcansTrace.Linux.Tests/Evidence/IncidentStoryFormatterTests.cs) — narrative formatter coverage
 
 ---
 

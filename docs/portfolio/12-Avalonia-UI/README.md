@@ -25,6 +25,7 @@ Documentation is organized for two audiences:
 - **MVVM with Security Agent child workflow** — MainViewModel orchestrates Findings, Evidence, Timeline, Suppressions, Rule Coverage, and Agent ViewModels without making those child ViewModels own each other's state
 - **Context-sensitive advisor** — MainViewModel generates triage guidance based on finding counts, severity distribution, warnings, and parse errors
 - **Timeline canvas rendering** — severity-colored horizontal bars grouped by category, normalized to 0–1 range, with dynamic canvas height calculation
+- **Incident Story Mode** — dedicated tab that turns findings and correlations into a flowing attack narrative with time-ordered beats, likely chain summary, context-aware recommended responses, and one-click markdown copy
 - **Evidence export with key generation** — 32-byte random signing key via RandomNumberGenerator, save-file dialog, clipboard copy, status event bubbling
 - **Platform-agnostic dialog abstraction** — IDialogService interface backed by AvaloniaDialogService adapter, enabling test-time substitution with no UI dependency
 - **Severity color scheme** — Critical (#ef4444), High (#f97316), Medium (#eab308), Low (#22c55e), Unknown (#64748b)
@@ -54,6 +55,8 @@ Documentation is organized for two audiences:
 - [LogDiffWindow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/LogDiffWindow.axaml) — diff results window with Events and Findings DataGrids
 - [ScheduleEditWindow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/ScheduleEditWindow.axaml) — schedule editor dialog
 - [TimelineViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, 0–1 normalization, row positioning, canvas height calculation
+- [IncidentStoryViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/IncidentStoryViewModel.cs) — flowing attack narrative, chain summary, recommendations, markdown copy
+- [IncidentStoryView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/IncidentStoryView.axaml) — Incident Story tab UI with beats, chain, recommendations, and Copy Markdown button
 - [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching
 - [IDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface
 - [MainViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — command gating and engine wiring tests

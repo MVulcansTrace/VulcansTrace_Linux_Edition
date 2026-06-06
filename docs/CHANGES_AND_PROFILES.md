@@ -60,7 +60,8 @@ Last updated: 2026-06-06
 - STIX 2.1 export rebuilt: now emits a STIX bundle with identity,
   observed-data, note objects, IP observables, and optional malware hints.
   - Code: `VulcansTrace.Linux.Evidence/Formatters/StixFormatter.cs`
-- Trace Map evidence export: when correlated findings are present, the signed ZIP bundle includes `incident-story.md` (human-readable attack-chain narrative) and `trace-map.json` (Cytoscape.js-compatible graph with nodes and edges).
+- Trace Map evidence export: when findings are present, the signed ZIP bundle includes `incident-story.md` (flowing attack narrative); when correlated edges are present, it also includes `trace-map.md` (technical edge-list) and `trace-map.json` (Cytoscape.js-compatible graph with nodes and edges).
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/IncidentStoryFormatter.cs`
   - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapMarkdownFormatter.cs`
   - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapJsonFormatter.cs`
   - Code: `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`
@@ -97,6 +98,11 @@ Last updated: 2026-06-06
   - Code: `VulcansTrace.Linux.Avalonia/MainWindow.axaml.cs`
   - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapMarkdownFormatter.cs`
   - Code: `VulcansTrace.Linux.Evidence/Formatters/TraceMapJsonFormatter.cs`
+- Incident Story Mode: dedicated Avalonia tab that turns findings into a flowing attack narrative with time-ordered beats, likely chain summary, recommended responses, and one-click markdown copy. The same narrative is exported as `incident-story.md` in the signed evidence ZIP.
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/IncidentStoryFormatter.cs`
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/IncidentStoryViewModel.cs`
+  - Code: `VulcansTrace.Linux.Avalonia/Views/IncidentStoryView.axaml`
+  - Code: `VulcansTrace.Linux.Avalonia/MainWindow.axaml`
 - Dialogs: moved from FluentAvalonia ContentDialog to a native Avalonia Window.
   - Code: `VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs`
 
@@ -116,6 +122,7 @@ Last updated: 2026-06-06
   - Code: `VulcansTrace.Linux.Tests/Avalonia/TimelineViewModelTraceMapTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Evidence/TraceMapJsonFormatterTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Evidence/TraceMapMarkdownFormatterTests.cs`
+  - Code: `VulcansTrace.Linux.Tests/Evidence/IncidentStoryFormatterTests.cs`
   - Code: `VulcansTrace.Linux.Tests/Evidence/EvidenceBuilderTests.cs`
 - Expanded `iptables-attack.log` to reliably trigger visible PortScan findings
   at Medium and High intensity. Low still evaluates the scan, but standalone

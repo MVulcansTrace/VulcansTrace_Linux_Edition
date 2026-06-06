@@ -223,6 +223,7 @@ public static class AgentFactory
             riskScorecardMarkdownFormatter,
             traceMapMarkdownFormatter,
             traceMapJsonFormatter,
+            incidentStoryFormatter: new IncidentStoryFormatter(),
             mitreLayerBuilder,
             mitreCoverageSources,
             logDiffMarkdownFormatter,

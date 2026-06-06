@@ -241,7 +241,8 @@ also not a firewall line";
             riskScorecardHtmlFormatter: new RiskScorecardHtmlFormatter(),
             riskScorecardMarkdownFormatter: new RiskScorecardMarkdownFormatter(),
             traceMapMarkdownFormatter: new TraceMapMarkdownFormatter(),
-            traceMapJsonFormatter: new TraceMapJsonFormatter());
+            traceMapJsonFormatter: new TraceMapJsonFormatter(),
+            incidentStoryFormatter: new IncidentStoryFormatter());
 
         var liveStreamAnalyzer = new LiveStreamAnalyzer(analyzer, profileProvider);
         var remediationExecutor = new RemediationExecutor(new ProcessRunner());

@@ -904,6 +904,145 @@ public class EvidenceBuilderTests
     }
 
     [Fact]
+    public void Build_WithIncidentStoryFormatter_ProducesNarrativeIncidentStoryAndTechnicalTraceMapMd()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            new JsonFormatter(),
+            new StixFormatter(),
+            null,
+            null,
+            new RiskScorecardHtmlFormatter(),
+            new RiskScorecardMarkdownFormatter(),
+            new TraceMapMarkdownFormatter(),
+            new TraceMapJsonFormatter(),
+            new IncidentStoryFormatter());
+
+        var f1 = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "192.168.1.100",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(5),
+            ShortDescription = "Beaconing detected",
+            Severity = Severity.Medium
+        };
+        var f2 = new Finding
+        {
+            Category = FindingCategories.LateralMovement,
+            SourceHost = "192.168.1.100",
+            Target = "internal",
+            TimeRangeStart = DateTime.UnixEpoch.AddMinutes(10),
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(15),
+            ShortDescription = "Lateral movement",
+            Severity = Severity.High
+        };
+
+        var result = new AnalysisResult
+        {
+            TotalLines = 2,
+            ParsedLines = 2,
+            Findings = new[] { f1, f2 },
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(15)
+        };
+
+        var traceMap = new TraceMapResult
+        {
+            Findings = result.Findings,
+            Edges = new[]
+            {
+                new CorrelationEdge(f1.Id, f2.Id, CorrelationType.EscalatesTo, "Beaconing escalated to lateral movement", CorrelationConfidence.High)
+            }
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, traceMap: traceMap);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("incident-story.md", names);
+        Assert.Contains("trace-map.md", names);
+        Assert.Contains("trace-map.json", names);
+
+        // incident-story.md should now contain the narrative format
+        var storyEntry = zip.GetEntry("incident-story.md");
+        Assert.NotNull(storyEntry);
+        using (var stream = storyEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var story = reader.ReadToEnd();
+            Assert.Contains("# Incident Story", story);
+            Assert.Contains("- **00:00** — beaconing began.", story);
+            Assert.Contains("- **00:10** — lateral movement appeared.", story);
+            Assert.DoesNotContain("— At 00:00", story);
+            Assert.Contains("Likely chain:", story);
+            Assert.Contains("Recommended Response", story);
+        }
+
+        // trace-map.md should contain the technical edge-list format
+        var traceMapEntry = zip.GetEntry("trace-map.md");
+        Assert.NotNull(traceMapEntry);
+        using (var stream = traceMapEntry!.Open())
+        using (var reader = new StreamReader(stream, Encoding.UTF8))
+        {
+            var technical = reader.ReadToEnd();
+            Assert.Contains("# Incident Story — Trace Map", technical);
+            Assert.Contains("Beaconing detected", technical);
+            Assert.Contains("Lateral movement", technical);
+            Assert.Contains("Beaconing escalated to lateral movement", technical);
+        }
+    }
+
+    [Fact]
+    public void Build_WithIncidentStoryFormatterAndNoTraceMapEdges_IncludesStoryButOmitsTechnicalTraceMapFiles()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            jsonFormatter: null,
+            stixFormatter: null,
+            scorecardHtmlFormatter: null,
+            scorecardMarkdownFormatter: null,
+            riskScorecardHtmlFormatter: null,
+            riskScorecardMarkdownFormatter: null,
+            traceMapMarkdownFormatter: new TraceMapMarkdownFormatter(),
+            traceMapJsonFormatter: new TraceMapJsonFormatter(),
+            incidentStoryFormatter: new IncidentStoryFormatter());
+
+        var result = SingleFindingResult();
+        var traceMap = new TraceMapResult
+        {
+            Findings = result.Findings,
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow, traceMap: traceMap);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("incident-story.md", names);
+        Assert.DoesNotContain("trace-map.md", names);
+        Assert.DoesNotContain("trace-map.json", names);
+
+        var storyEntry = zip.GetEntry("incident-story.md");
+        Assert.NotNull(storyEntry);
+        using var stream = storyEntry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var story = reader.ReadToEnd();
+        Assert.Contains("Isolated findings", story);
+    }
+
+    [Fact]
     public void Build_WithEmptyTraceMapEdges_OmitsTraceMapFiles()
     {
         var builder = new EvidenceBuilder(

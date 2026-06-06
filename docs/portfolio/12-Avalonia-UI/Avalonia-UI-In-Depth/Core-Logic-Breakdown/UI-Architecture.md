@@ -63,7 +63,7 @@ var analyzer = new SentryAnalyzer(logNormalizer, profileProvider, baselineDetect
 
 // Evidence chain
 var hasher = new IntegrityHasher();
-var evidenceBuilder = new EvidenceBuilder(hasher, csv, markdown, html, json, stix);
+var evidenceBuilder = new EvidenceBuilder(hasher, csv, markdown, html, json, stix, incidentStoryFormatter: new IncidentStoryFormatter());
 
 // Security Agent chain
 var suppressionStore = JsonFileSuppressionStore.CreateDefault();

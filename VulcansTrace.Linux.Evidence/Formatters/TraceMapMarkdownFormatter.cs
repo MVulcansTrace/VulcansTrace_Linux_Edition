@@ -4,12 +4,12 @@ using VulcansTrace.Linux.Core;
 namespace VulcansTrace.Linux.Evidence.Formatters;
 
 /// <summary>
-/// Generates a human-readable incident story from correlated findings.
+/// Generates a human-readable technical edge-list from correlated findings.
 /// </summary>
 public sealed class TraceMapMarkdownFormatter
 {
     /// <summary>
-    /// Produces a Markdown narrative of attack chains and unconnected findings.
+    /// Produces a Markdown edge-list of attack chains and unconnected findings.
     /// </summary>
     public string ToMarkdown(IReadOnlyList<Finding> findings, IReadOnlyList<CorrelationEdge> edges)
     {

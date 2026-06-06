@@ -54,8 +54,9 @@ Click **Export Evidence** to generate a signed ZIP bundle containing:
 | `report.html` | Formatted HTML report |
 | `summary.md` | Markdown summary |
 | `log.txt` | Original raw log |
-| `incident-story.md` | Attack-chain narrative when correlated findings are detected |
-| `trace-map.json` | Cytoscape.js-compatible graph for import into network visualization tools |
+| `incident-story.md` | Flowing incident narrative when findings are present (matches the Incident Story tab) |
+| `trace-map.md` | Technical edge-list Markdown of correlated findings with per-edge narratives and CIS mappings, when edges exist |
+| `trace-map.json` | Cytoscape.js-compatible graph for import into network visualization tools, when edges exist |
 | `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer v4.5 with detector/rule coverage and observed finding scoring |
 | `manifest.json` + `manifest.hmac` | HMAC integrity verification |
 

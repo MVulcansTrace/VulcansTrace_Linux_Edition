@@ -529,6 +529,10 @@
                     </Grid>
                 </ScrollViewer>
             </TabItem>
+            <TabItem Header="Incident Story"
+                     AutomationProperties.AutomationId="IncidentStoryTab">
+                <views:IncidentStoryView DataContext="{Binding IncidentStory}"/>
+            </TabItem>
             <TabItem Header="Parse Errors"
                      AutomationProperties.AutomationId="ParseErrorsTab">
                 <ListBox ItemsSource="{Binding Findings.ParseErrors}"

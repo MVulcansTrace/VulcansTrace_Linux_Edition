@@ -40,6 +40,7 @@ public sealed class EvidenceBuilder
     private readonly RiskScorecardMarkdownFormatter? _riskScorecardMarkdownFormatter;
     private readonly TraceMapMarkdownFormatter? _traceMapMarkdownFormatter;
     private readonly TraceMapJsonFormatter? _traceMapJsonFormatter;
+    private readonly IncidentStoryFormatter? _incidentStoryFormatter;
     private readonly MitreLayerBuilder? _mitreLayerBuilder;
     private readonly IReadOnlyList<MitreCoverageSource> _mitreCoverageSources;
     private readonly LogDiffMarkdownFormatter? _logDiffMarkdownFormatter;
@@ -60,8 +61,9 @@ public sealed class EvidenceBuilder
     /// <param name="scorecardMarkdownFormatter">Optional formatter for compliance scorecard Markdown.</param>
     /// <param name="riskScorecardHtmlFormatter">Optional formatter for risk scorecard HTML.</param>
     /// <param name="riskScorecardMarkdownFormatter">Optional formatter for risk scorecard Markdown.</param>
-    /// <param name="traceMapMarkdownFormatter">Optional formatter for Trace Map incident story Markdown.</param>
+    /// <param name="traceMapMarkdownFormatter">Optional formatter for Trace Map technical edge-list Markdown.</param>
     /// <param name="traceMapJsonFormatter">Optional formatter for Trace Map Cytoscape JSON.</param>
+    /// <param name="incidentStoryFormatter">Optional formatter for the narrative incident story Markdown.</param>
     /// <param name="mitreLayerBuilder">Optional builder for MITRE ATT&CK Navigator layer export.</param>
     /// <param name="mitreCoverageSources">Optional detector and rule coverage sources for the Navigator layer.</param>
     /// <param name="logDiffMarkdownFormatter">Optional formatter for log diff Markdown.</param>
@@ -79,6 +81,7 @@ public sealed class EvidenceBuilder
         RiskScorecardMarkdownFormatter? riskScorecardMarkdownFormatter = null,
         TraceMapMarkdownFormatter? traceMapMarkdownFormatter = null,
         TraceMapJsonFormatter? traceMapJsonFormatter = null,
+        IncidentStoryFormatter? incidentStoryFormatter = null,
         MitreLayerBuilder? mitreLayerBuilder = null,
         IReadOnlyList<MitreCoverageSource>? mitreCoverageSources = null,
         LogDiffMarkdownFormatter? logDiffMarkdownFormatter = null,
@@ -96,6 +99,7 @@ public sealed class EvidenceBuilder
         _riskScorecardMarkdownFormatter = riskScorecardMarkdownFormatter;
         _traceMapMarkdownFormatter = traceMapMarkdownFormatter;
         _traceMapJsonFormatter = traceMapJsonFormatter;
+        _incidentStoryFormatter = incidentStoryFormatter;
         _mitreLayerBuilder = mitreLayerBuilder;
         _mitreCoverageSources = mitreCoverageSources ?? Array.Empty<MitreCoverageSource>();
         _logDiffMarkdownFormatter = logDiffMarkdownFormatter;
@@ -110,7 +114,7 @@ public sealed class EvidenceBuilder
     /// <param name="signingKey">The secret key for HMAC signing.</param>
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
-    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c>, <c>trace-map.md</c>, and <c>trace-map.json</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
     public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
@@ -128,7 +132,7 @@ public sealed class EvidenceBuilder
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
-    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c>, <c>trace-map.md</c>, and <c>trace-map.json</c>.</param>
     /// <returns>A task representing the async operation, containing the ZIP file bytes.</returns>
     public Task<byte[]> BuildAsync(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc = null, CancellationToken cancellationToken = default, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
@@ -146,7 +150,7 @@ public sealed class EvidenceBuilder
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
-    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c>, <c>trace-map.md</c>, and <c>trace-map.json</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
     public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown = null, TraceMapResult? traceMap = null)
     {
@@ -162,7 +166,7 @@ public sealed class EvidenceBuilder
     /// <param name="analysisTimestampUtc">Optional timestamp override for file dates.</param>
     /// <param name="cancellationToken">Token to cancel the build operation.</param>
     /// <param name="remediationPlanMarkdown">Optional remediation plan markdown to include as <c>remediation.md</c>.</param>
-    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c> and <c>trace-map.json</c>.</param>
+    /// <param name="traceMap">Optional Trace Map result to include as <c>incident-story.md</c>, <c>trace-map.md</c>, and <c>trace-map.json</c>.</param>
     /// <param name="logDiffResult">Optional log diff result to include as <c>log-diff.md</c> and <c>log-diff.html</c>.</param>
     /// <returns>A byte array containing the ZIP file contents.</returns>
     public byte[] Build(AnalysisResult result, string rawLog, byte[] signingKey, DateTime? analysisTimestampUtc, CancellationToken cancellationToken, string? remediationPlanMarkdown, TraceMapResult? traceMap, LogDiffResult? logDiffResult)
@@ -216,13 +220,26 @@ public sealed class EvidenceBuilder
             }
         }
 
-        if (traceMap != null && traceMap.Edges.Count > 0)
+        if (traceMap != null && traceMap.Findings.Count > 0)
         {
-            if (_traceMapMarkdownFormatter != null)
+            if (_incidentStoryFormatter != null)
             {
+                files["incident-story.md"] = Encoding.UTF8.GetBytes(_incidentStoryFormatter.Format(traceMap).Markdown);
+            }
+            else if (_traceMapMarkdownFormatter != null && traceMap.Edges.Count > 0)
+            {
+                // Backward compatibility: old consumers that only supply the edge-list formatter
+                // still get an incident-story.md artifact.
                 files["incident-story.md"] = Encoding.UTF8.GetBytes(_traceMapMarkdownFormatter.ToMarkdown(traceMap.Findings, traceMap.Edges));
             }
-            if (_traceMapJsonFormatter != null)
+
+            if (traceMap.Edges.Count > 0 && _traceMapMarkdownFormatter != null && _incidentStoryFormatter != null)
+            {
+                // When both formatters are present, the edge-list formatter writes the technical trace map.
+                files["trace-map.md"] = Encoding.UTF8.GetBytes(_traceMapMarkdownFormatter.ToMarkdown(traceMap.Findings, traceMap.Edges));
+            }
+
+            if (traceMap.Edges.Count > 0 && _traceMapJsonFormatter != null)
             {
                 files["trace-map.json"] = Encoding.UTF8.GetBytes(_traceMapJsonFormatter.Format(traceMap.Findings, traceMap.Edges));
             }

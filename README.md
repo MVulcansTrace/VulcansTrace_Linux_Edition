@@ -199,7 +199,8 @@ Signed ZIP evidence packages can contain:
 | `compliance-scorecard.md` | Markdown compliance scorecard for Git-based workflows |
 | `risk-scorecard.html` | Manager-friendly HTML risk scorecard (grade badge, numeric score, per-category breakdown) |
 | `risk-scorecard.md` | Markdown risk scorecard for Git-based workflows |
-| `incident-story.md` | Human-readable attack-chain narrative when correlated findings are detected |
+| `incident-story.md` | Flowing incident narrative with timeline beats, likely chain summary, and recommended response when findings are present |
+| `trace-map.md` | Technical edge-list Markdown when correlated findings are detected |
 | `trace-map.json` | Cytoscape.js-compatible JSON graph of findings and correlation edges |
 | `mitre-navigator-layer.json` | MITRE ATT&CK Navigator layer (JSON) showing technique coverage and finding density |
 | `log-diff.md` | Markdown diff report when Log Diff Mode is used (baseline vs incident comparison) |

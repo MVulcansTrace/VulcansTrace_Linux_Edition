@@ -73,6 +73,7 @@ Analysis completes. The UI displays:
 - **Summary badges**: Findings count, High/Critical count, Warnings count, Parse Errors count
 - **Findings tab**: DataGrid with all findings (Category, Severity, SourceHost, Target, TimeStart, TimeEnd, ShortDescription)
 - **Timeline tab**: Canvas with severity-colored bars grouped by category, with tooltips showing full event details
+- **Incident Story tab**: Flowing attack narrative with time-ordered beats, likely chain summary, recommended responses, and Copy Markdown button
 - **Advisor message**: Context-sensitive guidance based on the result characteristics
 
 ### Step 5 — Investigation
@@ -82,6 +83,7 @@ The analyst uses interactive filtering to narrow the findings:
 - **Severity filter dropdown**: All / High & Critical only / Critical only
 - **Search text box**: Filters by Category, SourceHost, Target, or ShortDescription
 - **Timeline**: Visual temporal correlation across categories
+- **Incident Story**: Readable attack narrative and recommended responses for findings and correlations
 
 ### Step 6 — Evidence Export
 

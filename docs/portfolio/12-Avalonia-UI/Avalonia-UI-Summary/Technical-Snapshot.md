@@ -12,7 +12,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 
 | Metric | Value |
 |---|---|
-| ViewModel files | 17, including MainViewModel, Agent, Findings, Evidence, Timeline, Suppressions, Rule Coverage, Rule Catalog, commands, and option/item models |
+| ViewModel files | 18, including MainViewModel, Agent, Findings, Evidence, Timeline, Incident Story, Suppressions, Rule Coverage, Rule Catalog, commands, and option/item models |
 | Dialog abstraction | 1 interface + 1 Avalonia adapter |
 | Avalonia test files | 21, covering main UI, agent UI, findings, evidence, suppressions, coverage, compliance/risk scorecards, audit diff, log diff, live stream, and async commands |
 | Detectors wired in composition root | 13 (6 baseline + 5 Linux + 2 advanced) |
@@ -30,6 +30,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - **Manual filtering (not CollectionView) gives full control** — FindingsViewModel rebuilds `FilteredItems` on every filter change, avoiding Avalonia CollectionView threading pitfalls
 - **Evidence export integrates the full packaging pipeline** — a single button click generates a 32-byte signing key, builds the ZIP archive, and writes it to disk through a save-file dialog
 - **Compliance tab surfaces formal CIS scorecard** — overall pass/warn/fail badge, per-family DataGrid, and trend bar chart make manager-readable compliance posture visible without leaving the app
+- **Incident Story Mode turns correlations into analyst-ready narratives** — time-ordered beats, likely chain summary, and recommended responses reduce cognitive load during incident triage
 - **Log Diff Window enables forensic timeline comparison** — analysts can compare two log files side-by-side with color-coded state badges (`Unchanged`, `Added`, `Removed`, `Changed`) for both connection patterns and findings, without leaving the desktop app
 - **Remediation Sessions expander preserves workflow state** — analysts can resume or delete persisted guided remediation sessions without losing context between app restarts
 
@@ -42,6 +43,8 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - [FindingsViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/FindingsViewModel.cs) — filtering, search, parse error capping
 - [EvidenceViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, key generation, clipboard
 - [TimelineViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/TimelineViewModel.cs) — category grouping, normalization, canvas height
+- [IncidentStoryViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/IncidentStoryViewModel.cs) — flowing attack narrative, chain summary, recommendations, markdown copy
+- [IncidentStoryView.axaml](../../../../VulcansTrace.Linux.Avalonia/Views/IncidentStoryView.axaml) — Incident Story tab UI
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization
 - [LogDiffViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/LogDiffViewModel.cs) — log diff result binding
 - [LogDiffWindow.axaml](../../../../VulcansTrace.Linux.Avalonia/Views/LogDiffWindow.axaml) — diff results window with Events and Findings DataGrids
