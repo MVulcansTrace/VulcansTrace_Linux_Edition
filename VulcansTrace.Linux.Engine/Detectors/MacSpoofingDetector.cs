@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Parsing;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -110,17 +111,28 @@ public sealed class MacSpoofingDetector : IDetector
                 var minTime = ordered[bestStart].Event.Timestamp;
                 var maxTime = ordered[bestEnd].Event.Timestamp;
 
+                var signals = new List<EvidenceSignal>
+                {
+                    new EvidenceSignal
+                    {
+                        Name = "Multiple MAC addresses per IP",
+                        Source = EvidenceSignal.BehaviorSource,
+                        Explanation = $"IP address {ip} is associated with {bestMacAddresses.Count} different MAC addresses within {windowMinutes} minutes"
+                    }
+                };
                 findings.Add(new Core.Finding
                 {
                     Category = FindingCategories.MacSpoofing,
                     Severity = Core.Severity.High,
+                    Confidence = FindingConfidenceCalculator.Calculate(signals),
                     SourceHost = ip,
                     Target = "multiple MAC addresses",
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = $"Potential MAC spoofing from {ip}",
                     Details = $"IP address {ip} is associated with {bestMacAddresses.Count} different MAC addresses within {windowMinutes} minutes: {string.Join(", ", bestMacAddresses)}. This may indicate MAC address spoofing, ARP poisoning, or network masquerading.",
-                    MitreTechniques = s_mitreTechniques
+                    MitreTechniques = s_mitreTechniques,
+                    EvidenceSignals = signals
                 });
             }
         }

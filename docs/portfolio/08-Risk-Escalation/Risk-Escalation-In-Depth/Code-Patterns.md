@@ -9,11 +9,23 @@ Recurring implementation patterns in the risk escalation subsystem and how they 
 The `Finding` type is a `sealed record` with init-only setters. Escalation uses the `with` expression to produce modified copies:
 
 ```csharp
-// RiskEscalator.cs:64
-result.Add(f with { Severity = Core.Severity.Critical });
+// RiskEscalator.cs:64-78
+var correlationSignal = new EvidenceSignal
+{
+    Name = "Cross-detector correlation",
+    Source = EvidenceSignal.BehaviorSource,
+    Explanation = $"Correlated {f.Category} with complementary threat pattern on same host within 24h"
+};
+var escalatedSignals = f.EvidenceSignals.Concat(new[] { correlationSignal }).ToList();
+result.Add(f with
+{
+    Severity = Core.Severity.Critical,
+    Confidence = FindingConfidenceCalculator.Calculate(escalatedSignals),
+    EvidenceSignals = escalatedSignals
+});
 ```
 
-**Why it matters**: The original finding cannot be mutated after creation. This is a compile-time guarantee, not a runtime convention. For forensic analysis, this means the detector's original severity assessment is always preserved alongside the escalated version.
+**Why it matters**: The original finding cannot be mutated after creation. This is a compile-time guarantee, not a runtime convention. For forensic analysis, this means the detector's original severity assessment is always preserved alongside the escalated version. Additionally, a `Cross-detector correlation` evidence signal is appended and confidence is recalculated via `FindingConfidenceCalculator`, so the escalated finding reflects the stronger combined evidence.
 
 **Where it appears**: [RiskEscalator.cs:64](../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs), [Finding.cs](../../../../VulcansTrace.Linux.Core/Finding.cs)
 

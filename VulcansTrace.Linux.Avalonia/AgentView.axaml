@@ -173,6 +173,20 @@
                                                    FontSize="11"
                                                    Margin="0,4,0,0"
                                                    IsVisible="{Binding Details, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8"
+                                                    Margin="0,4,0,0"
+                                                    IsVisible="{Binding HasConfidence}">
+                                            <TextBlock Text="{Binding Confidence, StringFormat='{}Confidence: {0}'}"
+                                                       Foreground="#93c5fd"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding EvidenceSignalsDisplay, StringFormat='{}Signals: {0}'}"
+                                                       Foreground="#94a3b8"
+                                                       FontSize="10"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasEvidenceSignals}"/>
+                                        </StackPanel>
                                         <!-- Verification commands with copy buttons and safety badges -->
                                         <StackPanel Orientation="Vertical"
                                                     Margin="0,6,0,0"
@@ -419,6 +433,13 @@
                         Command="{Binding YaraCommand}"
                         IsEnabled="{Binding !IsBusy}"
                         AutomationProperties.AutomationId="AgentYaraButton"/>
+                <Button Content="Process Runtime"
+                        FontSize="11"
+                        Padding="6,2"
+                        Margin="0,0,6,4"
+                        Command="{Binding ProcessRuntimeCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        AutomationProperties.AutomationId="AgentProcessRuntimeButton"/>
                 <Button Content="Threat Intel"
                         FontSize="11"
                         Padding="6,2"

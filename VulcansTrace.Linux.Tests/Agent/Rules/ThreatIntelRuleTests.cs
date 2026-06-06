@@ -25,7 +25,7 @@ public class ThreatIntelRuleTests
     public void ThreatIntelIpRule_MatchingConnection_Fails()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", Confidence = 75 } });
+        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", ThreatScore = 75 } });
 
         var rule = new ThreatIntelIpRule(store);
         var data = new ScanData
@@ -58,7 +58,7 @@ public class ThreatIntelRuleTests
     public void ThreatIntelPortRule_MatchingPort_Fails()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.Port, Value = "4444", Confidence = 50 } });
+        store.Import(new[] { new IocEntry { Type = IocType.Port, Value = "4444", ThreatScore = 50 } });
 
         var rule = new ThreatIntelPortRule(store);
         var data = new ScanData
@@ -91,7 +91,7 @@ public class ThreatIntelRuleTests
     public void ThreatIntelHashRule_MatchingHash_Fails()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.FileHash, Value = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899", Confidence = 90 } });
+        store.Import(new[] { new IocEntry { Type = IocType.FileHash, Value = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899", ThreatScore = 90 } });
 
         var rule = new ThreatIntelHashRule(store);
         var data = new ScanData
@@ -112,7 +112,7 @@ public class ThreatIntelRuleTests
     public void ThreatIntelHashRule_CaseInsensitiveMatch_Fails()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.FileHash, Value = "AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899", Confidence = 90 } });
+        store.Import(new[] { new IocEntry { Type = IocType.FileHash, Value = "AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899", ThreatScore = 90 } });
 
         var rule = new ThreatIntelHashRule(store);
         var data = new ScanData

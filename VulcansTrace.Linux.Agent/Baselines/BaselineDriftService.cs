@@ -148,6 +148,8 @@ internal sealed class BaselineDriftService
                 RuleId = sf.RuleId,
                 Category = string.IsNullOrEmpty(sf.Category) ? "Baseline" : sf.Category,
                 Severity = ParseSeverityString(sf.Severity),
+                Confidence = ParseConfidenceString(sf.Confidence),
+                EvidenceSignals = sf.EvidenceSignals,
                 SourceHost = "localhost",
                 Target = sf.Target,
                 ShortDescription = sf.ShortDescription,
@@ -227,6 +229,8 @@ internal sealed class BaselineDriftService
                 RuleId = w.RuleId,
                 Target = w.Target,
                 Severity = w.NewSeverity,
+                Confidence = w.NewConfidence,
+                EvidenceSignals = w.EvidenceSignals,
                 ShortDescription = w.ShortDescription,
                 Fingerprint = w.Fingerprint
             })))
@@ -236,6 +240,8 @@ internal sealed class BaselineDriftService
                     RuleId = df.RuleId,
                     Category = "Drift",
                     Severity = ParseSeverityString(df.Severity),
+                    Confidence = ParseConfidenceString(df.Confidence),
+                    EvidenceSignals = df.EvidenceSignals,
                     SourceHost = "localhost",
                     Target = df.Target,
                     ShortDescription = df.ShortDescription,
@@ -271,6 +277,8 @@ internal sealed class BaselineDriftService
         RuleId = f.RuleId ?? $"__null-{f.Fingerprint ?? f.Id.ToString("N")}",
         Target = f.Target,
         Severity = f.Severity.ToString(),
+        Confidence = f.Confidence.ToString(),
+        EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
         Fingerprint = f.Fingerprint
@@ -298,5 +306,14 @@ internal sealed class BaselineDriftService
         "high" => Severity.High,
         "critical" => Severity.Critical,
         _ => Severity.Info
+    };
+
+    private static DetectionConfidence ParseConfidenceString(string? confidence) => confidence?.ToLowerInvariant() switch
+    {
+        "low" => DetectionConfidence.Low,
+        "medium" => DetectionConfidence.Medium,
+        "high" => DetectionConfidence.High,
+        "confirmed" => DetectionConfidence.Confirmed,
+        _ => DetectionConfidence.Unknown
     };
 }

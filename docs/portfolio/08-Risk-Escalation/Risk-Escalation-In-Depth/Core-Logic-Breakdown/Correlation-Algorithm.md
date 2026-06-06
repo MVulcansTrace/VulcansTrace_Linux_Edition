@@ -105,21 +105,37 @@ foreach (var f in group)
         || (shouldEscalateMacInterface && (IsCategory(f, FindingCategories.MacSpoofing) || IsCategory(f, FindingCategories.InterfaceHopping)));
 
     if (participates && f.Severity < Severity.Critical)
-        result.Add(f with { Severity = Severity.Critical });
+    {
+        var correlationSignal = new EvidenceSignal
+        {
+            Name = "Cross-detector correlation",
+            Source = EvidenceSignal.BehaviorSource,
+            Explanation = $"Correlated {f.Category} with complementary threat pattern on same host within 24h"
+        };
+        var escalatedSignals = f.EvidenceSignals.Concat(new[] { correlationSignal }).ToList();
+        result.Add(f with
+        {
+            Severity = Severity.Critical,
+            Confidence = FindingConfidenceCalculator.Calculate(escalatedSignals),
+            EvidenceSignals = escalatedSignals
+        });
+    }
     else
+    {
         result.Add(f);
+    }
 }
 ```
 
 For each finding in the host group:
 
 - The `participates` check determines whether this finding's category is part of a correlation rule that fired. Only findings whose categories directly participate in a matched rule pair are eligible for escalation.
-- If `participates` is true **and** the finding's severity is below Critical, a new `Finding` record is created with `Severity = Critical` using the C# `with` expression. All other properties (Id, Category, SourceHost, Target, TimeRangeStart, TimeRangeEnd, ShortDescription, Details) are preserved from the original.
+- If `participates` is true **and** the finding's severity is below Critical, a new `Finding` record is created with `Severity = Critical` using the C# `with` expression. A `Cross-detector correlation` evidence signal is appended, and confidence is recalculated via `FindingConfidenceCalculator`. All other properties (Id, Category, SourceHost, Target, TimeRangeStart, TimeRangeEnd, ShortDescription, Details) are preserved from the original.
 - If the finding is already Critical, its category does not participate in any fired rule, or no rule fired, the original finding is added unchanged.
 
 Key implication: only findings whose categories participate in a matched correlation rule are promoted to Critical. A Novelty finding on a host that also has Beaconing + LateralMovement will **not** be escalated — only the Beaconing and LateralMovement findings are promoted.
 
-Source: [RiskEscalator.cs:56-67](../../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs)
+Source: [RiskEscalator.cs:56-78](../../../../../VulcansTrace.Linux.Engine/RiskEscalator.cs)
 
 ---
 

@@ -820,6 +820,8 @@ internal sealed class GuidedRemediationService
         RuleId = f.RuleId ?? $"__null-{f.Fingerprint ?? f.Id.ToString("N")}",
         Target = f.Target,
         Severity = f.Severity.ToString(),
+        Confidence = f.Confidence.ToString(),
+        EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
         Fingerprint = f.Fingerprint
@@ -830,6 +832,8 @@ internal sealed class GuidedRemediationService
         RuleId = f.RuleId,
         Target = f.Target,
         Severity = f.Severity,
+        Confidence = f.Confidence,
+        EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Fingerprint = f.Fingerprint
     };

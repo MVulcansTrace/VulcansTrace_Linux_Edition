@@ -113,4 +113,132 @@ public class FindingsViewModelTests
         Assert.Equal(201, vm.ParseErrors.Count);
         Assert.EndsWith("more parse errors not shown.", vm.ParseErrors[^1]);
     }
+
+    [Fact]
+    public void LoadResults_PopulatesConfidenceAndEvidenceSignals()
+    {
+        var vm = new FindingsViewModel();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.Beaconing,
+                    Severity = Severity.High,
+                    Confidence = DetectionConfidence.Confirmed,
+                    SourceHost = "192.168.1.10",
+                    Target = "10.0.0.5",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Beaconing detected",
+                    Details = "detail",
+                    EvidenceSignals =
+                    [
+                        new EvidenceSignal { Name = "Known malicious IP", Source = EvidenceSignal.ThreatIntelSource },
+                        new EvidenceSignal { Name = "Beaconing pattern", Source = EvidenceSignal.BehaviorSource }
+                    ]
+                }
+            ]
+        };
+
+        vm.LoadResults(result);
+
+        var item = vm.Items.Single();
+        Assert.Equal("Confirmed", item.Confidence);
+        Assert.Contains("Known malicious IP", item.EvidenceSignalsDisplay);
+        Assert.Contains("Beaconing pattern", item.EvidenceSignalsDisplay);
+    }
+
+    [Fact]
+    public void SearchText_FiltersByConfidence()
+    {
+        var vm = new FindingsViewModel();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.Medium,
+                    Confidence = DetectionConfidence.Low,
+                    SourceHost = "192.168.1.12",
+                    Target = "multi",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan detected",
+                    Details = "detail"
+                },
+                new Finding
+                {
+                    Category = FindingCategories.Beaconing,
+                    Severity = Severity.Medium,
+                    Confidence = DetectionConfidence.High,
+                    SourceHost = "192.168.1.13",
+                    Target = "10.0.0.9",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Periodic beacons",
+                    Details = "detail"
+                }
+            ]
+        };
+
+        vm.LoadResults(result);
+        vm.SearchText = "High";
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
+    }
+
+    [Fact]
+    public void SearchText_FiltersByEvidenceSignal()
+    {
+        var vm = new FindingsViewModel();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.Medium,
+                    Confidence = DetectionConfidence.Medium,
+                    SourceHost = "192.168.1.12",
+                    Target = "multi",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan detected",
+                    Details = "detail",
+                    EvidenceSignals =
+                    [
+                        new EvidenceSignal { Name = "Many distinct ports", Source = "Behavior" }
+                    ]
+                },
+                new Finding
+                {
+                    Category = FindingCategories.Beaconing,
+                    Severity = Severity.Medium,
+                    Confidence = DetectionConfidence.Medium,
+                    SourceHost = "192.168.1.13",
+                    Target = "10.0.0.9",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Periodic beacons",
+                    Details = "detail",
+                    EvidenceSignals =
+                    [
+                        new EvidenceSignal { Name = "Repeated destination", Source = "Behavior" }
+                    ]
+                }
+            ]
+        };
+
+        vm.LoadResults(result);
+        vm.SearchText = "Repeated destination";
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
+    }
 }

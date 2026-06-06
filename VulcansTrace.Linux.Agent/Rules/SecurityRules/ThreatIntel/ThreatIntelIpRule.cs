@@ -57,10 +57,10 @@ public sealed class ThreatIntelIpRule : IRule
         foreach (var match in matches.Take(10))
         {
             var ioc = ipIocs.First(i => i.Value.Equals(match.RemoteAddress, StringComparison.OrdinalIgnoreCase));
-            highestConfidence = Math.Max(highestConfidence, ioc.Confidence);
+            highestConfidence = Math.Max(highestConfidence, ioc.ThreatScore);
             variables[$"match_{index}_ip"] = match.RemoteAddress;
             variables[$"match_{index}_port"] = match.RemotePort.ToString();
-            variables[$"match_{index}_confidence"] = ioc.Confidence.ToString();
+            variables[$"match_{index}_confidence"] = ioc.ThreatScore.ToString();
             index++;
         }
 

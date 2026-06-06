@@ -125,12 +125,15 @@ Notification services are pluggable:
 
 - `UnifiedEvent`: normalized schema for firewall logs, including Linux-specific fields.
 - `AnalysisProfile`: intensity-tuned thresholds for each detector.
-- `Finding`: immutable detector output with severity, time range, and a stable fingerprint for tracking the same issue across audits.
+- `Finding`: immutable detector output with severity, detection confidence, evidence signals, time range, and a stable fingerprint for tracking the same issue across audits.
 - `AnalysisResult`: complete analysis output with entries, findings, warnings, and optional agent data-source capability context.
 - `TraceMapResult`: container for findings and their directed correlation edges (`CorrelationEdge`), produced by `TraceMapCorrelator`.
 - `CorrelationEdge`: directed edge between two findings (`FromFindingId`, `ToFindingId`, `CorrelationType`, `Narrative`, `CorrelationConfidence`).
 - `CorrelationType`: `EscalatesTo`, `SameHost`, or `TemporalSequence`.
 - `CorrelationConfidence`: `Low`, `Medium`, or `High`, derived from time gap between findings.
+- `DetectionConfidence`: five-level enum (`Unknown`, `Low`, `Medium`, `High`, `Confirmed`) indicating how strongly the available evidence supports the finding.
+- `EvidenceSignal`: immutable record (`Name`, `Source`, `Explanation`) representing a single piece of supporting evidence. Sources include `Behavior` (detector-derived) and `ThreatIntel` (IOC-matched).
+- `FindingConfidenceCalculator`: engine-side calculator that maps a finding's evidence signals to a `DetectionConfidence` level. Rules: zero signals → `Unknown`; one → `Low`; two → `Medium`; three or more → `High`; simultaneous `ThreatIntel` + `Behavior` → `Confirmed`.
 - `ComplianceScorecard`: formal CIS compliance summary with per-family scores, overall percentage, pass/warn/fail status, and trend points.
 - `RiskScorecard`: aggregate risk summary with letter grade (A–F), numeric score (0–100), summary status, and per-category risk breakdown weighted by severity and CIS control importance.
 - `LogDiffResult`: baseline-vs-incident comparison output with diff events, diff findings, narrative, and summary counts.
@@ -142,7 +145,7 @@ Notification services are pluggable:
 - `LiveAnalysisResult`: real-time analysis output containing delta findings (new since last run), window metrics, and source status.
 - `LiveWindowMetrics`: live stream statistics (event rate, window size, analysis run count).
 - `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
-- `IocEntry`: immutable IOC record (`Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`).
+- `IocEntry`: immutable IOC record (`Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`).
 - `CriticalChain`: record representing a detected critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) on a single host, with chronologically sorted `FindingIds`.
 - `CountermeasureCommand`: record representing an active defense command (`IptablesDrop` or `AuditdMonitor`) with apply command, rollback command, safety classification, and target host.
 - `CountermeasureType`: enum discriminating `IptablesDrop` and `AuditdMonitor` countermeasure kinds.
@@ -164,7 +167,7 @@ Advanced threat detectors:
 ## Threat Intel Components
 
 - `IThreatIntelStore` — abstraction for IOC storage (`InMemoryThreatIntelStore` + `JsonFileThreatIntelStore` → `~/.config/VulcansTrace/threat-intel.json`).
-- `IocEntry` — immutable IOC record with `Type`, `Value`, `Confidence`, `Source`, `ImportedAtUtc`.
+- `IocEntry` — immutable IOC record with `Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`.
 - `IocType` — `IPv4`, `IPv6`, `Domain`, `URL`, `Port`, `FileHash`.
 - `StixParser` — parses STIX 2.1 bundle JSON, extracting IOCs from `ipv4-addr`, `ipv6-addr`, `domain-name`, `url`, `file` objects, and simple or compound `indicator` equality patterns.
 - `MispParser` — parses MISP event JSON, reading `Event.Attribute` and `Event.Object.Attribute`, mapping MISP types to `IocType`.

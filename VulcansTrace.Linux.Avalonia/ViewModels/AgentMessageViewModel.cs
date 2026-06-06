@@ -23,6 +23,8 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private Severity _severity;
     private DateTime _timestamp;
     private string _category = "";
+    private string _confidence = "";
+    private string _evidenceSignalsDisplay = "";
     private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
     private RemediationSection? _remediationSection;
 
@@ -74,6 +76,38 @@ public sealed class AgentMessageViewModel : ViewModelBase
         get => _severity;
         set => SetField(ref _severity, value);
     }
+
+    /// <summary>Gets or sets the detection confidence label for a finding message.</summary>
+    public string Confidence
+    {
+        get => _confidence;
+        set
+        {
+            if (SetField(ref _confidence, value))
+            {
+                OnPropertyChanged(nameof(HasConfidence));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the evidence signal names for a finding message.</summary>
+    public string EvidenceSignalsDisplay
+    {
+        get => _evidenceSignalsDisplay;
+        set
+        {
+            if (SetField(ref _evidenceSignalsDisplay, value))
+            {
+                OnPropertyChanged(nameof(HasEvidenceSignals));
+            }
+        }
+    }
+
+    /// <summary>Gets whether this message has a confidence label to display.</summary>
+    public bool HasConfidence => !string.IsNullOrWhiteSpace(_confidence);
+
+    /// <summary>Gets whether this message has evidence signal names to display.</summary>
+    public bool HasEvidenceSignals => !string.IsNullOrWhiteSpace(_evidenceSignalsDisplay);
 
     /// <summary>Gets or sets the timestamp when this message was created.</summary>
     public DateTime Timestamp

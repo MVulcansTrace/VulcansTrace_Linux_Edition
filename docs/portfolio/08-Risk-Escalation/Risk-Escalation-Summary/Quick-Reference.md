@@ -80,7 +80,7 @@ A single-page reference for the detection pipeline, correlation rules, severity 
 | 2 | FlagAnomaly | PortScan | Critical | Evasion combined with reconnaissance |
 | 3 | MacSpoofing | InterfaceHopping | Critical | Network-control bypass |
 
-All rules are evaluated per host. If any rule fires, only findings whose categories participate in the matched rule are escalated to Critical; other findings on the same host are preserved at their original severity.
+All rules are evaluated per host. If any rule fires, only findings whose categories participate in the matched rule are escalated to Critical; other findings on the same host are preserved at their original severity. During escalation, a `Cross-detector correlation` evidence signal is appended and confidence is recalculated via `FindingConfidenceCalculator`, so escalated findings reflect the stronger combined evidence.
 
 ---
 
@@ -110,6 +110,9 @@ All rules are evaluated per host. If any rule fires, only findings whose categor
 | `AnalysisProfile` | AnalysisProfile.cs | Detector thresholds and severity filter |
 | `Finding` (record) | Finding.cs | Immutable finding with `with` support |
 | `Severity` (enum) | Severity.cs | Five-level severity scale |
+| `DetectionConfidence` (enum) | DetectionConfidence.cs | Five-level confidence scale (Unknown → Confirmed) |
+| `EvidenceSignal` (record) | EvidenceSignal.cs | Single piece of supporting evidence (Name, Source, Explanation) |
+| `FindingConfidenceCalculator` | FindingConfidenceCalculator.cs | Maps evidence signals to DetectionConfidence |
 | `IDetector` | IDetector.cs | Detector contract |
 | `AnalysisResult` | — | Final output with entries, findings, warnings |
 

@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -64,17 +65,28 @@ public sealed class FlagAnomalyDetector : IDetector
                 ? $"{evts.Count} TCP packet(s) with FIN flag but no SYN from {kvp.Key.SourceIP} to {distinctTargets.Count} target(s). This may indicate stealth port scanning (FIN scan) or network reconnaissance."
                 : $"{evts.Count} TCP packet(s) with FIN, PSH, and URG flags set from {kvp.Key.SourceIP} to {distinctTargets.Count} target(s). This indicates an XMAS scan used for port scanning and OS fingerprinting.";
 
+            var signals = new List<EvidenceSignal>
+            {
+                new EvidenceSignal
+                {
+                    Name = kvp.Key.AnomalyType == "FIN-without-SYN" ? "FIN without SYN" : "XMAS scan flags",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"{evts.Count} TCP packet(s) with {kvp.Key.AnomalyType} from {kvp.Key.SourceIP} to {distinctTargets.Count} target(s)"
+                }
+            };
             findings.Add(new Core.Finding
             {
                 Category = FindingCategories.FlagAnomaly,
                 Severity = Core.Severity.Medium,
+                Confidence = FindingConfidenceCalculator.Calculate(signals),
                 SourceHost = kvp.Key.SourceIP,
                 Target = targetList,
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = description,
                 Details = detail,
-                MitreTechniques = s_mitreTechniques
+                MitreTechniques = s_mitreTechniques,
+                EvidenceSignals = signals
             });
         }
 

@@ -64,11 +64,11 @@ public sealed class ThreatIntelHashRule : IRule
             var ioc = hashIocs.First(i =>
                 i.Value.Equals(match.Hash, StringComparison.OrdinalIgnoreCase) &&
                 (string.IsNullOrEmpty(i.Algorithm) ? "SHA-256" : i.Algorithm).Equals(match.Algorithm, StringComparison.OrdinalIgnoreCase));
-            highestConfidence = Math.Max(highestConfidence, ioc.Confidence);
+            highestConfidence = Math.Max(highestConfidence, ioc.ThreatScore);
             variables[$"match_{index}_path"] = match.Path;
             variables[$"match_{index}_hash"] = match.Hash;
             variables[$"match_{index}_algorithm"] = match.Algorithm;
-            variables[$"match_{index}_confidence"] = ioc.Confidence.ToString();
+            variables[$"match_{index}_confidence"] = ioc.ThreatScore.ToString();
             index++;
         }
 

@@ -57,6 +57,11 @@
                     <Run Text="Improved: " Foreground="#94a3b8"/><Run Text="{Binding ImprovedCount}" FontWeight="Bold" Foreground="#3b82f6"/>
                 </TextBlock>
             </Border>
+            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Confidence: " Foreground="#94a3b8"/><Run Text="{Binding ConfidenceChangedCount}" FontWeight="Bold" Foreground="#93c5fd"/>
+                </TextBlock>
+            </Border>
         </StackPanel>
 
         <!-- Diff sections -->
@@ -74,6 +79,8 @@
                                         <Run Text="+" Foreground="#22c55e" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding Confidence}" Foreground="#93c5fd"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -95,6 +102,8 @@
                                         <Run Text="✓" Foreground="#94a3b8"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding Confidence}" Foreground="#93c5fd"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -120,6 +129,8 @@
                                         <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
                                         <Run Text=" → "/>
                                         <Run Text="{Binding NewSeverity}" Foreground="#ef4444" FontWeight="Bold"/>
+                                        <Run Text=" confidence "/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -145,6 +156,33 @@
                                         <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
                                         <Run Text=" → "/>
                                         <Run Text="{Binding NewSeverity}" Foreground="#3b82f6" FontWeight="Bold"/>
+                                        <Run Text=" confidence "/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding ShortDescription}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Confidence changes -->
+                <Border Background="#0f172a" BorderBrush="#1d4ed8" BorderThickness="1" CornerRadius="6" Padding="10"
+                        IsVisible="{Binding ConfidenceChangedCount, Converter={StaticResource IntToBoolConverter}}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Changed Confidence" FontWeight="Bold" Foreground="#93c5fd" FontSize="13"/>
+                        <ItemsControl ItemsSource="{Binding ConfidenceChangedFindings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
+                                        <Run Text="~" Foreground="#93c5fd" FontWeight="Bold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding OldConfidence}" Foreground="#94a3b8"/>
+                                        <Run Text=" → "/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd" FontWeight="Bold"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>

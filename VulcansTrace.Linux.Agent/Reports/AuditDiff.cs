@@ -22,11 +22,14 @@ public sealed record AuditDiff
     /// <summary>Findings whose severity decreased.</summary>
     public IReadOnlyList<SeverityChangeFinding> ImprovedFindings { get; init; } = Array.Empty<SeverityChangeFinding>();
 
+    /// <summary>Findings whose confidence changed while severity stayed the same.</summary>
+    public IReadOnlyList<ConfidenceChangeFinding> ConfidenceChangedFindings { get; init; } = Array.Empty<ConfidenceChangeFinding>();
+
     /// <summary>Findings present in both audits with unchanged severity.</summary>
     public IReadOnlyList<DiffFinding> UnchangedFindings { get; init; } = Array.Empty<DiffFinding>();
 
     /// <summary>Human-readable summary of the diff.</summary>
-    public string Summary => $"{NewFindings.Count} new, {ResolvedFindings.Count} resolved, {WorsenedFindings.Count} worsened, {ImprovedFindings.Count} improved.";
+    public string Summary => $"{NewFindings.Count} new, {ResolvedFindings.Count} resolved, {WorsenedFindings.Count} worsened, {ImprovedFindings.Count} improved, {ConfidenceChangedFindings.Count} confidence changed.";
 
     /// <summary>Deterministic narrative summary of the diff for immediate comprehension.</summary>
     public string Narrative
@@ -82,6 +85,11 @@ public sealed record AuditDiff
             if (ImprovedFindings.Count > 0)
             {
                 parts.Add($"{ImprovedFindings.Count} finding{(ImprovedFindings.Count != 1 ? "s" : "")} improved");
+            }
+
+            if (ConfidenceChangedFindings.Count > 0)
+            {
+                parts.Add($"{ConfidenceChangedFindings.Count} finding{(ConfidenceChangedFindings.Count != 1 ? "s" : "")} changed confidence");
             }
 
             if (parts.Count == 0)
@@ -155,6 +163,11 @@ public sealed record DiffFinding
     public required string RuleId { get; init; }
     public required string Target { get; init; }
     public required string Severity { get; init; }
+    public string Confidence { get; init; } = string.Empty;
+    public IReadOnlyList<VulcansTrace.Linux.Core.EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<VulcansTrace.Linux.Core.EvidenceSignal>();
+    public string EvidenceSignalsDisplay => EvidenceSignals.Count == 0
+        ? string.Empty
+        : string.Join(", ", EvidenceSignals.Select(s => s.Name));
     public required string ShortDescription { get; init; }
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>
@@ -170,6 +183,32 @@ public sealed record SeverityChangeFinding
     public required string Target { get; init; }
     public required string OldSeverity { get; init; }
     public required string NewSeverity { get; init; }
+    public string OldConfidence { get; init; } = string.Empty;
+    public string NewConfidence { get; init; } = string.Empty;
+    public IReadOnlyList<VulcansTrace.Linux.Core.EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<VulcansTrace.Linux.Core.EvidenceSignal>();
+    public string EvidenceSignalsDisplay => EvidenceSignals.Count == 0
+        ? string.Empty
+        : string.Join(", ", EvidenceSignals.Select(s => s.Name));
+    public required string ShortDescription { get; init; }
+
+    /// <summary>Stable fingerprint for matching this finding across audits.</summary>
+    public string? Fingerprint { get; init; }
+}
+
+/// <summary>
+/// A finding whose detection confidence changed while severity stayed the same.
+/// </summary>
+public sealed record ConfidenceChangeFinding
+{
+    public required string RuleId { get; init; }
+    public required string Target { get; init; }
+    public required string Severity { get; init; }
+    public required string OldConfidence { get; init; }
+    public required string NewConfidence { get; init; }
+    public IReadOnlyList<VulcansTrace.Linux.Core.EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<VulcansTrace.Linux.Core.EvidenceSignal>();
+    public string EvidenceSignalsDisplay => EvidenceSignals.Count == 0
+        ? string.Empty
+        : string.Join(", ", EvidenceSignals.Select(s => s.Name));
     public required string ShortDescription { get; init; }
 
     /// <summary>Stable fingerprint for matching this finding across audits.</summary>

@@ -33,7 +33,7 @@ public class CsvFormatterTests
 
         var csv = formatter.ToCsv(result);
 
-        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters,MitreTechniqueIds,MitreTechniqueNames,MitreTactics", csv);
+        Assert.Contains("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters,MitreTechniqueIds,MitreTechniqueNames,MitreTactics,Confidence,EvidenceSignals", csv);
         Assert.Contains("FW-001", csv);
         Assert.Contains("\"Cat,1\"", csv);
         Assert.Contains("\"desc \"\"quoted\"\" value\"", csv);
@@ -233,5 +233,39 @@ public class CsvFormatterTests
         Assert.Contains("T1046", csv);
         Assert.Contains("Network Service Discovery", csv);
         Assert.Contains("Discovery", csv);
+    }
+
+    [Fact]
+    public void ToCsv_IncludesConfidenceAndEvidenceSignals()
+    {
+        var formatter = new CsvFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "Beaconing",
+                    Severity = Severity.Critical,
+                    Confidence = DetectionConfidence.High,
+                    SourceHost = "10.0.0.1",
+                    Target = "8.8.8.8",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Beaconing",
+                    Details = "details",
+                    EvidenceSignals =
+                    [
+                        new EvidenceSignal { Name = "Periodic outbound traffic", Source = "Behavior" }
+                    ]
+                }
+            ]
+        };
+
+        var csv = formatter.ToCsv(result);
+
+        Assert.Contains("Confidence,EvidenceSignals", csv);
+        Assert.Contains("High", csv);
+        Assert.Contains("Periodic outbound traffic", csv);
     }
 }

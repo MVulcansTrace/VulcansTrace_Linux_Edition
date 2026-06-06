@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.ThreatIntel;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -96,7 +97,7 @@ public sealed class ThreatIntelDetector : IDetector
 
     private static Finding CreateFinding(IocEntry ioc, string matchType, string observedValue, UnifiedEvent evt)
     {
-        var severity = ioc.Confidence switch
+        var severity = ioc.ThreatScore switch
         {
             >= 80 => Severity.Critical,
             >= 60 => Severity.High,
@@ -108,17 +109,29 @@ public sealed class ThreatIntelDetector : IDetector
             ? $"Imported from {ioc.Source}."
             : ioc.Description;
 
+        var signals = new List<EvidenceSignal>
+        {
+            new EvidenceSignal
+            {
+                Name = $"IOC match on {matchType}",
+                Source = EvidenceSignal.ThreatIntelSource,
+                Explanation = $"Matched {observedValue} against imported IOC from {ioc.Source} (threat score: {ioc.ThreatScore}%)"
+            }
+        };
+
         return new Finding
         {
             Category = FindingCategories.ThreatIntel,
             Severity = severity,
+            Confidence = FindingConfidenceCalculator.Calculate(signals),
             SourceHost = evt.SourceIP,
             Target = $"{evt.DestinationIP}:{evt.DestinationPort}",
             TimeRangeStart = evt.Timestamp,
             TimeRangeEnd = evt.Timestamp,
-            ShortDescription = $"Threat intel match: {matchType} {observedValue} (confidence: {ioc.Confidence}%)",
+            ShortDescription = $"Threat intel match: {matchType} {observedValue} (threat score: {ioc.ThreatScore}%)",
             Details = $"Observed in firewall log ({evt.Protocol}/{evt.Action}). Matched against imported IOC from {ioc.Source}. {description}",
-            MitreTechniques = s_mitreTechniques
+            MitreTechniques = s_mitreTechniques,
+            EvidenceSignals = signals
         };
     }
 }

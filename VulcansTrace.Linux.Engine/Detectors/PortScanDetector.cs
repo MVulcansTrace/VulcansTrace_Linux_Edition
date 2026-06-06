@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -94,17 +95,28 @@ public sealed class PortScanDetector : IDetector
                     if (!inFinding)
                     {
                         peakDistinctPorts = distinctPorts;
+                        var signals = new List<EvidenceSignal>
+                        {
+                            new EvidenceSignal
+                            {
+                                Name = "Many distinct destination ports",
+                                Source = EvidenceSignal.BehaviorSource,
+                                Explanation = $"{distinctPorts} distinct ports contacted within {windowMinutes} minutes"
+                            }
+                        };
                         findings.Add(new Core.Finding
                         {
                             Category = FindingCategories.PortScan,
                             Severity = Core.Severity.Medium,
+                            Confidence = FindingConfidenceCalculator.Calculate(signals),
                             SourceHost = srcIp,
                             Target = "multiple ports",
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Port scan detected from {srcIp}",
                             Details = $"Detected {distinctPorts} distinct destination ports within {windowMinutes} minutes.",
-                            MitreTechniques = s_mitreTechniques
+                            MitreTechniques = s_mitreTechniques,
+                            EvidenceSignals = signals
                         });
                         inFinding = true;
                     }

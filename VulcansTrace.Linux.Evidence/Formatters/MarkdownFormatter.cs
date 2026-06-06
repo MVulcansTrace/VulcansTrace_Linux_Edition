@@ -87,15 +87,16 @@ public sealed class MarkdownFormatter : IEvidenceFormatter
         sb.AppendLine();
         sb.AppendLine("## Findings");
         sb.AppendLine();
-        sb.AppendLine("| Rule ID | Category | Severity | Source | Target | Start | End | Description | CIS Control | CIS Benchmark | MITRE Technique |");
-        sb.AppendLine("|---------|----------|----------|--------|--------|-------|-----|-------------|-------------|---------------|-----------------|");
+        sb.AppendLine("| Rule ID | Category | Severity | Confidence | Evidence Signals | Source | Target | Start | End | Description | CIS Control | CIS Benchmark | MITRE Technique |");
+        sb.AppendLine("|---------|----------|----------|------------|------------------|--------|--------|-------|-----|-------------|-------------|---------------|-----------------|");
 
         foreach (var f in result.Findings)
         {
             var cisIds = string.Join("; ", f.CisMappings.Select(m => m.ControlId));
             var cisBenchmarks = string.Join("; ", f.CisMappings.Select(m => m.BenchmarkReference).Where(r => !string.IsNullOrWhiteSpace(r)));
             var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName})"));
-            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} | {Escape(mitreIds)} |");
+            var signals = string.Join("; ", f.EvidenceSignals.Select(s => s.Name));
+            sb.AppendLine($"| {Escape(f.RuleId ?? string.Empty)} | {Escape(f.Category)} | {Escape(f.Severity.ToString())} | {Escape(f.Confidence.ToString())} | {Escape(signals)} | {Escape(f.SourceHost)} | {Escape(f.Target)} | {Escape(f.TimeRangeStart.ToString("O"))} | {Escape(f.TimeRangeEnd.ToString("O"))} | {Escape(f.ShortDescription)} | {Escape(cisIds)} | {Escape(cisBenchmarks)} | {Escape(mitreIds)} |");
         }
 
         var distinctCis = result.Findings

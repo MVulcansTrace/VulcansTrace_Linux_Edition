@@ -259,6 +259,8 @@ public sealed class FindingsViewModel : ViewModelBase
         return item.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.SourceHost.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.Target.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-               item.ShortDescription.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+               item.ShortDescription.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               item.Confidence.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               item.EvidenceSignalsDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
     }
 }

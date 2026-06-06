@@ -139,7 +139,7 @@ public static class StixParser
         {
             Type = type,
             Value = value,
-            Confidence = confidence,
+            ThreatScore = confidence,
             Source = "STIX",
             Description = description,
             ImportedAt = DateTime.UtcNow

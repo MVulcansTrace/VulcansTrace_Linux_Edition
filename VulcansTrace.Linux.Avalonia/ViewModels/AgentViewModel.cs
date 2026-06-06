@@ -177,6 +177,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 ContainerCommand.RaiseCanExecuteChanged();
                 KubernetesCommand.RaiseCanExecuteChanged();
                 YaraCommand.RaiseCanExecuteChanged();
+                ProcessRuntimeCommand.RaiseCanExecuteChanged();
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
                 ExportAuditCommand.RaiseCanExecuteChanged();
                 ExportRemediationCommand.RaiseCanExecuteChanged();
@@ -258,6 +259,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to run a YARA malware signature scan.</summary>
     public AsyncRelayCommand YaraCommand { get; }
+
+    /// <summary>Gets the command to run a process runtime check.</summary>
+    public AsyncRelayCommand ProcessRuntimeCommand { get; }
 
     /// <summary>Gets the command to explain the selected finding.</summary>
     public AsyncRelayCommand ExplainSelectedCommand { get; }
@@ -447,6 +451,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         YaraCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.YaraCheck, "Run a YARA scan"),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
+        ProcessRuntimeCommand = new AsyncRelayCommand(
+            async _ => await RunQuickAuditAsync(AgentIntent.ProcessRuntimeCheck, "Check running processes"),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true));
 

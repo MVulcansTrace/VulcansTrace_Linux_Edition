@@ -987,4 +987,18 @@ Another invalid line";
         Assert.Single(result.Entries);
         Assert.Equal(2025, result.Entries[0].Timestamp.Year);
     }
+
+    [Fact]
+    public void Analyze_RealLog_ProducesFindingsWithConfidenceAndEvidenceSignals()
+    {
+        // Log with many distinct destination ports from same source → triggers PortScanDetector
+        var log = string.Join("\n", Enumerable.Range(1, 30).Select(i =>
+            $"kernel: Jan 19 10:15:{i:D2} server IN=eth0 SRC=192.168.1.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT={i + 1000}"));
+
+        var result = _analyzer.Analyze(log, IntensityLevel.Medium, CancellationToken.None);
+
+        Assert.NotEmpty(result.Findings);
+        Assert.Contains(result.Findings, f => f.Confidence != DetectionConfidence.Unknown);
+        Assert.Contains(result.Findings, f => f.EvidenceSignals.Count > 0);
+    }
 }

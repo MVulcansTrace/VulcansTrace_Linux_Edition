@@ -226,4 +226,32 @@ public class MarkdownFormatterTests
         Assert.Contains("T1071.001", md);
         Assert.Contains("## MITRE ATT&CK Context", md);
     }
+
+    [Fact]
+    public void ToMarkdown_IncludesConfidenceAndEvidenceSignals()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Beaconing",
+            Severity = Severity.Critical,
+            Confidence = DetectionConfidence.High,
+            SourceHost = "10.0.0.1",
+            Target = "8.8.8.8",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "Beaconing",
+            Details = "details",
+            EvidenceSignals =
+            [
+                new EvidenceSignal { Name = "Periodic outbound traffic", Source = "Behavior", Explanation = "Repeating intervals" }
+            ]
+        });
+
+        var md = _formatter.ToMarkdown(result);
+
+        Assert.Contains("Confidence", md);
+        Assert.Contains("Evidence Signals", md);
+        Assert.Contains("High", md);
+        Assert.Contains("Periodic outbound traffic", md);
+    }
 }

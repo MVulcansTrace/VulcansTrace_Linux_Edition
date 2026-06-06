@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine;
 
@@ -61,7 +62,21 @@ public sealed class RiskEscalator
                     || (shouldEscalateMacInterface && (IsCategory(f, FindingCategories.MacSpoofing) || IsCategory(f, FindingCategories.InterfaceHopping)));
 
                 if (participates && f.Severity < Core.Severity.Critical)
-                    result.Add(f with { Severity = Core.Severity.Critical });
+                {
+                    var correlationSignal = new EvidenceSignal
+                    {
+                        Name = "Cross-detector correlation",
+                        Source = EvidenceSignal.BehaviorSource,
+                        Explanation = $"Correlated {f.Category} with complementary threat pattern on same host within 24h"
+                    };
+                    var escalatedSignals = f.EvidenceSignals.Concat(new[] { correlationSignal }).ToList();
+                    result.Add(f with
+                    {
+                        Severity = Core.Severity.Critical,
+                        Confidence = FindingConfidenceCalculator.Calculate(escalatedSignals),
+                        EvidenceSignals = escalatedSignals
+                    });
+                }
                 else
                     result.Add(f);
             }

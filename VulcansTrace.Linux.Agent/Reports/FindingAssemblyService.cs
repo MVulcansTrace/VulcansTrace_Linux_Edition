@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -73,10 +74,21 @@ internal sealed class FindingAssemblyService
         var explanation = _explanationProvider.GetExplanation(result.ExplanationKey, result.Variables);
         var now = DateTime.UtcNow;
 
+        var signals = new List<EvidenceSignal>
+        {
+            new EvidenceSignal
+            {
+                Name = $"Rule {result.RuleId} triggered",
+                Source = "SecurityRule",
+                Explanation = result.Description
+            }
+        };
+
         return new Finding
         {
             Category = result.Category,
             Severity = result.Severity,
+            Confidence = FindingConfidenceCalculator.Calculate(signals),
             SourceHost = "localhost",
             Target = result.Target,
             ShortDescription = result.Description,
@@ -85,7 +97,8 @@ internal sealed class FindingAssemblyService
             TimeRangeEnd = now,
             RuleId = result.RuleId,
             CisMappings = result.CisMappings,
-            MitreTechniques = result.MitreTechniques
+            MitreTechniques = result.MitreTechniques,
+            EvidenceSignals = signals
         };
     }
 }

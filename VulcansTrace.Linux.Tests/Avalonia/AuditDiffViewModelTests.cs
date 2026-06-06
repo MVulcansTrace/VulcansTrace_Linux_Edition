@@ -27,7 +27,8 @@ public class AuditDiffViewModelTests
         vm.LoadDiff(diff);
 
         Assert.Equal("1 new Critical finding.", vm.Narrative);
-        Assert.Equal("1 new, 0 resolved, 0 worsened, 0 improved.", vm.Summary);
+        Assert.Equal("1 new, 0 resolved, 0 worsened, 0 improved, 0 confidence changed.", vm.Summary);
         Assert.Equal(1, vm.NewCount);
+        Assert.Equal(0, vm.ConfidenceChangedCount);
     }
 }

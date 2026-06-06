@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -57,17 +58,28 @@ public sealed class FloodDetector : IDetector
                     if (!inFinding)
                     {
                         peakCount = windowCount;
+                        var signals = new List<EvidenceSignal>
+                        {
+                            new EvidenceSignal
+                            {
+                                Name = "High event volume spike",
+                                Source = EvidenceSignal.BehaviorSource,
+                                Explanation = $"{windowCount} events within {windowSeconds} seconds"
+                            }
+                        };
                         findings.Add(new Core.Finding
                         {
                             Category = FindingCategories.Flood,
                             Severity = Core.Severity.High,
+                            Confidence = FindingConfidenceCalculator.Calculate(signals),
                             SourceHost = srcIp,
                             Target = "multiple hosts/ports",
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Flood detected from {srcIp}",
                             Details = $"Detected {windowCount} events within {windowSeconds} seconds.",
-                            MitreTechniques = s_mitreTechniques
+                            MitreTechniques = s_mitreTechniques,
+                            EvidenceSignals = signals
                         });
                         inFinding = true;
                     }

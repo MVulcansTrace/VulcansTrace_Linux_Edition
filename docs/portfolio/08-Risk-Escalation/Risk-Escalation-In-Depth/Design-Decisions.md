@@ -41,12 +41,13 @@ Rationale for the key architectural choices in the risk escalation subsystem.
 
 ## Decision 4: Immutable Record Copies via `with` Expression
 
-**Choice**: Escalation uses `f with { Severity = Severity.Critical }` on the `Finding` record rather than mutating the `Severity` property.
+**Choice**: Escalation uses `f with { Severity = Severity.Critical, Confidence = ..., EvidenceSignals = ... }` on the `Finding` record rather than mutating the `Severity` property.
 
 **Rationale**:
 - `Finding` is a `sealed record` with init-only setters — mutation is not possible by design
 - Immutable escalation preserves the original finding state for forensic review
-- The `with` expression creates a shallow copy with a single property override, which is allocation-efficient for records
+- The `with` expression creates a shallow copy with property overrides, which is allocation-efficient for records
+- During escalation, a `Cross-detector correlation` evidence signal is appended and confidence is recalculated via `FindingConfidenceCalculator`, so the escalated finding reflects the stronger combined evidence
 - This pattern is idiomatic C# for functional-style data transformations
 
 **Trade-off**: Each escalated finding is a new object allocation. For typical workloads (dozens to hundreds of findings) this is negligible.

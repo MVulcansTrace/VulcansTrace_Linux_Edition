@@ -248,9 +248,17 @@ public sealed class StixFormatter : IEvidenceFormatter
             ? "MITRE ATT&CK: " + string.Join("; ", finding.MitreTechniques.Select(m => $"{m.TechniqueId} ({m.TechniqueName} — {m.Tactic})")) + "\n"
             : string.Empty;
 
+        var confidence = $"Confidence: {finding.Confidence}\n";
+
+        var evidenceSignals = finding.EvidenceSignals.Count > 0
+            ? "Evidence Signals: " + string.Join("; ", finding.EvidenceSignals.Select(s => s.Name)) + "\n"
+            : string.Empty;
+
         return ruleId +
                cis +
                mitre +
+               confidence +
+               evidenceSignals +
                $"Category: {finding.Category}\n" +
                $"Severity: {finding.Severity}\n" +
                $"Source: {finding.SourceHost}\n" +

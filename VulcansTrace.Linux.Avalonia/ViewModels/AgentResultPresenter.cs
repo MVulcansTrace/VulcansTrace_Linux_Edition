@@ -146,6 +146,8 @@ internal sealed class AgentResultPresenter
             IsUser = false,
             IsInfo = false,
             Severity = finding.Severity,
+            Confidence = finding.Confidence.ToString(),
+            EvidenceSignalsDisplay = FormatEvidenceSignals(finding.EvidenceSignals),
             Timestamp = DateTime.Now,
             VerificationCommands = verificationCommands
         });
@@ -187,7 +189,12 @@ internal sealed class AgentResultPresenter
         foreach (var finding in findings)
         {
             var ruleIdPrefix = string.IsNullOrEmpty(finding.RuleId) ? "" : $"[{finding.RuleId}] ";
-            details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}");
+            var confidence = finding.Confidence == DetectionConfidence.Unknown
+                ? string.Empty
+                : $" confidence {finding.Confidence}";
+            var signals = FormatEvidenceSignals(finding.EvidenceSignals);
+            var signalText = string.IsNullOrEmpty(signals) ? string.Empty : $" ({signals})";
+            details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}{confidence}] {finding.ShortDescription}{signalText}");
         }
 
         _messages.Add(new AgentMessageViewModel
@@ -197,6 +204,8 @@ internal sealed class AgentResultPresenter
             IsUser = false,
             IsInfo = false,
             Severity = findings.Max(f => f.Severity),
+            Confidence = findings.Select(f => f.Confidence).OrderByDescending(c => c).FirstOrDefault().ToString(),
+            EvidenceSignalsDisplay = FormatEvidenceSignals(findings.SelectMany(f => f.EvidenceSignals).DistinctBy(s => s.Name).ToList()),
             Timestamp = DateTime.Now,
             Category = category
         });
@@ -343,6 +352,14 @@ internal sealed class AgentResultPresenter
         if (summary.Contains("Medium", StringComparison.OrdinalIgnoreCase)) return Severity.Medium;
         if (summary.Contains("Low", StringComparison.OrdinalIgnoreCase)) return Severity.Low;
         return Severity.Info;
+    }
+
+    private static string FormatEvidenceSignals(IReadOnlyList<EvidenceSignal> signals)
+    {
+        if (signals.Count == 0)
+            return string.Empty;
+
+        return string.Join(", ", signals.Select(s => s.Name));
     }
 
     private static bool IsAllCategoryFilter(string? categoryFilter) =>

@@ -88,6 +88,10 @@ Agent audit findings include CIS Benchmark mappings in all export formats:
       "id": "guid",
       "category": "PortScan",
       "severity": "High",
+      "confidence": "High",
+      "evidenceSignals": [
+        { "name": "Distinct destination ports", "source": "Behavior", "explanation": "20 distinct ports contacted in 5-minute window" }
+      ],
       "sourceHost": "192.168.1.100",
       "target": "10.0.0.1",
       "timeRangeStart": "...",
@@ -109,7 +113,7 @@ Agent audit findings include CIS Benchmark mappings in all export formats:
 |---|---|---|
 | `identity` | Always | Identifies VulcansTrace as the producing tool |
 | `observed-data` | Per finding with valid IPs | Captures source/target IPs with time range |
-| `note` | Per `observed-data` | Attaches category, severity, description, and details |
+| `note` | Per `observed-data` | Attaches category, severity, confidence, evidence signals, description, and details |
 | `ipv4-addr` | Per unique IPv4 address | Reusable IPv4 observable objects, deduplicated |
 | `ipv6-addr` | Per unique IPv6 address | Reusable IPv6 observable objects, deduplicated |
 | `malware` | When any finding has category `C2Channel` | Flags potential malware C2 activity |

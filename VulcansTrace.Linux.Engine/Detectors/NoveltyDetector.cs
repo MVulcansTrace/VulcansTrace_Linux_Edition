@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine.Net;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -73,17 +74,28 @@ public sealed class NoveltyDetector : IDetector
 
             var occurrenceWord = maxOccurrences == 1 ? "exactly once" : $"at most {maxOccurrences} time(s)";
 
+            var signals = new List<EvidenceSignal>
+            {
+                new EvidenceSignal
+                {
+                    Name = "Novel external destinations",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"Source {source} contacted {uniqueDests.Count} external destination(s) {occurrenceWord}"
+                }
+            };
             findings.Add(new Core.Finding
             {
                 Category = FindingCategories.Novelty,
                 Severity = Core.Severity.Low,
+                Confidence = FindingConfidenceCalculator.Calculate(signals),
                 SourceHost = source,
                 Target = targetList,
                 TimeRangeStart = minTime,
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"{uniqueDests.Count} novel destination(s) from {source}",
                 Details = $"Source {source} contacted {uniqueDests.Count} external destination(s) {occurrenceWord}. This may indicate reconnaissance or testing of exfiltration channels.",
-                MitreTechniques = s_mitreTechniques
+                MitreTechniques = s_mitreTechniques,
+                EvidenceSignals = signals
             });
         }
 

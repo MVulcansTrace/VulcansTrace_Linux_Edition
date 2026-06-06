@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -106,17 +107,28 @@ public sealed class InterfaceHoppingDetector : IDetector
                 var minTime = ordered[bestStart].Timestamp;
                 var maxTime = ordered[bestEnd].Timestamp;
 
+                var signals = new List<EvidenceSignal>
+                {
+                    new EvidenceSignal
+                    {
+                        Name = "Rapid interface switching",
+                        Source = EvidenceSignal.BehaviorSource,
+                        Explanation = $"Source IP {ip} sent traffic through {bestInterfaces.Count} different network interfaces within {windowMinutes} minutes"
+                    }
+                };
                 findings.Add(new Core.Finding
                 {
                     Category = FindingCategories.InterfaceHopping,
                     Severity = Core.Severity.Medium,
+                    Confidence = FindingConfidenceCalculator.Calculate(signals),
                     SourceHost = ip,
                     Target = $"{bestInterfaces.Count} network interfaces",
                     TimeRangeStart = minTime,
                     TimeRangeEnd = maxTime,
                     ShortDescription = $"Interface hopping detected from {ip}",
                     Details = $"Source IP {ip} sent traffic through {bestInterfaces.Count} different network interfaces ({string.Join(", ", bestInterfaces)}) within {windowMinutes} minutes. This may indicate network enumeration, bypassing segmentation, or multi-homed attack scenarios.",
-                    MitreTechniques = s_mitreTechniques
+                    MitreTechniques = s_mitreTechniques,
+                    EvidenceSignals = signals
                 });
             }
         }

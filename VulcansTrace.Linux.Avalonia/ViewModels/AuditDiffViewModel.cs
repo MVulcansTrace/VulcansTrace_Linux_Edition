@@ -14,6 +14,7 @@ public sealed class AuditDiffViewModel : ViewModelBase
     private int _resolvedCount;
     private int _worsenedCount;
     private int _improvedCount;
+    private int _confidenceChangedCount;
 
     /// <summary>Gets the collection of new findings.</summary>
     public ObservableCollection<DiffFinding> NewFindings { get; } = new();
@@ -26,6 +27,9 @@ public sealed class AuditDiffViewModel : ViewModelBase
 
     /// <summary>Gets the collection of improved findings.</summary>
     public ObservableCollection<SeverityChangeFinding> ImprovedFindings { get; } = new();
+
+    /// <summary>Gets the collection of findings with changed confidence.</summary>
+    public ObservableCollection<ConfidenceChangeFinding> ConfidenceChangedFindings { get; } = new();
 
     /// <summary>Gets the diff summary text.</summary>
     public string Summary
@@ -69,6 +73,13 @@ public sealed class AuditDiffViewModel : ViewModelBase
         private set => SetField(ref _improvedCount, value);
     }
 
+    /// <summary>Gets the count of findings whose confidence changed.</summary>
+    public int ConfidenceChangedCount
+    {
+        get => _confidenceChangedCount;
+        private set => SetField(ref _confidenceChangedCount, value);
+    }
+
     /// <summary>
     /// Loads an <see cref="AuditDiff"/> into the view model.
     /// </summary>
@@ -79,11 +90,13 @@ public sealed class AuditDiffViewModel : ViewModelBase
         ResolvedFindings.Clear();
         WorsenedFindings.Clear();
         ImprovedFindings.Clear();
+        ConfidenceChangedFindings.Clear();
 
         foreach (var f in diff.NewFindings) NewFindings.Add(f);
         foreach (var f in diff.ResolvedFindings) ResolvedFindings.Add(f);
         foreach (var f in diff.WorsenedFindings) WorsenedFindings.Add(f);
         foreach (var f in diff.ImprovedFindings) ImprovedFindings.Add(f);
+        foreach (var f in diff.ConfidenceChangedFindings) ConfidenceChangedFindings.Add(f);
 
         Summary = diff.Summary;
         Narrative = diff.Narrative;
@@ -91,5 +104,6 @@ public sealed class AuditDiffViewModel : ViewModelBase
         ResolvedCount = diff.ResolvedFindings.Count;
         WorsenedCount = diff.WorsenedFindings.Count;
         ImprovedCount = diff.ImprovedFindings.Count;
+        ConfidenceChangedCount = diff.ConfidenceChangedFindings.Count;
     }
 }

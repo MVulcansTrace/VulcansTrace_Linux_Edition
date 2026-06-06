@@ -197,4 +197,39 @@ public class HtmlFormatterTests
         Assert.Contains("Network Service Discovery", html);
         Assert.Contains("<h2>MITRE ATT&CK Context</h2>", html);
     }
+
+    [Fact]
+    public void ToHtml_IncludesConfidenceAndEvidenceSignals()
+    {
+        var formatter = new HtmlFormatter();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = "Beaconing",
+                    Severity = Severity.Critical,
+                    Confidence = DetectionConfidence.High,
+                    SourceHost = "10.0.0.1",
+                    Target = "8.8.8.8",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch,
+                    ShortDescription = "Beaconing",
+                    Details = "details",
+                    EvidenceSignals =
+                    [
+                        new EvidenceSignal { Name = "Periodic outbound traffic", Source = "Behavior" }
+                    ]
+                }
+            ]
+        };
+
+        var html = formatter.ToHtml(result);
+
+        Assert.Contains("<th>Confidence</th>", html);
+        Assert.Contains("<th>Evidence Signals</th>", html);
+        Assert.Contains("High", html);
+        Assert.Contains("Periodic outbound traffic", html);
+    }
 }

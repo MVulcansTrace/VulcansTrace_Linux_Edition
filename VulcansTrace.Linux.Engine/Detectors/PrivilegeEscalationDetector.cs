@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -95,17 +96,28 @@ public sealed class PrivilegeEscalationDetector : IDetector
                 {
                     peakCount = windowCount;
                     var sourceIp = events[start].SourceIP;
+                    var signals = new List<EvidenceSignal>
+                    {
+                        new EvidenceSignal
+                        {
+                            Name = "Admin port access spike",
+                            Source = EvidenceSignal.BehaviorSource,
+                            Explanation = $"{windowCount} admin port access attempts from {sourceIp} within {windowMinutes} minutes"
+                        }
+                    };
                     findings.Add(new Core.Finding
                     {
                         Category = FindingCategories.PrivilegeEscalation,
                         Severity = Core.Severity.High,
+                        Confidence = FindingConfidenceCalculator.Calculate(signals),
                         SourceHost = sourceIp,
                         Target = $"admin ports in {windowMinutes}min window",
                         TimeRangeStart = events[start].Timestamp,
                         TimeRangeEnd = events[end].Timestamp,
                         ShortDescription = $"Potential privilege escalation indicator: {windowCount} admin access attempts from {sourceIp}",
                         Details = $"Detected {windowCount} admin port access attempts within {windowMinutes} minutes, suggesting possible brute force or escalation activity.",
-                        MitreTechniques = s_mitreTechniques
+                        MitreTechniques = s_mitreTechniques,
+                        EvidenceSignals = signals
                     });
                     inFinding = true;
                 }
@@ -191,18 +203,29 @@ public sealed class PrivilegeEscalationDetector : IDetector
                     peakPortList = portCounts.Keys.ToList();
                     var sourceIp = events[start].SourceIP;
                     var portList = peakPortList;
+                    var signals = new List<EvidenceSignal>
+                    {
+                        new EvidenceSignal
+                        {
+                            Name = "Admin port sweep",
+                            Source = EvidenceSignal.BehaviorSource,
+                            Explanation = $"{distinctPorts} admin ports accessed from {sourceIp} within {windowMinutes} minutes"
+                        }
+                    };
 
                     findings.Add(new Core.Finding
                     {
                         Category = FindingCategories.PrivilegeEscalation,
                         Severity = Core.Severity.Medium,
+                        Confidence = FindingConfidenceCalculator.Calculate(signals),
                         SourceHost = sourceIp,
                         Target = $"ports {string.Join(", ", portList.Take(5))}{(portList.Count > 5 ? "..." : "")}",
                         TimeRangeStart = events[start].Timestamp,
                         TimeRangeEnd = events[end].Timestamp,
                         ShortDescription = $"Admin port sweep from {sourceIp}",
                         Details = $"Detected access attempts across {distinctPorts} admin ports within {windowMinutes} minutes.",
-                        MitreTechniques = s_mitreTechniques
+                        MitreTechniques = s_mitreTechniques,
+                        EvidenceSignals = signals
                     });
                     inFinding = true;
                 }

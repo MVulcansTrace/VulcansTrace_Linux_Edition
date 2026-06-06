@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine.Net;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -59,10 +60,20 @@ public sealed class PolicyViolationDetector : IDetector
             var maxTime = evts.Max(e => e.Timestamp);
             var distinctTargetIps = evts.Select(e => e.DestinationIP).Distinct().ToList();
 
+            var signals = new List<EvidenceSignal>
+            {
+                new EvidenceSignal
+                {
+                    Name = "Disallowed outbound port traffic",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"{evts.Count} outbound connection(s) to {distinctTargetIps.Count} destination(s) on disallowed port {kvp.Key.DstPort} from {kvp.Key.SourceIP}"
+                }
+            };
             findings.Add(new Core.Finding
             {
                 Category = FindingCategories.PolicyViolation,
                 Severity = Core.Severity.High,
+                Confidence = FindingConfidenceCalculator.Calculate(signals),
                 SourceHost = kvp.Key.SourceIP,
                 Target = distinctTargetIps.Count == 1
                     ? $"{distinctTargetIps[0]}:{kvp.Key.DstPort}"
@@ -71,7 +82,8 @@ public sealed class PolicyViolationDetector : IDetector
                 TimeRangeEnd = maxTime,
                 ShortDescription = $"Disallowed outbound port {kvp.Key.DstPort} from {kvp.Key.SourceIP}",
                 Details = $"{evts.Count} outbound connection(s) to {distinctTargetIps.Count} destination(s) on disallowed port {kvp.Key.DstPort} from {kvp.Key.SourceIP}.",
-                MitreTechniques = s_mitreTechniques
+                MitreTechniques = s_mitreTechniques,
+                EvidenceSignals = signals
             });
         }
 

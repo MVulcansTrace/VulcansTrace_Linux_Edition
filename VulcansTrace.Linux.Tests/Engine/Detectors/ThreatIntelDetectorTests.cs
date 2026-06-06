@@ -27,7 +27,7 @@ public class ThreatIntelDetectorTests
     public void Detect_MatchingSourceIp_CreatesFinding()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", Confidence = 85, Source = "STIX" } });
+        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", ThreatScore = 85, Source = "STIX" } });
 
         var detector = new ThreatIntelDetector(store);
         var events = new[] { CreateEvent("192.168.1.1", "10.0.0.1", 80) };
@@ -43,7 +43,7 @@ public class ThreatIntelDetectorTests
     public void Detect_MatchingDestinationIp_CreatesFinding()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "10.0.0.1", Confidence = 65, Source = "MISP" } });
+        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "10.0.0.1", ThreatScore = 65, Source = "MISP" } });
 
         var detector = new ThreatIntelDetector(store);
         var events = new[] { CreateEvent("192.168.1.1", "10.0.0.1", 80) };
@@ -58,7 +58,7 @@ public class ThreatIntelDetectorTests
     public void Detect_MatchingPort_CreatesFinding()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.Port, Value = "4444", Confidence = 45, Source = "STIX" } });
+        store.Import(new[] { new IocEntry { Type = IocType.Port, Value = "4444", ThreatScore = 45, Source = "STIX" } });
 
         var detector = new ThreatIntelDetector(store);
         var events = new[] { CreateEvent("192.168.1.1", "10.0.0.1", 4444) };
@@ -73,7 +73,7 @@ public class ThreatIntelDetectorTests
     public void Detect_LowConfidence_CreatesLowSeverityFinding()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", Confidence = 30, Source = "STIX" } });
+        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", ThreatScore = 30, Source = "STIX" } });
 
         var detector = new ThreatIntelDetector(store);
         var events = new[] { CreateEvent("192.168.1.1", "10.0.0.1", 80) };
@@ -88,7 +88,7 @@ public class ThreatIntelDetectorTests
     public void Detect_NoMatch_ReturnsEmpty()
     {
         var store = new InMemoryThreatIntelStore();
-        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", Confidence = 90, Source = "STIX" } });
+        store.Import(new[] { new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", ThreatScore = 90, Source = "STIX" } });
 
         var detector = new ThreatIntelDetector(store);
         var events = new[] { CreateEvent("192.168.1.1", "10.0.0.1", 80) };

@@ -54,7 +54,7 @@
 
 ## Decision 5 — Fixed Medium Severity with Downstream Escalation
 
-**Decision:** Port scan findings always start at Medium severity. Escalation to Critical happens downstream in the `RiskEscalator` when a source host produces time-correlated port scan and flag anomaly findings. When this correlation is detected, only the participating PortScan and FlagAnomaly findings are escalated to Critical.
+**Decision:** Port scan findings always start at Medium severity. Escalation to Critical happens downstream in the `RiskEscalator` when a source host produces time-correlated port scan and flag anomaly findings. When this correlation is detected, only the participating PortScan and FlagAnomaly findings are escalated to Critical, and detection confidence is recalculated via `FindingConfidenceCalculator`.
 
 **Rationale:** A port scan in isolation is reconnaissance, not exploitation. Medium severity reflects the actual threat level. However, port scanning combined with TCP flag manipulation (SYN/FIN, XMAS scans) indicates advanced evasion techniques, warranting Critical severity.
 

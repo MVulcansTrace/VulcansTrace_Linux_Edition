@@ -46,6 +46,13 @@ public class JsonFormatter : IEvidenceFormatter
                 RuleId = f.RuleId,
                 Category = f.Category,
                 Severity = f.Severity.ToString(),
+                Confidence = f.Confidence.ToString(),
+                EvidenceSignals = f.EvidenceSignals.Select(s => new EvidenceSignalExportModel
+                {
+                    Name = s.Name,
+                    Source = s.Source,
+                    Explanation = s.Explanation
+                }).ToArray(),
                 SourceHost = f.SourceHost,
                 Target = f.Target,
                 TimeRangeStart = f.TimeRangeStart,
@@ -148,6 +155,8 @@ public class FindingExportModel
     public string? RuleId { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Severity { get; set; } = string.Empty;
+    public string Confidence { get; set; } = string.Empty;
+    public EvidenceSignalExportModel[] EvidenceSignals { get; set; } = Array.Empty<EvidenceSignalExportModel>();
     public string SourceHost { get; set; } = string.Empty;
     public string Target { get; set; } = string.Empty;
     public DateTime TimeRangeStart { get; set; }
@@ -172,4 +181,11 @@ public class CisMappingExportModel
     public string ControlName { get; set; } = string.Empty;
     public string WhyItMatters { get; set; } = string.Empty;
     public string? BenchmarkReference { get; set; }
+}
+
+public class EvidenceSignalExportModel
+{
+    public string Name { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+    public string Explanation { get; set; } = string.Empty;
 }

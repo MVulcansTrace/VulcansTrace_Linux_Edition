@@ -16,6 +16,12 @@ public sealed class FindingItemViewModel
     /// <summary>Gets the severity label.</summary>
     public string Severity { get; }
 
+    /// <summary>Gets the confidence label.</summary>
+    public string Confidence { get; }
+
+    /// <summary>Gets the formatted evidence signals for display.</summary>
+    public string EvidenceSignalsDisplay { get; }
+
     /// <summary>Gets the source host.</summary>
     public string SourceHost { get; }
 
@@ -46,6 +52,8 @@ public sealed class FindingItemViewModel
         Finding = finding;
         Category = finding.Category;
         Severity = finding.Severity.ToString();
+        Confidence = finding.Confidence.ToString();
+        EvidenceSignalsDisplay = FormatEvidenceSignals(finding.EvidenceSignals);
         SourceHost = finding.SourceHost;
         Target = finding.Target;
         TimeStart = finding.TimeRangeStart;
@@ -59,5 +67,12 @@ public sealed class FindingItemViewModel
         if (techniques.Count == 0)
             return string.Empty;
         return string.Join(", ", techniques.Select(t => $"{t.TechniqueId}"));
+    }
+
+    private static string FormatEvidenceSignals(IReadOnlyList<EvidenceSignal> signals)
+    {
+        if (signals.Count == 0)
+            return string.Empty;
+        return string.Join(", ", signals.Select(s => s.Name));
     }
 }

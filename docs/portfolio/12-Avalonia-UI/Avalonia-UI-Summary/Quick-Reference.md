@@ -11,7 +11,7 @@
 | `EvidenceViewModel` | Export evidence flow, 32-byte signing key generation, save file dialog, clipboard copy. StatusChanged event |
 | `TimelineViewModel` | Groups findings by category, normalizes to 0–1 range, assigns row positions, computes canvas height |
 | `ComplianceScorecardViewModel` | Binds `ComplianceScorecard` to the Compliance tab: overall score, family DataGrid, trend points, and direction text |
-| `FindingItemViewModel` | Adapts a `Finding` for UI display (Category, Severity, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
+| `FindingItemViewModel` | Adapts a `Finding` for UI display (Category, Severity, Confidence, EvidenceSignals, SourceHost, Target, TimeStart, TimeEnd, ShortDescription) |
 | `IntensityOption` | DTO binding intensity levels to UI dropdown (Low/Medium/High) |
 | `SeverityFilterOption` | DTO binding severity thresholds to filter dropdown (All / High+Critical / Critical only) |
 | `LogDiffViewModel` | Binds a completed `LogDiffResult` into Events/Findings collections, narrative text, and state counts for `LogDiffWindow` |

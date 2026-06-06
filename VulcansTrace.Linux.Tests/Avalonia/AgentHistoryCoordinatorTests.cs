@@ -93,6 +93,9 @@ public class AgentHistoryCoordinatorTests
         var snapshot = Assert.Single(entry.SnapshotFindings, f => f.RuleId == "FW-001");
         Assert.Equal("Firewall-target", snapshot.Target);
         Assert.Equal("Critical", snapshot.Severity);
+        Assert.Equal("Confirmed", snapshot.Confidence);
+        Assert.Equal("Firewall", snapshot.Category);
+        Assert.Equal("Correlated behavior", Assert.Single(snapshot.EvidenceSignals).Name);
         Assert.Equal("Firewall disabled", snapshot.ShortDescription);
         Assert.Equal("fp-fw", snapshot.Fingerprint);
         Assert.Single(store.GetAll());
@@ -225,6 +228,11 @@ public class AgentHistoryCoordinatorTests
             RuleId = ruleId,
             Category = category,
             Severity = severity,
+            Confidence = ruleId == "FW-001" ? DetectionConfidence.Confirmed : DetectionConfidence.Low,
+            EvidenceSignals =
+            [
+                new EvidenceSignal { Name = ruleId == "FW-001" ? "Correlated behavior" : "Rule triggered", Source = "Behavior" }
+            ],
             SourceHost = "localhost",
             Target = $"{category}-target",
             ShortDescription = shortDescription,

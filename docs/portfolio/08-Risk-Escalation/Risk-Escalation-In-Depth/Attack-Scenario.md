@@ -101,17 +101,29 @@ Both findings share `SourceHost = "10.0.0.5"`.
 5. **Escalate the participating findings**:
 
 ```csharp
-f with { Severity = Severity.Critical }
+var correlationSignal = new EvidenceSignal
+{
+    Name = "Cross-detector correlation",
+    Source = EvidenceSignal.BehaviorSource,
+    Explanation = $"Correlated {f.Category} with complementary threat pattern on same host within 24h"
+};
+var escalatedSignals = f.EvidenceSignals.Concat(new[] { correlationSignal }).ToList();
+result.Add(f with
+{
+    Severity = Severity.Critical,
+    Confidence = FindingConfidenceCalculator.Calculate(escalatedSignals),
+    EvidenceSignals = escalatedSignals
+});
 ```
 
 ---
 
 ## Stage 6: Post-Escalation Finding Summary
 
-| # | Category | Severity | SourceHost | Escalated |
-|---|----------|----------|------------|-----------|
-| 1 | Beaconing | Critical | 10.0.0.5 | Yes (was Medium) |
-| 2 | LateralMovement | Critical | 10.0.0.5 | Yes (was High) |
+| # | Category | Severity | Confidence | SourceHost | Escalated |
+|---|----------|----------|------------|------------|-----------|
+| 1 | Beaconing | Critical | High | 10.0.0.5 | Yes (was Medium) |
+| 2 | LateralMovement | Critical | High | 10.0.0.5 | Yes (was High) |
 
 ---
 

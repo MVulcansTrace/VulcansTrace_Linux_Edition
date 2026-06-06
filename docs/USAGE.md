@@ -298,9 +298,9 @@ The Security Agent panel includes an **Import Threat Intel** button. Click it to
 ### How Threat Intel Correlation Works
 
 1. **Import**: STIX/MISP parsers extract IOCs and store them in `IThreatIntelStore`.
-2. **Log Analysis**: `ThreatIntelDetector` (Engine layer) checks every `UnifiedEvent` against stored IPs and ports. Matching events produce `FindingCategory.ThreatIntel` findings with severity mapped from IOC confidence.
+2. **Log Analysis**: `ThreatIntelDetector` (Engine layer) checks every `UnifiedEvent` against stored IPs and ports. Matching events produce `FindingCategory.ThreatIntel` findings with severity mapped from IOC threat score.
 3. **Posture Audit**: `ThreatIntelIpRule` (`TI-001`) checks active connections against IP IOCs. `ThreatIntelPortRule` (`TI-002`) checks open ports against port IOCs. `ThreatIntelHashRule` (`TI-003`) checks hashes of security-sensitive files (SUID/SGID, world-writable, cron scripts, unowned files) against hash IOCs. File hashing is skipped when no file-hash IOCs are loaded, so routine audits do not pay the disk-scanning cost unnecessarily.
-4. **Confidence Mapping**: IOC confidence `>= 80` → Critical, `>= 60` → High, `>= 40` → Medium, else Low.
+4. **Threat Score Mapping**: IOC threat score `>= 80` → Critical, `>= 60` → High, `>= 40` → Medium, else Low.
 
 ### MITRE ATT&CK Navigator Layer Export
 

@@ -118,6 +118,8 @@ internal sealed class AgentFollowUpService
             RuleId = w.RuleId,
             Target = w.Target,
             Severity = w.NewSeverity,
+            Confidence = w.NewConfidence,
+            EvidenceSignals = w.EvidenceSignals,
             ShortDescription = w.ShortDescription,
             Fingerprint = w.Fingerprint
         })))
@@ -127,6 +129,8 @@ internal sealed class AgentFollowUpService
                 RuleId = df.RuleId,
                 Category = "Change",
                 Severity = ParseSeverityString(df.Severity),
+                Confidence = ParseConfidenceString(df.Confidence),
+                EvidenceSignals = df.EvidenceSignals,
                 SourceHost = "localhost",
                 Target = df.Target,
                 ShortDescription = df.ShortDescription,
@@ -357,6 +361,8 @@ internal sealed class AgentFollowUpService
         RuleId = f.RuleId ?? $"__null-{f.Fingerprint ?? f.Id.ToString("N")}",
         Target = f.Target,
         Severity = f.Severity.ToString(),
+        Confidence = f.Confidence.ToString(),
+        EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Category = f.Category,
         Fingerprint = f.Fingerprint
@@ -370,6 +376,15 @@ internal sealed class AgentFollowUpService
         "high" => Severity.High,
         "critical" => Severity.Critical,
         _ => Severity.Info
+    };
+
+    private static DetectionConfidence ParseConfidenceString(string? confidence) => confidence?.ToLowerInvariant() switch
+    {
+        "low" => DetectionConfidence.Low,
+        "medium" => DetectionConfidence.Medium,
+        "high" => DetectionConfidence.High,
+        "confirmed" => DetectionConfidence.Confirmed,
+        _ => DetectionConfidence.Unknown
     };
 
     private static AgentIntent InferIntentFromCategory(string? category) => category?.ToLowerInvariant() switch

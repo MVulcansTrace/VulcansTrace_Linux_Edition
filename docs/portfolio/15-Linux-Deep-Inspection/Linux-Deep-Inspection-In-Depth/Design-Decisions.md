@@ -66,7 +66,7 @@
 
 ## Decision 6 — Downstream Correlation via RiskEscalator
 
-**Decision:** All cross-detector correlation happens in `RiskEscalator`, not inside individual detectors. The escalator promotes FlagAnomaly+PortScan and MacSpoofing+InterfaceHopping to Critical severity.
+**Decision:** All cross-detector correlation happens in `RiskEscalator`, not inside individual detectors. The escalator promotes FlagAnomaly+PortScan and MacSpoofing+InterfaceHopping to Critical severity and recalculates detection confidence via `FindingConfidenceCalculator`.
 
 **Rationale:** Embedding correlation logic inside detectors creates coupling — a detector that checks for MAC spoofing would need to know about interface hopping findings. The `RiskEscalator` operates on the finding stream after all detectors have run, grouping by `SourceHost` and checking for category combinations. This keeps each detector focused on its single analytical dimension.
 

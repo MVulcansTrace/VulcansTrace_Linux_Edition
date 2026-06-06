@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine.Net;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -74,17 +75,41 @@ public sealed class BeaconingDetector : IDetector
             var first = ordered.First();
             var last = ordered.Last();
 
+            var signals = new List<EvidenceSignal>
+            {
+                new EvidenceSignal
+                {
+                    Name = "Periodic outbound traffic",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"Average interval ~{mean:F1}s over {ordered.Count} events"
+                },
+                new EvidenceSignal
+                {
+                    Name = "Low interval variance",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"Standard deviation ~{stdDev:F1}s below threshold"
+                },
+                new EvidenceSignal
+                {
+                    Name = "External destination persistence",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"Repeated connections to {group.Key.DestinationIP}:{group.Key.DestinationPort}"
+                }
+            };
+
             findings.Add(new Core.Finding
             {
                 Category = FindingCategories.Beaconing,
                 Severity = Core.Severity.Medium,
+                Confidence = FindingConfidenceCalculator.Calculate(signals),
                 SourceHost = group.Key.SourceIP,
                 Target = $"{group.Key.DestinationIP}:{group.Key.DestinationPort}",
                 TimeRangeStart = first.Timestamp,
                 TimeRangeEnd = last.Timestamp,
                 ShortDescription = $"Regular beaconing from {group.Key.SourceIP}",
                 Details = $"Average interval ~{mean:F1}s, std dev ~{stdDev:F1}s over {ordered.Count} events.",
-                MitreTechniques = s_mitreTechniques
+                MitreTechniques = s_mitreTechniques,
+                EvidenceSignals = signals
             });
         }
 

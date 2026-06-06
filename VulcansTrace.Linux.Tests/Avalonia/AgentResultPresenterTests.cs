@@ -95,6 +95,11 @@ public class AgentResultPresenterTests
         var harness = new PresenterHarness();
         var finding = CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed") with
         {
+            Confidence = DetectionConfidence.High,
+            EvidenceSignals =
+            [
+                new EvidenceSignal { Name = "Rule FW-001 triggered", Source = "SecurityRule", Explanation = "Detected exposed SSH" }
+            ],
             Details = "**How to verify:**\n1. Check listening ports: `ss -tlnp`"
         };
 
@@ -103,6 +108,10 @@ public class AgentResultPresenterTests
         var message = Assert.Single(harness.Messages);
         Assert.Equal("[FW-001] [High] SSH exposed", message.Text);
         Assert.Equal(finding.Details, message.Details);
+        Assert.Equal("High", message.Confidence);
+        Assert.Equal("Rule FW-001 triggered", message.EvidenceSignalsDisplay);
+        Assert.True(message.HasConfidence);
+        Assert.True(message.HasEvidenceSignals);
         var command = Assert.Single(message.VerificationCommands);
         Assert.Equal("ss -tlnp", command.FullCommand);
         Assert.Equal(CommandSafety.ReadOnly, command.Safety);

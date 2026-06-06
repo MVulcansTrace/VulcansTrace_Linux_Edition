@@ -66,6 +66,18 @@ public sealed record Finding
     /// <summary>Severity level of the finding.</summary>
     public Severity Severity { get; init; }
 
+    /// <summary>Confidence level of the finding.</summary>
+    public DetectionConfidence Confidence { get; init; } = DetectionConfidence.Unknown;
+
+    private IReadOnlyList<EvidenceSignal> _evidenceSignals = Array.Empty<EvidenceSignal>();
+
+    /// <summary>Evidence signals that contributed to the finding's confidence score.</summary>
+    public IReadOnlyList<EvidenceSignal> EvidenceSignals
+    {
+        get => _evidenceSignals;
+        init => _evidenceSignals = value ?? throw new ArgumentNullException(nameof(EvidenceSignals));
+    }
+
     /// <summary>Source host IP address.</summary>
     public string SourceHost
     {

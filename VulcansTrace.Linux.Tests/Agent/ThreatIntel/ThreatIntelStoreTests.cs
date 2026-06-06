@@ -13,8 +13,8 @@ public class ThreatIntelStoreTests
 
         store.Import(new[]
         {
-            new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", Confidence = 80, Source = "STIX" },
-            new IocEntry { Type = IocType.Port, Value = "4444", Confidence = 60, Source = "STIX" }
+            new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", ThreatScore = 80, Source = "STIX" },
+            new IocEntry { Type = IocType.Port, Value = "4444", ThreatScore = 60, Source = "STIX" }
         });
 
         Assert.Equal(2, store.Count);
@@ -41,12 +41,12 @@ public class ThreatIntelStoreTests
         var store = new InMemoryThreatIntelStore();
         store.Import(new[]
         {
-            new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", Confidence = 50 },
-            new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", Confidence = 90 }
+            new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", ThreatScore = 50 },
+            new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4", ThreatScore = 90 }
         });
 
         Assert.Equal(1, store.Count);
-        Assert.Equal(90, store.GetAll()[0].Confidence);
+        Assert.Equal(90, store.GetAll()[0].ThreatScore);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class ThreatIntelStoreTests
             var store1 = new JsonFileThreatIntelStore(path);
             store1.Import(new[]
             {
-                new IocEntry { Type = IocType.IPv4, Value = "10.0.0.1", Confidence = 70, Source = "MISP" }
+                new IocEntry { Type = IocType.IPv4, Value = "10.0.0.1", ThreatScore = 70, Source = "MISP" }
             });
             store1.Dispose();
 

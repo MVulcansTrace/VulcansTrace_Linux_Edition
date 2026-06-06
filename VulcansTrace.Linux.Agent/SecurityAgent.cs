@@ -218,6 +218,7 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.KubernetesCheck => "kubernetes",
         AgentIntent.ThreatIntelCheck => "threat intel",
         AgentIntent.YaraCheck => "YARA scan",
+        AgentIntent.ProcessRuntimeCheck => "process runtime",
         AgentIntent.ExplainFinding => "explain a finding",
         AgentIntent.ShowChanges => "audit changes",
         AgentIntent.ExplainCritical => "critical finding explanation",

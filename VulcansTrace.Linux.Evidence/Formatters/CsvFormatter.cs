@@ -20,7 +20,7 @@ public sealed class CsvFormatter : IEvidenceFormatter
     public string ToCsv(AnalysisResult result)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters,MitreTechniqueIds,MitreTechniqueNames,MitreTactics");
+        sb.AppendLine("RuleId,Category,Severity,SourceHost,Target,TimeStart,TimeEnd,ShortDescription,CisControlIds,CisBenchmarkReferences,CisWhyItMatters,MitreTechniqueIds,MitreTechniqueNames,MitreTactics,Confidence,EvidenceSignals");
 
         foreach (var f in result.Findings)
         {
@@ -30,6 +30,7 @@ public sealed class CsvFormatter : IEvidenceFormatter
             var mitreIds = string.Join("; ", f.MitreTechniques.Select(m => m.TechniqueId));
             var mitreNames = string.Join("; ", f.MitreTechniques.Select(m => m.TechniqueName));
             var mitreTactics = string.Join("; ", f.MitreTechniques.Select(m => m.Tactic));
+            var signals = string.Join("; ", f.EvidenceSignals.Select(s => s.Name));
             var fields = new[]
             {
                 f.RuleId ?? string.Empty,
@@ -45,7 +46,9 @@ public sealed class CsvFormatter : IEvidenceFormatter
                 cisWhy,
                 mitreIds,
                 mitreNames,
-                mitreTactics
+                mitreTactics,
+                f.Confidence.ToString(),
+                signals
             };
 
             sb.AppendLine(string.Join(",", fields.Select(Escape)));

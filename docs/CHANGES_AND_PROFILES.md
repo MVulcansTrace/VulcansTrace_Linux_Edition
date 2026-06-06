@@ -37,6 +37,25 @@ Last updated: 2026-06-05
 - Flag Anomaly Detector: eliminated false positives when TCP flags are missing.
   - Code: `VulcansTrace.Linux.Engine/Detectors/FlagAnomalyDetector.cs`
 
+### Detection Confidence Scoring
+- Added `DetectionConfidence` enum (`Unknown`, `Low`, `Medium`, `High`, `Confirmed`) to Core for explicit confidence levels on every finding.
+- Added `EvidenceSignal` immutable record (`Name`, `Source`, `Explanation`) representing individual pieces of supporting evidence. Source constants: `BehaviorSource` (detector-derived) and `ThreatIntelSource` (IOC-matched).
+- Added `FindingConfidenceCalculator` in Engine that maps evidence signals to confidence levels: 0 signals → `Unknown`, 1 → `Low`, 2 → `Medium`, 3+ → `High`, simultaneous `ThreatIntel` + `Behavior` → `Confirmed`.
+- All 14 engine detector implementations and the agent `FindingAssemblyService` now populate `EvidenceSignals` and call `FindingConfidenceCalculator` before emitting findings.
+- `ThreatIntelDetector` emits `ThreatIntelSource` signals; all other detectors emit `BehaviorSource` signals with detector-specific explanations.
+- `RiskEscalator` recalculates confidence when escalating findings to Critical: appends a `Cross-detector correlation` behavior signal and re-runs the calculator, so escalated findings reflect the stronger combined evidence.
+- `Finding.Confidence` defaults to `Unknown` and is excluded from `Fingerprint` and `Id` to keep stable identity across confidence changes.
+- `IocEntry.Confidence` renamed to `ThreatScore` (int 0–100) to eliminate naming collision with detection confidence. Updated parser, rules, tests, and docs.
+- All 5 evidence formatters (CSV, HTML, Markdown, JSON, STIX) export `Confidence` and `EvidenceSignals` alongside severity and category.
+- Avalonia UI `FindingItemViewModel` exposes confidence for display; DataGrid and Agent chat cards include confidence and evidence signal names; text search covers confidence and evidence signal names.
+- Audit history, audit diff, baseline drift, scheduled audit snapshots, and remediation verification snapshots preserve confidence metadata; confidence-only audit changes appear in the Audit Diff window.
+- Code: `VulcansTrace.Linux.Core/DetectionConfidence.cs`, `EvidenceSignal.cs`, `IocEntry.cs`
+- Code: `VulcansTrace.Linux.Engine/Confidence/FindingConfidenceCalculator.cs`, `RiskEscalator.cs`
+- Code: `VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs`
+- Code: `VulcansTrace.Linux.Evidence/Formatters/*.cs`
+- Code: `VulcansTrace.Linux.Avalonia/ViewModels/FindingItemViewModel.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`, `VulcansTrace.Linux.Avalonia/MainWindow.axaml`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`
+- Tests: `FindingConfidenceCalculatorTests`, `FindingsViewModelTests`, evidence formatter tests, `AuditDiffCalculatorTests`, `AgentResultPresenterTests`, `AgentHistoryCoordinatorTests`
+
 ### Evidence and export formats
 - STIX 2.1 export rebuilt: now emits a STIX bundle with identity,
   observed-data, note objects, IP observables, and optional malware hints.

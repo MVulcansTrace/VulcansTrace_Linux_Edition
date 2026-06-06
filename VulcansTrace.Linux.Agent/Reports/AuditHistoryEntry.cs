@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -67,6 +68,8 @@ public sealed record AuditSnapshotFinding
     public required string RuleId { get; init; }
     public required string Target { get; init; }
     public required string Severity { get; init; }
+    public string Confidence { get; init; } = DetectionConfidence.Unknown.ToString();
+    public IReadOnlyList<EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<EvidenceSignal>();
     public required string ShortDescription { get; init; }
     public string Category { get; init; } = string.Empty;
 

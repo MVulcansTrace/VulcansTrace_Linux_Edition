@@ -515,4 +515,39 @@ public class StixFormatterTests
 
         Assert.Contains(notes, n => n.GetProperty("content").GetString()!.Contains("MITRE ATT&CK: T1071.001"));
     }
+
+    [Fact]
+    public void Format_IncludesConfidenceAndEvidenceSignals()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Beaconing",
+            Severity = Severity.Critical,
+            Confidence = DetectionConfidence.Confirmed,
+            SourceHost = "192.168.1.10",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddHours(1),
+            ShortDescription = "Beaconing detected",
+            Details = "Periodic outbound traffic",
+            EvidenceSignals =
+            [
+                new EvidenceSignal { Name = "Periodic outbound traffic", Source = EvidenceSignal.BehaviorSource, Explanation = "60s intervals" },
+                new EvidenceSignal { Name = "Known malicious IP", Source = EvidenceSignal.ThreatIntelSource, Explanation = "Matched IOC" }
+            ]
+        });
+
+        var stix = _formatter.Format(result, "");
+        var doc = JsonDocument.Parse(stix);
+
+        var notes = doc.RootElement.GetProperty("objects")
+            .EnumerateArray()
+            .Where(o => o.TryGetProperty("type", out var t) && t.GetString() == "note")
+            .ToList();
+
+        var note = Assert.Single(notes);
+        var content = note.GetProperty("content").GetString()!;
+        Assert.Contains("Confidence: Confirmed", content);
+        Assert.Contains("Evidence Signals: Periodic outbound traffic; Known malicious IP", content);
+    }
 }

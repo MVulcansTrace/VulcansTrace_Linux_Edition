@@ -421,6 +421,8 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="90" />
+                            <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="180" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
                             <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="130" />
                             <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />

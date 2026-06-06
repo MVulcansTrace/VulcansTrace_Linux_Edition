@@ -21,7 +21,7 @@ The detector operates on the unified event stream produced by the log normalizat
 | Time window | 5 minutes (configurable) |
 | Cancellation points | Outer per-source loop and inner sliding-window loop |
 | Test coverage | Unit and integration coverage for thresholds, windows, truncation, and same-port false positives |
-| Risk escalation | Time-correlated PortScan + FlagAnomaly findings escalate to Critical |
+| Risk escalation | Time-correlated PortScan + FlagAnomaly findings escalate to Critical; confidence recalculated via `FindingConfidenceCalculator` |
 
 ---
 
@@ -31,7 +31,7 @@ The detector operates on the unified event stream produced by the log normalizat
 - Detecting scans early gives defenders a window to harden services before exploitation begins
 - Time-windowed counting isolates aggressive sweeps from benign multi-port traffic
 - Truncation with warnings ensures the detector remains performant even on heavily scanned networks
-- The detector feeds the `RiskEscalator`, which escalates participating PortScan and FlagAnomaly findings to Critical severity when they are correlated
+- The detector feeds the `RiskEscalator`, which escalates participating PortScan and FlagAnomaly findings to Critical severity when they are correlated and recalculates detection confidence
 
 ---
 
@@ -64,5 +64,5 @@ The detector operates on the unified event stream produced by the log normalizat
 1. The detector addresses active reconnaissance (MITRE T1046), a prerequisite step in most network-based attacks
 2. Time-windowed distinct-port counting balances sensitivity against false positives from repeated single-service traffic
 3. The truncation-warning pattern maintains analyst visibility even when data volume forces approximations
-4. Integration with `RiskEscalator` means port scans are not evaluated in isolation — when a host triggers correlated port scan and flag anomaly findings, those participating findings are escalated to Critical automatically
+4. Integration with `RiskEscalator` means port scans are not evaluated in isolation — when a host triggers correlated port scan and flag anomaly findings, those participating findings are escalated to Critical automatically and detection confidence is recalculated
 5. Profile-based thresholds allow defenders to tune sensitivity to their network baseline without code changes

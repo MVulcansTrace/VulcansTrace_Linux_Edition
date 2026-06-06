@@ -154,7 +154,7 @@ public class MispParserTests
 
         var result = MispParser.Parse(json);
         Assert.Equal(1, result.ImportedCount);
-        Assert.Equal(80, result.Entries[0].Confidence);
+        Assert.Equal(80, result.Entries[0].ThreatScore);
     }
 
     [Fact]

@@ -19,6 +19,7 @@ public class AuditDiffCalculatorTests
         Assert.Empty(diff.ResolvedFindings);
         Assert.Empty(diff.WorsenedFindings);
         Assert.Empty(diff.ImprovedFindings);
+        Assert.Empty(diff.ConfidenceChangedFindings);
     }
 
     [Fact]
@@ -71,6 +72,47 @@ public class AuditDiffCalculatorTests
         Assert.Single(diff.UnchangedFindings);
         Assert.Empty(diff.NewFindings);
         Assert.Empty(diff.ResolvedFindings);
+        Assert.Empty(diff.ConfidenceChangedFindings);
+    }
+
+    [Fact]
+    public void Calculate_ConfidenceChangeWithSameSeverity_Detected()
+    {
+        var before = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "Low") });
+        var after = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "Confirmed") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        var changed = Assert.Single(diff.ConfidenceChangedFindings);
+        Assert.Equal("Low", changed.OldConfidence);
+        Assert.Equal("Confirmed", changed.NewConfidence);
+        Assert.Empty(diff.UnchangedFindings);
+        Assert.Equal("1 finding changed confidence.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_LegacyUnknownConfidence_DoesNotReportConfidenceChange()
+    {
+        var before = CreateEntry(new[] { ("FW-001", "A", "High") });
+        var after = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "Confirmed") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Empty(diff.ConfidenceChangedFindings);
+        Assert.Single(diff.UnchangedFindings);
+        Assert.Equal("No changes between audits.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_NewFinding_CarriesConfidence()
+    {
+        var before = CreateEntryWithConfidence(Array.Empty<(string RuleId, string Target, string Severity, string Confidence)>());
+        var after = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "Confirmed") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        var finding = Assert.Single(diff.NewFindings);
+        Assert.Equal("Confirmed", finding.Confidence);
     }
 
     [Fact]
@@ -81,7 +123,7 @@ public class AuditDiffCalculatorTests
 
         var diff = AuditDiffCalculator.Calculate(before, after);
 
-        Assert.Equal("1 new, 0 resolved, 1 worsened, 0 improved.", diff.Summary);
+        Assert.Equal("1 new, 0 resolved, 1 worsened, 0 improved, 0 confidence changed.", diff.Summary);
     }
 
     [Fact]
@@ -314,6 +356,23 @@ public class AuditDiffCalculatorTests
                 RuleId = f.RuleId,
                 Target = f.Target,
                 Severity = f.Severity,
+                ShortDescription = "Test"
+            }).ToList()
+        };
+    }
+
+    private static AuditHistoryEntry CreateEntryWithConfidence((string RuleId, string Target, string Severity, string Confidence)[] findings)
+    {
+        return new AuditHistoryEntry
+        {
+            SnapshotId = Guid.NewGuid().ToString(),
+            Intent = VulcansTrace.Linux.Agent.Query.AgentIntent.FullAudit,
+            SnapshotFindings = findings.Select(f => new AuditSnapshotFinding
+            {
+                RuleId = f.RuleId,
+                Target = f.Target,
+                Severity = f.Severity,
+                Confidence = f.Confidence,
                 ShortDescription = "Test"
             }).ToList()
         };

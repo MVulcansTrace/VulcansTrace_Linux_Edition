@@ -221,7 +221,7 @@ public static class MispParser
         {
             Type = type,
             Value = value,
-            Confidence = confidence,
+            ThreatScore = confidence,
             Source = "MISP",
             Description = description,
             ImportedAt = DateTime.UtcNow

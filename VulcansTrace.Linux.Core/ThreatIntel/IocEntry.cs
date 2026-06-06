@@ -11,8 +11,8 @@ public sealed record IocEntry
     /// <summary>The canonical IOC value (e.g., IP address, hash hex string, port number as string).</summary>
     public string Value { get; init; } = string.Empty;
 
-    /// <summary>Confidence score from 0 (lowest) to 100 (highest).</summary>
-    public int Confidence { get; init; } = 50;
+    /// <summary>Threat score from 0 (lowest) to 100 (highest).</summary>
+    public int ThreatScore { get; init; } = 50;
 
     /// <summary>Source feed name, e.g. "STIX" or "MISP".</summary>
     public string Source { get; init; } = string.Empty;

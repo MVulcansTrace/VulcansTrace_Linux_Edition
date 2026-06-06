@@ -25,7 +25,7 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 | Interfaces implemented | `IDetector` (all 5) |
 | Finding categories | `FlagAnomaly`, `MacSpoofing`, `KernelModule`, `InterfaceHopping`, `UnusualPacketSize` |
 | Severity range | Info → High |
-| Risk escalation rules | FlagAnomaly+PortScan → Critical, MacSpoofing+InterfaceHopping → Critical |
+| Risk escalation rules | FlagAnomaly+PortScan → Critical, MacSpoofing+InterfaceHopping → Critical; confidence recalculated during escalation |
 | Cancellation points | Every per-event and per-group loop iteration |
 
 ---
@@ -37,7 +37,7 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 - Kernel module posture assessment reveals defensive capabilities and potential gaps in firewall configuration
 - Interface hopping detection catches attackers pivoting between network segments to evade monitoring, using the same sliding window pattern to find tightest clusters
 - Unusual packet size analysis exposes covert channels and data exfiltration that would be invisible to port-based detection
-- The `RiskEscalator` correlates findings across detectors, escalating independent Medium/High signals to Critical when they converge on the same host
+- The `RiskEscalator` correlates findings across detectors, escalating independent Medium/High signals to Critical when they converge on the same host and recalculating detection confidence
 
 ---
 
@@ -59,7 +59,7 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 
 ## Key Design Choices
 
-- **Independent detectors with shared escalation** — Each detector is a self-contained `IDetector` implementation. Correlation and severity escalation happen downstream in `RiskEscalator`, not inside individual detectors. This keeps each detector focused on a single analytical dimension.
+- **Independent detectors with shared escalation** — Each detector is a self-contained `IDetector` implementation. Correlation and severity escalation happen downstream in `RiskEscalator`, not inside individual detectors. The escalator also recalculates detection confidence by appending a correlation evidence signal. This keeps each detector focused on a single analytical dimension.
 
 - **Linux-specific metadata via `LinuxSpecific` dictionary** — All five detectors consume the `LinuxSpecific` key-value metadata extracted by the log normalizer (e.g., `Flags`, `MAC`, `InterfaceIn`, `Length`). This keeps the core `UnifiedEvent` schema clean while giving Linux detectors access to platform-specific fields.
 
@@ -75,6 +75,6 @@ The subsystem operates on the unified event stream enriched with `LinuxSpecific`
 
 1. The five detectors address distinct attack dimensions — network reconnaissance (flags), L2 integrity (MAC), defensive posture (kernel modules), segmentation enforcement (interfaces), and data integrity (packet sizes)
 2. Each detector is independently testable and deployable — no inter-detector dependencies exist at the detection stage
-3. The `RiskEscalator` provides the correlation layer, escalating FlagAnomaly+PortScan and MacSpoofing+InterfaceHopping to Critical severity
+3. The `RiskEscalator` provides the correlation layer, escalating FlagAnomaly+PortScan and MacSpoofing+InterfaceHopping to Critical severity and recalculating detection confidence
 4. The sliding window pattern in MacSpoofing and InterfaceHopping detectors prevents false positives from legitimate long-term MAC/interface changes while detecting tight clusters of diversity
 5. The two-phase packet size analysis avoids false positives from small sample sizes while maintaining per-pair alerting for clear-cut anomalies

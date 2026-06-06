@@ -58,11 +58,11 @@ public sealed class ThreatIntelPortRule : IRule
         foreach (var match in matches.Take(10))
         {
             var ioc = portMap[match.LocalPort];
-            highestConfidence = Math.Max(highestConfidence, ioc.Confidence);
+            highestConfidence = Math.Max(highestConfidence, ioc.ThreatScore);
             variables[$"match_{index}_port"] = match.LocalPort.ToString();
             variables[$"match_{index}_address"] = match.LocalAddress;
             variables[$"match_{index}_process"] = match.ProcessName ?? "unknown";
-            variables[$"match_{index}_confidence"] = ioc.Confidence.ToString();
+            variables[$"match_{index}_confidence"] = ioc.ThreatScore.ToString();
             index++;
         }
 

@@ -54,7 +54,7 @@ public class StixParserTests
         Assert.Equal(1, result.ImportedCount);
         Assert.Equal(IocType.IPv4, result.Entries[0].Type);
         Assert.Equal("10.0.0.5", result.Entries[0].Value);
-        Assert.Equal(85, result.Entries[0].Confidence);
+        Assert.Equal(85, result.Entries[0].ThreatScore);
     }
 
     [Fact]

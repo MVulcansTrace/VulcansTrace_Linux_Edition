@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine.Net;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -82,17 +83,28 @@ public sealed class LateralMovementDetector : IDetector
                     if (!inFinding)
                     {
                         peakDistinctHosts = distinctHosts;
+                        var signals = new List<EvidenceSignal>
+                        {
+                            new EvidenceSignal
+                            {
+                                Name = "Multiple internal admin-port contacts",
+                                Source = EvidenceSignal.BehaviorSource,
+                                Explanation = $"Contacted {distinctHosts} internal hosts on admin ports within {windowMinutes} minutes"
+                            }
+                        };
                         findings.Add(new Core.Finding
                         {
                             Category = FindingCategories.LateralMovement,
                             Severity = Core.Severity.High,
+                            Confidence = FindingConfidenceCalculator.Calculate(signals),
                             SourceHost = srcGroup.Key,
                             Target = "multiple internal hosts",
                             TimeRangeStart = ordered[start].Timestamp,
                             TimeRangeEnd = ordered[end].Timestamp,
                             ShortDescription = $"Lateral movement from {srcGroup.Key}",
                             Details = $"Contacted {distinctHosts} internal hosts on admin ports.",
-                            MitreTechniques = s_mitreTechniques
+                            MitreTechniques = s_mitreTechniques,
+                            EvidenceSignals = signals
                         });
                         inFinding = true;
                     }

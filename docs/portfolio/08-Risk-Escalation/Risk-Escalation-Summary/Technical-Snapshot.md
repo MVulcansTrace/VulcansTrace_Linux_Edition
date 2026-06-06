@@ -17,7 +17,7 @@ The subsystem also detects **critical attack chains** — Beaconing → LateralM
 1. **Group by host** — findings are partitioned by `SourceHost` using `GroupBy`
 2. **Build category set** — a case-insensitive `HashSet<string>` of all categories present on that host
 3. **Evaluate correlation rules** — three category pairs are checked against the host's category set and then gated by a 24-hour time-range correlation check
-4. **Escalate** — if any rule fires, findings whose categories participate in the matched rule and are below Critical are re-created with `Severity = Critical` via the C# `with` expression on the `Finding` record. Findings whose categories are not part of the matched rule are passed through unchanged.
+4. **Escalate** — if any rule fires, findings whose categories participate in the matched rule and are below Critical are re-created with `Severity = Critical` via the C# `with` expression on the `Finding` record. A `Cross-detector correlation` evidence signal is appended and confidence is recalculated via `FindingConfidenceCalculator`. Findings whose categories are not part of the matched rule are passed through unchanged.
 5. **Pass through** — findings that do not trigger a rule are added to the result unchanged
 
 ---

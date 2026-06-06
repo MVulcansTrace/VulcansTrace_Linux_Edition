@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Parsing;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -85,17 +86,28 @@ public sealed class KernelModuleDetector : IDetector
             if (timestamps.Count < minEvents)
                 continue;
 
+            var signals = new List<EvidenceSignal>
+            {
+                new EvidenceSignal
+                {
+                    Name = "Kernel module usage",
+                    Source = EvidenceSignal.BehaviorSource,
+                    Explanation = $"Firewall logs indicate the use of {module}"
+                }
+            };
             findings.Add(new Core.Finding
             {
                 Category = FindingCategories.KernelModule,
                 Severity = Core.Severity.Info,
+                Confidence = FindingConfidenceCalculator.Calculate(signals),
                 SourceHost = "Firewall Configuration",
                 Target = module,
                 TimeRangeStart = timestamps.Min(),
                 TimeRangeEnd = timestamps.Max(),
                 ShortDescription = $"Detected {module}",
                 Details = $"Analysis of firewall logs indicates the use of {module}. This provides insight into the firewall's security posture and capabilities.",
-                MitreTechniques = s_mitreTechniques
+                MitreTechniques = s_mitreTechniques,
+                EvidenceSignals = signals
             });
         }
 

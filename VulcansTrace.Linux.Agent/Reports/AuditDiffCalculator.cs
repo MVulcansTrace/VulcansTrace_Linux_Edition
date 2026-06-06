@@ -20,6 +20,7 @@ public static class AuditDiffCalculator
         var resolvedFindings = new List<DiffFinding>();
         var worsenedFindings = new List<SeverityChangeFinding>();
         var improvedFindings = new List<SeverityChangeFinding>();
+        var confidenceChangedFindings = new List<ConfidenceChangeFinding>();
         var unchangedFindings = new List<DiffFinding>();
 
         foreach (var afterFinding in after.SnapshotFindings)
@@ -44,6 +45,9 @@ public static class AuditDiffCalculator
                         Target = afterFinding.Target,
                         OldSeverity = beforeFinding.Severity,
                         NewSeverity = afterFinding.Severity,
+                        OldConfidence = beforeFinding.Confidence,
+                        NewConfidence = afterFinding.Confidence,
+                        EvidenceSignals = afterFinding.EvidenceSignals,
                         ShortDescription = afterFinding.ShortDescription,
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
@@ -56,6 +60,23 @@ public static class AuditDiffCalculator
                         Target = afterFinding.Target,
                         OldSeverity = beforeFinding.Severity,
                         NewSeverity = afterFinding.Severity,
+                        OldConfidence = beforeFinding.Confidence,
+                        NewConfidence = afterFinding.Confidence,
+                        EvidenceSignals = afterFinding.EvidenceSignals,
+                        ShortDescription = afterFinding.ShortDescription,
+                        Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
+                    });
+                }
+                else if (HasMeaningfulConfidenceChange(beforeFinding.Confidence, afterFinding.Confidence))
+                {
+                    confidenceChangedFindings.Add(new ConfidenceChangeFinding
+                    {
+                        RuleId = afterFinding.RuleId,
+                        Target = afterFinding.Target,
+                        Severity = afterFinding.Severity,
+                        OldConfidence = beforeFinding.Confidence,
+                        NewConfidence = afterFinding.Confidence,
+                        EvidenceSignals = afterFinding.EvidenceSignals,
                         ShortDescription = afterFinding.ShortDescription,
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
@@ -81,6 +102,7 @@ public static class AuditDiffCalculator
             ResolvedFindings = resolvedFindings,
             WorsenedFindings = worsenedFindings,
             ImprovedFindings = improvedFindings,
+            ConfidenceChangedFindings = confidenceChangedFindings,
             UnchangedFindings = unchangedFindings
         };
     }
@@ -128,11 +150,25 @@ public static class AuditDiffCalculator
             && string.Equals(beforeFinding.Target, afterFinding.Target, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool HasMeaningfulConfidenceChange(string beforeConfidence, string afterConfidence)
+    {
+        if (string.Equals(beforeConfidence, afterConfidence, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return !IsUnknownConfidence(beforeConfidence) && !IsUnknownConfidence(afterConfidence);
+    }
+
+    private static bool IsUnknownConfidence(string confidence) =>
+        string.IsNullOrWhiteSpace(confidence)
+        || confidence.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
+
     private static DiffFinding ToDiffFinding(AuditSnapshotFinding f) => new()
     {
         RuleId = f.RuleId,
         Target = f.Target,
         Severity = f.Severity,
+        Confidence = f.Confidence,
+        EvidenceSignals = f.EvidenceSignals,
         ShortDescription = f.ShortDescription,
         Fingerprint = f.Fingerprint
     };

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine.Confidence;
 
 namespace VulcansTrace.Linux.Engine.Detectors;
 
@@ -89,10 +90,27 @@ public sealed class C2ChannelDetector : IDetector
                         var maxTime = patternEvents.Max(e => e.Timestamp);
                         var connectionKey = $"{orderedEvents.First().SourceIP}-{orderedEvents.First().DestinationIP}:{orderedEvents.First().DestinationPort}-{orderedEvents.First().Protocol}";
 
+                        var signals = new List<EvidenceSignal>
+                        {
+                            new EvidenceSignal
+                            {
+                                Name = "Periodic communication pattern",
+                                Source = EvidenceSignal.BehaviorSource,
+                                Explanation = $"{patternEvents.Count} events with ~{interval}s intervals"
+                            },
+                            new EvidenceSignal
+                            {
+                                Name = "Repeated destination tuple",
+                                Source = EvidenceSignal.BehaviorSource,
+                                Explanation = $"Consistent connections to {orderedEvents.First().DestinationIP}:{orderedEvents.First().DestinationPort}"
+                            }
+                        };
+
                         findings.Add(new Core.Finding
                         {
                             Category = FindingCategories.C2Channel,
                             Severity = Core.Severity.High,
+                            Confidence = FindingConfidenceCalculator.Calculate(signals),
                             SourceHost = orderedEvents.First().SourceIP,
                             Target = $"{orderedEvents.First().DestinationIP}:{orderedEvents.First().DestinationPort}",
                             TimeRangeStart = minTime,
@@ -100,7 +118,8 @@ public sealed class C2ChannelDetector : IDetector
                             ShortDescription = $"Potential C2 channel detected: {connectionKey}",
                             Details = $"Detected {patternEvents.Count} events with approximately {interval}s intervals (tolerance: \u00b1{tolerance}s). " +
                                       $"This pattern suggests periodic communication that may indicate a C2 channel.",
-                            MitreTechniques = s_mitreTechniques
+                            MitreTechniques = s_mitreTechniques,
+                            EvidenceSignals = signals
                         });
                     }
                 }

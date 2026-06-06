@@ -80,5 +80,6 @@ internal sealed class AgentResultStateCoordinator
             or AgentIntent.ContainerCheck
             or AgentIntent.KubernetesCheck
             or AgentIntent.ThreatIntelCheck
-            or AgentIntent.YaraCheck;
+            or AgentIntent.YaraCheck
+            or AgentIntent.ProcessRuntimeCheck;
 }

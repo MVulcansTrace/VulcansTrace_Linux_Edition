@@ -38,7 +38,10 @@ internal sealed class AgentHistoryCoordinator
             RuleId = f.RuleId ?? "",
             Target = f.Target,
             Severity = f.Severity.ToString(),
+            Confidence = f.Confidence.ToString(),
+            EvidenceSignals = f.EvidenceSignals,
             ShortDescription = f.ShortDescription,
+            Category = f.Category,
             Fingerprint = f.Fingerprint
         }).ToList();
 

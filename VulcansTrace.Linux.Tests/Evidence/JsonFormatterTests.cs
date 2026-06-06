@@ -155,4 +155,36 @@ public class JsonFormatterTests
         Assert.True(f.TryGetProperty("id", out var id));
         Assert.Equal(finding.Id.ToString(), id.GetString());
     }
+
+    [Fact]
+    public void Format_IncludesConfidenceAndEvidenceSignals()
+    {
+        var result = ResultWith(new Finding
+        {
+            Category = "Beaconing",
+            Severity = Severity.Critical,
+            Confidence = DetectionConfidence.High,
+            SourceHost = "10.0.0.1",
+            Target = "8.8.8.8",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch,
+            ShortDescription = "Beaconing",
+            Details = "details",
+            EvidenceSignals =
+            [
+                new EvidenceSignal { Name = "Periodic outbound traffic", Source = "Behavior", Explanation = "Repeating" }
+            ]
+        });
+
+        var json = _formatter.Format(result, "log");
+        var doc = JsonDocument.Parse(json);
+        var f = doc.RootElement.GetProperty("findings")[0];
+        Assert.Equal("High", f.GetProperty("confidence").GetString());
+        var signals = f.GetProperty("evidenceSignals");
+        Assert.Single(signals.EnumerateArray());
+        var s = signals[0];
+        Assert.Equal("Periodic outbound traffic", s.GetProperty("name").GetString());
+        Assert.Equal("Behavior", s.GetProperty("source").GetString());
+        Assert.Equal("Repeating", s.GetProperty("explanation").GetString());
+    }
 }
