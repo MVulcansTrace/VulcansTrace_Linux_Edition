@@ -245,6 +245,59 @@ public class RemediationMarkdownFormatterTests
     }
 
     [Fact]
+    public void Format_IncludesImpactPreviewSimulationFields()
+    {
+        var plan = new RemediationPlan
+        {
+            Sections = new[]
+            {
+                new RemediationSection
+                {
+                    RuleId = "FW-001",
+                    FindingSummary = "[High] Default policy ACCEPT",
+                    RiskNote = "High risk",
+                    ImpactPreview = new RemediationImpactPreview
+                    {
+                        ExpectedImpact = "Default INPUT policy will change to DROP.",
+                        ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
+                        RiskBefore = "[High] High risk",
+                        ExpectedRiskAfter = "Finding should be resolved after applying configuration changes.",
+                        CommandCount = 2,
+                        RollbackAvailable = true,
+                        HasRestartImpact = true,
+                        HasLockoutRisk = true,
+                        RestartImpactDescription = "Service restart required.",
+                        LockoutRiskDescription = "SSH access will be blocked.",
+                        RollbackPath = "sudo iptables -P INPUT ACCEPT",
+                        RollbackPathKind = RemediationPreviewTextKind.Command,
+                        VerificationCommand = "sudo iptables -L INPUT | head -n 1",
+                        IsVerificationCommand = true,
+                        VerificationKind = RemediationPreviewTextKind.Command
+                    },
+                    ApplyCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                    },
+                    RollbackCommands = new[]
+                    {
+                        new RemediationCommand { Command = "sudo iptables -P INPUT ACCEPT", Safety = CommandSafety.ConfigChange }
+                    }
+                }
+            }
+        };
+
+        var formatter = new RemediationMarkdownFormatter();
+        var result = formatter.Format(plan);
+
+        Assert.Contains("**Risk before:** [High] High risk", result);
+        Assert.Contains("**Expected risk after:** Finding should be resolved after applying configuration changes.", result);
+        Assert.Contains("**Commands involved:** 2", result);
+        Assert.Contains("**Rollback available:** Yes", result);
+        Assert.Contains("**Restart impact:** Service restart required.", result);
+        Assert.Contains("**Lockout risk:** SSH access will be blocked.", result);
+    }
+
+    [Fact]
     public void Format_RollbackHint_NotWrappedInBackticks()
     {
         var plan = new RemediationPlan

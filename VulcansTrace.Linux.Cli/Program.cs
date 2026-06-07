@@ -564,8 +564,19 @@ public static class Program
             {
                 Console.WriteLine($"  [{section.RuleId}]");
                 Console.WriteLine($"    Impact:  {section.ImpactPreview.ExpectedImpact}");
-                Console.WriteLine($"    Rollback: {section.ImpactPreview.RollbackPath}");
-                Console.WriteLine($"    Verify:  {section.ImpactPreview.VerificationCommand}");
+                if (!string.IsNullOrWhiteSpace(section.ImpactPreview.RiskBefore))
+                    Console.WriteLine($"    Risk before:  {section.ImpactPreview.RiskBefore}");
+                if (!string.IsNullOrWhiteSpace(section.ImpactPreview.ExpectedRiskAfter))
+                    Console.WriteLine($"    Risk after:   {section.ImpactPreview.ExpectedRiskAfter}");
+                if (section.ImpactPreview.CommandCount > 0)
+                    Console.WriteLine($"    Commands:     {section.ImpactPreview.CommandCount}");
+                Console.WriteLine($"    Rollback available: {(section.ImpactPreview.RollbackAvailable ? "Yes" : "No")}");
+                Console.WriteLine($"    Rollback:     {section.ImpactPreview.RollbackPath}");
+                Console.WriteLine($"    Verify:       {section.ImpactPreview.VerificationCommand}");
+                if (section.ImpactPreview.HasRestartImpact)
+                    Console.WriteLine($"    [RESTART] {section.ImpactPreview.RestartImpactDescription}");
+                if (section.ImpactPreview.HasLockoutRisk)
+                    Console.WriteLine($"    [LOCKOUT] {section.ImpactPreview.LockoutRiskDescription}");
                 Console.WriteLine();
             }
         }

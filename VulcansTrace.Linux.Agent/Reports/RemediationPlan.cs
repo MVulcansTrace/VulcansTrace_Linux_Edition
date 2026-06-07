@@ -94,6 +94,30 @@ public sealed record RemediationImpactPreview
 
     /// <summary>Whether the verification text is a command or fallback guidance.</summary>
     public RemediationPreviewTextKind VerificationKind { get; init; } = RemediationPreviewTextKind.ManualFallback;
+
+    /// <summary>Risk level before applying the remediation (derived from finding severity and risk note).</summary>
+    public string RiskBefore { get; init; } = string.Empty;
+
+    /// <summary>Expected risk level after applying the remediation.</summary>
+    public string ExpectedRiskAfter { get; init; } = string.Empty;
+
+    /// <summary>Total number of apply and backup commands involved.</summary>
+    public int CommandCount { get; init; }
+
+    /// <summary>Whether explicit rollback guidance (commands or hints) is available.</summary>
+    public bool RollbackAvailable { get; init; }
+
+    /// <summary>True if applying the remediation may require a service restart.</summary>
+    public bool HasRestartImpact { get; init; }
+
+    /// <summary>True if applying the remediation poses a risk of locking the user out of the system.</summary>
+    public bool HasLockoutRisk { get; init; }
+
+    /// <summary>Human-readable description of the restart impact, or empty if none.</summary>
+    public string RestartImpactDescription { get; init; } = string.Empty;
+
+    /// <summary>Human-readable description of the lockout risk, or empty if none.</summary>
+    public string LockoutRiskDescription { get; init; } = string.Empty;
 }
 
 /// <summary>

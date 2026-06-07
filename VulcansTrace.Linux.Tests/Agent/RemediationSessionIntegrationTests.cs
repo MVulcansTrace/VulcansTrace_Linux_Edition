@@ -149,6 +149,73 @@ public class RemediationSessionIntegrationTests
     }
 
     [Fact]
+    public void JsonFileSessionStore_RoundTripsImpactPreviewFields()
+    {
+        var tempPath = Path.GetTempFileName();
+        try
+        {
+            var store = new JsonFileSessionStore(tempPath);
+            var section = new RemediationSection
+            {
+                RuleId = "FW-001",
+                FindingSummary = "[High] Default policy ACCEPT",
+                RiskNote = "High risk",
+                ApplyCommands = new[]
+                {
+                    new RemediationCommand { Command = "sudo iptables -P INPUT DROP", Safety = CommandSafety.ConfigChange }
+                },
+                ImpactPreview = new RemediationImpactPreview
+                {
+                    ExpectedImpact = "Default INPUT policy will change to DROP.",
+                    ExpectedImpactSource = RemediationImpactSource.SuggestedAction,
+                    RiskBefore = "[High] High risk",
+                    ExpectedRiskAfter = "Finding should be resolved.",
+                    CommandCount = 1,
+                    RollbackAvailable = true,
+                    HasRestartImpact = false,
+                    HasLockoutRisk = true,
+                    RestartImpactDescription = "",
+                    LockoutRiskDescription = "Command sets default INPUT policy to DROP.",
+                    RollbackPath = "sudo iptables -P INPUT ACCEPT",
+                    RollbackPathKind = RemediationPreviewTextKind.Command,
+                    VerificationCommand = "sudo iptables -L INPUT | head -n 1",
+                    IsVerificationCommand = true,
+                    VerificationKind = RemediationPreviewTextKind.Command
+                }
+            };
+            var session = new RemediationSession
+            {
+                SessionId = "roundtrip-preview",
+                SourceFindings = Array.Empty<Finding>(),
+                RemediationPlan = new RemediationPlan { Sections = new[] { section } },
+                StepStates = new Dictionary<string, RemediationStepState>(),
+                BlockedReasons = Array.Empty<string>()
+            };
+
+            store.Save(session);
+            var loaded = store.Load("roundtrip-preview");
+
+            Assert.NotNull(loaded);
+            Assert.Single(loaded.RemediationPlan.Sections);
+            var loadedPreview = loaded.RemediationPlan.Sections[0].ImpactPreview;
+            Assert.NotNull(loadedPreview);
+            Assert.Equal("Default INPUT policy will change to DROP.", loadedPreview.ExpectedImpact);
+            Assert.Equal("[High] High risk", loadedPreview.RiskBefore);
+            Assert.Equal("Finding should be resolved.", loadedPreview.ExpectedRiskAfter);
+            Assert.Equal(1, loadedPreview.CommandCount);
+            Assert.True(loadedPreview.RollbackAvailable);
+            Assert.False(loadedPreview.HasRestartImpact);
+            Assert.True(loadedPreview.HasLockoutRisk);
+            Assert.Equal("", loadedPreview.RestartImpactDescription);
+            Assert.Equal("Command sets default INPUT policy to DROP.", loadedPreview.LockoutRiskDescription);
+        }
+        finally
+        {
+            File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
     public void JsonFileSessionStore_RoundTripsTimeline()
     {
         var tempPath = Path.GetTempFileName();

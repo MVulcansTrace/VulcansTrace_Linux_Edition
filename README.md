@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2380 passing](https://img.shields.io/badge/Tests-2380%20passing-2E7D32)
+![Tests: 2612 passing](https://img.shields.io/badge/Tests-2612%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -42,7 +42,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Escalates severity when correlated behavior appears on the same source host.
 - Preserves parse errors, skipped lines, warnings, and detector output for analyst review.
 - Exports reports in CSV, JSON, STIX 2.1, HTML, Markdown, and signed manifest formats — every export includes MITRE ATT&CK technique mappings for findings and rules.
-- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls), and **MITRE ATT&CK technique mapping** for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands, a compact impact preview showing expected change, rollback path, and verification command before every apply step, rollback visibility, session notes with evidence links, and batch auto-fix with dry-run preview for headless remediation.
+- Provides a local Security Agent that answers plain-English posture questions using live host scanners, deterministic rules, role-aware local policy, dual-layer CIS Benchmark mapping (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls), and **MITRE ATT&CK technique mapping** for audit-ready compliance traceability — including interactive, step-by-step guided remediation for individual findings with safety-classified commands, a compact impact preview showing expected change, rollback path, verification command, risk before/after, command count, rollback availability, restart impact, and lockout risk before every apply step, rollback visibility, session notes with evidence links, and batch auto-fix with dry-run preview for headless remediation.
 - File Permission Auditing — checks `/etc/shadow`, `/etc/passwd`, SSH host private keys, user and root SSH directories, cron directories, and `/etc/crontab` for overly permissive permissions or incorrect ownership.
 - Filesystem Auditing — hunts broadly for world-writable files outside expected paths, unexpected SUID/SGID binaries, unowned files, world-writable directories without sticky bit, and `/tmp` mount hardening (`noexec`, `nosuid`, `nodev`).
 - User & Account Auditing — checks UID 0 beyond root, empty password hashes, password aging from `/etc/login.defs` and shadow entries, PAM password complexity, inactive accounts, duplicate UIDs, missing home directories, PAM faillock / account lockout configuration, detailed password quality requirements (`minlen`, `minclass`, credits), and PAM auth stack ordering (`required` before `sufficient`).

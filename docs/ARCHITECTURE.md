@@ -88,7 +88,8 @@ The Security Agent provides a parallel local posture path:
 10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
 11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 - `FindingAssemblyService` maps `RuleResult.MitreTechniques` to `Finding.MitreTechniques` so agent posture findings carry MITRE ATT&CK context through every export path.
-- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, and verification command. Remediation sections now also carry `MitreTechniques` for threat-contextualized remediation planning.
+- `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, verification command, risk before/after, command count, rollback availability, restart impact, and lockout risk. Remediation sections now also carry `MitreTechniques` for threat-contextualized remediation planning.
+- `RemediationImpactSimulator` analyzes each `RemediationSection` before it is displayed or executed, deriving risk metrics from the section's commands, safety classifications, and finding metadata. It detects restart impact (via `CommandSafety.ServiceRestart` and `systemctl restart/reload` patterns), lockout risk (via SSH config changes, iptables/UFW port-22 blocks, and default-deny rules), and produces a structured `RemediationImpactPreview` with all simulation fields. The simulator is called per-section by `RemediationPlanBuilder` with fault-isolating `try/catch` so a malformed section does not abort the entire plan.
 
 The **Auto-Fix pipeline** extends the Security Agent to headless batch remediation:
 
@@ -96,9 +97,10 @@ The **Auto-Fix pipeline** extends the Security Agent to headless batch remediati
 2. `CommandSafetyClassifier` analyzes each extracted command and labels it `ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`.
 3. `AutoFixPolicy` defines which safety classifications are permitted for automatic execution (configurable via `--allow-restart` and `--allow-packages`).
 4. `RemediationPlanValidator` blocks sections where risky or unclassified commands lack explicit rollback guidance.
-5. `RemediationExecutor` orchestrates the execution: backup commands first, then apply commands, then verification commands. If an apply command fails, rollback commands are executed automatically. Cancellation is checked before every command.
-6. `ProcessRunner` executes shell commands via bash stdin (not `-c` argument wrapping) to avoid shell escaping vulnerabilities, with configurable timeout and cancellation support.
-7. `RemediationConsoleFormatter` renders dry-run previews and execution results for CLI output.
+5. `RemediationImpactSimulator` enriches each section's `ImpactPreview` with derived risk metrics (risk before/after, command count, rollback availability, restart impact, lockout risk) before the plan is displayed or executed.
+6. `RemediationExecutor` orchestrates the execution: backup commands first, then apply commands, then verification commands. If an apply command fails, rollback commands are executed automatically. Cancellation is checked before every command.
+7. `ProcessRunner` executes shell commands via bash stdin (not `-c` argument wrapping) to avoid shell escaping vulnerabilities, with configurable timeout and cancellation support.
+8. `RemediationConsoleFormatter` renders dry-run previews and execution results for CLI output, including all simulation fields.
 
 The **Automated Incident Response Playbooks** layer extends the Trace Map correlation engine with active countermeasures:
 

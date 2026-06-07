@@ -259,12 +259,96 @@
                                                         <TextBlock Text="{Binding ImpactPreviewExpectedImpact}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Risk before:" FontSize="10" Foreground="#f87171" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewRiskBefore}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Risk after:" FontSize="10" Foreground="#4ade80" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewExpectedRiskAfter}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Commands:" FontSize="10" Foreground="#94a3b8" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewCommandCount}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <TextBlock Text="Rollback:" FontSize="10" Foreground="#4ade80" FontWeight="SemiBold" VerticalAlignment="Top"/>
                                                         <TextBlock Text="{Binding ImpactPreviewRollbackPath}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap" FontFamily="{Binding RollbackPathFontFamily}"/>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="Rollback available:" FontSize="10" Foreground="#94a3b8" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                                        <TextBlock Text="{Binding ImpactPreviewRollbackAvailabilityLabel}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                IsVisible="{Binding ImpactPreviewRollbackAvailable}">
+                                                        <Border CornerRadius="4"
+                                                                Padding="4,2"
+                                                                VerticalAlignment="Center"
+                                                                Background="#064e3b">
+                                                            <TextBlock Text="ROLLBACK"
+                                                                       FontSize="9"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#4ade80"/>
+                                                        </Border>
+                                                        <TextBlock Text="Explicit rollback guidance available"
+                                                                   FontSize="10"
+                                                                   Foreground="#4ade80"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                IsVisible="{Binding ImpactPreviewRollbackUnavailable}">
+                                                        <Border CornerRadius="4"
+                                                                Padding="4,2"
+                                                                VerticalAlignment="Center"
+                                                                Background="#450a0a">
+                                                            <TextBlock Text="NO ROLLBACK"
+                                                                       FontSize="9"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#f87171"/>
+                                                        </Border>
+                                                        <TextBlock Text="No explicit rollback guidance available"
+                                                                   FontSize="10"
+                                                                   Foreground="#f87171"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <TextBlock Text="Verify:" FontSize="10" Foreground="#60a5fa" FontWeight="SemiBold" VerticalAlignment="Top"/>
                                                         <TextBlock Text="{Binding ImpactPreviewVerificationCommand}" FontSize="10" Foreground="#e2e8f0" TextWrapping="Wrap" FontFamily="{Binding ImpactPreviewVerificationFontFamily}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                IsVisible="{Binding ImpactPreviewHasRestartImpact}">
+                                                        <Border CornerRadius="4"
+                                                                Padding="4,2"
+                                                                VerticalAlignment="Center"
+                                                                Background="#3f2e14">
+                                                            <TextBlock Text="RESTART"
+                                                                       FontSize="9"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#fcd34d"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding ImpactPreviewRestartImpactDescription}"
+                                                                   FontSize="10"
+                                                                   Foreground="#fcd34d"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                                IsVisible="{Binding ImpactPreviewHasLockoutRisk}">
+                                                        <Border CornerRadius="4"
+                                                                Padding="4,2"
+                                                                VerticalAlignment="Center"
+                                                                Background="#450a0a">
+                                                            <TextBlock Text="LOCKOUT"
+                                                                       FontSize="9"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#f87171"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding ImpactPreviewLockoutRiskDescription}"
+                                                                   FontSize="10"
+                                                                   Foreground="#f87171"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>

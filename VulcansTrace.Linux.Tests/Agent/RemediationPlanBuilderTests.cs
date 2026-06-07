@@ -917,4 +917,65 @@ The policy should show `DROP` and nothing else.
         Assert.Single(plan.Sections);
         Assert.Equal("COUNTERMEASURE", plan.Sections[0].RuleId);
     }
+
+    [Fact]
+    public void Build_Populates_ImpactPreview_Simulation_Fields()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "FW-001",
+            Category = "Firewall",
+            Severity = Severity.High,
+            ShortDescription = "SSH exposed",
+            Target = "22",
+            Details = @"**Suggested next action:**
+1. Restrict SSH: `sudo ufw allow from 10.0.0.5 to any port 22`
+
+**Backup commands:**
+1. Save current rules: `sudo iptables-save > /tmp/iptables.backup`
+
+**Rollback hints:**
+- Delete the allow rule with `sudo ufw delete allow from 10.0.0.5 to any port 22`"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.Contains("[High]", preview.RiskBefore);
+        Assert.Contains("resolved", preview.ExpectedRiskAfter, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(2, preview.CommandCount); // 1 apply + 1 backup
+        Assert.True(preview.RollbackAvailable);
+        Assert.False(preview.HasRestartImpact);
+        Assert.False(preview.HasLockoutRisk);
+    }
+
+    [Fact]
+    public void Build_Populates_ImpactPreview_With_LockoutRisk_For_SSH_Related_Commands()
+    {
+        var builder = new RemediationPlanBuilder(new ExplanationProvider());
+        var finding = new Finding
+        {
+            RuleId = "SSH-001",
+            Category = "SSH",
+            Severity = Severity.Critical,
+            ShortDescription = "Weak SSH config",
+            Target = "sshd",
+            Details = @"**Suggested next action:**
+1. Harden config: `sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config`
+
+**Rollback hints:**
+- Restore from backup"
+        };
+
+        var plan = builder.Build(new[] { finding });
+
+        Assert.Single(plan.Sections);
+        var preview = plan.Sections[0].ImpactPreview;
+        Assert.NotNull(preview);
+        Assert.True(preview.HasLockoutRisk);
+        Assert.Contains("SSH", preview.LockoutRiskDescription);
+    }
 }

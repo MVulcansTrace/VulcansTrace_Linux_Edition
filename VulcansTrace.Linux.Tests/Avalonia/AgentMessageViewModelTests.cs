@@ -144,4 +144,85 @@ public class AgentMessageViewModelTests
         Assert.False(msg.IsRollbackPathCommand);
         Assert.Equal(string.Empty, msg.RollbackPathFontFamily);
     }
+
+    [Fact]
+    public void ImpactPreviewSimulationProperties_PopulatedFromRemediationSection()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "FW-001",
+            FindingSummary = "[High] SSH exposed",
+            RiskNote = "Remote access is exposed.",
+            ImpactPreview = new RemediationImpactPreview
+            {
+                ExpectedImpact = "SSH will be restricted.",
+                RiskBefore = "[High] Remote access is exposed.",
+                ExpectedRiskAfter = "Finding should be resolved.",
+                CommandCount = 3,
+                RollbackAvailable = true,
+                HasRestartImpact = true,
+                HasLockoutRisk = true,
+                RestartImpactDescription = "Service restart required.",
+                LockoutRiskDescription = "SSH config modified."
+            },
+            ApplyCommands = new[]
+            {
+                new RemediationCommand { Command = "sudo systemctl restart sshd", Safety = CommandSafety.ServiceRestart }
+            }
+        };
+
+        var msg = new AgentMessageViewModel { RemediationSection = section };
+
+        Assert.True(msg.HasImpactPreview);
+        Assert.Equal("[High] Remote access is exposed.", msg.ImpactPreviewRiskBefore);
+        Assert.Equal("Finding should be resolved.", msg.ImpactPreviewExpectedRiskAfter);
+        Assert.Equal(3, msg.ImpactPreviewCommandCount);
+        Assert.True(msg.ImpactPreviewRollbackAvailable);
+        Assert.False(msg.ImpactPreviewRollbackUnavailable);
+        Assert.Equal("Yes", msg.ImpactPreviewRollbackAvailabilityLabel);
+        Assert.True(msg.ImpactPreviewHasRestartImpact);
+        Assert.True(msg.ImpactPreviewHasLockoutRisk);
+        Assert.Equal("Service restart required.", msg.ImpactPreviewRestartImpactDescription);
+        Assert.Equal("SSH config modified.", msg.ImpactPreviewLockoutRiskDescription);
+    }
+
+    [Fact]
+    public void ImpactPreviewSimulationProperties_NullSection_ReturnEmptyDefaults()
+    {
+        var msg = new AgentMessageViewModel();
+
+        Assert.Equal(string.Empty, msg.ImpactPreviewRiskBefore);
+        Assert.Equal(string.Empty, msg.ImpactPreviewExpectedRiskAfter);
+        Assert.Equal(0, msg.ImpactPreviewCommandCount);
+        Assert.False(msg.ImpactPreviewRollbackAvailable);
+        Assert.False(msg.ImpactPreviewRollbackUnavailable);
+        Assert.Equal("No", msg.ImpactPreviewRollbackAvailabilityLabel);
+        Assert.False(msg.ImpactPreviewHasRestartImpact);
+        Assert.False(msg.ImpactPreviewHasLockoutRisk);
+        Assert.Equal(string.Empty, msg.ImpactPreviewRestartImpactDescription);
+        Assert.Equal(string.Empty, msg.ImpactPreviewLockoutRiskDescription);
+    }
+
+    [Fact]
+    public void ImpactPreviewRollbackUnavailable_TrueWhenPreviewHasNoExplicitRollback()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "FW-001",
+            FindingSummary = "[High] SSH exposed",
+            RiskNote = "Remote access is exposed.",
+            ImpactPreview = new RemediationImpactPreview
+            {
+                ExpectedImpact = "SSH will be restricted.",
+                RollbackAvailable = false
+            }
+        };
+
+        var msg = new AgentMessageViewModel { RemediationSection = section };
+
+        Assert.True(msg.HasImpactPreview);
+        Assert.False(msg.ImpactPreviewRollbackAvailable);
+        Assert.True(msg.ImpactPreviewRollbackUnavailable);
+        Assert.Equal("No", msg.ImpactPreviewRollbackAvailabilityLabel);
+    }
 }

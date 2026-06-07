@@ -159,7 +159,7 @@ public sealed class RemediationPlanBuilder
                 VerificationKind = RemediationPreviewTextKind.Command
             };
 
-            sections.Add(new RemediationSection
+            var countermeasureSection = new RemediationSection
             {
                 RuleId = "COUNTERMEASURE",
                 FindingSummary = $"[Critical] Incident response: Beaconing → LateralMovement → PrivilegeEscalation on {compromisedHost}",
@@ -177,7 +177,22 @@ public sealed class RemediationPlanBuilder
                 HasExplicitRollbackGuidance = true,
                 ImpactPreview = impactPreview,
                 CountermeasureCommands = countermeasures
-            });
+            };
+
+            try
+            {
+                countermeasureSection = countermeasureSection with
+                {
+                    ImpactPreview = RemediationImpactSimulator.Simulate(countermeasureSection, impactPreview)
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RemediationImpactSimulator] Failed for {countermeasureSection.RuleId}: {ex.Message}");
+            }
+
+            sections.Add(countermeasureSection);
         }
 
         return new RemediationPlan { Sections = sections };
@@ -261,7 +276,7 @@ public sealed class RemediationPlanBuilder
             hasExplicitRollbackHints,
             verificationCommands);
 
-        return new RemediationSection
+        var section = new RemediationSection
         {
             RuleId = finding.RuleId!,
             FindingSummary = $"[{finding.Severity}] {finding.ShortDescription}",
@@ -276,6 +291,23 @@ public sealed class RemediationPlanBuilder
             HasExplicitRollbackGuidance = hasExplicitRollbackGuidance,
             ImpactPreview = impactPreview
         };
+
+        try
+        {
+            section = section with
+            {
+                ImpactPreview = RemediationImpactSimulator.Simulate(section, impactPreview)
+            };
+        }
+        catch (Exception ex)
+        {
+            // P-008: Per-section fault isolation. A malformed section should not
+            // abort the entire plan. Keep the existing preview and continue.
+            System.Diagnostics.Debug.WriteLine(
+                $"[RemediationImpactSimulator] Failed for {section.RuleId}: {ex.Message}");
+        }
+
+        return section;
     }
 
     private static RemediationImpactPreview BuildImpactPreview(

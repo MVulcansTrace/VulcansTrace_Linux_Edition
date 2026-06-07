@@ -33,6 +33,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - **Incident Story Mode turns correlations into analyst-ready narratives** — time-ordered beats, likely chain summary, and recommended responses reduce cognitive load during incident triage
 - **Log Diff Window enables forensic timeline comparison** — analysts can compare two log files side-by-side with color-coded state badges (`Unchanged`, `Added`, `Removed`, `Changed`) for both connection patterns and findings, without leaving the desktop app
 - **Remediation Sessions expander preserves workflow state** — analysts can resume or delete persisted guided remediation sessions without losing context between app restarts
+- **Impact Preview simulation surfaces pre-flight risk metrics** — remediation cards show risk before/after, command count, rollback availability, and conditional RESTART/LOCKOUT/ROLLBACK badges before the operator reaches copyable apply commands
 
 ---
 

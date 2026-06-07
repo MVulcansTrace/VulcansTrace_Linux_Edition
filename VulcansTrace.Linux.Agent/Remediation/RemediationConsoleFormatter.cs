@@ -36,6 +36,17 @@ public static class RemediationConsoleFormatter
             if (section.ImpactPreview != null)
             {
                 sb.AppendLine($"    → Impact: {section.ImpactPreview.ExpectedImpact}");
+                if (!string.IsNullOrWhiteSpace(section.ImpactPreview.RiskBefore))
+                    sb.AppendLine($"    → Risk before: {section.ImpactPreview.RiskBefore}");
+                if (!string.IsNullOrWhiteSpace(section.ImpactPreview.ExpectedRiskAfter))
+                    sb.AppendLine($"    → Expected risk after: {section.ImpactPreview.ExpectedRiskAfter}");
+                if (section.ImpactPreview.CommandCount > 0)
+                    sb.AppendLine($"    → Commands involved: {section.ImpactPreview.CommandCount}");
+                sb.AppendLine($"    → Rollback available: {(section.ImpactPreview.RollbackAvailable ? "Yes" : "No")}");
+                if (section.ImpactPreview.HasRestartImpact)
+                    sb.AppendLine($"    → Restart impact: {section.ImpactPreview.RestartImpactDescription}");
+                if (section.ImpactPreview.HasLockoutRisk)
+                    sb.AppendLine($"    → Lockout risk: {section.ImpactPreview.LockoutRiskDescription}");
                 sb.AppendLine($"    → Rollback: {section.ImpactPreview.RollbackPath}");
                 sb.AppendLine($"    → Verify: {section.ImpactPreview.VerificationCommand}");
             }

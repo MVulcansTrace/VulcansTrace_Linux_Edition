@@ -214,6 +214,16 @@ public sealed class AgentMessageViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ImpactPreviewExpectedImpactSource));
                 OnPropertyChanged(nameof(ImpactPreviewRollbackPathKind));
                 OnPropertyChanged(nameof(ImpactPreviewVerificationKind));
+                OnPropertyChanged(nameof(ImpactPreviewRiskBefore));
+                OnPropertyChanged(nameof(ImpactPreviewExpectedRiskAfter));
+                OnPropertyChanged(nameof(ImpactPreviewCommandCount));
+                OnPropertyChanged(nameof(ImpactPreviewRollbackAvailable));
+                OnPropertyChanged(nameof(ImpactPreviewRollbackUnavailable));
+                OnPropertyChanged(nameof(ImpactPreviewRollbackAvailabilityLabel));
+                OnPropertyChanged(nameof(ImpactPreviewHasRestartImpact));
+                OnPropertyChanged(nameof(ImpactPreviewHasLockoutRisk));
+                OnPropertyChanged(nameof(ImpactPreviewRestartImpactDescription));
+                OnPropertyChanged(nameof(ImpactPreviewLockoutRiskDescription));
                 OnPropertyChanged(nameof(HasCountermeasureCommands));
                 OnPropertyChanged(nameof(CountermeasureCommands));
             }
@@ -312,6 +322,44 @@ public sealed class AgentMessageViewModel : ViewModelBase
     /// default for prose fallbacks.
     /// </summary>
     public string ImpactPreviewVerificationFontFamily => IsImpactPreviewVerificationCommand ? "Consolas,Monospace" : "";
+
+    /// <summary>Gets the risk before applying the remediation.</summary>
+    public string ImpactPreviewRiskBefore =>
+        _remediationSection?.ImpactPreview?.RiskBefore ?? string.Empty;
+
+    /// <summary>Gets the expected risk after applying the remediation.</summary>
+    public string ImpactPreviewExpectedRiskAfter =>
+        _remediationSection?.ImpactPreview?.ExpectedRiskAfter ?? string.Empty;
+
+    /// <summary>Gets the total number of apply and backup commands involved.</summary>
+    public int ImpactPreviewCommandCount =>
+        _remediationSection?.ImpactPreview?.CommandCount ?? 0;
+
+    /// <summary>Gets whether explicit rollback guidance is available.</summary>
+    public bool ImpactPreviewRollbackAvailable =>
+        _remediationSection?.ImpactPreview?.RollbackAvailable ?? false;
+
+    /// <summary>Gets whether the preview exists but lacks explicit rollback guidance.</summary>
+    public bool ImpactPreviewRollbackUnavailable => HasImpactPreview && !ImpactPreviewRollbackAvailable;
+
+    /// <summary>Gets a user-facing rollback availability value.</summary>
+    public string ImpactPreviewRollbackAvailabilityLabel => ImpactPreviewRollbackAvailable ? "Yes" : "No";
+
+    /// <summary>Gets whether applying the remediation may require a service restart.</summary>
+    public bool ImpactPreviewHasRestartImpact =>
+        _remediationSection?.ImpactPreview?.HasRestartImpact ?? false;
+
+    /// <summary>Gets whether applying the remediation poses a lockout risk.</summary>
+    public bool ImpactPreviewHasLockoutRisk =>
+        _remediationSection?.ImpactPreview?.HasLockoutRisk ?? false;
+
+    /// <summary>Gets the human-readable restart impact description.</summary>
+    public string ImpactPreviewRestartImpactDescription =>
+        _remediationSection?.ImpactPreview?.RestartImpactDescription ?? string.Empty;
+
+    /// <summary>Gets the human-readable lockout risk description.</summary>
+    public string ImpactPreviewLockoutRiskDescription =>
+        _remediationSection?.ImpactPreview?.LockoutRiskDescription ?? string.Empty;
 
     private static IReadOnlyList<CopyableCommand> ToCopyableCommands(IReadOnlyList<RemediationCommand>? commands)
     {

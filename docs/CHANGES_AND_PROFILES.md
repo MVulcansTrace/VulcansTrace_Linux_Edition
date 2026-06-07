@@ -7,6 +7,23 @@ reference and a technical verification checklist.
 
 Last updated: 2026-06-06
 
+### Remediation Impact Simulator
+- Added `RemediationImpactSimulator` static service that analyzes `RemediationSection` records before display or execution and derives pre-flight risk metrics: risk before (from finding severity), expected risk after, command count (distinct apply + backup + countermeasure commands), rollback availability, restart impact, and lockout risk.
+- **Restart impact detection**: identifies commands with `CommandSafety.ServiceRestart` or matching `systemctl restart/reload/try-restart/force-reload` patterns (with word-boundary guards and shell-comment stripping to avoid false positives).
+- **Lockout risk detection**: identifies commands touching SSH configuration (`sshd_config`, `/etc/ssh/`), iptables DROP on port 22 or default INPUT policy, and UFW deny rules — using individual regexes with `\s+` whitespace tolerance and ordered from most specific to least specific.
+- **ReadOnly gate**: ReadOnly-classified commands are skipped for both restart and lockout analysis, preventing false positives from inspection commands such as `cat /etc/ssh/sshd_config`.
+- **Aggregation**: multiple matching commands accumulate descriptions (joined with `" | "`) rather than shadowing later, more dangerous commands with an early first-match.
+- **Apply-impact command analysis**: the simulator scans distinct ApplyCommands, BackupCommands, and CountermeasureCommands (adapted to `RemediationCommand`) for restart and lockout impact. Verification and rollback commands are excluded because they run after apply or during recovery.
+- **Fault isolation**: `RemediationPlanBuilder` wraps each `Simulate` call in `try/catch` so a malformed section degrades gracefully without aborting the entire plan.
+- **Countermeasure-only fix**: `BuildExpectedRiskAfter` now only checks `ApplyCommands.Count`, so countermeasure-only sections correctly report "Manual review required" instead of falsely claiming resolution.
+- **Severity parser fix**: replaced `Contains`-based severity extraction with a deterministic `^\[([A-Za-z]+)\]` regex bracket extraction, eliminating false positives such as "[Low] Non-Critical" → "Critical".
+- **Avalonia UI**: expanded the Impact Preview card with risk before/after, command count, explicit rollback availability, and conditional RESTART (orange), LOCKOUT (red), ROLLBACK (green), and NO ROLLBACK (red) badges.
+- **CLI**: `RemediationConsoleFormatter.FormatDryRun` and `Program.cs` live preview now render all six simulation fields.
+- **Markdown export**: `RemediationMarkdownFormatter` includes risk before/after, command count, rollback availability, restart impact, and lockout risk in the `## Impact Preview` block.
+- **Tests**: 25 simulator unit tests, 2 plan-builder integration tests, 3 ViewModel binding tests, 1 markdown formatter test, and 1 JSON round-trip test for impact preview field persistence.
+  - Code: `VulcansTrace.Linux.Agent/Reports/RemediationImpactSimulator.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationPlanBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs`, `VulcansTrace.Linux.Agent/Remediation/RemediationConsoleFormatter.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/RemediationImpactSimulatorTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationPlanBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentMessageViewModelTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationMarkdownFormatterTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationSessionIntegrationTests.cs`
+
 ## 1) Changes Added (What Was Implemented)
 
 ### Automated Incident Response Playbooks

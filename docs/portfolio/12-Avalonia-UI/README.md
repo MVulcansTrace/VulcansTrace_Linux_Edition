@@ -33,6 +33,7 @@ Documentation is organized for two audiences:
 - **Risk Score tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid
 - **Schedule management tab** — DataGrid of recurring audit schedules with Add/Edit/Delete/Run Now/Install Cron actions, cron status indicators, and selection preservation across refreshes
 - **Remediation Sessions expander** — lists all persisted guided remediation sessions with ID, status, rule ID, and creation time; supports resuming a session into the chat panel and deleting sessions from the store
+- **Impact Preview simulation** — remediation cards display risk before/after, command count, rollback availability, and conditional RESTART (orange), LOCKOUT (red), and ROLLBACK (green) badges derived from command safety analysis
 - **Log Diff Mode** — `LogDiffWindow` with color-coded DataGrids for comparing baseline vs incident logs; shows per-connection-pattern event diffs and per-fingerprint finding diffs with `Unchanged`/`Added`/`Removed`/`Changed` state badges
 - **MITRE ATT&CK columns** — both Findings and Rules DataGrids display a **MITRE ATT&CK** column showing mapped technique IDs and names, with search support across technique data
 - **Machine role dropdown** — hot-swap roles (Workstation, Server, LabBox, Router, DevMachine) without restarting the app
