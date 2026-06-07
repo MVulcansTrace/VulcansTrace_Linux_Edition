@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Baselines;
+using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
@@ -115,6 +116,8 @@ public static class AgentFactory
             new YaraScanner(),
             new ProcessRuntimeScanner()
         };
+
+        var doctorService = new DoctorService(scanners);
 
         var rules = new IRule[]
         {
@@ -348,7 +351,8 @@ public static class AgentFactory
             SessionStore = sessionStore,
             LiveStreamAnalyzer = liveStreamAnalyzer,
             TraceMapCorrelator = traceMapCorrelator,
-            ThreatIntelStore = threatIntelStore
+            ThreatIntelStore = threatIntelStore,
+            DoctorService = doctorService
         };
     }
 
@@ -452,6 +456,9 @@ public sealed record AgentServices : IDisposable
 
     /// <summary>Store for imported threat intelligence IOCs.</summary>
     public required IThreatIntelStore ThreatIntelStore { get; init; }
+
+    /// <summary>Self-diagnostic service for probing scanner capabilities.</summary>
+    public required DoctorService DoctorService { get; init; }
 
     /// <inheritdoc />
     public void Dispose()

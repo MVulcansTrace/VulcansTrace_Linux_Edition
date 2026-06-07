@@ -1,15 +1,19 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Mail;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Core;
@@ -49,11 +53,16 @@ public static class Program
                 "audit" => await RunAuditAsync(args),
                 "demo" => await RunDemoAsync(args),
                 "diff" => await RunDiffAsync(args),
+                "doctor" => await RunDoctorAsync(args),
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
                 "threat-intel" => await RunThreatIntelAsync(args),
                 _ => PrintError($"Unknown command: {args[0]}")
             };
+        }
+        catch (OperationCanceledException)
+        {
+            return 130;
         }
         catch (Exception ex)
         {
@@ -493,6 +502,117 @@ public static class Program
             || diffResult.AddedFindingsCount > 0 || diffResult.RemovedFindingsCount > 0 || diffResult.ChangedFindingsCount > 0;
 
         return hasDiff ? 2 : 0;
+    }
+
+    internal static async Task<int> RunDoctorAsync(string[] args, DoctorService? doctorService = null)
+    {
+        var outputJson = ParseArg(args, "--output-json", null);
+
+        if (!string.IsNullOrEmpty(outputJson) && Directory.Exists(outputJson))
+        {
+            Console.WriteLine($"  Error: --output-json path is a directory: {outputJson}");
+            return 1;
+        }
+
+        Console.WriteLine("VulcansTrace Doctor");
+        Console.WriteLine("===================");
+        Console.WriteLine();
+
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        using var services = doctorService is null ? AgentFactory.Create() : null;
+        var result = await (doctorService ?? services!.DoctorService).ProbeAsync(cts.Token);
+
+        if (result.Capabilities.Count == 0)
+        {
+            Console.WriteLine("No capabilities reported.");
+        }
+        else
+        {
+            Console.WriteLine("Data source visibility:");
+            foreach (var cap in result.Capabilities)
+            {
+                var icon = cap.Status switch
+                {
+                    CapabilityStatus.Available => "✅",
+                    CapabilityStatus.PermissionLimited => "⚠️ ",
+                    CapabilityStatus.Unavailable => "❌",
+                    _ => "❓"
+                };
+                var statusLabel = cap.Status switch
+                {
+                    CapabilityStatus.Available => "available",
+                    CapabilityStatus.PermissionLimited => "permission-limited",
+                    CapabilityStatus.Unavailable => "unavailable",
+                    _ => "not-checked"
+                };
+                Console.Write($"  {icon} {cap.SourceName,-20} {statusLabel}");
+                if (!string.IsNullOrWhiteSpace(cap.Detail) && cap.Status != CapabilityStatus.Available)
+                {
+                    var sanitized = cap.Detail.Trim().Replace('\n', ' ').Replace('\r', ' ');
+                    if (sanitized.Length > 60)
+                    {
+                        var si = new StringInfo(sanitized);
+                        var safeLength = Math.Min(57, si.LengthInTextElements);
+                        sanitized = si.SubstringByTextElements(0, safeLength) + "...";
+                    }
+                    Console.Write($" ({sanitized})");
+                }
+                Console.WriteLine();
+            }
+            Console.WriteLine();
+
+            if (result.PermissionLimitedCount > 0 || result.UnavailableCount > 0 || result.UnknownCount > 0)
+            {
+                var parts = new List<string>();
+                if (result.PermissionLimitedCount > 0)
+                    parts.Add($"{result.PermissionLimitedCount} permission-limited");
+                if (result.UnavailableCount > 0)
+                    parts.Add($"{result.UnavailableCount} unavailable");
+                if (result.UnknownCount > 0)
+                    parts.Add($"{result.UnknownCount} not checked");
+                Console.WriteLine($"Recommendation: {string.Join(" and ", parts)} data source(s). Run with sudo where permission-limited, and review unavailable or not-checked sources before interpreting audit coverage.");
+            }
+            else
+            {
+                Console.WriteLine("All data sources are available.");
+            }
+        }
+
+        if (result.Warnings.Count > 0)
+        {
+            Console.WriteLine();
+            foreach (var warning in result.Warnings)
+            {
+                Console.WriteLine($"  Warning: {warning}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(outputJson))
+        {
+            var directory = Path.GetDirectoryName(outputJson);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var json = JsonSerializer.Serialize(result, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Converters = { new JsonStringEnumConverter() }
+            });
+            await File.WriteAllTextAsync(outputJson, json, cts.Token);
+            Console.WriteLine($"  JSON output written to: {outputJson}");
+        }
+
+        if (result.IsHealthy)
+            return 0;
+
+        return result.UnavailableCount > 0 ? 1 : 2;
     }
 
     internal static async Task<int> HandleAutoFixAsync(string[] args, AgentResult auditResult, AgentServices services, CancellationToken ct)
@@ -1268,6 +1388,7 @@ public static class Program
         Console.WriteLine("  vulcanstrace demo list");
         Console.WriteLine("  vulcanstrace demo run --scenario <name> [--duration <seconds>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>]");
         Console.WriteLine("  vulcanstrace diff --baseline <file> --incident <file> [--output-json <file>] [--output-html <file>] [--output-evidence <zip>] [--signing-key <hex>]");
+        Console.WriteLine("  vulcanstrace doctor [--output-json <file>]");
         Console.WriteLine("  vulcanstrace schedule list");
         Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
         Console.WriteLine("  vulcanstrace schedule edit --id <id> [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>] [--notify-on-critical|--no-notify-on-critical] [--enabled|--disabled]");

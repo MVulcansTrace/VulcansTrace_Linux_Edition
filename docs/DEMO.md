@@ -479,6 +479,47 @@ vulcanstrace diff --baseline baseline.log --incident incident.log --intensity Me
 5. Review the **Connection Patterns** grid for per-pattern changes (count deltas, action shifts) and the **Findings** grid for severity changes or new/removed findings.
 6. Use the CLI `diff` command for JSON/HTML output or signed evidence bundles.
 
+## Doctor — Data-Source Self-Diagnostic
+
+Use the Doctor to verify scanner visibility before running an audit.
+
+### CLI
+
+```bash
+# Check every scanner data source
+vulcanstrace doctor
+
+# Export a JSON report for CI or a runbook
+vulcanstrace doctor --output-json /tmp/vt-doctor.json
+```
+
+Example output:
+
+```
+Firewall (iptables)        Available
+Port (ss)                  PermissionLimited  ss requires elevated privileges for process names
+Service (systemctl)        Available
+...
+```
+
+Exit codes:
+- `0` — all reachable.
+- `1` — at least one unavailable or error.
+- `2` — only permission-limited.
+- `130` — cancelled.
+
+### Avalonia UI
+
+1. Launch the app: `dotnet run --project VulcansTrace.Linux.Avalonia`
+2. Open the **Doctor** tab.
+3. Click **Run Diagnostic**.
+4. The summary banner turns:
+   - **Green** if every scanner is `Available`.
+   - **Yellow** if some scanners are `PermissionLimited`.
+   - **Red** if any scanner is `Unavailable`.
+5. Review the capability grid for source, availability, and detail.
+6. If a scanner failed, the warnings banner lists the command and failure reason.
+
 ## Performance and Profiling
 
 ```bash

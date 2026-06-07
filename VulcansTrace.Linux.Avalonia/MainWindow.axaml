@@ -779,6 +779,10 @@
                      AutomationProperties.AutomationId="LiveStreamTab">
                 <views:LiveStreamView DataContext="{Binding LiveStream}"/>
             </TabItem>
+            <TabItem Header="Doctor"
+                     AutomationProperties.AutomationId="DoctorTab">
+                <views:DoctorView DataContext="{Binding Doctor}"/>
+            </TabItem>
         </TabControl>
 
         <!-- Bottom: Agent chat panel -->

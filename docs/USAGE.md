@@ -18,6 +18,7 @@
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
    - **Compliance tab** — CIS Compliance Scorecard showing overall pass/warn/fail status, per-control-family breakdown, score percentage, and a trend chart of previous audits.
    - **Risk Score tab** — aggregate Risk Scorecard showing a color-coded grade badge (A–F), numeric score (0–100), summary status, and a per-category breakdown ordered by total deduction.
+   - **Doctor tab** — self-diagnostic view that probes every local Security Agent scanner and lists which data sources are available, unavailable, permission-limited, or not checked. Shows a summary status banner and a warnings banner when scanners encounter command failures or permission limits.
 7. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
 
 ### Security Agent Panel
@@ -257,6 +258,39 @@ Run audits without launching the desktop UI:
 ```bash
 vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
 ```
+
+## Doctor — Data-Source Self-Diagnostic
+
+The Doctor quickly probes every Security Agent scanner and reports which local data sources are accessible. It does not evaluate posture rules; it only checks scanner reachability so you can confirm visibility before running an audit.
+
+### CLI Doctor
+
+```bash
+# Run the doctor diagnostic
+vulcanstrace doctor
+
+# Export the capability report as JSON
+vulcanstrace doctor --output-json /tmp/vt-doctor.json
+```
+
+Exit codes:
+- `0` — all normalized data sources reported `Available`.
+- `1` — at least one normalized data source reported `Unavailable` or a runtime error occurred.
+- `2` — at least one normalized data source reported `PermissionLimited` or `Unknown`, with none `Unavailable`.
+- `130` — cancelled by the user (SIGINT).
+
+The JSON output contains normalized `capabilities` entries (`sourceName`, string `status`, `detail`), the deterministic `capabilityReport` string used during audits, aggregate visibility counts, and a `warnings` array describing any command failures or permission limits encountered.
+
+### Avalonia UI Doctor Tab
+
+1. Open the **Doctor** tab.
+2. Click **Run Diagnostic**.
+3. Review the summary banner:
+   - Green — every normalized data source reported `Available`.
+   - Yellow — one or more scanners are `PermissionLimited`.
+   - Red — one or more scanners are `Unavailable`.
+4. Review the normalized capability grid showing source name, availability, and detail.
+5. If any scanner produced a warning, a warnings banner appears with the command failure or permission message.
 
 ## Threat Intel Import (STIX / MISP)
 

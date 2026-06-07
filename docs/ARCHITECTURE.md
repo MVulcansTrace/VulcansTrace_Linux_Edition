@@ -26,6 +26,14 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `LiveStreamViewModel` — Avalonia UI logic for source selection, start/stop, and metrics.
 - `LiveAnalysisResult` — delta findings and window metrics for UI display.
 
+## Doctor Components
+
+- `DoctorService` — read-only probe that runs `ScannerCoordinator` against all configured scanners and returns `DoctorResult` with capability records and warnings, reusing the same `IScanner` instances and `AgentResultComposer` formatting used during full audits.
+- `DoctorResult` — immutable diagnostic result containing normalized `Capabilities` (`DataSourceCapability` records), `Warnings` (scanner failure or permission messages), and computed aggregate availability counts for available, unavailable, permission-limited, and not-checked sources.
+- `DoctorCommand` (CLI) — `vulcanstrace doctor [--output-json <file>]`, prints a color-coded summary and exits `0` (all normalized sources available), `1` (at least one unavailable source or runtime error), `2` (permission-limited or not-checked sources only), or `130` (cancelled).
+- `DoctorViewModel` / `DoctorCapabilityViewModel` — Avalonia bindings for the Doctor tab: busy state, summary color/background, warnings banner, and capability grid.
+- `DoctorView` — Avalonia tab UI with **Run Diagnostic**, summary banner, warnings banner, and normalized capability list; empty-state prompt shown before the first probe.
+
 ## Demo Mode Components
 
 - `DemoScenario` — enum identifying pre-defined safe attack-replay scenarios (`RandomMix`, `C2Beaconing`, `SshBruteforce`, `PrivilegeEscalation`).

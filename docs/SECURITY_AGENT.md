@@ -114,6 +114,18 @@ The `RemediationMarkdownFormatter` renders notes under a dedicated `## Notes` se
 
 Notes appear after the Timeline section and before Blocked Steps in the exported markdown.
 
+## Doctor — Data-Source Self-Diagnostic
+
+Before running an audit, you can verify which scanner data sources are reachable on the current host:
+
+```bash
+vulcanstrace doctor
+```
+
+The Doctor runs every scanner in read-only probe mode, collects normalized `DataSourceCapability` records, and emits the same deterministic capability report used during audits. It does **not** evaluate rules or modify the system. The Avalonia UI exposes the same capability probe on a dedicated **Doctor** tab, with a summary status banner and a warnings banner for scanner command failures or permission limits.
+
+Use this to confirm visibility before interpreting audit results — for example, if `iptables` or `ss` require elevated privileges to return full output, the Doctor will report `PermissionLimited` rather than `Available`.
+
 ## Data Sources
 
 The agent reads local host state using common Linux tools:

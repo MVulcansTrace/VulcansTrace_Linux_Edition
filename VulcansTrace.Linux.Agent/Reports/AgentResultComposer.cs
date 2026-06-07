@@ -99,40 +99,7 @@ internal sealed class AgentResultComposer
 
     public string BuildCapabilityReport(IReadOnlyList<DataSourceCapability> capabilities)
     {
-        if (capabilities.Count == 0)
-            return string.Empty;
-
-        var sourceOrder = new[]
-        {
-            "iptables",
-            "nftables",
-            "ss",
-            "netstat",
-            "ip addr",
-            "ip route",
-            "ss connections",
-            "systemctl",
-            "systemctl logging services",
-            "auditd rules",
-            "logrotate",
-            "log forwarding",
-            "sshd -T",
-            "sshd_config",
-            "stat",
-            "/proc"
-        };
-
-        var orderedCapabilities = capabilities
-            .Where(cap => !string.IsNullOrWhiteSpace(cap.SourceName))
-            .GroupBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.OrderByDescending(cap => GetCapabilityPriority(cap.Status)).First())
-            .OrderBy(cap =>
-            {
-                var index = Array.FindIndex(sourceOrder, source => source.Equals(cap.SourceName, StringComparison.OrdinalIgnoreCase));
-                return index >= 0 ? index : int.MaxValue;
-            })
-            .ThenBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var orderedCapabilities = NormalizeCapabilities(capabilities);
 
         if (orderedCapabilities.Count == 0)
             return string.Empty;
@@ -159,6 +126,44 @@ internal sealed class AgentResultComposer
         }
 
         return "Data sources: " + string.Join("; ", parts) + ".";
+    }
+
+    public IReadOnlyList<DataSourceCapability> NormalizeCapabilities(IReadOnlyList<DataSourceCapability> capabilities)
+    {
+        if (capabilities.Count == 0)
+            return Array.Empty<DataSourceCapability>();
+
+        var sourceOrder = new[]
+        {
+            "iptables",
+            "nftables",
+            "ss",
+            "netstat",
+            "ip addr",
+            "ip route",
+            "ss connections",
+            "systemctl",
+            "systemctl logging services",
+            "auditd rules",
+            "logrotate",
+            "log forwarding",
+            "sshd -T",
+            "sshd_config",
+            "stat",
+            "/proc"
+        };
+
+        return capabilities
+            .Where(cap => !string.IsNullOrWhiteSpace(cap.SourceName))
+            .GroupBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(cap => GetCapabilityPriority(cap.Status)).First())
+            .OrderBy(cap =>
+            {
+                var index = Array.FindIndex(sourceOrder, source => source.Equals(cap.SourceName, StringComparison.OrdinalIgnoreCase));
+                return index >= 0 ? index : int.MaxValue;
+            })
+            .ThenBy(cap => cap.SourceName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static int GetCapabilityPriority(CapabilityStatus status) => status switch

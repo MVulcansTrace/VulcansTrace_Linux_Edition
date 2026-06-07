@@ -7,11 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
@@ -105,6 +107,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for live stream analysis.</summary>
     public LiveStreamViewModel LiveStream { get; }
+
+    /// <summary>Gets the child ViewModel for doctor diagnostics.</summary>
+    public DoctorViewModel Doctor { get; }
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -318,7 +323,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IScheduleStore? scheduleStore = null,
         INotificationService? notificationService = null,
         ISessionStore? sessionStore = null,
-        IThreatIntelStore? threatIntelStore = null)
+        IThreatIntelStore? threatIntelStore = null,
+        DoctorService? doctorService = null)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -373,6 +379,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             notificationService ?? new NotifySendNotificationService(),
             dialogService);
         LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
+        Doctor = new DoctorViewModel(doctorService ?? new DoctorService(System.Array.Empty<IScanner>()));
         _liveResultHandler = (_, result) =>
         {
             foreach (var finding in result.DeltaFindings)

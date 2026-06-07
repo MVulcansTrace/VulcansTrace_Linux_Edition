@@ -5,7 +5,20 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-06
+Last updated: 2026-06-07
+
+### Doctor — Data-Source Self-Diagnostic
+- Added `DoctorService` and `DoctorResult` in `VulcansTrace.Linux.Agent/Diagnostics/` that run the same `ScannerCoordinator` used during audits in read-only probe mode and produce normalized capability rows plus deterministic capability reports via `AgentResultComposer`.
+- CLI `vulcanstrace doctor [--output-json <file>]` probes all local scanner data sources, prints a color-coded summary, and exits with:
+  - `0` — all normalized data sources reported `Available`.
+  - `1` — at least one normalized data source reported `Unavailable` or a runtime error occurred.
+  - `2` — at least one normalized data source reported `PermissionLimited` or `Unknown`, with none `Unavailable`.
+  - `130` — cancelled by the user (`OperationCanceledException`).
+- Avalonia UI adds a dedicated **Doctor** tab (`DoctorView` + `DoctorViewModel` + `DoctorCapabilityViewModel`) bound to the same `DoctorService`. The view shows a summary status banner, a warnings banner for scanner failures or permission limits, and a normalized capability grid. An empty-state prompt is shown before the first run; a `HasProbed` flag ensures zero-capability results still show the summary rather than the onboarding prompt.
+- Detail truncation is surrogate-safe via `StringInfo.SubstringByTextElements` so capability details with surrogate pairs are not corrupted.
+- Tests cover service probing, normalized capability ordering, availability exit-code mapping, empty/warning states, ViewModel loading, cancellation handling, JSON export, and CLI argument routing.
+  - Code: `VulcansTrace.Linux.Agent/Diagnostics/DoctorService.cs`, `VulcansTrace.Linux.Agent/Diagnostics/DoctorResult.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/DoctorViewModel.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/DoctorCapabilityViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/DoctorView.axaml`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Agent/AgentFactory.cs`, `VulcansTrace.Linux.Agent/AgentServices.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/DoctorServiceTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/DoctorViewModelTests.cs`, `VulcansTrace.Linux.Tests/Cli/DoctorCommandTests.cs`
 
 ### Remediation Impact Simulator
 - Added `RemediationImpactSimulator` static service that analyzes `RemediationSection` records before display or execution and derives pre-flight risk metrics: risk before (from finding severity), expected risk after, command count (distinct apply + backup + countermeasure commands), rollback availability, restart impact, and lockout risk.

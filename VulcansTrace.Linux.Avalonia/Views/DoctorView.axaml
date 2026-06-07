@@ -1,0 +1,128 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.DoctorView"
+             x:DataType="vm:DoctorViewModel">
+
+    <Design.DataContext>
+        <vm:DoctorViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button Content="Run Diagnostics"
+                    Command="{Binding RunDiagnosticsCommand}"
+                    IsEnabled="{Binding !IsBusy}"
+                    AutomationProperties.AutomationId="DoctorRunButton"/>
+            <StackPanel Orientation="Horizontal"
+                        Spacing="4"
+                        IsVisible="{Binding IsBusy}"
+                        VerticalAlignment="Center">
+                <ProgressBar Height="6" Width="100" IsIndeterminate="True" VerticalAlignment="Center"/>
+                <TextBlock Text="Probing..." VerticalAlignment="Center" Foreground="#94a3b8" FontSize="11"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Empty state (only before first probe) -->
+        <TextBlock Grid.Row="1"
+                   Text="Click 'Run Diagnostics' to check data-source visibility."
+                   Foreground="#64748b"
+                   FontSize="12"
+                   Margin="0,0,0,8"
+                   IsVisible="{Binding !HasProbed}"/>
+
+        <!-- Summary banner (shown after any probe) -->
+        <Border Grid.Row="2"
+                Background="{Binding SummaryBackground}"
+                BorderBrush="{Binding SummaryColor}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12,8"
+                Margin="0,0,0,12"
+                IsVisible="{Binding HasProbed}">
+            <TextBlock Text="{Binding SummaryText}"
+                       Foreground="{Binding SummaryColor}"
+                       FontWeight="SemiBold"
+                       FontSize="13"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Warnings -->
+        <Border Grid.Row="3"
+                Background="#3f2e14"
+                BorderBrush="#854d0e"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="10,6"
+                Margin="0,0,0,12"
+                IsVisible="{Binding Warnings.Count}">
+            <StackPanel Orientation="Vertical" Spacing="4">
+                <TextBlock Text="Warnings:" FontWeight="SemiBold" Foreground="#fcd34d" FontSize="12"/>
+                <ItemsControl ItemsSource="{Binding Warnings}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="2"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"
+                                       Foreground="#fde68a"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Capabilities list -->
+        <ScrollViewer Grid.Row="4" IsVisible="{Binding HasData}">
+            <ItemsControl ItemsSource="{Binding Capabilities}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,2">
+                            <Border Grid.Column="0"
+                                    Background="{Binding StatusColor}"
+                                    CornerRadius="999"
+                                    Padding="8,2"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"
+                                    Opacity="0.25">
+                            </Border>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding StatusLabel}"
+                                       Foreground="{Binding StatusColor}"
+                                       FontWeight="SemiBold"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       MinWidth="120"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding SourceName}"
+                                       Foreground="#e2e8f0"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       MinWidth="180"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding Detail}"
+                                       Foreground="#94a3b8"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

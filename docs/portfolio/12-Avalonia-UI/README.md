@@ -37,6 +37,7 @@ Documentation is organized for two audiences:
 - **Log Diff Mode** — `LogDiffWindow` with color-coded DataGrids for comparing baseline vs incident logs; shows per-connection-pattern event diffs and per-fingerprint finding diffs with `Unchanged`/`Added`/`Removed`/`Changed` state badges
 - **MITRE ATT&CK columns** — both Findings and Rules DataGrids display a **MITRE ATT&CK** column showing mapped technique IDs and names, with search support across technique data
 - **Machine role dropdown** — hot-swap roles (Workstation, Server, LabBox, Router, DevMachine) without restarting the app
+- **Doctor tab** — self-diagnostic view that probes every local Security Agent scanner and displays normalized data-source availability (`Available`, `Unavailable`, `PermissionLimited`, `NotChecked`), summary status banner, warnings banner for scanner failures or permission limits, and a capability grid
 
 ## Implementation Evidence
 
@@ -60,6 +61,9 @@ Documentation is organized for two audiences:
 - [IncidentStoryView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/IncidentStoryView.axaml) — Incident Story tab UI with beats, chain, recommendations, and Copy Markdown button
 - [AvaloniaDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native Avalonia dialog adapter with UI-thread dispatching
 - [IDialogService.cs](../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface
+- [DoctorViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/DoctorViewModel.cs) — Doctor tab state and async probe orchestration
+- [DoctorCapabilityViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/DoctorCapabilityViewModel.cs) — per-row binding for capability entries
+- [DoctorView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/DoctorView.axaml) — Doctor tab UI with summary, warnings, capability grid, and empty state
 - [MainViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/MainViewModelTests.cs) — command gating and engine wiring tests
 - [FindingsViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/FindingsViewModelTests.cs) — load, filter, search, and parse-error cap tests
 - [EvidenceViewModelTests.cs](../../../VulcansTrace.Linux.Tests/Avalonia/EvidenceViewModelTests.cs) — context gating and command enablement tests
