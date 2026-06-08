@@ -34,12 +34,32 @@
           <Style Selector="ListBoxItem:pointerover">
             <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
           </Style>
+          <Style Selector="ListBoxItem:pointerover StackPanel">
+            <Setter Property="RenderTransform" Value="translateX(4px)" />
+            <Setter Property="Transitions">
+              <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+              </Transitions>
+            </Setter>
+          </Style>
+          <Style Selector="ListBoxItem:pointerover i|Icon">
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
+            <Setter Property="Transitions">
+              <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+              </Transitions>
+            </Setter>
+          </Style>
           <Style Selector="ListBoxItem:selected">
             <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
           </Style>
-          <Style Selector="ListBoxItem:selected TextBlock">
+          <Style Selector="ListBoxItem:selected TextBlock.nav-label">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="FontWeight" Value="{DynamicResource FontWeightSemiBold}" />
+          </Style>
+          <Style Selector="ListBoxItem:selected TextBlock.group-header">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
             <Setter Property="FontWeight" Value="{DynamicResource FontWeightSemiBold}" />
           </Style>
           <Style Selector="ListBoxItem:selected i|Icon">
@@ -49,12 +69,18 @@
         <ListBox.ItemTemplate>
           <DataTemplate DataType="models:NavigationItem">
             <StackPanel>
-              <!-- Group header -->
+              <!-- Group header with separator -->
+              <Border Margin="12,8,12,0"
+                      BorderBrush="{DynamicResource Border}"
+                      BorderThickness="0,1,0,0"
+                      IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                      Opacity="0.5" />
               <TextBlock Text="{Binding Group}"
+                         Classes="group-header"
                          Foreground="{DynamicResource TextMuted}"
                          FontSize="{DynamicResource FontSizeSmall}"
                          FontWeight="{DynamicResource FontWeightSemiBold}"
-                         Margin="16,12,16,4"
+                         Margin="16,8,16,4"
                          IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
               <!-- Navigation item content -->
@@ -63,6 +89,7 @@
                         FontSize="20"
                         Foreground="{DynamicResource TextSecondary}" />
                 <TextBlock Text="{Binding Label}"
+                           Classes="nav-label"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource TextSecondary}"
                            FontSize="{DynamicResource FontSizeBody}" />

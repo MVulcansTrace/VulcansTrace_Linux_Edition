@@ -25,12 +25,13 @@
         </StackPanel>
 
         <!-- Empty state (only before first probe) -->
-        <TextBlock Grid.Row="1"
-                   Text="Click 'Run Diagnostics' to check data-source visibility."
-                   Foreground="#64748b"
-                   FontSize="12"
-                   Margin="0,0,0,8"
-                   IsVisible="{Binding !HasProbed}"/>
+        <Border Grid.Row="1"
+                Classes="empty-state"
+                Margin="0,0,0,8"
+                IsVisible="{Binding !HasProbed}">
+            <TextBlock Text="Click 'Run Diagnostics' to check data-source visibility."
+                       Classes="empty-state-text"/>
+        </Border>
 
         <!-- Summary banner (shown after any probe) -->
         <Border Grid.Row="2"

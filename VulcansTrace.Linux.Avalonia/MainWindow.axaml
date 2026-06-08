@@ -11,6 +11,8 @@
         Title="VulcansTrace"
         Width="1400"
         Height="900"
+        MinWidth="1000"
+        MinHeight="700"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
 
     <Design.DataContext>
@@ -33,27 +35,27 @@
         <!-- Summary and warnings -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Left">
-                <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                <Border Classes="kpi-card" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
                         <Run Text="Findings: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="{DynamicResource SeverityCriticalBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityCritical}" BorderThickness="1">
+                <Border Classes="kpi-card" Background="{DynamicResource SeverityCriticalBg}" BorderBrush="{DynamicResource SeverityCritical}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
                         <Run Text="High/Critical: " Foreground="{DynamicResource SeverityCritical}"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityCritical}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="{DynamicResource SeverityMediumBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityMedium}" BorderThickness="1">
+                <Border Classes="kpi-card" Background="{DynamicResource SeverityMediumBg}" BorderBrush="{DynamicResource SeverityMedium}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
                         <Run Text="Warnings: " Foreground="{DynamicResource SeverityMedium}"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityMedium}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="{DynamicResource SeverityHighBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityHigh}" BorderThickness="1">
+                <Border Classes="kpi-card" Background="{DynamicResource SeverityHighBg}" BorderBrush="{DynamicResource SeverityHigh}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
                         <Run Text="Parse Errors: " Foreground="{DynamicResource SeverityHigh}"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityHigh}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                <Border Classes="kpi-card" Padding="8,4">
                     <TextBlock>
                         <Run Text="Skipped Lines: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                     </TextBlock>
@@ -369,8 +371,10 @@
                 BorderThickness="1"
                 CornerRadius="{DynamicResource CardRadius}"
                 Padding="12"
-                Margin="0,0,0,0">
-            <ContentControl Content="{Binding SelectedContent}" />
+                Margin="0,0,0,0"
+                BoxShadow="0 4 16 0 #00000033">
+            <ContentControl x:Name="MainContent"
+                            Content="{Binding SelectedContent}" />
         </Border>
 
         <!-- Bottom: Agent chat panel -->

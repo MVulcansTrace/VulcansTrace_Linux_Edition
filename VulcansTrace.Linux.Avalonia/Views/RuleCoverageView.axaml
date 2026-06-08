@@ -45,12 +45,13 @@
         </StackPanel>
 
         <!-- Empty state -->
-        <TextBlock Grid.Row="1"
-                   Text="Run an agent audit to see rule coverage."
-                   Foreground="{DynamicResource TextTertiary}"
-                   FontSize="12"
-                   Margin="0,4,0,8"
-                   IsVisible="{Binding !HasData}"/>
+        <Border Grid.Row="1"
+                Classes="empty-state"
+                Margin="0,4,0,8"
+                IsVisible="{Binding !HasData}">
+            <TextBlock Text="Run an agent audit to see rule coverage."
+                       Classes="empty-state-text"/>
+        </Border>
 
         <!-- Category breakdown grid -->
         <DataGrid Grid.Row="2"

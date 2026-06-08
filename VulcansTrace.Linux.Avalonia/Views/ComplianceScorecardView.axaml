@@ -81,12 +81,13 @@
         </StackPanel>
 
         <!-- Empty state -->
-        <TextBlock Grid.Row="2"
-                   Text="Run an agent audit to generate a compliance scorecard."
-                   Foreground="#64748b"
-                   FontSize="12"
-                   Margin="0,4,0,8"
-                   IsVisible="{Binding !HasData}"/>
+        <Border Grid.Row="2"
+                Classes="empty-state"
+                Margin="0,4,0,8"
+                IsVisible="{Binding !HasData}">
+            <TextBlock Text="Run an agent audit to generate a compliance scorecard."
+                       Classes="empty-state-text"/>
+        </Border>
 
         <!-- Family scores -->
         <TextBlock Grid.Row="3"

@@ -11,17 +11,11 @@
     <Grid RowDefinitions="Auto,*">
         <!-- Empty state -->
         <Border Grid.Row="0"
-                Background="#1e293b"
-                BorderBrush="#334155"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="16"
+                Classes="empty-state"
                 Margin="0,0,0,8"
                 IsVisible="{Binding !HasStory}">
             <TextBlock Text="Run an analysis or agent audit to generate an incident story."
-                       Foreground="#94a3b8"
-                       FontSize="13"
-                       TextWrapping="Wrap"/>
+                       Classes="empty-state-text"/>
         </Border>
 
         <!-- Story content -->
