@@ -1,0 +1,194 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================================================ -->
+  <!--  Card Style                                                   -->
+  <!-- ============================================================ -->
+
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource BackgroundSecondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CardRadius}" />
+    <Setter Property="Padding" Value="{DynamicResource SpacingLarge}" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        <BrushTransition Property="Background" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Border.card:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHover}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  KPI Card Style                                               -->
+  <!-- ============================================================ -->
+
+  <Style Selector="Border.kpi-card">
+    <Setter Property="Background" Value="{DynamicResource BackgroundSecondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CardRadius}" />
+    <Setter Property="Padding" Value="{DynamicResource SpacingLarge}" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Border.kpi-card:pointerover">
+    <Setter Property="RenderTransform" Value="scale(1.02)" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHover}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  Button Styles — Expressive                                   -->
+  <!-- ============================================================ -->
+
+  <Style Selector="Button">
+    <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ButtonRadius}" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15" />
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BackgroundHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="RenderTransform" Value="scale(1.03)" />
+  </Style>
+
+  <Style Selector="Button:pressed">
+    <Setter Property="RenderTransform" Value="scale(0.97)" />
+  </Style>
+
+  <!-- Primary (accent) button -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextInverse}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="FontWeight" Value="{DynamicResource FontWeightSemiBold}" />
+  </Style>
+
+  <Style Selector="Button.primary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource AccentHover}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentHover}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  Input Styles                                                 -->
+  <!-- ============================================================ -->
+
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="{DynamicResource BackgroundInput}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource InputRadius}" />
+    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextInverse}" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="TextBox:focus">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
+
+  <Style Selector="ComboBox">
+    <Setter Property="Background" Value="{DynamicResource BackgroundInput}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource InputRadius}" />
+    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="ComboBox:focus">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  DataGrid Row Hover                                           -->
+  <!-- ============================================================ -->
+
+  <Style Selector="DataGridRow">
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.1" />
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="DataGridRow:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  Expander Style                                               -->
+  <!-- ============================================================ -->
+
+  <Style Selector="Expander">
+    <Setter Property="Background" Value="{DynamicResource BackgroundSecondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CardRadius}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  ScrollViewer / ScrollBar                                     -->
+  <!-- ============================================================ -->
+
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ScrollBar:vertical Thumb">
+    <Setter Property="Background" Value="{DynamicResource Border}" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+
+  <Style Selector="ScrollBar:vertical Thumb:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BorderHover}" />
+  </Style>
+
+  <!-- ============================================================ -->
+  <!--  Tip Bubble (Advisor) Style                                   -->
+  <!-- ============================================================ -->
+
+  <Style Selector="Border.tip-bubble">
+    <Setter Property="Background" Value="{DynamicResource BackgroundSecondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="8" />
+  </Style>
+
+</Styles>

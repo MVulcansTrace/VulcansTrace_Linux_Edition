@@ -8,8 +8,8 @@
         x:DataType="vm:MainViewModel"
         Icon="/Assets/VulcansTraceAvatar.png"
         Title="VulcansTrace"
-        Width="1200"
-        Height="720"
+        Width="1400"
+        Height="900"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
 
     <Design.DataContext>
@@ -29,7 +29,7 @@
         <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid Margin="16" Background="{DynamicResource BackgroundPrimary}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>

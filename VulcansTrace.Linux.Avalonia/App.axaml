@@ -3,8 +3,17 @@
              x:Class="VulcansTrace.Linux.Avalonia.App"
              RequestedThemeVariant="Dark">
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/DarkTheme.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <StyleInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/ThemeStyles.axaml" />
     </Application.Styles>
 </Application>

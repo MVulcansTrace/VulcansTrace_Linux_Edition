@@ -13,22 +13,22 @@ namespace VulcansTrace.Linux.Avalonia.Converters;
 public sealed class SeverityToForegroundBrushConverter : IValueConverter
 {
     /// <summary>Gets or sets the brush to use for Critical severity text.</summary>
-    public IBrush CriticalBrush { get; set; } = new SolidColorBrush(Color.Parse("#fecaca"));
+    public IBrush CriticalBrush { get; set; } = new SolidColorBrush(Color.Parse("#FFFFFF"));
 
     /// <summary>Gets or sets the brush to use for High severity text.</summary>
-    public IBrush HighBrush { get; set; } = new SolidColorBrush(Color.Parse("#fed7aa"));
+    public IBrush HighBrush { get; set; } = new SolidColorBrush(Color.Parse("#FFFFFF"));
 
     /// <summary>Gets or sets the brush to use for Medium severity text.</summary>
-    public IBrush MediumBrush { get; set; } = new SolidColorBrush(Color.Parse("#fde047"));
+    public IBrush MediumBrush { get; set; } = new SolidColorBrush(Color.Parse("#0D1117"));
 
     /// <summary>Gets or sets the brush to use for Low severity text.</summary>
-    public IBrush LowBrush { get; set; } = new SolidColorBrush(Color.Parse("#dcfce7"));
+    public IBrush LowBrush { get; set; } = new SolidColorBrush(Color.Parse("#0D1117"));
 
     /// <summary>Gets or sets the brush to use for Info severity text.</summary>
-    public IBrush InfoBrush { get; set; } = new SolidColorBrush(Color.Parse("#cbd5e1"));
+    public IBrush InfoBrush { get; set; } = new SolidColorBrush(Color.Parse("#FFFFFF"));
 
     /// <summary>Gets or sets the fallback brush.</summary>
-    public IBrush FallbackBrush { get; set; } = new SolidColorBrush(Color.Parse("#94a3b8"));
+    public IBrush FallbackBrush { get; set; } = new SolidColorBrush(Color.Parse("#E6EDF3"));
 
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

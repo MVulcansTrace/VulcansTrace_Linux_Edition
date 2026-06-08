@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Projektanker.Icons.Avalonia;
+using Projektanker.Icons.Avalonia.MaterialDesign;
 
 namespace VulcansTrace.Linux.Avalonia;
 
@@ -14,6 +16,7 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        IconProvider.Current.Register<MaterialDesignIconProvider>();
         AvaloniaXamlLoader.Load(this);
     }
 
