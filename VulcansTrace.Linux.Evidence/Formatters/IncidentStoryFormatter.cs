@@ -123,7 +123,7 @@ public sealed class IncidentStoryFormatter
             FindingCategories.PortScan => "activity was detected",
             FindingCategories.Flood => "indicators were observed",
             FindingCategories.C2Channel => "channel activity was detected",
-            FindingCategories.PolicyViolation => "violations were detected",
+            FindingCategories.PolicyViolation => "breaches were detected",
             FindingCategories.Novelty => "novel activity was observed",
             FindingCategories.FlagAnomaly => "anomalies were observed",
             FindingCategories.MacSpoofing => "was detected",

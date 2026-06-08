@@ -339,7 +339,7 @@ public class IncidentStoryFormatterTests
     [InlineData(FindingCategories.PortScan, "activity was detected")]
     [InlineData(FindingCategories.Flood, "indicators were observed")]
     [InlineData(FindingCategories.C2Channel, "channel activity was detected")]
-    [InlineData(FindingCategories.PolicyViolation, "violations were detected")]
+    [InlineData(FindingCategories.PolicyViolation, "breaches were detected")]
     [InlineData(FindingCategories.Novelty, "novel activity was observed")]
     [InlineData(FindingCategories.FlagAnomaly, "anomalies were observed")]
     [InlineData(FindingCategories.MacSpoofing, "was detected")]

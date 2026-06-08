@@ -29,7 +29,7 @@
             </Border>
             <Border Background="{DynamicResource Critical}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Critical}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Failed: " Foreground="{DynamicResource Critical}"/><Run Text="{Binding TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Critical}"/>
+                    <Run Text="Failed: " Foreground="{DynamicResource TextPrimary}"/><Run Text="{Binding TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Critical}"/>
                 </TextBlock>
             </Border>
             <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
@@ -39,7 +39,7 @@
             </Border>
             <Border Background="{DynamicResource Warning}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Warning}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Crashed: " Foreground="{DynamicResource Warning}"/><Run Text="{Binding TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Warning}"/>
+                    <Run Text="Crashed: " Foreground="{DynamicResource TextPrimary}"/><Run Text="{Binding TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Warning}"/>
                 </TextBlock>
             </Border>
         </StackPanel>
