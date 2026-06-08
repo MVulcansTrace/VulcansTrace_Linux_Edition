@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:models="using:VulcansTrace.Linux.Avalonia.Models"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.NavigationSidebar"
+             x:CompileBindings="False"
+             Width="200"
+             Background="{DynamicResource BackgroundPrimary}">
+
+  <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <ListBox x:Name="NavListBox"
+               ItemsSource="{Binding NavigationItems}"
+               SelectedItem="{Binding SelectedNavigationItem}"
+               SelectionChanged="OnSelectionChanged"
+               Background="Transparent"
+               BorderThickness="0"
+               Padding="0,8">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,1,8,1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="3,0,0,0" />
+            <Setter Property="CornerRadius" Value="0,6,6,0" />
+            <Setter Property="Transitions">
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.1" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
+              </Transitions>
+            </Setter>
+          </Style>
+          <Style Selector="ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
+          </Style>
+          <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+          </Style>
+          <Style Selector="ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="FontWeight" Value="{DynamicResource FontWeightSemiBold}" />
+          </Style>
+          <Style Selector="ListBoxItem:selected i|Icon">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="models:NavigationItem">
+            <StackPanel>
+              <!-- Group header -->
+              <TextBlock Text="{Binding Group}"
+                         Foreground="{DynamicResource TextMuted}"
+                         FontSize="{DynamicResource FontSizeSmall}"
+                         FontWeight="{DynamicResource FontWeightSemiBold}"
+                         Margin="16,12,16,4"
+                         IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+              <!-- Navigation item content -->
+              <StackPanel Orientation="Horizontal" Spacing="10" Margin="12,8,12,8">
+                <i:Icon Value="{Binding Icon}"
+                        FontSize="20"
+                        Foreground="{DynamicResource TextSecondary}" />
+                <TextBlock Text="{Binding Label}"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondary}"
+                           FontSize="{DynamicResource FontSizeBody}" />
+              </StackPanel>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </ScrollViewer>
+  </Border>
+</UserControl>

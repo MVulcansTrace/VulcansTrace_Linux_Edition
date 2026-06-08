@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.RuleCoverageView"
+             x:DataType="vm:RuleCoverageViewModel">
+
+    <Design.DataContext>
+        <vm:RuleCoverageViewModel/>
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Summary badges -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
+            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Total: " Foreground="{DynamicResource TextTertiary}"/><Run Text="{Binding TotalRules, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                </TextBlock>
+            </Border>
+            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Passed: " Foreground="{DynamicResource Success}"/><Run Text="{Binding TotalPassed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Success}"/>
+                </TextBlock>
+            </Border>
+            <Border Background="{DynamicResource Critical}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Critical}" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Failed: " Foreground="{DynamicResource Critical}"/><Run Text="{Binding TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Critical}"/>
+                </TextBlock>
+            </Border>
+            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Suppressed: " Foreground="{DynamicResource TextTertiary}"/><Run Text="{Binding TotalSuppressed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                </TextBlock>
+            </Border>
+            <Border Background="{DynamicResource Warning}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Warning}" BorderThickness="1">
+                <TextBlock>
+                    <Run Text="Crashed: " Foreground="{DynamicResource Warning}"/><Run Text="{Binding TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Warning}"/>
+                </TextBlock>
+            </Border>
+        </StackPanel>
+
+        <!-- Empty state -->
+        <TextBlock Grid.Row="1"
+                   Text="Run an agent audit to see rule coverage."
+                   Foreground="{DynamicResource TextTertiary}"
+                   FontSize="12"
+                   Margin="0,4,0,8"
+                   IsVisible="{Binding !HasData}"/>
+
+        <!-- Category breakdown grid -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Categories}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  IsVisible="{Binding HasData}"
+                  AutomationProperties.AutomationId="CoverageDataGrid"
+                  AutomationProperties.Name="Rule Coverage Table">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
+                <DataGridTextColumn Header="Passed" Binding="{Binding Passed}" Width="90" />
+                <DataGridTextColumn Header="Failed" Binding="{Binding Failed}" Width="90" />
+                <DataGridTextColumn Header="Suppressed" Binding="{Binding Suppressed}" Width="100" />
+                <DataGridTextColumn Header="Crashed" Binding="{Binding Crashed}" Width="90" />
+                <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="90" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

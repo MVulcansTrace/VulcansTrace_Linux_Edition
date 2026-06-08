@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.RuleCatalogView"
+             x:DataType="vm:RuleCatalogViewModel">
+
+    <Design.DataContext>
+        <vm:RuleCatalogViewModel/>
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBox Text="{Binding SearchText}"
+                     Width="300"
+                     VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="RulesSearchTextBox"/>
+            <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{DynamicResource TextTertiary}"/>
+            <TextBlock Text="{Binding TotalRules}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding FilteredItems}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  AutomationProperties.AutomationId="RulesDataGrid"
+                  AutomationProperties.Name="Rules Catalog Table">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Severity" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
+                                <TextBlock Text="{Binding Severity}"
+                                           Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="220" />
+                <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="*" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
+                <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="280" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

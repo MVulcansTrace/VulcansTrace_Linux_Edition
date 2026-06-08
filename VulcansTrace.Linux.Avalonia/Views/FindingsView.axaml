@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.FindingsView"
+             x:DataType="vm:FindingsViewModel">
+
+    <Design.DataContext>
+        <vm:FindingsViewModel/>
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBox Text="{Binding SearchText}"
+                     Width="200"
+                     VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="SearchTextBox"/>
+            <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{DynamicResource TextSecondary}"/>
+            <ComboBox ItemsSource="{Binding SeverityFilters}"
+                      SelectedItem="{Binding SelectedSeverityFilter}"
+                      Width="170"
+                      VerticalAlignment="Center"
+                      AutomationProperties.AutomationId="SeverityFilterComboBox"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding FilteredItems}"
+                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  AutomationProperties.AutomationId="FindingsDataGrid"
+                  AutomationProperties.Name="Findings Table">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Severity" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
+                                <TextBlock Text="{Binding Severity}"
+                                           Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="70" />
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="90" />
+                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="180" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="130" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />
+                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
+                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

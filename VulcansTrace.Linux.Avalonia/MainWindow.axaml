@@ -4,6 +4,7 @@
         xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
         xmlns:local="using:VulcansTrace.Linux.Avalonia"
         xmlns:views="using:VulcansTrace.Linux.Avalonia.Views"
+        xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
         x:Class="VulcansTrace.Linux.Avalonia.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/VulcansTraceAvatar.png"
@@ -16,18 +17,6 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <Window.Resources>
-        <conv:SeverityToBrushConverter x:Key="SeverityToBrushConverter" />
-        <conv:SeverityToForegroundBrushConverter x:Key="SeverityToForegroundBrushConverter" />
-        <conv:BoolToColumnConverter x:Key="BoolToColumnConverter" />
-        <conv:BoolToSpanConverter x:Key="BoolToSpanConverter" />
-        <conv:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter" />
-        <conv:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
-        <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
-        <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
-        <conv:ReviewFilterLabelConverter x:Key="ReviewFilterLabelConverter" />
-        <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
-    </Window.Resources>
 
     <Grid Margin="16" Background="{DynamicResource BackgroundPrimary}">
         <Grid.RowDefinitions>
@@ -37,72 +26,73 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="5*"/>
         </Grid.ColumnDefinitions>
 
         <!-- Summary and warnings -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Vertical" Margin="0,0,0,12">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Left">
-                <Border Background="#1e293b" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#334155" BorderThickness="1">
+                <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource Border}" BorderThickness="1">
                     <TextBlock>
-                        <Run Text="Findings: " Foreground="#94a3b8"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                        <Run Text="Findings: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="#3f1515" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#7f1d1d" BorderThickness="1">
+                <Border Background="{DynamicResource SeverityCriticalBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityCritical}" BorderThickness="1">
                     <TextBlock>
-                        <Run Text="High/Critical: " Foreground="#fca5a5"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
+                        <Run Text="High/Critical: " Foreground="{DynamicResource SeverityCritical}"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityCritical}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="#3f2e14" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#854d0e" BorderThickness="1">
+                <Border Background="{DynamicResource SeverityMediumBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityMedium}" BorderThickness="1">
                     <TextBlock>
-                        <Run Text="Warnings: " Foreground="#fcd34d"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fde047"/>
+                        <Run Text="Warnings: " Foreground="{DynamicResource SeverityMedium}"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityMedium}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="#3f1515" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="#7f1d1d" BorderThickness="1">
+                <Border Background="{DynamicResource SeverityHighBg}" Padding="8,4" CornerRadius="6" Margin="0,0,8,0" BorderBrush="{DynamicResource SeverityHigh}" BorderThickness="1">
                     <TextBlock>
-                        <Run Text="Parse Errors: " Foreground="#fca5a5"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
+                        <Run Text="Parse Errors: " Foreground="{DynamicResource SeverityHigh}"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityHigh}"/>
                     </TextBlock>
                 </Border>
-                <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+                <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Border}" BorderThickness="1">
                     <TextBlock>
-                        <Run Text="Skipped Lines: " Foreground="#94a3b8"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
+                        <Run Text="Skipped Lines: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                     </TextBlock>
                 </Border>
             </StackPanel>
-            <Border Background="#3f2e14"
-                    BorderBrush="#854d0e"
+            <Border Background="{DynamicResource SeverityMediumBg}"
+                    BorderBrush="{DynamicResource SeverityMedium}"
                     BorderThickness="1"
                     Padding="8"
                     CornerRadius="6"
                     IsVisible="{Binding Findings.HasWarnings}">
                 <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="#fcd34d" />
+                    <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="{DynamicResource SeverityMedium}" />
                     <ItemsControl ItemsSource="{Binding Findings.Warnings}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock>
-                                    <Run Text="* " Foreground="#fbbf24"/>
-                                    <Run Text="{Binding}" Foreground="#fde68a"/>
+                                    <Run Text="* " Foreground="{DynamicResource SeverityMedium}"/>
+                                    <Run Text="{Binding}" Foreground="{DynamicResource TextPrimary}"/>
                                 </TextBlock>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
             </Border>
-            <Border Background="#3f1515"
-                    BorderBrush="#991b1b"
+            <Border Background="{DynamicResource SeverityCriticalBg}"
+                    BorderBrush="{DynamicResource SeverityCritical}"
                     BorderThickness="1"
                     Padding="8"
                     CornerRadius="6"
                     IsVisible="{Binding Findings.HasParseErrors}">
                 <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="#fca5a5" />
+                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="{DynamicResource SeverityCritical}" />
                     <ItemsControl ItemsSource="{Binding Findings.ParseErrors}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock TextWrapping="Wrap">
-                                    <Run Text="* " Foreground="#f87171"/>
-                                    <Run Text="{Binding}" Foreground="#fecaca"/>
+                                    <Run Text="* " Foreground="{DynamicResource SeverityCritical}"/>
+                                    <Run Text="{Binding}" Foreground="{DynamicResource TextPrimary}"/>
                                 </TextBlock>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -125,7 +115,7 @@
                            TextWrapping="Wrap"
                            VerticalAlignment="Center"
                            Width="260"
-                           Foreground="#cbd5e1"/>
+                           Foreground="{DynamicResource TextSecondary}"/>
             </StackPanel>
             <Grid Margin="12,0,0,12" IsVisible="{Binding HasAdvisorMessage}">
                 <Grid.RowDefinitions>
@@ -135,8 +125,8 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Background="#1e293b"
-                        BorderBrush="#475569"
+                <Border Background="{DynamicResource BackgroundSecondary}"
+                        BorderBrush="{DynamicResource Border}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Padding="8"
@@ -147,32 +137,32 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="#60a5fa"/>
-                        <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="#cbd5e1"/>
+                        <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="{DynamicResource Accent}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}"/>
                     </Grid>
                 </Border>
 
                 <Polygon Points="0,0 0,12 12,6"
-                         Fill="#1e293b"
-                         Stroke="#475569"
+                         Fill="{DynamicResource BackgroundSecondary}"
+                         Stroke="{DynamicResource Border}"
                          StrokeThickness="1"
                          HorizontalAlignment="Left"
                          VerticalAlignment="Top"
                          Margin="12,60,0,0"/>
             </Grid>
 
-            <TextBlock Text="Scan intensity:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <TextBlock Text="Scan intensity:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <ComboBox ItemsSource="{Binding Intensities}"
                       SelectedItem="{Binding SelectedIntensity}"
                       AutomationProperties.AutomationId="IntensityComboBox"
                       Margin="0,4,0,4"/>
             <TextBlock Text="Low shows only High/Critical findings. Medium shows Medium+. High shows all severities."
-                       Foreground="#94a3b8"
+                       Foreground="{DynamicResource TextSecondary}"
                        FontSize="11"
                        TextWrapping="Wrap"
                        Margin="0,0,0,8"/>
 
-            <TextBlock Text="Machine role:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <TextBlock Text="Machine role:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <ComboBox ItemsSource="{Binding MachineRoles}"
                       SelectedItem="{Binding SelectedMachineRole}"
                       AutomationProperties.AutomationId="MachineRoleComboBox"
@@ -181,69 +171,69 @@
             <Expander Header="Advanced" Margin="0,0,0,12">
                 <ScrollViewer MaxHeight="260">
                     <StackPanel>
-                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min distinct ports:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Min distinct ports:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min events:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Min events:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Window (seconds):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Window (seconds):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min spike attempts:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Min spike attempts:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Spike window (minutes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Spike window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}"/>
                         </StackPanel>
 
-                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min group size:" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Min group size:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Interval tolerance (seconds):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Interval tolerance (seconds):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Large threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Large threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Small threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Small threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="#94a3b8"/>
+                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Window (minutes):" VerticalAlignment="Center" Width="240" Foreground="#cbd5e1"/>
+                            <TextBlock Text="Window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
                             <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}"/>
                         </StackPanel>
 
                         <TextBlock Text="Leave any field at 0 to use the profile default for the selected intensity."
-                                   FontSize="10" Foreground="#64748b" Margin="0,8,0,4" TextWrapping="Wrap"/>
+                                   FontSize="10" Foreground="{DynamicResource TextMuted}" Margin="0,8,0,4" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
             </Expander>
 
-            <TextBlock Text="Paste Linux firewall log:" FontWeight="Bold" Foreground="#e2e8f0"/>
+            <TextBlock Text="Paste Linux firewall log:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <Grid Margin="0,4,0,8">
                 <TextBox Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
                          Watermark="Paste or type firewall log lines here..."
@@ -299,7 +289,7 @@
                 <TextBlock Text="{Binding Suppressions.StatusMessage}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap"
-                           Foreground="#94a3b8"
+                           Foreground="{DynamicResource TextSecondary}"
                            FontSize="11"/>
             </StackPanel>
             <Expander Header="Active Suppressions"
@@ -317,18 +307,18 @@
                                 <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding RuleId}"
-                                               Foreground="#e2e8f0"
+                                               Foreground="{DynamicResource TextPrimary}"
                                                FontSize="11"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Target}"
-                                               Foreground="#94a3b8"
+                                               Foreground="{DynamicResource TextSecondary}"
                                                FontSize="11"
                                                Margin="8,0,8,0"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Reason}"
-                                               Foreground="#64748b"
+                                               Foreground="{DynamicResource TextMuted}"
                                                FontSize="10"
                                                TextTrimming="CharacterEllipsis"
                                                MaxWidth="120"
@@ -351,13 +341,13 @@
                              Width="140"
                              IsIndeterminate="True"
                              VerticalAlignment="Center"/>
-                <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#94a3b8"/>
+                <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}"/>
             </StackPanel>
 
             <StackPanel Orientation="Vertical" Margin="0,0,0,8">
-                <TextBlock Text="Session HMAC Key (masked; copy to view):" FontWeight="Bold" FontSize="10" Foreground="#64748b"/>
+                <TextBlock Text="Session HMAC Key (masked; copy to view):" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="10" Foreground="#64748b" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="10" Foreground="{DynamicResource TextMuted}" Margin="0,0,8,0"/>
                     <Button Content="Copy signing key" Command="{Binding Evidence.CopySigningKeyCommand}" FontSize="10" Padding="6,2" ToolTip.Tip="Copies full signing key to clipboard"/>
                 </StackPanel>
             </StackPanel>
@@ -365,435 +355,33 @@
             <TextBlock Text="{Binding SummaryText}"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"
-                       Foreground="#cbd5e1"/>
+                       Foreground="{DynamicResource TextSecondary}"/>
         </StackPanel>
         </ScrollViewer>
 
-        <!-- Right: findings and errors tabs -->
-        <TabControl Grid.Row="1" Grid.Column="1" Margin="0">
-            <TabItem Header="Findings"
-                     AutomationProperties.AutomationId="FindingsTab">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+        <!-- Sidebar navigation -->
+        <controls:NavigationSidebar Grid.Row="1" Grid.Column="1" />
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#cbd5e1"/>
-                        <TextBox Text="{Binding Findings.SearchText}"
-                                 Width="200"
-                                 VerticalAlignment="Center"
-                                 AutomationProperties.AutomationId="SearchTextBox"/>
-                        <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="#cbd5e1"/>
-                        <ComboBox ItemsSource="{Binding Findings.SeverityFilters}"
-                                  SelectedItem="{Binding Findings.SelectedSeverityFilter}"
-                                  Width="170"
-                                  VerticalAlignment="Center"
-                                  AutomationProperties.AutomationId="SeverityFilterComboBox"/>
-                    </StackPanel>
-
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding Findings.FilteredItems}"
-                              SelectedItem="{Binding Findings.SelectedItem, Mode=TwoWay}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              BorderThickness="0"
-                              GridLinesVisibility="Horizontal"
-                              CanUserResizeColumns="True"
-                              AutomationProperties.AutomationId="FindingsDataGrid"
-                              AutomationProperties.Name="Findings Table">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Severity" Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
-                                                CornerRadius="4"
-                                                Padding="6,2"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Margin="2">
-                                            <TextBlock Text="{Binding Severity}"
-                                                       Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="11"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="70" />
-                            <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="90" />
-                            <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="180" />
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
-                            <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="130" />
-                            <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />
-                            <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                            <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                            <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Timeline"
-                     AutomationProperties.AutomationId="TimelineTab">
-                <ScrollViewer>
-                    <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="150,*">
-                        <!-- Toolbar -->
-                        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                                    Orientation="Horizontal"
-                                    Background="#1e1e1e"
-                                    Margin="0">
-                            <ToggleButton x:Name="TraceMapToggle"
-                                          Content="Trace Map"
-                                          Margin="8,4"
-                                          Padding="8,2"
-                                          IsChecked="{Binding Timeline.IsTraceMapEnabled}"
-                                          Foreground="#e2e8f0"
-                                          Background="#333333"/>
-                            <ToggleButton x:Name="HostGroupToggle"
-                                          Content="Group by Host"
-                                          Margin="0,4,8,4"
-                                          Padding="8,2"
-                                          IsChecked="{Binding Timeline.GroupMode, Converter={StaticResource GroupModeToBoolConverter}}"
-                                          Foreground="#e2e8f0"
-                                          Background="#333333"
-                                          IsEnabled="{Binding Timeline.IsTraceMapEnabled}"/>
-                        </StackPanel>
-
-                        <!-- Category/Host labels column -->
-                        <Border Grid.Row="1" Grid.Column="0" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,1,1">
-                            <TextBlock Text="{Binding Timeline.RowHeaderLabel}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       FontWeight="Bold"
-                                       Foreground="#e2e8f0"/>
-                        </Border>
-                        <Border Grid.Row="2" Grid.Column="0" BorderBrush="#333333" BorderThickness="0,0,1,0">
-                            <ItemsControl ItemsSource="{Binding Timeline.Categories}" Margin="4,6,4,6">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Spacing="8" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}"
-                                                   Margin="4,0"
-                                                   Height="22"
-                                                   VerticalAlignment="Center"
-                                                   TextWrapping="Wrap"
-                                                   Foreground="#cbd5e1"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Border>
-
-                        <!-- Timeline visualization area -->
-                        <Border Grid.Row="1" Grid.Column="1" Background="#252525" BorderBrush="#333333" BorderThickness="0,0,0,1">
-                            <TextBlock Text="{Binding Timeline.TimeRangeLabel}"
-                                       Margin="8,4"
-                                       FontSize="12"
-                                       Foreground="#94a3b8"/>
-                        </Border>
-                        <Border Grid.Row="2" Grid.Column="1" Background="#1a1a1a" BorderBrush="#333333" BorderThickness="0">
-                            <Grid>
-                                <Canvas x:Name="TimelineCanvas"
-                                        Background="#1a1a1a"
-                                        Height="{Binding Timeline.CanvasHeight}">
-                                    <!-- Timeline bars and edges will be drawn here -->
-                                </Canvas>
-                                <TextBlock Text="{Binding Timeline.SuppressionMessage}"
-                                           IsVisible="{Binding Timeline.IsEdgeRenderingSuppressed}"
-                                           VerticalAlignment="Bottom"
-                                           Margin="8,4"
-                                           FontSize="11"
-                                           Foreground="#fbbf24"
-                                           TextWrapping="Wrap"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Narrative panel -->
-                        <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                                Background="#1e1e1e"
-                                BorderBrush="#333333"
-                                BorderThickness="0,1,0,0"
-                                IsVisible="{Binding Timeline.IsNarrativeVisible}">
-                            <TextBlock Text="{Binding Timeline.SelectedChainNarrative}"
-                                       Margin="8,6"
-                                       FontSize="12"
-                                       Foreground="#94a3b8"
-                                       TextWrapping="Wrap"
-                                       FontStyle="Italic"/>
-                        </Border>
-                    </Grid>
-                </ScrollViewer>
-            </TabItem>
-            <TabItem Header="Incident Story"
-                     AutomationProperties.AutomationId="IncidentStoryTab">
-                <views:IncidentStoryView DataContext="{Binding IncidentStory}"/>
-            </TabItem>
-            <TabItem Header="Parse Errors"
-                     AutomationProperties.AutomationId="ParseErrorsTab">
-                <ListBox ItemsSource="{Binding Findings.ParseErrors}"
-                         BorderThickness="0"
-                         Foreground="#f87171"
-                         FontFamily="Consolas,Monospace"/>
-            </TabItem>
-            <TabItem Header="Warnings"
-                     AutomationProperties.AutomationId="WarningsTab">
-                <ListBox ItemsSource="{Binding Findings.Warnings}"
-                         BorderThickness="0"
-                         Foreground="#fbbf24"
-                         FontFamily="Consolas,Monospace"/>
-            </TabItem>
-            <TabItem Header="Rules"
-                     AutomationProperties.AutomationId="RulesTab">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#cbd5e1"/>
-                        <TextBox Text="{Binding RuleCatalog.SearchText}"
-                                 Width="300"
-                                 VerticalAlignment="Center"
-                                 AutomationProperties.AutomationId="RulesSearchTextBox"/>
-                        <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="#94a3b8"/>
-                        <TextBlock Text="{Binding RuleCatalog.TotalRules}" VerticalAlignment="Center" Foreground="#e2e8f0" FontWeight="Bold"/>
-                    </StackPanel>
-
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding RuleCatalog.FilteredItems}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              BorderThickness="0"
-                              GridLinesVisibility="Horizontal"
-                              CanUserResizeColumns="True"
-                              AutomationProperties.AutomationId="RulesDataGrid"
-                              AutomationProperties.Name="Rules Catalog Table">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Severity" Width="100">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
-                                                CornerRadius="4"
-                                                Padding="6,2"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Margin="2">
-                                            <TextBlock Text="{Binding Severity}"
-                                                       Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="11"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" />
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="220" />
-                            <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="*" />
-                            <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
-                            <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="280" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Suppressions"
-                     AutomationProperties.AutomationId="SuppressionsTab">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-                        <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#cbd5e1"/>
-                        <ComboBox ItemsSource="{Binding Suppressions.ReviewFilters}"
-                                  SelectedItem="{Binding Suppressions.SelectedReviewFilter}"
-                                  Width="180"
-                                  VerticalAlignment="Center"
-                                  AutomationProperties.AutomationId="SuppressionsFilterComboBox">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={StaticResource ReviewFilterLabelConverter}}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Text="{Binding Suppressions.ReviewQueueCount, StringFormat='{}Items: {0}'}"
-                                   VerticalAlignment="Center"
-                                   Margin="12,0,0,0"
-                                   Foreground="#94a3b8"/>
-                    </StackPanel>
-
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding Suppressions.ReviewQueueItems}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              BorderThickness="0"
-                              GridLinesVisibility="Horizontal"
-                              CanUserResizeColumns="True"
-                              AutomationProperties.AutomationId="SuppressionsDataGrid"
-                              AutomationProperties.Name="Suppressions Review Queue">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Status" Width="120">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{Binding StatusBackground}"
-                                                CornerRadius="4"
-                                                Padding="6,2"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Margin="2">
-                                            <TextBlock Text="{Binding StatusLabel}"
-                                                       Foreground="{Binding StatusForeground}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="11"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="90" />
-                            <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="140" />
-                            <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" />
-                            <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                            <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                            <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                            <DataGridTemplateColumn Header="Actions" Width="Auto">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <Button Content="Renew"
-                                                    FontSize="10"
-                                                    Padding="4,2"
-                                                    Command="{Binding $parent[DataGrid].DataContext.Suppressions.RenewSuppressionCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    IsVisible="{Binding CanRenew}"/>
-                                            <Button Content="Convert"
-                                                    FontSize="10"
-                                                    Padding="4,2"
-                                                    Command="{Binding $parent[DataGrid].DataContext.Suppressions.ConvertDurationCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button Content="Edit"
-                                                    FontSize="10"
-                                                    Padding="4,2"
-                                                    Command="{Binding $parent[DataGrid].DataContext.Suppressions.EditReasonCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button Content="Remove"
-                                                    FontSize="10"
-                                                    Padding="4,2"
-                                                    Command="{Binding $parent[DataGrid].DataContext.Suppressions.RemoveSuppressionCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Coverage"
-                     AutomationProperties.AutomationId="CoverageTab">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Summary badges -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
-                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
-                            <TextBlock>
-                                <Run Text="Total: " Foreground="#94a3b8"/><Run Text="{Binding RuleCoverage.TotalRules, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
-                            <TextBlock>
-                                <Run Text="Passed: " Foreground="#22c55e"/><Run Text="{Binding RuleCoverage.TotalPassed, Mode=OneWay}" FontWeight="Bold" Foreground="#4ade80"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Background="#3f1515" Padding="8,4" CornerRadius="6" BorderBrush="#7f1d1d" BorderThickness="1">
-                            <TextBlock>
-                                <Run Text="Failed: " Foreground="#fca5a5"/><Run Text="{Binding RuleCoverage.TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="#fecaca"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
-                            <TextBlock>
-                                <Run Text="Suppressed: " Foreground="#94a3b8"/><Run Text="{Binding RuleCoverage.TotalSuppressed, Mode=OneWay}" FontWeight="Bold" Foreground="#e2e8f0"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Background="#3f2e14" Padding="8,4" CornerRadius="6" BorderBrush="#854d0e" BorderThickness="1">
-                            <TextBlock>
-                                <Run Text="Crashed: " Foreground="#fcd34d"/><Run Text="{Binding RuleCoverage.TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="#fde047"/>
-                            </TextBlock>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Empty state -->
-                    <TextBlock Grid.Row="1"
-                               Text="Run an agent audit to see rule coverage."
-                               Foreground="#64748b"
-                               FontSize="12"
-                               Margin="0,4,0,8"
-                               IsVisible="{Binding !RuleCoverage.HasData}"/>
-
-                    <!-- Category breakdown grid -->
-                    <DataGrid Grid.Row="2"
-                              ItemsSource="{Binding RuleCoverage.Categories}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              BorderThickness="0"
-                              GridLinesVisibility="Horizontal"
-                              CanUserResizeColumns="True"
-                              IsVisible="{Binding RuleCoverage.HasData}"
-                              AutomationProperties.AutomationId="CoverageDataGrid"
-                              AutomationProperties.Name="Rule Coverage Table">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
-                            <DataGridTextColumn Header="Passed" Binding="{Binding Passed}" Width="90" />
-                            <DataGridTextColumn Header="Failed" Binding="{Binding Failed}" Width="90" />
-                            <DataGridTextColumn Header="Suppressed" Binding="{Binding Suppressed}" Width="100" />
-                            <DataGridTextColumn Header="Crashed" Binding="{Binding Crashed}" Width="90" />
-                            <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="90" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Compliance"
-                     AutomationProperties.AutomationId="ComplianceTab">
-                <views:ComplianceScorecardView DataContext="{Binding ComplianceScorecard}"/>
-            </TabItem>
-            <TabItem Header="Risk"
-                     AutomationProperties.AutomationId="RiskTab">
-                <views:RiskScorecardView DataContext="{Binding RiskScorecard}"/>
-            </TabItem>
-            <TabItem Header="Schedules"
-                     AutomationProperties.AutomationId="SchedulesTab">
-                <views:ScheduleView DataContext="{Binding Schedules}"/>
-            </TabItem>
-            <TabItem Header="Live Stream"
-                     AutomationProperties.AutomationId="LiveStreamTab">
-                <views:LiveStreamView DataContext="{Binding LiveStream}"/>
-            </TabItem>
-            <TabItem Header="Doctor"
-                     AutomationProperties.AutomationId="DoctorTab">
-                <views:DoctorView DataContext="{Binding Doctor}"/>
-            </TabItem>
-        </TabControl>
+        <!-- Main content area -->
+        <Border Grid.Row="1" Grid.Column="2"
+                Background="{DynamicResource BackgroundPrimary}"
+                BorderBrush="{DynamicResource Border}"
+                BorderThickness="1"
+                CornerRadius="{DynamicResource CardRadius}"
+                Padding="12"
+                Margin="0,0,0,0">
+            <ContentControl Content="{Binding SelectedContent}" />
+        </Border>
 
         <!-- Bottom: Agent chat panel -->
-        <Expander Grid.Row="2" Grid.ColumnSpan="2"
+        <Expander Grid.Row="2" Grid.ColumnSpan="3"
                   Header="Security Agent"
                   Margin="0,8,0,0"
                   IsExpanded="False"
-                  Background="#0f172a"
-                  BorderBrush="#334155"
+                  Background="{DynamicResource BackgroundSecondary}"
+                  BorderBrush="{DynamicResource Border}"
                   BorderThickness="1"
-                  CornerRadius="6">
+                  CornerRadius="{DynamicResource CardRadius}">
             <Grid Height="240">
                 <local:AgentView DataContext="{Binding Agent}" />
             </Grid>

@@ -23,6 +23,7 @@ using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
+using VulcansTrace.Linux.Avalonia.Models;
 using VulcansTrace.Linux.Avalonia.Services;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -66,6 +67,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private MachineRole _selectedMachineRole = MachineRole.Workstation;
     private AnalysisResult? _lastResult;
     private bool _analysisCancelRequested;
+    private NavigationItem? _selectedNavigationItem;
+    private object? _selectedContent;
 
     /// <summary>Gets the last analysis result.</summary>
     public AnalysisResult? LastResult => _lastResult;
@@ -110,6 +113,29 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for doctor diagnostics.</summary>
     public DoctorViewModel Doctor { get; }
+
+    /// <summary>Gets the sidebar navigation items.</summary>
+    public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
+
+    /// <summary>Gets or sets the currently selected navigation item.</summary>
+    public NavigationItem? SelectedNavigationItem
+    {
+        get => _selectedNavigationItem;
+        set
+        {
+            if (SetField(ref _selectedNavigationItem, value))
+            {
+                SelectedContent = value?.Content;
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the content displayed in the main area.</summary>
+    public object? SelectedContent
+    {
+        get => _selectedContent;
+        private set => SetField(ref _selectedContent, value);
+    }
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -305,6 +331,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the compare logs command.</summary>
     public AsyncRelayCommand CompareLogsCommand { get; }
 
+    /// <summary>Gets the command to select a navigation item.</summary>
+    public RelayCommand<NavigationItem> SelectNavigationCommand { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
@@ -391,6 +420,26 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         _demoCompletedHandler = (_, e) => OnDemoCompleted(e);
         LiveStream.DemoCompleted += _demoCompletedHandler;
+
+        // Initialize sidebar navigation
+        NavigationItems.Add(new NavigationItem { Label = "Findings", Icon = "mdi-magnify", Content = Findings, Group = "Analysis" });
+        NavigationItems.Add(new NavigationItem { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog, Group = "Management" });
+        NavigationItems.Add(new NavigationItem { Label = "Suppressions", Icon = "mdi-volume-off", Content = Suppressions, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Coverage", Icon = "mdi-bullseye-arrow", Content = RuleCoverage, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Compliance", Icon = "mdi-clipboard-check", Content = ComplianceScorecard, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Risk", Icon = "mdi-alert-decagram", Content = RiskScorecard, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Schedules", Icon = "mdi-calendar-clock", Content = Schedules, Group = "Operations" });
+        NavigationItems.Add(new NavigationItem { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Parse Errors", Icon = "mdi-alert-circle", Content = Findings, Group = "System" });
+        NavigationItems.Add(new NavigationItem { Label = "Warnings", Icon = "mdi-alert", Content = Findings, Group = "" });
+
+        SelectedNavigationItem = NavigationItems[0];
+
+        SelectNavigationCommand = new RelayCommand<NavigationItem>(
+            item => SelectedNavigationItem = item);
 
         AcceptRiskCommand = new AsyncRelayCommand(
             async _ => await AcceptRiskAsync(),

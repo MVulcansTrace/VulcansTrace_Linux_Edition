@@ -1,5 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:VulcansTrace.Linux.Avalonia"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
              x:Class="VulcansTrace.Linux.Avalonia.App"
              RequestedThemeVariant="Dark">
 
@@ -8,8 +10,23 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/DarkTheme.axaml" />
             </ResourceDictionary.MergedDictionaries>
+            <local:ViewLocator x:Key="ViewLocator" />
+            <conv:SeverityToBrushConverter x:Key="SeverityToBrushConverter" />
+            <conv:SeverityToForegroundBrushConverter x:Key="SeverityToForegroundBrushConverter" />
+            <conv:BoolToColumnConverter x:Key="BoolToColumnConverter" />
+            <conv:BoolToSpanConverter x:Key="BoolToSpanConverter" />
+            <conv:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter" />
+            <conv:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
+            <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
+            <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
+            <conv:ReviewFilterLabelConverter x:Key="ReviewFilterLabelConverter" />
+            <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
         </ResourceDictionary>
     </Application.Resources>
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
 
     <Application.Styles>
         <FluentTheme />

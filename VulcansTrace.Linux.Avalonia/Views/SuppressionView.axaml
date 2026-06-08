@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.SuppressionView"
+             x:DataType="vm:SuppressionViewModel">
+
+    <Design.DataContext>
+        <vm:SuppressionViewModel/>
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <ComboBox ItemsSource="{Binding ReviewFilters}"
+                      SelectedItem="{Binding SelectedReviewFilter}"
+                      Width="180"
+                      VerticalAlignment="Center"
+                      AutomationProperties.AutomationId="SuppressionsFilterComboBox">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource ReviewFilterLabelConverter}}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding ReviewQueueCount, StringFormat='{}Items: {0}'}"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       Foreground="{DynamicResource TextTertiary}"/>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding ReviewQueueItems}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  BorderThickness="0"
+                  GridLinesVisibility="Horizontal"
+                  CanUserResizeColumns="True"
+                  AutomationProperties.AutomationId="SuppressionsDataGrid"
+                  AutomationProperties.Name="Suppressions Review Queue">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Status" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding StatusBackground}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
+                                <TextBlock Text="{Binding StatusLabel}"
+                                           Foreground="{Binding StatusForeground}"
+                                           FontWeight="SemiBold"
+                                           FontSize="11"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="90" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="140" />
+                <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" />
+                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
+                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
+                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
+                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button Content="Renew"
+                                        FontSize="10"
+                                        Padding="4,2"
+                                        Command="{Binding $parent[DataGrid].DataContext.RenewSuppressionCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{Binding CanRenew}"/>
+                                <Button Content="Convert"
+                                        FontSize="10"
+                                        Padding="4,2"
+                                        Command="{Binding $parent[DataGrid].DataContext.ConvertDurationCommand}"
+                                        CommandParameter="{Binding}"/>
+                                <Button Content="Edit"
+                                        FontSize="10"
+                                        Padding="4,2"
+                                        Command="{Binding $parent[DataGrid].DataContext.EditReasonCommand}"
+                                        CommandParameter="{Binding}"/>
+                                <Button Content="Remove"
+                                        FontSize="10"
+                                        Padding="4,2"
+                                        Command="{Binding $parent[DataGrid].DataContext.RemoveSuppressionCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

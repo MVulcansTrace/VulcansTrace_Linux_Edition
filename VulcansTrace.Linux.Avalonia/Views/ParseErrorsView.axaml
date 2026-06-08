@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.ParseErrorsView"
+             x:DataType="vm:FindingsViewModel">
+
+    <Design.DataContext>
+        <vm:FindingsViewModel/>
+    </Design.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Parse Errors"
+                   Foreground="{DynamicResource Critical}"
+                   FontWeight="Bold"
+                   FontSize="14"
+                   Margin="0,0,0,8"/>
+
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding ParseErrors}"
+                 BorderThickness="0"
+                 Foreground="{DynamicResource Critical}"
+                 FontFamily="Consolas,Monospace"/>
+    </Grid>
+</UserControl>

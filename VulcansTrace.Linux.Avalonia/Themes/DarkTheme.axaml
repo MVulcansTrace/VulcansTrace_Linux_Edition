@@ -47,6 +47,14 @@
   <SolidColorBrush x:Key="LiveRunning" Color="#3FB950" />
   <SolidColorBrush x:Key="LiveStopped" Color="#6E7681" />
 
+  <!-- Aliases for view convenience -->
+  <SolidColorBrush x:Key="TextTertiary"  Color="#6E7681" />
+  <SolidColorBrush x:Key="BorderBrush"   Color="#30363D" />
+  <SolidColorBrush x:Key="Critical"      Color="#F85149" />
+  <SolidColorBrush x:Key="Warning"       Color="#D29922" />
+  <SolidColorBrush x:Key="Success"       Color="#3FB950" />
+  <SolidColorBrush x:Key="Info"          Color="#58A6FF" />
+
   <!-- ============================================================ -->
   <!--  Typography                                                   -->
   <!-- ============================================================ -->
