@@ -72,7 +72,7 @@
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="280" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="360" />
                 <DataGridTextColumn Header="Findings" Binding="{Binding FindingCount}" Width="90" />
                 <DataGridTextColumn Header="Avg Severity" Binding="{Binding AverageSeverity, StringFormat={}{0:F1}}" Width="110" />
                 <DataGridTextColumn Header="Deduction" Binding="{Binding TotalDeduction, StringFormat={}{0:F1}}" Width="100" />

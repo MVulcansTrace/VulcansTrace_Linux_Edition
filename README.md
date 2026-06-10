@@ -15,7 +15,21 @@ OFFLINE POLICY: the application does not send logs, telemetry, analytics, or fin
 
 ## Demo Preview
 
-![VulcansTrace Linux Edition desktop analyzer preview](VulcansTrace-gif.gif)
+**Full detection pipeline:** paste logs, analyze, trace the attack chain, get remediation steps.
+
+![VulcansTrace hero demo: full detection pipeline with Timeline and Incident Story](portfolio-hero.gif)
+
+**Analysis depth:** 9 findings across 6 threat categories, with Coverage, Compliance, and Risk scorecard.
+
+![VulcansTrace dashboard demo: findings, coverage, compliance, and risk grade](portfolio-dashboard.gif)
+
+**Full control:** tunable detection thresholds for every detector, plus Live Stream for real-time monitoring.
+
+![VulcansTrace advanced config demo: threshold tuning and live stream](portfolio-advanced.gif)
+
+**AI-powered investigation:** Security Agent with audit categories, remediation exports, and interactive analysis.
+
+![VulcansTrace Security Agent demo: AI-powered investigation and remediation](portfolio-agent.gif)
 
 ## Contents
 

@@ -56,12 +56,12 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="70" />
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="90" />
-                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="180" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="130" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="150" />
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="80" />
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="110" />
+                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="240" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="250" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="180" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="200" />
                 <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
                 <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
                 <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
