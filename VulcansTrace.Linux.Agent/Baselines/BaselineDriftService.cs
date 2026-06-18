@@ -204,7 +204,7 @@ internal sealed class BaselineDriftService
             };
         }
 
-        var savedLastResult = _auditState.LastResult;
+        var savedState = _auditState.SnapshotState();
         try
         {
             var liveResult = await _runAudit(intent, rawLog, ct);
@@ -277,7 +277,7 @@ internal sealed class BaselineDriftService
         }
         finally
         {
-            _auditState.RememberResult(savedLastResult);
+            _auditState.RestoreState(savedState.LastResult, savedState.Entities);
         }
     }
 

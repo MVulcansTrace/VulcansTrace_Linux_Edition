@@ -324,6 +324,15 @@ public class QueryParserTests
     }
 
     [Fact]
+    public void Parse_BlankQuery_PreservesRawQuery()
+    {
+        var result = _parser.Parse("   ");
+
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.Equal("   ", result.RawQuery);
+    }
+
+    [Fact]
     public void Parse_AddSessionNote_ReturnsHighConfidence()
     {
         // Use a query with minimal competing keywords

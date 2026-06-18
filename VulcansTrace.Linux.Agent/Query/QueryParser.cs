@@ -61,7 +61,7 @@ public sealed class QueryParser : IQueryParser
     public AgentQuery Parse(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return new AgentQuery(AgentIntent.Help, Confidence: 0.0);
+            return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query);
 
         var normalized = query.ToLowerInvariant().Trim();
         var bestIntent = AgentIntent.Help;
@@ -89,7 +89,7 @@ public sealed class QueryParser : IQueryParser
 
         if (bestScore == 0)
         {
-            return new AgentQuery(AgentIntent.Help, Confidence: 0.0);
+            return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query);
         }
 
         var alternatives = scoredIntents
@@ -102,7 +102,7 @@ public sealed class QueryParser : IQueryParser
         var isAmbiguous = alternatives.Count > 0 && tiedIntents.All(IsAuditIntent);
 
         var targetReference = ExtractTargetReference(query, bestIntent);
-        return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous);
+        return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous, query);
     }
 
     private static bool IsAuditIntent(AgentIntent intent) => intent switch

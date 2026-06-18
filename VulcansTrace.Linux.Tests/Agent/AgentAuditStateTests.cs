@@ -36,7 +36,10 @@ public class AgentAuditStateTests
             Details = "Details mention hardened configuration"
         };
 
-        state.ReplaceLastFindings(new[] { ("TEST-001", finding) });
+        state.RememberAudit(
+            new AgentResult { Intent = AgentIntent.FullAudit, AgentFindings = new[] { finding } },
+            AgentIntent.FullAudit,
+            new[] { ("TEST-001", finding) });
 
         Assert.Same(finding, state.FindPreviousFinding("open ssh"));
         Assert.Same(finding, state.FindPreviousFinding("ssh"));

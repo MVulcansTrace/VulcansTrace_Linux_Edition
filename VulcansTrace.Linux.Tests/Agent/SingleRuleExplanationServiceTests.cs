@@ -12,7 +12,7 @@ namespace VulcansTrace.Linux.Tests.Agent;
 public class SingleRuleExplanationServiceTests
 {
     [Fact]
-    public async Task ExplainAsync_FailingRule_ReturnsFindingAndUpdatesState()
+    public async Task ExplainAsync_FailingRule_ReturnsFindingWithoutUpdatingState()
     {
         var state = new AgentAuditState();
         var service = CreateService(new FailingRule(), state: state);
@@ -23,8 +23,8 @@ public class SingleRuleExplanationServiceTests
         Assert.Single(result.AgentFindings);
         Assert.Equal("Explanation for [High] Test failed\n\nexplanation:TEST-001", result.Summary);
         Assert.Equal(1, result.FailedCount);
-        Assert.Same(result, state.LastResult);
-        Assert.Same(result.AgentFindings[0], state.FindPreviousFinding("TEST-001"));
+        Assert.Null(state.LastResult);
+        Assert.Null(state.FindPreviousFinding("TEST-001"));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class SingleRuleExplanationServiceTests
         Assert.Contains("Rule TEST-001 is disabled by policy for Workstation.", result.Summary);
         Assert.Equal(1, result.PassedCount);
         Assert.Same(previous, state.LastResult);
-        Assert.Null(state.FindPreviousFinding("TEST-001"));
+        Assert.Same(previousFinding, state.FindPreviousFinding("TEST-001"));
     }
 
     [Fact]

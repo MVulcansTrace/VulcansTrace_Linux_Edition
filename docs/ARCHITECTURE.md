@@ -84,7 +84,21 @@ The **Log Diff** subsystem provides a parallel comparison path for forensic time
 
 The Security Agent provides a parallel local posture path:
 
-1. A natural-language query is parsed into an `AgentIntent`.
+1. A natural-language query is parsed into an `AgentIntent` by `QueryParser`, then resolved through `DialogueManager` which applies anaphora resolution and topic-aware deterministic inference before `SecurityAgent` routes the final `AgentQuery`.
+
+### Conversation Awareness
+
+The agent layer adds deterministic, LLM-free dialogue support through the `VulcansTrace.Linux.Agent.Dialogue` namespace:
+
+- `DialogueContext` — tracks the current `ConversationTopic`, last `AgentIntent`, focused `Finding`, resolved entities (rule ID, category, session ID, ordinal), and a capped history of `DialogueTurn` records. It also provides `SnapshotState`/`RestoreState` so follow-up services that run nested audits can restore the full entity frame afterward.
+- `EntityFrame` — shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session. `DialogueManager.Resolve` snapshots it under the context lock before handing it to the resolver and inference engine.
+- `EntityExtractor` — extracts rule IDs (`FW-001`), session IDs, ordinals (`1st`, `second one`), categories, and anaphora markers (`it`, `that`, `this one`) with word-boundary awareness and keyword ordering that lets specific terms (`ssh`, `filesystem`, `suid`) beat generic substrings (`service`, `file`).
+- `AnaphoraResolver` — resolves pronouns and ordinals against a snapshot of `EntityFrame`. Ordinals map to ranked findings from the last audit; explicit rule IDs take precedence over pronouns. Session references (`verify it`, `check it`) only resolve when the topic is `Remediation` or a session exists.
+- `IntentInferenceEngine` — re-evaluates parsed queries against `(prior topic, resolved entities, raw query)` and infers intents such as `FixFinding` after an explanation, `VerifyRemediation` after remediation, or `FilterCategory` after an audit. `BuildTarget` composes the final target from resolved references, parser output, and entity fallbacks, with explicit references taking precedence. It returns a confidence-weighted query and a flag indicating whether inference was applied.
+- `ResponseTemplateProvider` — builds deterministic clarification prompts when a query remains ambiguous after inference.
+- `DialogueManager` — orchestrates the flow: `QueryParser` → `AnaphoraResolver` → `IntentInferenceEngine`, then records the completed turn and can produce clarification prompts. It snapshots the entity frame under the context lock at resolve time.
+
+`SecurityAgent.AskAsync` creates and updates `DialogueContext` through `DialogueManager` on every turn. The existing `AgentAuditState` type inherits from `DialogueContext` so existing follow-up services and tests remain compatible while gaining conversation-aware resolution. `SecurityAgent.ExplainFindingAsync` also updates the focused finding and topic so UI-selected-finding explanations support pronoun follow-ups.
 2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), live process runtime state (memory maps, environment variables, executable paths, command lines, parent-child relationships, and duplicate-field / truncation metadata from `/proc/<pid>/`), YARA rule matches for SUID/SGID binaries, running process executables, and cron scripts, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed posture checks into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
@@ -167,6 +181,11 @@ Notification services are pluggable:
 - `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
 - `IocEntry`: immutable IOC record (`Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`).
 - `CriticalChain`: record representing a detected critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) on a single host, with chronologically sorted `FindingIds`.
+- `AgentQuery`: structured user request containing `AgentIntent`, optional target reference, confidence, ambiguity flag, and the original raw query text for inference reuse.
+- `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore.
+- `EntityFrame`: shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session.
+- `ReferenceResolution`: result of anaphora resolution with flags for anaphora presence, resolved rule ID, category, session ID, ordinal, and finding.
+- `ConversationTopic`: enum (`Unknown`, `Audit`, `Explanation`, `Remediation`, `Help`, `Comparison`, `Drift`) used to gate intent inference.
 - `CountermeasureCommand`: record representing an active defense command (`IptablesDrop` or `AuditdMonitor`) with apply command, rollback command, safety classification, and target host.
 - `CountermeasureType`: enum discriminating `IptablesDrop` and `AuditdMonitor` countermeasure kinds.
 - `FileHashEntry`: scanner output pairing a file path with its SHA-256 hash (`Path`, `Hash`, `Algorithm`).

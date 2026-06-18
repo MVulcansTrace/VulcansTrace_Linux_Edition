@@ -9,4 +9,5 @@ public sealed record AgentQuery(
     string? TargetReference = null,
     double Confidence = 1.0,
     IReadOnlyList<AgentIntent>? AlternativeIntents = null,
-    bool IsAmbiguous = false);
+    bool IsAmbiguous = false,
+    string? RawQuery = null);

@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Baselines;
+using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -31,6 +32,7 @@ public sealed class SecurityAgent : IAgent
     private readonly AgentFollowUpService _followUpService;
     private readonly GuidedRemediationService _guidedRemediationService;
     private readonly ISuppressionStore? _suppressionStore;
+    private readonly DialogueManager _dialogueManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -100,28 +102,31 @@ public sealed class SecurityAgent : IAgent
             _guidedRemediationService,
             RunAuditAsync);
         _suppressionStore = suppressionStore;
+        _dialogueManager = new DialogueManager();
     }
 
     /// <inheritdoc />
     public async Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
     {
-        var parser = new QueryParser();
-        var agentQuery = parser.Parse(query);
+        var agentQuery = _dialogueManager.Resolve(query, _auditState);
 
         if (agentQuery.IsAmbiguous)
         {
+            var clarification = _dialogueManager.BuildClarificationPrompt(agentQuery, _auditState);
             return new AgentResult
             {
                 Intent = AgentIntent.Help,
-                Summary = BuildClarificationPrompt(agentQuery),
+                Summary = clarification,
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             };
         }
 
+        AgentResult result;
+
         if (agentQuery.Intent == AgentIntent.Help)
         {
-            return new AgentResult
+            result = new AgentResult
             {
                 Intent = AgentIntent.Help,
                 Summary = GetHelpText(),
@@ -129,15 +134,13 @@ public sealed class SecurityAgent : IAgent
                 Warnings = Array.Empty<string>()
             };
         }
-
-        if (agentQuery.Intent == AgentIntent.ExplainFinding)
+        else if (agentQuery.Intent == AgentIntent.ExplainFinding)
         {
-            return await _findingExplanationService.HandleExplainFindingAsync(agentQuery, ct);
+            result = await _findingExplanationService.HandleExplainFindingAsync(agentQuery, ct);
         }
-
-        if (IsBaselineIntent(agentQuery.Intent))
+        else if (IsBaselineIntent(agentQuery.Intent))
         {
-            return agentQuery.Intent switch
+            result = agentQuery.Intent switch
             {
                 AgentIntent.SetBaseline => await _baselineDriftService.SetBaselineAsync(agentQuery, ct),
                 AgentIntent.CheckDrift => await _baselineDriftService.CheckDriftAsync(agentQuery, ct),
@@ -145,100 +148,139 @@ public sealed class SecurityAgent : IAgent
                 _ => await RunAuditAsync(agentQuery.Intent, rawLog, ct)
             };
         }
-
-        if (agentQuery.Intent == AgentIntent.StartRemediation)
+        else if (agentQuery.Intent == AgentIntent.StartRemediation)
         {
-            return await _guidedRemediationService.CreateSessionAsync(agentQuery.TargetReference ?? "", ct);
+            result = await _guidedRemediationService.CreateSessionAsync(agentQuery.TargetReference ?? "", ct);
         }
-
-        if (agentQuery.Intent == AgentIntent.VerifyRemediation)
+        else if (agentQuery.Intent == AgentIntent.VerifyRemediation)
         {
-            return await _guidedRemediationService.RunVerificationAsync(agentQuery.TargetReference ?? "", ct);
+            result = await _guidedRemediationService.RunVerificationAsync(agentQuery.TargetReference ?? "", ct);
         }
-
-        if (agentQuery.Intent == AgentIntent.ListRemediationSessions)
+        else if (agentQuery.Intent == AgentIntent.ListRemediationSessions)
         {
-            return await _guidedRemediationService.ListSessionsAsync(ct);
+            result = await _guidedRemediationService.ListSessionsAsync(ct);
         }
-
-        if (agentQuery.Intent == AgentIntent.ResumeRemediation)
+        else if (agentQuery.Intent == AgentIntent.ResumeRemediation)
         {
-            return await _guidedRemediationService.LoadSessionAsync(agentQuery.TargetReference ?? "", ct);
+            result = await _guidedRemediationService.LoadSessionAsync(agentQuery.TargetReference ?? "", ct);
         }
-
-        if (agentQuery.Intent == AgentIntent.AddSessionNote)
+        else if (agentQuery.Intent == AgentIntent.AddSessionNote)
         {
             var (sessionId, noteText, links) = ParseSessionNoteQuery(query, agentQuery);
-            return await AddSessionNoteAsync(sessionId, noteText, links, ct);
+            result = await AddSessionNoteAsync(sessionId, noteText, links, ct);
         }
-
-        if (agentQuery.Intent == AgentIntent.AddStepNote)
+        else if (agentQuery.Intent == AgentIntent.AddStepNote)
         {
             var (sessionId, ruleId, noteText, links) = ParseStepNoteQuery(query, agentQuery);
-            return await AddStepNoteAsync(sessionId, ruleId, noteText, links, ct);
+            result = await AddStepNoteAsync(sessionId, ruleId, noteText, links, ct);
         }
-
-        if (IsFollowUpIntent(agentQuery.Intent))
+        else if (IsFollowUpIntent(agentQuery.Intent))
         {
-            return await _followUpService.HandleFollowUpAsync(agentQuery, ct);
+            result = await _followUpService.HandleFollowUpAsync(agentQuery, ct);
+        }
+        else
+        {
+            result = await RunAuditAsync(agentQuery.Intent, rawLog, ct);
         }
 
-        return await RunAuditAsync(agentQuery.Intent, rawLog, ct);
+        UpdateDialogueContext(query, agentQuery, result);
+        return result;
     }
 
-    private static string BuildClarificationPrompt(AgentQuery query)
+    private void UpdateDialogueContext(string rawQuery, AgentQuery agentQuery, AgentResult result)
     {
-        var intents = new[] { query.Intent }
-            .Concat(query.AlternativeIntents ?? Array.Empty<AgentIntent>())
-            .Distinct()
-            .Select(GetIntentDisplayName)
-            .ToList();
+        _dialogueManager.PushTurn(_auditState, rawQuery, agentQuery);
 
-        return intents.Count == 0
-            ? "I could read that a couple of ways. Please ask for a specific audit area, such as firewall, ports, SSH, services, network, or full audit."
-            : $"I could read that a couple of ways: {string.Join(", ", intents)}. Please ask for one specific audit area so I do not run the wrong check.";
+        // Update conversation entities for anaphora resolution.
+        // Audit intents are handled by AgentResultFinalizer.RememberAudit;
+        // baseline intents manage their own state; follow-ups generally should
+        // not overwrite LastResult so subsequent follow-ups keep audit context.
+        switch (agentQuery.Intent)
+        {
+            case AgentIntent.ExplainFinding:
+                _auditState.Entities.LastIntent = AgentIntent.ExplainFinding;
+                _auditState.Entities.LastTopic = ConversationTopic.Explanation;
+                if (result.AgentFindings.Count > 0)
+                {
+                    var finding = result.AgentFindings[0];
+                    _auditState.FocusFinding(finding, finding.RuleId);
+                }
+                break;
+
+            case AgentIntent.FilterCategory when !string.IsNullOrWhiteSpace(agentQuery.TargetReference):
+                _auditState.Entities.LastIntent = AgentIntent.FilterCategory;
+                _auditState.Entities.LastTopic = ConversationTopic.Audit;
+                _auditState.FocusCategory(agentQuery.TargetReference);
+                break;
+
+            case AgentIntent.RiskScore:
+                _auditState.Entities.LastIntent = AgentIntent.RiskScore;
+                _auditState.Entities.LastTopic = ConversationTopic.Audit;
+                var topCategory = result.RiskScorecard?.ByCategory
+                    .OrderByDescending(c => c.TotalDeduction)
+                    .FirstOrDefault()?.Category;
+                if (!string.IsNullOrWhiteSpace(topCategory))
+                {
+                    _auditState.FocusCategory(topCategory);
+                }
+                break;
+
+            case AgentIntent.StartRemediation:
+            case AgentIntent.VerifyRemediation:
+            case AgentIntent.ResumeRemediation:
+                _auditState.Entities.LastIntent = agentQuery.Intent;
+                _auditState.Entities.LastTopic = ConversationTopic.Remediation;
+                if (result.RemediationSession != null)
+                {
+                    _auditState.Entities.LastRemediationSession = result.RemediationSession;
+                    _auditState.Entities.LastRemediationSessionId = result.RemediationSession.SessionId;
+                    _auditState.Entities.ActiveSessionId = result.RemediationSession.SessionId;
+                    if (result.RemediationSession.SourceFindings.Count > 0)
+                    {
+                        _auditState.FocusFinding(result.RemediationSession.SourceFindings[0]);
+                    }
+                }
+                break;
+
+            case AgentIntent.Help:
+                _auditState.Entities.LastIntent = AgentIntent.Help;
+                _auditState.Entities.LastTopic = ConversationTopic.Help;
+                break;
+
+            case AgentIntent.FixFinding:
+                _auditState.Entities.LastIntent = AgentIntent.FixFinding;
+                _auditState.Entities.LastTopic = ConversationTopic.Remediation;
+                if (result.AgentFindings.Count > 0)
+                {
+                    var finding = result.AgentFindings[0];
+                    _auditState.FocusFinding(finding, finding.RuleId);
+                }
+                break;
+
+            case AgentIntent.ExplainCritical:
+            case AgentIntent.ShowChanges:
+            case AgentIntent.PrioritizeRemediation:
+            case AgentIntent.ListSuppressed:
+            case AgentIntent.ListRemediationSessions:
+            case AgentIntent.AddSessionNote:
+            case AgentIntent.AddStepNote:
+                _auditState.Entities.LastIntent = agentQuery.Intent;
+                _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
+                break;
+
+            default:
+                // Audit intents update state via AgentResultFinalizer.RememberAudit;
+                // baseline intents manage their own state. All other intents use the
+                // standard topic mapping so follow-ups have the right context.
+                if (DialogueContext.TopicForIntent(agentQuery.Intent) != ConversationTopic.Audit
+                    && !IsBaselineIntent(agentQuery.Intent))
+                {
+                    _auditState.Entities.LastIntent = agentQuery.Intent;
+                    _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
+                }
+                break;
+        }
     }
-
-    private static string GetIntentDisplayName(AgentIntent intent) => intent switch
-    {
-        AgentIntent.FullAudit => "full audit",
-        AgentIntent.FirewallCheck => "firewall",
-        AgentIntent.NetworkCheck => "network",
-        AgentIntent.ServiceCheck => "services",
-        AgentIntent.PortCheck => "ports",
-        AgentIntent.SshCheck => "SSH",
-        AgentIntent.FilePermissionCheck => "file permissions",
-        AgentIntent.FilesystemAuditCheck => "filesystem audit",
-        AgentIntent.KernelCheck => "kernel hardening",
-        AgentIntent.UserAccountCheck => "user accounts",
-        AgentIntent.LoggingAuditCheck => "logging",
-        AgentIntent.CronJobCheck => "cron jobs",
-        AgentIntent.PackageVulnerabilityCheck => "package vulnerabilities",
-        AgentIntent.ContainerCheck => "containers",
-        AgentIntent.KubernetesCheck => "kubernetes",
-        AgentIntent.ThreatIntelCheck => "threat intel",
-        AgentIntent.YaraCheck => "YARA scan",
-        AgentIntent.ProcessRuntimeCheck => "process runtime",
-        AgentIntent.ExplainFinding => "explain a finding",
-        AgentIntent.ShowChanges => "audit changes",
-        AgentIntent.ExplainCritical => "critical finding explanation",
-        AgentIntent.FilterCategory => "filter findings",
-        AgentIntent.PrioritizeRemediation => "remediation priority",
-        AgentIntent.FixFinding => "guided remediation",
-        AgentIntent.ListSuppressed => "suppressed findings",
-        AgentIntent.SetBaseline => "set baseline",
-        AgentIntent.CheckDrift => "baseline drift",
-        AgentIntent.ShowBaseline => "show baseline",
-        AgentIntent.RiskScore => "risk score",
-        AgentIntent.StartRemediation => "start remediation",
-        AgentIntent.VerifyRemediation => "verify remediation",
-        AgentIntent.ListRemediationSessions => "list remediation sessions",
-        AgentIntent.ResumeRemediation => "resume remediation session",
-        AgentIntent.AddSessionNote => "add session note",
-        AgentIntent.AddStepNote => "add step note",
-        AgentIntent.Help => "help",
-        _ => intent.ToString()
-    };
 
     /// <inheritdoc />
     public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
@@ -342,10 +384,20 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+    public async Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(finding);
         ct.ThrowIfCancellationRequested();
-        return _findingExplanationService.ExplainFindingAsync(finding, ct);
+
+        var result = await _findingExplanationService.ExplainFindingAsync(finding, ct);
+
+        // Keep the dialogue context consistent with the AskAsync explanation path
+        // so pronoun follow-ups like "fix it" work after explaining a selected finding.
+        _auditState.Entities.LastIntent = AgentIntent.ExplainFinding;
+        _auditState.Entities.LastTopic = ConversationTopic.Explanation;
+        _auditState.FocusFinding(finding, finding.RuleId);
+
+        return result;
     }
 
     /// <inheritdoc />

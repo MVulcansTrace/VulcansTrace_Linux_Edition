@@ -4,6 +4,8 @@ The Security Agent is a local, rule-based Linux security assistant built into Vu
 
 The agent is intentionally deterministic. It does not call an external LLM or send system data to a service. Its value comes from a predictable pipeline: query parsing, local scanners, rule evaluation, explanation templates, and compatibility with the existing VulcansTrace `AnalysisResult` and evidence pipeline.
 
+The agent is also **conversation-aware**: it tracks the current topic, last intent, resolved entities, and recent dialogue turns so follow-ups like `fix it`, `verify it`, and `only the SSH ones` are resolved without forcing the user to repeat rule IDs or categories.
+
 ## What It Can Answer
 
 The query parser maps natural-language prompts to structured intents:
@@ -18,6 +20,7 @@ The query parser maps natural-language prompts to structured intents:
 | `What services are running?` | `ServiceCheck` | Reviews running services |
 | `Who am I talking to?` | `NetworkCheck` | Reviews routes, interfaces, and connections |
 | `Check my SSH` | `SshCheck` | Reviews SSH daemon hardening configuration |
+| `Check my ssh service` | `SshCheck` | Specific keywords take precedence over generic ones (`service`) |
 | `Check file permissions` | `FilePermissionCheck` | Reviews sensitive file and directory permissions |
 | `Check my filesystem` | `FilesystemAuditCheck` | Reviews world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, and /tmp mount hardening |
 | `Check my kernel hardening` | `KernelCheck` | Reviews kernel and system hardening parameters |
@@ -54,6 +57,28 @@ The query parser maps natural-language prompts to structured intents:
 | `Show baseline` | `ShowBaseline` | Display the active baseline findings for the last audit intent |
 | `What's my risk grade?` | `RiskScore` | Returns the aggregate risk scorecard after an audit |
 | `Help` | `Help` | Returns supported agent capabilities |
+| `Fix it` (after explaining a finding) | `FixFinding` | Resolves `it` to the last explained finding and shows the interactive remediation preview |
+| `Remediate it` (after explaining a finding) | `StartRemediation` | Resolves `it` to the last explained finding and starts a guided remediation session |
+| `Verify it` (after remediation) | `VerifyRemediation` | Resolves `it` to the active remediation session and re-runs the original audit intent |
+| `Explain it` (after explaining a finding) | `ExplainFinding` | Resolves `it` to the last explained finding and re-explains it |
+| `Explain the second one` (after an audit) | `ExplainFinding` | Resolves the ordinal to the second ranked finding from the last audit |
+| `Only the SSH ones` (after an audit) | `FilterCategory` | Resolves `SSH ones` to the SSH category and filters the last audit |
+| `What should I fix first?` | `PrioritizeRemediation` | Build a severity-ordered remediation plan from the last audit |
+
+## Conversation Awareness
+
+The Security Agent keeps a lightweight, deterministic dialogue context so multi-turn questions work without an LLM:
+
+- **Topic tracking** — each turn updates the conversation topic (`Unknown`, `Audit`, `Explanation`, `Remediation`, `Help`, `Comparison`, `Drift`). The topic gates which inferences are safe to apply; every non-audit/non-baseline intent is mapped to a topic via `DialogueContext.TopicForIntent`.
+- **Entity tracking** — the context remembers the last rule ID, category, remediation session ID, ordinal selection, focused finding, and ranked findings from the last audit.
+- **Anaphora resolution** — pronouns (`it`, `that`, `this one`) and ordinals (`the first one`, `the second finding`) are resolved against the context. Ordinals are deliberately treated as direct references, not anaphora, so `what should I fix first` is still interpreted as prioritization. Session references (`verify it`, `check it`) only resolve to a session when the conversation is already in a remediation context or a session exists.
+- **Intent inference** — when the keyword parser is uncertain or the query is context-dependent, a deterministic inference engine maps `(prior topic, resolved entities, raw query)` to the most likely intent. For example, after an explanation topic, `fix it` becomes `FixFinding`; after a remediation topic, `verify it` becomes `VerifyRemediation`.
+- **Target building** — `IntentInferenceEngine.BuildTarget` combines resolved references with parser output and entity-frame fallbacks, giving precedence to explicitly resolved values so a remediation session ID is never overwritten by the last rule ID.
+- **Snapshot isolation** — `DialogueManager.Resolve` snapshots the `EntityFrame` under the context lock before handing it to the resolver and inference engine. `SecurityAgent` reads from that snapshot; context mutations happen after the turn result is produced.
+- **Save/restore integrity** — follow-up services that run nested audits (`CheckDrift`, verification, category-filter fallback) use `DialogueContext.SnapshotState`/`RestoreState` to capture and restore the full entity frame, preventing transient audits from leaking `RankedFindings`, focused finding, or category state.
+- **Clarification prompts** — if a query remains genuinely ambiguous, the agent asks a deterministic clarification question instead of guessing.
+
+All inference is rule-based and testable. The context lives in `DialogueContext` and is persisted in memory per `SecurityAgent` instance; it is not sent to any external service.
 
 ## Session Timeline
 
@@ -298,7 +323,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 
 ## How The Pipeline Works
 
-1. `QueryParser` converts the user query into an `AgentQuery` containing an `AgentIntent`, confidence, optional alternative intents, and optional target reference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
+1. `DialogueManager` resolves the raw query in conversation context. It first runs `QueryParser` to produce an `AgentQuery` with intent, confidence, alternatives, and target reference, then `AnaphoraResolver` resolves pronouns and ordinals, and finally `IntentInferenceEngine` applies topic-aware deterministic inference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
 2. `SecurityAgent` acts as the orchestration entry point and delegates scanner execution to `ScannerCoordinator`.
 3. `ScanDataBuilder` collects scanner output and data-source capability status into a thread-safe snapshot.
 4. `RuleEvaluationService` resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`, filters rules by intent, invokes contextual rules when they opt into `IContextualRule`, converts crashes into explicit rule results, and applies disabled, auto-pass, and severity override policy.
@@ -471,7 +496,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 
 ## Current Limitations
 
-- It is a deterministic rule-based assistant, not an LLM-backed conversational system.
+- It is a deterministic, conversation-aware rule-based assistant, not an LLM-backed conversational system. Context is held in memory for the current agent instance and is rebuilt from the last turn each time.
+- `SecurityAgent.AskAsync` is currently single-threaded. `DialogueManager.Resolve` snapshots `EntityFrame` under the context lock to make the read contract explicit, but concurrent callers should serialize at the UI/CLI layer until a broader concurrency review is done.
 - Scanner parsers are pragmatic and command-output based, so unusual distro output may need parser tests and adjustments.
 - Capability status reports command availability and permission visibility, not semantic completeness of every data source.
 - Some findings are posture checks rather than proof of compromise.
@@ -485,6 +511,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 ## Roadmap
 
 - Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
+- Expand conversation-aware inference to cover more remediation note and session-management shortcuts.
 - Add a policy editing surface in the Avalonia UI.
 - Expand scanner fixtures across more distributions and command variants.
 - Add reminder surfaces for upcoming suppression review dates.
@@ -548,6 +575,14 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [InMemorySessionStore.cs](../VulcansTrace.Linux.Agent/Sessions/InMemorySessionStore.cs)
 - [IAgent.cs](../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface with `ListRemediationSessionsAsync`, `LoadRemediationSessionAsync`, `DeleteRemediationSessionAsync`, `AddSessionNoteAsync`, and `AddStepNoteAsync`
 - [QueryParser.cs](../VulcansTrace.Linux.Agent/Query/QueryParser.cs) — intent parsing including `ListRemediationSessions`, `ResumeRemediation`, `AddSessionNote`, and `AddStepNote`
+- [DialogueManager.cs](../VulcansTrace.Linux.Agent/Dialogue/DialogueManager.cs) — orchestrates parsing, anaphora resolution, and intent inference
+- [DialogueContext.cs](../VulcansTrace.Linux.Agent/Dialogue/DialogueContext.cs) — conversation state, `SnapshotState`/`RestoreState`, topic/intent mapping
+- [EntityFrame.cs](../VulcansTrace.Linux.Agent/Dialogue/EntityFrame.cs) — shallow-copyable entity frame used by resolve/inference
+- [EntityExtractor.cs](../VulcansTrace.Linux.Agent/Dialogue/EntityExtractor.cs) — extracts rule IDs, session IDs, ordinals, categories, and anaphora markers
+- [AnaphoraResolver.cs](../VulcansTrace.Linux.Agent/Dialogue/AnaphoraResolver.cs) — resolves pronouns and ordinals against a snapshot of the entity frame
+- [IntentInferenceEngine.cs](../VulcansTrace.Linux.Agent/Dialogue/IntentInferenceEngine.cs) — deterministic topic-aware intent inference and `BuildTarget`
+- [ResponseTemplateProvider.cs](../VulcansTrace.Linux.Agent/Dialogue/ResponseTemplateProvider.cs) — clarification prompts for ambiguous queries
+- [AgentQuery.cs](../VulcansTrace.Linux.Agent/Query/AgentQuery.cs) — structured query record with raw query text for inference
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
 - [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)

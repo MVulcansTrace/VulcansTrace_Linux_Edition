@@ -8,6 +8,11 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
+/// <summary>
+/// Executes agent queries from the UI. The agent itself owns query parsing and
+/// conversation context, so this executor only provides the selected-finding
+/// shortcut for explanation queries.
+/// </summary>
 internal sealed class AgentQueryExecutor
 {
     private readonly Func<IAgent> _getAgent;
@@ -25,11 +30,17 @@ internal sealed class AgentQueryExecutor
         CancellationToken ct)
     {
         var agent = _getAgent();
-        var parsed = _queryParser.Parse(query);
 
-        if (parsed.Intent == AgentIntent.ExplainFinding && string.IsNullOrWhiteSpace(parsed.TargetReference))
+        // Selected-finding shortcut: when the user has a finding selected in the UI
+        // and asks to explain it without a reference, explain the selected finding
+        // directly so the result is exactly the selected item and the dialogue context
+        // is updated for follow-ups.
+        var parsed = _queryParser.Parse(query);
+        if (parsed.Intent == AgentIntent.ExplainFinding
+            && string.IsNullOrWhiteSpace(parsed.TargetReference)
+            && selectedFindingProvider != null)
         {
-            var selected = selectedFindingProvider?.Invoke();
+            var selected = selectedFindingProvider.Invoke();
             if (selected != null)
             {
                 return agent.ExplainFindingAsync(selected, ct);

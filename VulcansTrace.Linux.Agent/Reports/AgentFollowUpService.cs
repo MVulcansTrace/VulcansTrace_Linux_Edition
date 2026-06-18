@@ -213,7 +213,7 @@ internal sealed class AgentFollowUpService
             var fallbackIntent = InferIntentFromCategory(category);
             if (fallbackIntent != AgentIntent.Help)
             {
-                var savedLastResult = _auditState.LastResult;
+                var savedState = _auditState.SnapshotState();
                 try
                 {
                     var fallbackResult = await _runAudit(fallbackIntent, null, ct);
@@ -221,7 +221,7 @@ internal sealed class AgentFollowUpService
                 }
                 finally
                 {
-                    _auditState.RememberResult(savedLastResult);
+                    _auditState.RestoreState(savedState.LastResult, savedState.Entities);
                 }
             }
 

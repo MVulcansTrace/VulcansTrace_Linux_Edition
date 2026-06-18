@@ -72,8 +72,8 @@ public class FindingExplanationServiceTests
         Assert.Equal("TEST-001", result.AgentFindings[0].RuleId);
         Assert.Equal(1, result.FailedCount);
         Assert.Contains("Explanation for [High] Test failed", result.Summary);
-        Assert.Same(result, state.LastResult);
-        Assert.Same(result.AgentFindings[0], state.FindPreviousFinding("TEST-001"));
+        Assert.Null(state.LastResult);
+        Assert.Null(state.FindPreviousFinding("TEST-001"));
     }
 
     [Fact]

@@ -30,6 +30,27 @@ public class AgentQueryExecutorTests
         Assert.Equal(cts.Token, agent.ObservedToken);
     }
 
+    [Theory]
+    [InlineData("explain")]
+    [InlineData("explain that")]
+    [InlineData("explain the finding")]
+    public async Task ExecuteAsync_VariousExplainSelectedPhrases_CallsExplainFinding(string query)
+    {
+        var agent = new TrackingAgent();
+        var executor = new AgentQueryExecutor(() => agent);
+        var selected = CreateFinding();
+
+        await executor.ExecuteAsync(
+            query,
+            rawLog: null,
+            selectedFindingProvider: () => selected,
+            CancellationToken.None);
+
+        Assert.Equal(1, agent.ExplainFindingCalls);
+        Assert.Equal(0, agent.AskCalls);
+        Assert.Same(selected, agent.ExplainedFinding);
+    }
+
     [Fact]
     public async Task ExecuteAsync_ExplainFindingWithoutSelectedFinding_FallsBackToAsk()
     {

@@ -45,7 +45,6 @@ internal sealed class SingleRuleExplanationService
 
         if (evaluatedRule.DisabledByPolicy)
         {
-            _auditState.ReplaceLastFindings(Array.Empty<(string RuleId, Finding Finding)>());
             return new AgentResult
             {
                 Intent = AgentIntent.ExplainFinding,
@@ -62,10 +61,6 @@ internal sealed class SingleRuleExplanationService
         var findingAssembly = _findingAssemblyService.Assemble(new[] { result }, applySuppressions: false);
         warnings.AddRange(findingAssembly.Warnings);
         var agentFindings = findingAssembly.AgentFindings;
-        if (findingAssembly.HistoryEntries.Count > 0)
-        {
-            _auditState.ReplaceLastFindings(findingAssembly.HistoryEntries);
-        }
 
         result = findingAssembly.RuleResults[0];
         var summary = result.Status == RuleStatus.Crashed
@@ -88,7 +83,6 @@ internal sealed class SingleRuleExplanationService
             CapabilityReport = capabilityReport
         };
 
-        _auditState.RememberResult(singleRuleResult);
         return singleRuleResult;
     }
 }

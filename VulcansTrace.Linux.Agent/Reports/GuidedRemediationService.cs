@@ -445,7 +445,7 @@ internal sealed class GuidedRemediationService
             };
         }
 
-        var savedLastResult = _auditState.LastResult;
+        var savedState = _auditState.SnapshotState();
         try
         {
             session = AppendEvent(session, RemediationSessionEventType.VerificationStarted,
@@ -494,7 +494,7 @@ internal sealed class GuidedRemediationService
         }
         finally
         {
-            _auditState.RememberResult(savedLastResult);
+            _auditState.RestoreState(savedState.LastResult, savedState.Entities);
         }
     }
 
