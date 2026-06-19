@@ -37,7 +37,6 @@ public sealed class EntityExtractor : IEntityExtractor
         ["remediate"] = AgentIntent.StartRemediation,
         ["walk me through"] = AgentIntent.StartRemediation,
         ["verify"] = AgentIntent.VerifyRemediation,
-        ["check"] = AgentIntent.VerifyRemediation,
         ["explain"] = AgentIntent.ExplainFinding,
         ["what does"] = AgentIntent.ExplainFinding,
         ["why"] = AgentIntent.ExplainFinding,

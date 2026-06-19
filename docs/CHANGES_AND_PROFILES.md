@@ -622,6 +622,24 @@ Implemented six incremental build phases to make the deterministic, local agent 
   - Hardened `ParseStepNoteQuery` against session-ID misidentification by using a dedicated regex that does not steal CVE IDs or hashes from note text.
   - Cross-session memory snapshot retention increased from 30 to **90 days**.
 
+### Agent Dialogue and Memory Hardening
+
+- **Intent disambiguation**
+  - Removed the ambiguous bare `"check"` mapping from `EntityExtractor.RemediationVerbKeywords` so generic audit queries such as `"check my firewall"` and `"check FW-001"` no longer get pulled into `VerifyRemediation`.
+  - Hardened all `IntentInferenceEngine.LooksLike*` probes to use whole-word/phrase-boundary matching, eliminating substring false positives such as `notebook` → `NoteRequest` or `prefix` → `FixRequest`.
+  - Code: `VulcansTrace.Linux.Agent/Query/EntityExtractor.cs`, `VulcansTrace.Linux.Agent/Dialogue/IntentInferenceEngine.cs`, `VulcansTrace.Linux.Agent/Dialogue/DialogueManager.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Dialogue/IntentInferenceEngineTests.cs`, `VulcansTrace.Linux.Tests/Agent/Dialogue/DialogueManagerTests.cs`
+
+- **Remediation history in continuity narrative**
+  - Added `IRuleMemoryRecorder.MarkRemediationAttempt()` and implemented it in `RuleMemoryRecorder`.
+  - `SecurityAgent` now stamps `LastRemediationAttemptUtc` only after observable remediation progress: guided session steps marked in-progress/completed/failed or live CLI auto-fix apply commands.
+  - `NarrativeComposer.ComposeMemory()` surfaces both `LastRemediationAttemptUtc` and `LastVerifiedFixedUtc` in the continuity paragraph, e.g.:
+    - "A remediation was attempted 3 days ago."
+    - "It was verified fixed 1 week ago but has returned."
+  - Fixed singular/plural relative-time formatting ("1 week ago" instead of "1 weeks ago").
+  - Code: `VulcansTrace.Linux.Agent/Memory/IRuleMemoryRecorder.cs`, `VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs`, `VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs`
+
 ## 2) Profiles and Their Capabilities
 
 Profiles are defined in:

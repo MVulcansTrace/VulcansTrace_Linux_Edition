@@ -208,12 +208,32 @@ public sealed class IntentInferenceEngine
     private static string RawText(AgentQuery parsed, string? rawQuery)
         => rawQuery ?? parsed.RawQuery ?? parsed.TargetReference ?? string.Empty;
 
+    private static bool ContainsWholeWord(string text, string word)
+    {
+        var index = 0;
+
+        while ((index = text.IndexOf(word, index, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            var before = index == 0 || !IsWordCharacter(text[index - 1]);
+            var afterIndex = index + word.Length;
+            var after = afterIndex >= text.Length || !IsWordCharacter(text[afterIndex]);
+            if (before && after)
+                return true;
+
+            index += word.Length;
+        }
+
+        return false;
+    }
+
+    private static bool IsWordCharacter(char ch) => char.IsLetterOrDigit(ch) || ch == '_';
+
     private static bool LooksLikeFixRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("fix", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("resolve", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("remediate", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "fix")
+            || ContainsWholeWord(raw, "resolve")
+            || ContainsWholeWord(raw, "remediate");
     }
 
     private static bool IsFixIntent(AgentQuery parsed, string? rawQuery)
@@ -226,61 +246,61 @@ public sealed class IntentInferenceEngine
     private static bool LooksLikeGuidedRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("guided", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("walk me through", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("start remediation", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("remediate", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "guided")
+            || ContainsWholeWord(raw, "walk me through")
+            || ContainsWholeWord(raw, "start remediation")
+            || ContainsWholeWord(raw, "remediate");
     }
 
     private static bool LooksLikeFilterRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("only", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("just show", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("show me", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("filter", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "only")
+            || ContainsWholeWord(raw, "just show")
+            || ContainsWholeWord(raw, "show me")
+            || ContainsWholeWord(raw, "filter");
     }
 
     private static bool LooksLikeCriticalExplanation(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("why", StringComparison.OrdinalIgnoreCase)
-            && (raw.Contains("critical", StringComparison.OrdinalIgnoreCase)
-                || raw.Contains("severe", StringComparison.OrdinalIgnoreCase)
-                || raw.Contains("high", StringComparison.OrdinalIgnoreCase));
+        return ContainsWholeWord(raw, "why")
+            && (ContainsWholeWord(raw, "critical")
+                || ContainsWholeWord(raw, "severe")
+                || ContainsWholeWord(raw, "high"));
     }
 
     private static bool LooksLikeVerifyRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("verify", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("check it", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("did it work", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("did that work", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "verify")
+            || ContainsWholeWord(raw, "check it")
+            || ContainsWholeWord(raw, "did it work")
+            || ContainsWholeWord(raw, "did that work");
     }
 
     private static bool LooksLikeListRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("list", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("show sessions", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("my sessions", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "list")
+            || ContainsWholeWord(raw, "show sessions")
+            || ContainsWholeWord(raw, "my sessions");
     }
 
     private static bool LooksLikeResumeRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("resume", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("continue", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("open session", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("open it", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "resume")
+            || ContainsWholeWord(raw, "continue")
+            || ContainsWholeWord(raw, "open session")
+            || ContainsWholeWord(raw, "open it");
     }
 
     private static bool LooksLikeNoteRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
-        return raw.Contains("note", StringComparison.OrdinalIgnoreCase)
-            || raw.Contains("comment", StringComparison.OrdinalIgnoreCase);
+        return ContainsWholeWord(raw, "note")
+            || ContainsWholeWord(raw, "comment");
     }
 
     private static bool IsAuditIntent(AgentIntent intent) => intent switch

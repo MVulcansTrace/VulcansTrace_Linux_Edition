@@ -90,6 +90,19 @@ public interface IAgent
     }
 
     /// <summary>
+    /// Updates the state of a remediation session step.
+    /// </summary>
+    /// <param name="sessionId">The remediation session ID.</param>
+    /// <param name="ruleId">The rule ID for the step.</param>
+    /// <param name="state">The new step state.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the updated remediation session.</returns>
+    Task<AgentResult> UpdateRemediationStepStateAsync(string sessionId, string ruleId, RemediationStepState state, CancellationToken ct)
+    {
+        throw new NotSupportedException("This agent does not support remediation step updates.");
+    }
+
+    /// <summary>
     /// Records that a remediation session was exported by appending an Exported timeline event.
     /// </summary>
     /// <param name="sessionId">The session ID that was exported.</param>

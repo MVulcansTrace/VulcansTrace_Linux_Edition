@@ -84,6 +84,9 @@ public sealed class DialogueManager
         var target = parsed.TargetReference;
 
         // A single rule ID plus a remediation verb is a strong signal.
+        // This override is topic-agnostic, so RemediationVerbKeywords must only
+        // contain unambiguous verbs. Ambiguous words like "check" would pull
+        // unrelated audit queries into remediation intents here.
         if (frame.RuleIds.Count == 1)
         {
             target ??= frame.RuleIds[0];

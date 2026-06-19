@@ -6,6 +6,7 @@ using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 using Xunit;
 
@@ -317,7 +318,73 @@ public class SecurityAgentMemoryIntegrationTests
         Assert.Contains("Run an audit first", verifyResult.Summary);
     }
 
-    private static SecurityAgent CreateAgent(IAuditHistoryStore historyStore, IAgentMemoryStore memoryStore, IBaselineStore? baselineStore = null, IRule? rule = null)
+    [Fact]
+    public async Task StartRemediationAsync_DoesNotRecordRemediationAttempt()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+        var sessionStore = new InMemorySessionStore();
+
+        var agent = CreateAgent(historyStore, memoryStore, sessionStore: sessionStore);
+        await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var result = await agent.StartRemediationAsync("TEST-001", CancellationToken.None);
+
+        Assert.NotNull(result.RemediationSession);
+        var loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        Assert.Null(loadedMemory.RuleHistory["TEST-001"].LastRemediationAttemptUtc);
+    }
+
+    [Theory]
+    [InlineData(RemediationStepState.InProgress)]
+    [InlineData(RemediationStepState.Completed)]
+    [InlineData(RemediationStepState.Failed)]
+    public async Task UpdateRemediationStepStateAsync_ProgressState_RecordsRemediationAttempt(RemediationStepState state)
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+        var sessionStore = new InMemorySessionStore();
+
+        var agent = CreateAgent(historyStore, memoryStore, sessionStore: sessionStore);
+        await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+        var sessionResult = await agent.StartRemediationAsync("TEST-001", CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        await agent.UpdateRemediationStepStateAsync(sessionId, "TEST-001", state, CancellationToken.None);
+
+        var loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        Assert.NotNull(loadedMemory.RuleHistory["TEST-001"].LastRemediationAttemptUtc);
+    }
+
+    [Theory]
+    [InlineData(RemediationStepState.Pending)]
+    [InlineData(RemediationStepState.Skipped)]
+    public async Task UpdateRemediationStepStateAsync_NonAttemptState_DoesNotRecordRemediationAttempt(RemediationStepState state)
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+        var sessionStore = new InMemorySessionStore();
+
+        var agent = CreateAgent(historyStore, memoryStore, sessionStore: sessionStore);
+        await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+        var sessionResult = await agent.StartRemediationAsync("TEST-001", CancellationToken.None);
+        var sessionId = sessionResult.RemediationSession!.SessionId;
+
+        await agent.UpdateRemediationStepStateAsync(sessionId, "TEST-001", state, CancellationToken.None);
+
+        var loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        Assert.Null(loadedMemory.RuleHistory["TEST-001"].LastRemediationAttemptUtc);
+    }
+
+    private static SecurityAgent CreateAgent(
+        IAuditHistoryStore historyStore,
+        IAgentMemoryStore memoryStore,
+        IBaselineStore? baselineStore = null,
+        IRule? rule = null,
+        ISessionStore? sessionStore = null)
     {
         var scanner = new TestScanner();
         rule ??= new TestRule();
@@ -327,6 +394,7 @@ public class SecurityAgentMemoryIntegrationTests
             new ExplanationProvider(),
             historyStore: historyStore,
             baselineStore: baselineStore,
+            sessionStore: sessionStore,
             memoryStore: memoryStore);
     }
 

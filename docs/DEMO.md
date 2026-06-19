@@ -355,6 +355,10 @@ To see a combined-risk narrative, you need two findings that the correlator know
    > **FW-001** was first seen 2 weeks ago and is still open.
 5. If severity increased, it says:
    > **FW-001** was first seen 2 weeks ago and has worsened.
+6. If you previously marked a remediation step in progress/completed/failed or ran live auto-fix, it also notes the attempt:
+   > **FW-001** was first seen 2 weeks ago and is still open. A remediation was attempted 3 days ago.
+7. If the rule was verified fixed earlier and has returned, it says:
+   > **FW-001** was first seen 2 weeks ago and is still open. It was verified fixed 1 week ago but has returned.
 
 ### Verify a Specific Finding
 

@@ -133,6 +133,159 @@ public class IntentInferenceEngineTests
         Assert.NotEqual(AgentIntent.ResumeRemediation, inferred.Intent);
     }
 
+    [Fact]
+    public void Infer_AfterRemediation_CheckFirewallRemainsFirewallCheck()
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("check my firewall");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.False(wasInferred);
+        Assert.Equal(AgentIntent.FirewallCheck, inferred.Intent);
+    }
+
+    [Fact]
+    public void Infer_AfterRemediation_CheckItBecomesVerifyRemediation()
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("check it");
+        var resolution = new ReferenceResolution(true, null, "abc12345", null, null, null, null);
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.VerifyRemediation, inferred.Intent);
+        Assert.Equal("abc12345", inferred.TargetReference);
+    }
+
+    [Fact]
+    public void Infer_AfterRemediation_DidTheFixWorkBecomesVerifyRemediation()
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("did it work?");
+        var resolution = new ReferenceResolution(true, null, "abc12345", null, null, null, null);
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.VerifyRemediation, inferred.Intent);
+        Assert.Equal("abc12345", inferred.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("notebook", AgentIntent.AddSessionNote)]
+    [InlineData("prefix", AgentIntent.FixFinding)]
+    [InlineData("listen", AgentIntent.ListRemediationSessions)]
+    [InlineData("check italy", AgentIntent.VerifyRemediation)]
+    [InlineData("my_note", AgentIntent.AddSessionNote)]
+    public void Infer_AfterRemediation_SubstringFalsePositivesAreRejected(string query, AgentIntent avoidedIntent)
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse(query);
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, _) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.NotEqual(avoidedIntent, inferred.Intent);
+    }
+
+    [Fact]
+    public void Infer_AfterRemediation_LaterWholeWordMatchStillApplies()
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("notebook note");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.AddSessionNote, inferred.Intent);
+    }
+
+    [Fact]
+    public void Infer_CheckWithRuleIdDoesNotBecomeVerifyRemediation()
+    {
+        var context = new DialogueContext();
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("check FW-001");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, _) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.NotEqual(AgentIntent.VerifyRemediation, inferred.Intent);
+    }
+
     private static Finding CreateFinding(string ruleId, string category)
     {
         var now = DateTime.UtcNow;

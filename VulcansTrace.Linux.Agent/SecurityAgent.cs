@@ -549,6 +549,32 @@ public sealed class SecurityAgent : IAgent
             result).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async Task<AgentResult> UpdateRemediationStepStateAsync(
+        string sessionId,
+        string ruleId,
+        RemediationStepState state,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ruleId);
+        ct.ThrowIfCancellationRequested();
+
+        var result = _guidedRemediationService.UpdateStepState(sessionId, ruleId, state);
+
+        if (ShouldRecordRemediationAttempt(state)
+            && result.RemediationSession?.StepStates.TryGetValue(ruleId, out var updatedState) == true
+            && updatedState == state)
+        {
+            StampRemediationAttempt(new[] { ruleId }, result.UtcTimestamp);
+        }
+
+        return await CompleteStructuredResultAsync(
+            $"mark step {ruleId} {state} in session {sessionId}",
+            new AgentQuery(AgentIntent.StartRemediation, sessionId),
+            result).ConfigureAwait(false);
+    }
+
     private void UpdateMemoryFromVerification(AgentResult result)
     {
         var verification = result.RemediationSession?.VerificationResult;
@@ -777,6 +803,24 @@ public sealed class SecurityAgent : IAgent
         UpdateDialogueContext(rawQuery, agentQuery, result);
         return await AttachSuggestionsAndSaveAsync(result).ConfigureAwait(false);
     }
+
+    private void StampRemediationAttempt(IEnumerable<string> ruleIds, DateTime timestampUtc)
+    {
+        var attemptIds = ruleIds.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+        if (attemptIds.Count == 0)
+            return;
+
+        var timestamp = timestampUtc == default ? DateTime.UtcNow : timestampUtc;
+        _auditState.Entities.RuleHistory = _ruleMemoryRecorder.MarkRemediationAttempt(
+            attemptIds,
+            timestamp,
+            _auditState.Entities.RuleHistory);
+    }
+
+    private static bool ShouldRecordRemediationAttempt(RemediationStepState state) =>
+        state is RemediationStepState.InProgress
+            or RemediationStepState.Completed
+            or RemediationStepState.Failed;
 
     private async Task<AgentResult> AttachSuggestionsAndSaveAsync(AgentResult result)
     {

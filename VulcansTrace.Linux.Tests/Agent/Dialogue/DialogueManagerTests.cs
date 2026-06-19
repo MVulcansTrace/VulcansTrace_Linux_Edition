@@ -83,6 +83,46 @@ public class DialogueManagerTests
         Assert.Equal(AgentIntent.FirewallCheck, context.History[0].ResolvedIntent);
     }
 
+    /// <summary>
+    /// Regression test for the "check FW-001" intent hijack bug.
+    ///
+    /// BUG HISTORY (fixed 2026-06):
+    /// EntityExtractor.RemediationVerbKeywords contained ["check"] = VerifyRemediation.
+    /// When a user typed "check FW-001", EnrichWithEntityFrame (DialogueManager.cs:86-95)
+    /// saw the RemediationVerb and overrode Help -> VerifyRemediation, regardless of
+    /// conversation context. The user meant "show me FW-001's status" but got shoved
+    /// into remediation verification instead.
+    ///
+    /// WHY THIS TEST EXISTS (and the IntentInferenceEngine version doesn't suffice):
+    /// The IntentInferenceEngineTests version skips EnrichWithEntityFrame entirely.
+    /// It calls _engine.Infer() directly, so if someone re-adds "check" to
+    /// RemediationVerbKeywords, that test still passes. This test calls
+    /// DialogueManager.Resolve(), which runs the full pipeline including
+    /// EnrichWithEntityFrame — so it catches the regression at the actual source.
+    /// </summary>
+    [Fact]
+    public void Resolve_CheckWithRuleIdDoesNotBecomeVerifyRemediation()
+    {
+        var context = new DialogueContext();
+
+        // Fresh audit context — NOT remediation. This is a user who just
+        // ran an audit and wants to check on a specific finding's status.
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        // The exact query that triggered the original bug.
+        var query = _manager.Resolve("check FW-001", context);
+
+        // The fix: "check" is no longer in RemediationVerbKeywords, so
+        // EnrichWithEntityFrame does NOT override Help to VerifyRemediation.
+        // If this assertion fails, someone re-added an ambiguous keyword
+        // (like "check") to EntityExtractor.RemediationVerbKeywords.
+        Assert.NotEqual(AgentIntent.VerifyRemediation, query.Intent);
+    }
+
     private static Finding CreateFinding(string ruleId, string category)
     {
         var now = DateTime.UtcNow;

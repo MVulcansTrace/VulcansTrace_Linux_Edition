@@ -118,6 +118,74 @@ public class NarrativeComposerTests
     }
 
     [Fact]
+    public void Compose_WithRemediationAttempt_AddsAttemptSentence()
+    {
+        var finding = CreateFinding("FW-001", "Firewall", Severity.High);
+        var result = new AgentResult
+        {
+            AgentFindings = new[] { finding },
+            UtcTimestamp = DateTime.UtcNow
+        };
+
+        var history = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FW-001"] = new RuleMemoryEntry
+            {
+                RuleId = "FW-001",
+                Category = "Firewall",
+                FirstSeenUtc = DateTime.UtcNow.AddDays(-14),
+                LastSeenUtc = DateTime.UtcNow,
+                SeverityHistory = new[]
+                {
+                    new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow.AddDays(-14), Severity = Severity.High },
+                    new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow, Severity = Severity.High }
+                },
+                Trend = RuleStatusTrend.Stable,
+                LastSeverity = Severity.High,
+                LastRemediationAttemptUtc = DateTime.UtcNow.AddDays(-3)
+            }
+        };
+
+        var narrative = _composer.Compose(result, history, new EntityFrame());
+
+        Assert.Contains("A remediation was attempted 3 days ago.", narrative.MemoryParagraph);
+    }
+
+    [Fact]
+    public void Compose_WithVerifiedFixedAndReturned_AddsVerifiedSentence()
+    {
+        var finding = CreateFinding("FW-001", "Firewall", Severity.High);
+        var result = new AgentResult
+        {
+            AgentFindings = new[] { finding },
+            UtcTimestamp = DateTime.UtcNow
+        };
+
+        var history = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FW-001"] = new RuleMemoryEntry
+            {
+                RuleId = "FW-001",
+                Category = "Firewall",
+                FirstSeenUtc = DateTime.UtcNow.AddDays(-14),
+                LastSeenUtc = DateTime.UtcNow,
+                SeverityHistory = new[]
+                {
+                    new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow.AddDays(-14), Severity = Severity.High },
+                    new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow, Severity = Severity.High }
+                },
+                Trend = RuleStatusTrend.Stable,
+                LastSeverity = Severity.High,
+                LastVerifiedFixedUtc = DateTime.UtcNow.AddDays(-10)
+            }
+        };
+
+        var narrative = _composer.Compose(result, history, new EntityFrame());
+
+        Assert.Contains("It was verified fixed 1 week ago but has returned.", narrative.MemoryParagraph);
+    }
+
+    [Fact]
     public void Compose_CorrelationTraceability_HoldsEvenWithIdFreeTemplate()
     {
         var finding1 = CreateFinding("FW-002", "Firewall", Severity.High);

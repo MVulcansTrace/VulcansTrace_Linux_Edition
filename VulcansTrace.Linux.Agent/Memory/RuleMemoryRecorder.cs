@@ -122,6 +122,31 @@ public sealed class RuleMemoryRecorder : IRuleMemoryRecorder
         return builder.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, RuleMemoryEntry> MarkRemediationAttempt(
+        IEnumerable<string> ruleIds,
+        DateTime timestampUtc,
+        IReadOnlyDictionary<string, RuleMemoryEntry> existing)
+    {
+        ArgumentNullException.ThrowIfNull(ruleIds);
+        ArgumentNullException.ThrowIfNull(existing);
+
+        var builder = new Dictionary<string, RuleMemoryEntry>(existing, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ruleId in ruleIds.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!builder.TryGetValue(ruleId, out var entry))
+                continue;
+
+            builder[ruleId] = entry with
+            {
+                LastRemediationAttemptUtc = timestampUtc
+            };
+        }
+
+        return builder.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
     private static RuleStatusTrend ComputeTrend(IReadOnlyList<RuleSeveritySnapshot> history)
     {
         if (history.Count < 2)

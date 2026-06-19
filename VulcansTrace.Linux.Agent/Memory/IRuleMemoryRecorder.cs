@@ -26,5 +26,17 @@ public interface IRuleMemoryRecorder
         IEnumerable<string> ruleIds,
         DateTime timestampUtc,
         IReadOnlyDictionary<string, RuleMemoryEntry> existing);
+
+    /// <summary>
+    /// Marks the specified rules as having a remediation attempted at the given timestamp.
+    /// </summary>
+    /// <param name="ruleIds">The rule IDs to mark as attempted.</param>
+    /// <param name="timestampUtc">The remediation attempt timestamp.</param>
+    /// <param name="existing">The current rule history dictionary.</param>
+    /// <returns>An updated rule history dictionary.</returns>
+    IReadOnlyDictionary<string, RuleMemoryEntry> MarkRemediationAttempt(
+        IEnumerable<string> ruleIds,
+        DateTime timestampUtc,
+        IReadOnlyDictionary<string, RuleMemoryEntry> existing);
 }
 

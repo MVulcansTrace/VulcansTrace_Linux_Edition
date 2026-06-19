@@ -133,7 +133,7 @@ The agent persists per-rule history across process restarts:
 - `RuleMemoryEntry`, `RuleSeveritySnapshot`, `RuleStatusTrend` — domain types for the history model.
 - `AgentMemorySnapshot.RuleHistory` — the memory snapshot now stores a dictionary of rule histories.
 - `JsonFileAgentMemoryStore` — normalizes rule IDs to uppercase on load so case-insensitive lookups survive JSON round-trips.
-- `SecurityAgent` — records history after every audit and stamps verified-fixed timestamps after session verification or targeted `VerifyFindingAsync`.
+- `SecurityAgent` — records history after every audit, stamps remediation-attempt timestamps when a guided remediation step reaches in-progress/completed/failed state, and stamps verified-fixed timestamps after session verification or targeted `VerifyFindingAsync`.
 
 ### Cross-Category Posture Correlation
 

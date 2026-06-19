@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -775,6 +776,7 @@ public static class Program
         Console.WriteLine("Executing remediation plan...");
 
         var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, ct);
+        await RecordAutoFixRemediationAttemptsAsync(executionResult, services);
 
         var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
         Console.WriteLine(output);
@@ -787,6 +789,47 @@ public static class Program
 
         Console.WriteLine("✅ All permitted remediation commands completed successfully.");
         return 0;
+    }
+
+    private static async Task RecordAutoFixRemediationAttemptsAsync(RemediationExecutionResult executionResult, AgentServices services)
+    {
+        if (executionResult.IsDryRun)
+            return;
+
+        try
+        {
+            var snapshot = services.MemoryStore.Load();
+            if (snapshot == null || snapshot.RuleHistory.Count == 0)
+                return;
+
+            var attemptedRuleIds = executionResult.Sections
+                .Where(s => s.ApplyResults.Any(r => !r.Skipped))
+                .Select(s => s.RuleId)
+                .Where(r => !string.IsNullOrWhiteSpace(r) && snapshot.RuleHistory.ContainsKey(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (attemptedRuleIds.Count == 0)
+                return;
+
+            var timestamp = executionResult.CompletedAtUtc == default
+                ? DateTime.UtcNow
+                : executionResult.CompletedAtUtc;
+            var updatedHistory = new RuleMemoryRecorder().MarkRemediationAttempt(
+                attemptedRuleIds,
+                timestamp,
+                snapshot.RuleHistory);
+
+            await services.MemoryStore.SaveAsync(snapshot with
+            {
+                UtcTimestamp = DateTime.UtcNow,
+                RuleHistory = updatedHistory
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not save remediation attempt memory: {ex.Message}");
+        }
     }
 
     private static async Task<int> RunScheduleAsync(string[] args)

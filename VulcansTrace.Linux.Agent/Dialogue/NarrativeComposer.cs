@@ -148,17 +148,7 @@ public sealed class NarrativeComposer : INarrativeComposer
         foreach (var entry in relevantHistory!)
         {
             sources.Add(entry!.RuleId);
-            var days = (referenceUtc - entry.FirstSeenUtc).TotalDays;
-            var daysText = days switch
-            {
-                <= 0 => "today",
-                < 1 => "today",
-                < 2 => "yesterday",
-                < 7 => $"{(int)Math.Round(days)} days ago",
-                < 30 => $"{(int)Math.Round(days / 7)} weeks ago",
-                < 365 => $"{(int)Math.Round(days / 30)} months ago",
-                _ => $"{(int)Math.Round(days / 365)} years ago"
-            };
+            var daysText = FormatRelativeTime(referenceUtc, entry.FirstSeenUtc);
 
             var trendText = entry.Trend switch
             {
@@ -168,10 +158,45 @@ public sealed class NarrativeComposer : INarrativeComposer
                 _ => "is still open"
             };
 
-            sb.AppendLine($"• **{entry.RuleId}** was first seen {daysText} and {trendText}.");
+            sb.Append($"• **{entry.RuleId}** was first seen {daysText} and {trendText}.");
+
+            if (entry.LastRemediationAttemptUtc.HasValue)
+            {
+                var attemptText = FormatRelativeTime(referenceUtc, entry.LastRemediationAttemptUtc.Value);
+                sb.Append($" A remediation was attempted {attemptText}.");
+            }
+
+            if (entry.LastVerifiedFixedUtc.HasValue)
+            {
+                var verifiedText = FormatRelativeTime(referenceUtc, entry.LastVerifiedFixedUtc.Value);
+                sb.Append($" It was verified fixed {verifiedText} but has returned.");
+            }
+
+            sb.AppendLine();
         }
 
         return sb.ToString().Trim();
+    }
+
+    private static string FormatRelativeTime(DateTime referenceUtc, DateTime eventUtc)
+    {
+        var days = (referenceUtc - eventUtc).TotalDays;
+        return days switch
+        {
+            <= 0 => "today",
+            < 1 => "today",
+            < 2 => "yesterday",
+            < 7 => FormatUnit((int)Math.Round(days), "day"),
+            < 30 => FormatUnit((int)Math.Round(days / 7), "week"),
+            < 365 => FormatUnit((int)Math.Round(days / 30), "month"),
+            _ => FormatUnit((int)Math.Round(days / 365), "year")
+        };
+    }
+
+    private static string FormatUnit(int count, string unit)
+    {
+        var suffix = count == 1 ? unit : $"{unit}s";
+        return $"{count} {suffix} ago";
     }
 
     private static string ComposeNextSteps(AgentResult result, HashSet<string> sources)

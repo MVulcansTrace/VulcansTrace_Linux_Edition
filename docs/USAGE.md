@@ -280,7 +280,7 @@ After manually remediating a finding, verify whether it is still detected:
 vulcanstrace verify-finding FW-001
 ```
 
-The CLI re-runs the original audit intent, reports whether the rule is still failing, and records `LastVerifiedFixedUtc` in the agent memory when the finding is resolved.
+The CLI re-runs the original audit intent, reports whether the rule is still failing, and records `LastVerifiedFixedUtc` in the agent memory when the finding is resolved. Actual remediation attempts are recorded separately as `LastRemediationAttemptUtc` after a guided session step is marked in progress, completed, or failed, or after live `--auto-fix` executes an apply command; both timestamps appear in the continuity narrative if the rule is seen again later.
 
 ## Doctor — Data-Source Self-Diagnostic
 

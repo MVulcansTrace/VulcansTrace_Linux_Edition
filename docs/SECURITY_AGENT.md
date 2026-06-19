@@ -97,9 +97,9 @@ This makes follow-ups like `"what should I fix first?"`, `"fix it"`, and explici
 
 In addition to conversation context, the agent keeps a lightweight per-rule memory store:
 
-- **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, and a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`).
-- **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries.
-- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening; the suggestion provider uses it to recommend stale or worsening findings for attention; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
+- **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastRemediationAttemptUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, and a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`).
+- **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries. `LastRemediationAttemptUtc` is stamped only after observable remediation progress: a guided session step is marked in progress, completed, or failed, or a live CLI auto-fix actually executes an apply command. Creating a plan or session alone does not count as an attempt.
+- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening, and now also surfaces remediation attempts and verified-fixed timestamps; the suggestion provider uses it to recommend stale or worsening findings for attention; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
 - **Where it lives** — rule history is serialized inside the same `agent-memory.json` snapshot and restored on startup. It is not sent to any external service.
 
 ### Frame-Based Entity Extraction
@@ -167,7 +167,7 @@ In the Avalonia UI, suggestions appear as clickable chips below the agent messag
 The agent can verify whether an individual finding is still present without starting a full remediation session:
 
 - **API** — `SecurityAgent.VerifyFindingAsync(ruleId, ct)` re-runs the last audit intent and checks whether a finding with the requested rule ID appears in the new result.
-- **Memory update** — if the finding is no longer present, `RuleMemoryRecorder.MarkVerifiedFixed` stamps `LastVerifiedFixedUtc` for that rule. The updated rule history is saved to the cross-session memory snapshot.
+- **Memory update** — if the finding is no longer present, `RuleMemoryRecorder.MarkVerifiedFixed` stamps `LastVerifiedFixedUtc` for that rule. The updated rule history is saved to the cross-session memory snapshot. If the rule later reappears, the continuity paragraph will note that it was previously verified fixed.
 - **Narrative** — the result includes a short narrative explaining whether the finding is fixed, still present, or not found in the current context.
 - **Suggestions** — after verification, suggestions are generated from the current re-audit result, including related correlated findings when applicable.
 

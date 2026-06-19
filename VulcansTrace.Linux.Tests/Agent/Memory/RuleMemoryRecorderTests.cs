@@ -183,6 +183,26 @@ public class RuleMemoryRecorderTests
     }
 
     [Fact]
+    public void MarkRemediationAttempt_SetsTimestampOnExistingEntry()
+    {
+        var result = CreateResult("FW-001", Severity.High);
+        var history = _recorder.Record(result, new Dictionary<string, RuleMemoryEntry>());
+        var timestamp = new DateTime(2026, 6, 18, 12, 0, 0, DateTimeKind.Utc);
+
+        history = _recorder.MarkRemediationAttempt(new[] { "FW-001" }, timestamp, history);
+
+        Assert.Equal(timestamp, history["FW-001"].LastRemediationAttemptUtc);
+    }
+
+    [Fact]
+    public void MarkRemediationAttempt_UnknownRuleId_IsIgnored()
+    {
+        var history = _recorder.MarkRemediationAttempt(new[] { "UNKNOWN-001" }, DateTime.UtcNow, new Dictionary<string, RuleMemoryEntry>());
+
+        Assert.Empty(history);
+    }
+
+    [Fact]
     public void Record_MultipleFindingsSameRuleId_RecordsOneSnapshotWithMaxSeverity()
     {
         var now = DateTime.UtcNow;
