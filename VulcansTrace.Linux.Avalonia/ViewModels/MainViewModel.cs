@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Diagnostics;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -353,7 +354,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         INotificationService? notificationService = null,
         ISessionStore? sessionStore = null,
         IThreatIntelStore? threatIntelStore = null,
-        DoctorService? doctorService = null)
+        DoctorService? doctorService = null,
+        IAgentMemoryStore? memoryStore = null)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -379,7 +381,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline = new TimelineViewModel();
         IncidentStory = new IncidentStoryViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),

@@ -1007,6 +1007,9 @@ public static class Program
         };
 
         var services = AgentFactory.Create(schedule.MachineRole);
+        var previous = services.AuditHistoryStore.GetAll()
+            .FirstOrDefault(e => e.Intent == schedule.Intent);
+
         var result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
 
         var criticalFindings = result.AgentFindings.Where(f => f.Severity == Core.Severity.Critical).ToList();
@@ -1029,40 +1032,6 @@ public static class Program
             await File.WriteAllTextAsync(path, json, cts.Token);
             Console.WriteLine($"  Output written to: {path}");
         }
-
-        // Capture previous history entry before appending current result
-        var previous = services.AuditHistoryStore.GetAll()
-            .FirstOrDefault(e => e.Intent == schedule.Intent);
-
-        // Append current result to history store
-        var snapshotFindings = result.AgentFindings.Select(f => new VulcansTrace.Linux.Agent.Reports.AuditSnapshotFinding
-        {
-            RuleId = f.RuleId ?? "",
-            Target = f.Target,
-            Severity = f.Severity.ToString(),
-            ShortDescription = f.ShortDescription,
-            Fingerprint = f.Fingerprint
-        }).ToList();
-
-        services.AuditHistoryStore.Append(new VulcansTrace.Linux.Agent.Reports.AuditHistoryEntry
-        {
-            SnapshotId = Guid.NewGuid().ToString("N")[..8],
-            TimestampUtc = result.UtcTimestamp,
-            Intent = result.Intent,
-            TotalFindings = result.AgentFindings.Count,
-            CriticalCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.Critical),
-            HighCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.High),
-            MediumCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.Medium),
-            LowCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.Low),
-            InfoCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.Info),
-            WarningCount = result.Warnings.Count,
-            Exported = false,
-            PassedCount = result.PassedCount,
-            FailedCount = result.FailedCount,
-            SuppressedCount = result.SuppressedCount,
-            CrashedCount = result.CrashedCount,
-            SnapshotFindings = snapshotFindings
-        });
 
         if (schedule.NotifyOnCritical && criticalCount > 0)
         {

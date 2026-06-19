@@ -1,10 +1,12 @@
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -327,7 +329,7 @@ public class AgentViewModelTests
 
         Assert.Contains(vm.Messages, m => m.Text == "Explain selected" && m.IsUser);
         Assert.Contains(vm.Messages, m => m.Text == "explanation summary");
-        Assert.Contains(vm.Messages, m => m.Text.Contains("SSH exposed") && m.Severity == Severity.High);
+        Assert.Contains(vm.Messages, m => m.Details.Contains("SSH exposed") && m.Severity == Severity.High);
         Assert.False(vm.IsBusy);
     }
 
@@ -447,6 +449,66 @@ public class AgentViewModelTests
 
         Assert.Equal(0, agent.MarkExportedCallCount);
         Assert.DoesNotContain(vm.LastResult!.RemediationSession!.Timeline, e => e.Type == RemediationSessionEventType.Exported);
+    }
+
+    [Fact]
+    public async Task SuggestionCommand_AuditIntent_RoutesToRunAuditAsync()
+    {
+        var agent = new SuggestionRoutingAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var message = vm.Messages.FirstOrDefault(m => m.HasSuggestions);
+        Assert.NotNull(message);
+
+        var showAll = message.Suggestions.First(s => s.Label == "Show all findings");
+        Assert.Equal(AgentIntent.FullAudit, showAll.Intent);
+
+        message.SuggestionCommand!.Execute(showAll);
+        await agent.LastCommandTask;
+        FlushDispatcher();
+
+        Assert.Equal(AgentIntent.FullAudit, agent.LastRunAuditIntent);
+        Assert.Null(agent.LastAskQuery);
+    }
+
+    [Fact]
+    public async Task SuggestionCommand_NonAuditIntent_RoutesToAskAsync()
+    {
+        var agent = new SuggestionRoutingAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "explain TEST-001"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var message = vm.Messages.FirstOrDefault(m => m.HasSuggestions);
+        Assert.NotNull(message);
+
+        var fixIt = message.Suggestions.First(s => s.Label == "Fix it");
+        Assert.Equal(AgentIntent.FixFinding, fixIt.Intent);
+
+        message.SuggestionCommand!.Execute(fixIt);
+        await agent.LastCommandTask;
+        FlushDispatcher();
+
+        Assert.Equal("fix TEST-001", agent.LastAskQuery);
+        Assert.Null(agent.LastRunAuditIntent);
+    }
+
+    [Fact]
+    public void Constructor_MemoryStoreWarning_AddsInfoMessage()
+    {
+        var memoryStore = new InMemoryAgentMemoryStore("Memory persistence is unavailable for testing.");
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), memoryStore: memoryStore);
+
+        Assert.Contains(vm.Messages, m => m.IsInfo && m.Text.Contains("Memory persistence is unavailable"));
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
@@ -1087,6 +1149,83 @@ public class AgentViewModelTests
         public Task<string?> ShowOpenFileDialogAsync(string title, string filter) => Task.FromResult<string?>(null);
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "") => Task.FromResult<string?>(null);
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0) => Task.FromResult<int?>(_confirmIndex);
+    }
+
+    private sealed class SuggestionRoutingAgent : IAgent
+    {
+        public AgentIntent? LastRunAuditIntent { get; private set; }
+        public string? LastAskQuery { get; private set; }
+        public Task LastCommandTask { get; private set; } = Task.CompletedTask;
+
+        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        {
+            LastAskQuery = query;
+            LastCommandTask = Task.CompletedTask;
+            var result = new AgentResult
+            {
+                Intent = AgentIntent.ExplainFinding,
+                Summary = "Explanation",
+                AgentFindings = new[] { CreateFinding() },
+                Suggestions = new[]
+                {
+                    new SuggestedFollowUp { Label = "Fix it", Query = "fix TEST-001", Intent = AgentIntent.FixFinding }
+                }
+            };
+            return Task.FromResult(result);
+        }
+
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        {
+            LastRunAuditIntent = intent;
+            LastCommandTask = Task.CompletedTask;
+            var result = new AgentResult
+            {
+                Intent = intent,
+                Summary = "Audit result",
+                AgentFindings = new[] { CreateFinding() },
+                Suggestions = new[]
+                {
+                    new SuggestedFollowUp { Label = "Show all findings", Query = "show all findings", Intent = intent }
+                }
+            };
+            return Task.FromResult(result);
+        }
+
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ExplainFinding, Summary = "stub" });
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.SetBaseline, Summary = "stub" });
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "stub" });
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ShowBaseline, Summary = "stub" });
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "stub" });
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "stub" });
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "stub" });
+
+        public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ListRemediationSessions, Summary = "stub" });
+
+        public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ResumeRemediation, Summary = "stub" });
+
+        public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ListRemediationSessions, Summary = "stub" });
+
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddSessionNote, Summary = "stub" });
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddStepNote, Summary = "stub" });
     }
 
     private sealed class FakeProcessRunner : IProcessRunner

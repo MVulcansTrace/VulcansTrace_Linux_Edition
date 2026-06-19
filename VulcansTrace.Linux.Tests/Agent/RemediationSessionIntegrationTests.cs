@@ -30,7 +30,8 @@ public class RemediationSessionIntegrationTests
         var presenter = new AgentResultPresenter(
             messages, categories,
             () => severityFilter, () => categoryFilter,
-            _ => { }, _ => { });
+            _ => { }, _ => { },
+            _ => Task.CompletedTask);
 
         var createResult = await service.CreateSessionAsync("FW-001", CancellationToken.None);
         Assert.Equal(AgentIntent.StartRemediation, createResult.Intent);
@@ -98,7 +99,8 @@ public class RemediationSessionIntegrationTests
         var presenter = new AgentResultPresenter(
             messages, categories,
             () => null, () => null,
-            _ => { }, _ => { });
+            _ => { }, _ => { },
+            _ => Task.CompletedTask);
 
         var createResult = await service.CreateSessionAsync("FW-DANGER", CancellationToken.None);
         Assert.NotEmpty(createResult.Warnings);

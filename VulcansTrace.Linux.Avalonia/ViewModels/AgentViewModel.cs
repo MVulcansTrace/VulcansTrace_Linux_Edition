@@ -8,10 +8,12 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Core;
@@ -34,7 +36,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly RemediationExecutor _remediationExecutor;
     private readonly IThreatIntelStore? _threatIntelStore;
     private readonly IDialogService? _dialogService;
+    private readonly IAgentMemoryStore? _memoryStore;
     private ISessionStore? _sessionStore;
+    private string? _lastShownMemoryWarning;
 
     private string _userQuery = "";
     private string _logText = "";
@@ -363,7 +367,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <param name="historyStore">The store for persisting audit history.</param>
     /// <param name="remediationPlanBuilder">The plan builder for remediation exports.</param>
     /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null)
+    /// <param name="memoryStore">Optional store for cross-session conversation memory.</param>
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null, IAgentMemoryStore? memoryStore = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
@@ -372,13 +377,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _sessionStore = sessionStore;
         _threatIntelStore = threatIntelStore;
         _dialogService = dialogService;
+        _memoryStore = memoryStore;
         _presenter = new AgentResultPresenter(
             Messages,
             ChatCategoryFilters,
             () => _selectedChatSeverityFilter,
             () => _selectedChatCategoryFilter,
             v => HasPrivilegeWarning = v,
-            t => PrivilegeWarningText = t);
+            t => PrivilegeWarningText = t,
+            ExecuteSuggestionAsync);
         _operationRunner = new AgentOperationRunner(
             value => IsBusy = value,
             ClearPrivilegeWarning,
@@ -553,10 +560,50 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
         _historyCoordinator.ShowPersistenceWarningIfAny();
+        ShowMemoryPersistenceWarningIfAny();
     }
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
+
+    private async Task ExecuteSuggestionAsync(SuggestedFollowUp suggestion)
+    {
+        if (_isBusy)
+            return;
+
+        if (IsAuditIntent(suggestion.Intent))
+        {
+            await RunQuickAuditAsync(suggestion.Intent, suggestion.Query);
+        }
+        else
+        {
+            UserQuery = suggestion.Query;
+            await SendQueryAsync();
+        }
+    }
+
+    private static bool IsAuditIntent(AgentIntent intent) => intent switch
+    {
+        AgentIntent.FullAudit
+            or AgentIntent.FirewallCheck
+            or AgentIntent.NetworkCheck
+            or AgentIntent.ServiceCheck
+            or AgentIntent.PortCheck
+            or AgentIntent.SshCheck
+            or AgentIntent.FilePermissionCheck
+            or AgentIntent.FilesystemAuditCheck
+            or AgentIntent.KernelCheck
+            or AgentIntent.UserAccountCheck
+            or AgentIntent.LoggingAuditCheck
+            or AgentIntent.CronJobCheck
+            or AgentIntent.PackageVulnerabilityCheck
+            or AgentIntent.ContainerCheck
+            or AgentIntent.KubernetesCheck
+            or AgentIntent.ThreatIntelCheck
+            or AgentIntent.YaraCheck
+            or AgentIntent.ProcessRuntimeCheck => true,
+        _ => false
+    };
 
     /// <summary>
     /// Notifies the agent panel that the host findings selection changed.
@@ -633,11 +680,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
-                AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
-                foreach (var finding in result.AgentFindings)
-                {
-                    AddAgentFinding(finding);
-                }
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
             });
         });
     }
@@ -658,6 +701,20 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void SetLastResult(AgentResult result)
     {
         _resultState.SetLastResult(result);
+        ShowMemoryPersistenceWarningIfAny();
+    }
+
+    private void ShowMemoryPersistenceWarningIfAny()
+    {
+        if (_memoryStore == null)
+            return;
+
+        var warning = _memoryStore.PersistenceWarning;
+        if (string.IsNullOrWhiteSpace(warning) || warning == _lastShownMemoryWarning)
+            return;
+
+        _lastShownMemoryWarning = warning;
+        AddAgentMessage($"Note: {warning}", true);
     }
 
     private void RefreshResultCommands()
@@ -699,7 +756,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
-                AddAgentMessage(result.Summary, true);
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false);
             });
         });
     }
@@ -935,7 +992,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 SelectedSession = null;
                 RefreshSessions();
-                AddAgentMessage(result.Summary, true);
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
             });
         });
     }
@@ -961,7 +1018,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     UpdateSessionTimeline(result.RemediationSession);
                     RefreshSessions();
                 }
-                AddAgentMessage(result.Summary, result.RemediationSession == null);
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
             });
         });
     }
@@ -998,7 +1055,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     UpdateSessionTimeline(result.RemediationSession);
                     RefreshSessions();
                 }
-                AddAgentMessage(result.Summary, result.RemediationSession == null);
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
             });
         });
     }

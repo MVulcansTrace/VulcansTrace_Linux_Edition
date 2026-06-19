@@ -3,6 +3,7 @@ using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using Xunit;
@@ -541,6 +542,29 @@ public class AgentResultPresenterTests
         Assert.False(msg.HasActiveSession);
     }
 
+    [Fact]
+    public void PresentFindings_AttachesSuggestionsToSummaryMessage()
+    {
+        var harness = new PresenterHarness();
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            Summary = "Audit complete",
+            AgentFindings = new[] { CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed") },
+            Suggestions = new[]
+            {
+                new SuggestedFollowUp { Label = "Fix it", Query = "fix FW-001", Intent = AgentIntent.FixFinding }
+            }
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        var summary = Assert.Single(harness.Messages, m => m.Text == "Audit complete");
+        Assert.True(summary.HasSuggestions);
+        Assert.Single(summary.Suggestions);
+        Assert.NotNull(summary.SuggestionCommand);
+    }
+
     private sealed class PresenterHarness
     {
         public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
@@ -559,7 +583,8 @@ public class AgentResultPresenterTests
                 () => SeverityFilter,
                 () => CategoryFilter,
                 value => HasPrivilegeWarning = value,
-                text => PrivilegeWarningText = text);
+                text => PrivilegeWarningText = text,
+                _ => Task.CompletedTask);
         }
     }
 }

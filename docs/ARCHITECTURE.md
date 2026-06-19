@@ -99,12 +99,27 @@ The agent layer adds deterministic, LLM-free dialogue support through the `Vulca
 - `DialogueManager` — orchestrates the flow: `QueryParser` → `AnaphoraResolver` → `IntentInferenceEngine`, then records the completed turn and can produce clarification prompts. It snapshots the entity frame under the context lock at resolve time.
 
 `SecurityAgent.AskAsync` creates and updates `DialogueContext` through `DialogueManager` on every turn. The existing `AgentAuditState` type inherits from `DialogueContext` so existing follow-up services and tests remain compatible while gaining conversation-aware resolution. `SecurityAgent.ExplainFindingAsync` also updates the focused finding and topic so UI-selected-finding explanations support pronoun follow-ups.
+
+### Cross-Session Memory
+
+The agent layer now persists conversation context across process restarts through the `VulcansTrace.Linux.Agent.Memory` namespace:
+
+- `IAgentMemoryStore` — abstracts asynchronous load/save of a lightweight `AgentMemorySnapshot`.
+- `AgentMemorySnapshot` — captures last intent/topic, last audit intent, focused rule ID/category, active/last remediation session ID, the latest audit-history snapshot ID, and up to 20 recent `DialogueTurn`s. It intentionally does not duplicate full findings.
+- `JsonFileAgentMemoryStore` — persists atomically to `~/.config/VulcansTrace/agent-memory.json` with string-enums for readability and an in-memory fallback on failure. Writes use async file I/O and are awaited before results return.
+- `InMemoryAgentMemoryStore` — non-durable fallback.
+- `SecurityAgent.RestoreMemorySnapshot` / `SaveMemorySnapshotAsync` — loads the snapshot on construction and saves after every turn. Restoration rehydrates a synthetic `AgentResult` from the referenced `AuditHistoryEntry` (including `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`) so follow-ups like `what should I fix first?` and `fix it` work immediately after reopening the app. Stale snapshots are ignored, corrupt fields are defaulted, and missing history entries clear stale focus state.
+
+### Follow-Up Suggestions
+
+Every `AgentResult` carries an `IReadOnlyList<SuggestedFollowUp>` produced by `AgentSuggestionProvider`. The provider is deterministic, LLM-free, and maps `(AgentResult, EntityFrame)` to contextual next queries such as `What should I fix first?`, `Fix it`, `Remediate it`, `Check drift`, and `Show baseline`. The Avalonia `AgentResultPresenter` attaches the suggestions to the first substantive agent message of a result (skipping info-only capability reports) and binds each chip to `AgentViewModel.ExecuteSuggestionAsync`. `ExecuteSuggestionAsync` routes by the suggestion's `Intent`: audit intents call `RunAuditAsync` directly, while non-audit intents execute the underlying query through `AskAsync`.
+
 2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), live process runtime state (memory maps, environment variables, executable paths, command lines, parent-child relationships, and duplicate-field / truncation metadata from `/proc/<pid>/`), YARA rule matches for SUID/SGID binaries, running process executables, and cron scripts, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed posture checks into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
 5. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
 6. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
-7. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` for follow-up questions.
+7. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, appends a lightweight `AuditHistoryEntry` when an `IAuditHistoryStore` is available (setting `AgentResult.SnapshotId`), builds the final `AgentResult`, and updates `AgentAuditState` for follow-up questions.
 8. `AgentFollowUpService`, `FindingExplanationService`, and `BaselineDriftService` answer deterministic follow-up questions, selected-finding explanations, baseline save/show, and drift comparison without making `SecurityAgent` own those workflows directly.
 9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
 10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
@@ -182,7 +197,9 @@ Notification services are pluggable:
 - `IocEntry`: immutable IOC record (`Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`).
 - `CriticalChain`: record representing a detected critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) on a single host, with chronologically sorted `FindingIds`.
 - `AgentQuery`: structured user request containing `AgentIntent`, optional target reference, confidence, ambiguity flag, and the original raw query text for inference reuse.
-- `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore.
+- `SuggestedFollowUp`: a contextual next-step suggestion with a user-facing label, the query to execute, and the mapped `AgentIntent`.
+- `IAgentMemoryStore` / `AgentMemorySnapshot`: persistence contract and lightweight snapshot for cross-session conversation memory.
+- `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore. It also supports `RestoreHistory` to rehydrate recent turns from a persisted snapshot.
 - `EntityFrame`: shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session.
 - `ReferenceResolution`: result of anaphora resolution with flags for anaphora presence, resolved rule ID, category, session ID, ordinal, and finding.
 - `ConversationTopic`: enum (`Unknown`, `Audit`, `Explanation`, `Remediation`, `Help`, `Comparison`, `Drift`) used to gate intent inference.

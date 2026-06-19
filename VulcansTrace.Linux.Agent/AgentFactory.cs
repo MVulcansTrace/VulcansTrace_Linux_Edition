@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -295,6 +296,16 @@ public static class AgentFactory
             sessionStore = new InMemorySessionStore("Remediation session persistence is unavailable. Sessions will last only for this session.");
         }
 
+        IAgentMemoryStore memoryStore;
+        try
+        {
+            memoryStore = JsonFileAgentMemoryStore.CreateDefault();
+        }
+        catch
+        {
+            memoryStore = new InMemoryAgentMemoryStore("Agent memory persistence is unavailable. Conversation context will last only for this session.");
+        }
+
         var scorecardBuilder = new ComplianceScorecardBuilder();
         var riskScorecardBuilder = new RiskScorecardBuilder();
 
@@ -311,7 +322,8 @@ public static class AgentFactory
             baselineStore,
             scorecardBuilder,
             riskScorecardBuilder,
-            sessionStore);
+            sessionStore,
+            memoryStore: memoryStore);
 
         var ruleCatalog = new RuleCatalog(rules);
         var notificationService = new NotifySendNotificationService();
@@ -349,6 +361,7 @@ public static class AgentFactory
             RemediationExecutor = remediationExecutor,
             RemediationPlanBuilder = remediationPlanBuilder,
             SessionStore = sessionStore,
+            MemoryStore = memoryStore,
             LiveStreamAnalyzer = liveStreamAnalyzer,
             TraceMapCorrelator = traceMapCorrelator,
             ThreatIntelStore = threatIntelStore,
@@ -448,6 +461,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Store for remediation sessions.</summary>
     public required ISessionStore SessionStore { get; init; }
 
+    /// <summary>Store for cross-session agent memory.</summary>
+    public required IAgentMemoryStore MemoryStore { get; init; }
+
     /// <summary>Orchestrates live kernel stream analysis.</summary>
     public required LiveStreamAnalyzer LiveStreamAnalyzer { get; init; }
 
@@ -474,6 +490,7 @@ public sealed record AgentServices : IDisposable
         (NotificationService as IDisposable)?.Dispose();
         (ProcessRunner as IDisposable)?.Dispose();
         (SessionStore as IDisposable)?.Dispose();
+        (MemoryStore as IDisposable)?.Dispose();
         (LiveStreamAnalyzer as IDisposable)?.Dispose();
         (ThreatIntelStore as IDisposable)?.Dispose();
     }

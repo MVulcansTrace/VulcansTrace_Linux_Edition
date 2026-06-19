@@ -32,6 +32,17 @@ internal sealed class AgentHistoryCoordinator
 
     public void AppendHistoryEntry(AgentResult result)
     {
+        // The agent's result finalizer owns persisting audit history entries.
+        // If the result already has a snapshot ID in the store, just refresh the UI.
+        // Otherwise (e.g., in tests or legacy paths), build and append an entry here.
+        if (!string.IsNullOrWhiteSpace(result.SnapshotId)
+            && _historyStore.GetAll().Any(e => e.SnapshotId == result.SnapshotId))
+        {
+            RefreshFromStore();
+            Dispatcher.UIThread.Post(AddHistoryPersistenceWarningIfAny);
+            return;
+        }
+
         var findings = result.AgentFindings;
         var snapshotFindings = findings.Select(f => new AuditSnapshotFinding
         {

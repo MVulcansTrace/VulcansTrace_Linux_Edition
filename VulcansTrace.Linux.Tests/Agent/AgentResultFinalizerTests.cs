@@ -197,6 +197,42 @@ public class AgentResultFinalizerTests
         };
     }
 
+    [Fact]
+    public void FinalizeAudit_WithHistoryStore_AppendsEntryAndSetsSnapshotId()
+    {
+        var auditState = new AgentAuditState();
+        var historyStore = new InMemoryAuditHistoryStore();
+        var complianceBuilder = new TestComplianceScorecardBuilder(new ComplianceScorecard());
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore, complianceBuilder, riskBuilder);
+        var finding = CreateFinding();
+        var ruleResult = RuleResult.Fail("TEST-001", "Test", "TEST-001", "Test failed", Severity.High, "target");
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            new[] { finding },
+            LogAnalysisResult: null,
+            new[] { "warning" },
+            "summary",
+            new[] { ruleResult },
+            PassedCount: 0,
+            FailedCount: 1,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "capability report",
+            new[] { ("TEST-001", finding) }));
+
+        Assert.NotNull(result.SnapshotId);
+        var entry = Assert.Single(historyStore.GetAll());
+        Assert.Equal(result.SnapshotId, entry.SnapshotId);
+        Assert.Equal(AgentIntent.FullAudit, entry.Intent);
+        Assert.Equal(1, entry.TotalFindings);
+        Assert.Equal(1, entry.HighCount);
+        Assert.Equal(0, entry.PassedCount);
+        Assert.Equal(1, entry.FailedCount);
+        Assert.Equal(1, entry.WarningCount);
+    }
+
     private sealed class TestComplianceScorecardBuilder(ComplianceScorecard scorecard) : IComplianceScorecardBuilder
     {
         public IReadOnlyList<RuleResult>? ObservedRuleResults { get; private set; }

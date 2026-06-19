@@ -147,6 +147,15 @@ public class DialogueContext
             Entities.LastTopic = clone.LastTopic;
             Entities.LastAuditIntent = clone.LastAuditIntent;
             Entities.LastRemediationSession = clone.LastRemediationSession;
+
+            // Rebuild the rule-ID lookup table so explicit references like
+            // "explain FW-001" work immediately after a restart.
+            _lastFindings.Clear();
+            if (lastResult != null)
+            {
+                _lastFindings.AddRange(lastResult.AgentFindings
+                    .Select(f => (f.RuleId ?? string.Empty, f)));
+            }
         }
     }
 
@@ -184,6 +193,21 @@ public class DialogueContext
             {
                 _history.RemoveAt(0);
             }
+        }
+    }
+
+    /// <summary>
+    /// Replaces the conversation history with the provided turns, respecting <see cref="MaxHistoryTurns"/>.
+    /// </summary>
+    /// <param name="turns">The turns to restore.</param>
+    public void RestoreHistory(IReadOnlyList<DialogueTurn> turns)
+    {
+        ArgumentNullException.ThrowIfNull(turns);
+
+        lock (_lock)
+        {
+            _history.Clear();
+            _history.AddRange(turns.TakeLast(MaxHistoryTurns));
         }
     }
 

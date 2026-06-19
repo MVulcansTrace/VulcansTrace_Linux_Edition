@@ -53,7 +53,7 @@ public sealed record Finding
     public string Fingerprint
     {
         get => _fingerprint ?? ComputeFingerprintFromFields();
-        init => _fingerprint = value;
+        init => _fingerprint = string.IsNullOrWhiteSpace(value) ? null! : value;
     }
 
     /// <summary>Category of the finding (e.g., PortScan, Beaconing).</summary>

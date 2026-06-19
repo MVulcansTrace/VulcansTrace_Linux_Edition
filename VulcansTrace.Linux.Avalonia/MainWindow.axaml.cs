@@ -27,7 +27,7 @@ public partial class MainWindow : Window
 
         var services = AgentFactory.Create(MachineRole.Workstation);
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService);
+        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService, services.MemoryStore);
         viewModel.RuleCatalog.LoadCatalog(services.RuleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {

@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Reports;
@@ -55,6 +56,18 @@ public sealed record AuditHistoryEntry
 
     /// <summary>Lightweight snapshot of findings for diff comparisons.</summary>
     public IReadOnlyList<AuditSnapshotFinding> SnapshotFindings { get; init; } = Array.Empty<AuditSnapshotFinding>();
+
+    /// <summary>Capability report snapshot for this audit.</summary>
+    public string? CapabilityReport { get; init; }
+
+    /// <summary>Detailed rule evaluation results for this audit.</summary>
+    public IReadOnlyList<RuleResult> RuleResults { get; init; } = Array.Empty<RuleResult>();
+
+    /// <summary>Agent warnings produced during this audit.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
+
+    /// <summary>Optional pasted-log analysis result attached to this audit.</summary>
+    public AnalysisResult? LogAnalysisResult { get; init; }
 
     /// <summary>CIS compliance scorecard snapshot for this audit.</summary>
     public VulcansTrace.Linux.Core.Compliance.ComplianceScorecard? Scorecard { get; init; }

@@ -1,11 +1,13 @@
 using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -32,7 +34,10 @@ public sealed class SecurityAgent : IAgent
     private readonly AgentFollowUpService _followUpService;
     private readonly GuidedRemediationService _guidedRemediationService;
     private readonly ISuppressionStore? _suppressionStore;
+    private readonly IAuditHistoryStore? _historyStore;
     private readonly DialogueManager _dialogueManager;
+    private readonly IAgentSuggestionProvider _suggestionProvider;
+    private readonly IAgentMemoryStore? _memoryStore;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -50,6 +55,8 @@ public sealed class SecurityAgent : IAgent
     /// <param name="scorecardBuilder">Optional builder for CIS compliance scorecards.</param>
     /// <param name="riskScorecardBuilder">Optional builder for risk scorecards.</param>
     /// <param name="sessionStore">Optional store for remediation sessions.</param>
+    /// <param name="suggestionProvider">Optional provider for contextual follow-up suggestions.</param>
+    /// <param name="memoryStore">Optional store for cross-session conversation memory.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -63,7 +70,9 @@ public sealed class SecurityAgent : IAgent
         IBaselineStore? baselineStore = null,
         IComplianceScorecardBuilder? scorecardBuilder = null,
         IRiskScorecardBuilder? riskScorecardBuilder = null,
-        ISessionStore? sessionStore = null)
+        ISessionStore? sessionStore = null,
+        IAgentSuggestionProvider? suggestionProvider = null,
+        IAgentMemoryStore? memoryStore = null)
     {
         _scannerCoordinator = new ScannerCoordinator(scanners);
         _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
@@ -102,7 +111,12 @@ public sealed class SecurityAgent : IAgent
             _guidedRemediationService,
             RunAuditAsync);
         _suppressionStore = suppressionStore;
+        _historyStore = historyStore;
         _dialogueManager = new DialogueManager();
+        _suggestionProvider = suggestionProvider ?? new AgentSuggestionProvider();
+        _memoryStore = memoryStore;
+
+        RestoreMemorySnapshot();
     }
 
     /// <inheritdoc />
@@ -145,7 +159,7 @@ public sealed class SecurityAgent : IAgent
                 AgentIntent.SetBaseline => await _baselineDriftService.SetBaselineAsync(agentQuery, ct),
                 AgentIntent.CheckDrift => await _baselineDriftService.CheckDriftAsync(agentQuery, ct),
                 AgentIntent.ShowBaseline => await _baselineDriftService.ShowBaselineAsync(agentQuery, ct),
-                _ => await RunAuditAsync(agentQuery.Intent, rawLog, ct)
+                _ => await RunAuditCoreAsync(agentQuery.Intent, rawLog, ct)
             };
         }
         else if (agentQuery.Intent == AgentIntent.StartRemediation)
@@ -180,11 +194,10 @@ public sealed class SecurityAgent : IAgent
         }
         else
         {
-            result = await RunAuditAsync(agentQuery.Intent, rawLog, ct);
+            result = await RunAuditCoreAsync(agentQuery.Intent, rawLog, ct);
         }
 
-        UpdateDialogueContext(query, agentQuery, result);
-        return result;
+        return await CompleteStructuredResultAsync(query, agentQuery, result).ConfigureAwait(false);
     }
 
     private void UpdateDialogueContext(string rawQuery, AgentQuery agentQuery, AgentResult result)
@@ -192,9 +205,9 @@ public sealed class SecurityAgent : IAgent
         _dialogueManager.PushTurn(_auditState, rawQuery, agentQuery);
 
         // Update conversation entities for anaphora resolution.
-        // Audit intents are handled by AgentResultFinalizer.RememberAudit;
-        // baseline intents manage their own state; follow-ups generally should
-        // not overwrite LastResult so subsequent follow-ups keep audit context.
+        // Audit intents are handled by AgentResultFinalizer.RememberAudit.
+        // Follow-ups and baseline actions update topic/focus without overwriting
+        // LastResult so subsequent follow-ups keep audit context.
         switch (agentQuery.Intent)
         {
             case AgentIntent.ExplainFinding:
@@ -268,10 +281,17 @@ public sealed class SecurityAgent : IAgent
                 _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
                 break;
 
+            case AgentIntent.SetBaseline:
+            case AgentIntent.CheckDrift:
+            case AgentIntent.ShowBaseline:
+                _auditState.Entities.LastIntent = agentQuery.Intent;
+                _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
+                break;
+
             default:
                 // Audit intents update state via AgentResultFinalizer.RememberAudit;
-                // baseline intents manage their own state. All other intents use the
-                // standard topic mapping so follow-ups have the right context.
+                // all other non-audit intents use the standard topic mapping so
+                // follow-ups have the right context.
                 if (DialogueContext.TopicForIntent(agentQuery.Intent) != ConversationTopic.Audit
                     && !IsBaselineIntent(agentQuery.Intent))
                 {
@@ -282,8 +302,20 @@ public sealed class SecurityAgent : IAgent
         }
     }
 
+    /// <summary>
+    /// Gets the most recent audit result held by the agent, if any.
+    /// </summary>
+    public AgentResult? LastResult => _auditState.LastResult;
+
     /// <inheritdoc />
     public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    {
+        var result = await RunAuditCoreAsync(intent, rawLog, ct);
+
+        return await AttachSuggestionsAndSaveAsync(result).ConfigureAwait(false);
+    }
+
+    private async Task<AgentResult> RunAuditCoreAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -363,24 +395,37 @@ public sealed class SecurityAgent : IAgent
     };
 
     /// <inheritdoc />
-    public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+    public async Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _baselineDriftService.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline, name), ct);
+        var query = new AgentQuery(AgentIntent.SetBaseline, name);
+        var result = await _baselineDriftService.SetBaselineAsync(query, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            string.IsNullOrWhiteSpace(name) ? "set baseline" : $"set baseline {name}",
+            query,
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    public async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _baselineDriftService.RunDriftCheckAsync(intent, rawLog, ct);
+        var result = await _baselineDriftService.RunDriftCheckAsync(intent, rawLog, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            "check drift",
+            new AgentQuery(AgentIntent.CheckDrift, intent.ToString()),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+    public async Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _baselineDriftService.ShowBaselineForIntentAsync(intent, ct);
+        var result = await _baselineDriftService.ShowBaselineForIntentAsync(intent, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            "show baseline",
+            new AgentQuery(AgentIntent.ShowBaseline, intent.ToString()),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -397,63 +442,95 @@ public sealed class SecurityAgent : IAgent
         _auditState.Entities.LastTopic = ConversationTopic.Explanation;
         _auditState.FocusFinding(finding, finding.RuleId);
 
-        return result;
+        return await AttachSuggestionsAndSaveAsync(result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+    public async Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.CreateSessionAsync(findingReference, ct);
+        var result = await _guidedRemediationService.CreateSessionAsync(findingReference, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            $"remediate {findingReference}",
+            new AgentQuery(AgentIntent.StartRemediation, findingReference),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+    public async Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.RunVerificationAsync(sessionId, ct);
+        var result = await _guidedRemediationService.RunVerificationAsync(sessionId, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            $"verify session {sessionId}",
+            new AgentQuery(AgentIntent.VerifyRemediation, sessionId),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
+    public async Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.MarkSessionExportedAsync(sessionId, ct);
+        var result = await _guidedRemediationService.MarkSessionExportedAsync(sessionId, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            $"mark session exported {sessionId}",
+            new AgentQuery(result.Intent, sessionId),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct)
+    public async Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.ListSessionsAsync(ct);
+        var result = await _guidedRemediationService.ListSessionsAsync(ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            "list sessions",
+            new AgentQuery(AgentIntent.ListRemediationSessions),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct)
+    public async Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.LoadSessionAsync(sessionId, ct);
+        var result = await _guidedRemediationService.LoadSessionAsync(sessionId, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            $"resume session {sessionId}",
+            new AgentQuery(AgentIntent.ResumeRemediation, sessionId),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct)
+    public async Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return _guidedRemediationService.DeleteSessionAsync(sessionId, ct);
+        var result = await _guidedRemediationService.DeleteSessionAsync(sessionId, ct).ConfigureAwait(false);
+        return await CompleteStructuredResultAsync(
+            $"delete session {sessionId}",
+            new AgentQuery(result.Intent, sessionId),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+    public async Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return Task.FromResult(_guidedRemediationService.AddSessionNote(sessionId, text, evidenceLinks));
+        var result = _guidedRemediationService.AddSessionNote(sessionId, text, evidenceLinks);
+        return await CompleteStructuredResultAsync(
+            $"add note to session {sessionId}",
+            new AgentQuery(AgentIntent.AddSessionNote, sessionId),
+            result).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
+    public async Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return Task.FromResult(_guidedRemediationService.AddStepNote(sessionId, ruleId, text, evidenceLinks));
+        var result = _guidedRemediationService.AddStepNote(sessionId, ruleId, text, evidenceLinks);
+        return await CompleteStructuredResultAsync(
+            $"add step note {ruleId} in session {sessionId}",
+            new AgentQuery(AgentIntent.AddStepNote, sessionId),
+            result).ConfigureAwait(false);
     }
 
     private static (string SessionId, string NoteText, IReadOnlyList<string>? Links) ParseSessionNoteQuery(string rawQuery, AgentQuery agentQuery)
@@ -577,6 +654,208 @@ public sealed class SecurityAgent : IAgent
         // Collapse extra whitespace left behind by removed wrappers
         return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
     }
+
+    private async Task<AgentResult> CompleteStructuredResultAsync(string rawQuery, AgentQuery agentQuery, AgentResult result)
+    {
+        UpdateDialogueContext(rawQuery, agentQuery, result);
+        return await AttachSuggestionsAndSaveAsync(result).ConfigureAwait(false);
+    }
+
+    private async Task<AgentResult> AttachSuggestionsAndSaveAsync(AgentResult result)
+    {
+        result = result with
+        {
+            Suggestions = _suggestionProvider.GetSuggestions(result, _auditState.SnapshotEntities())
+        };
+
+        await SaveMemorySnapshotAsync().ConfigureAwait(false);
+        return result;
+    }
+
+    private static readonly TimeSpan MaxMemorySnapshotAge = TimeSpan.FromDays(30);
+
+    private void RestoreMemorySnapshot()
+    {
+        if (_memoryStore == null)
+            return;
+
+        var snapshot = _memoryStore.Load();
+        if (snapshot == null)
+            return;
+
+        if (DateTime.UtcNow - snapshot.UtcTimestamp > MaxMemorySnapshotAge)
+            return;
+
+        var lastResult = RehydrateLastResult(snapshot);
+
+        // If the referenced audit history entry is gone, the focus fields are stale;
+        // clear them to avoid half-restored state.
+        if (lastResult == null)
+        {
+            snapshot = snapshot with
+            {
+                FocusedRuleId = null,
+                FocusedCategory = null,
+                LastRemediationSessionId = null,
+                ActiveSessionId = null,
+                LatestAuditSnapshotId = null
+            };
+        }
+
+        var entities = new EntityFrame
+        {
+            LastIntent = snapshot.LastIntent,
+            LastTopic = snapshot.LastTopic,
+            LastAuditIntent = snapshot.LastAuditIntent,
+            LastRuleId = snapshot.FocusedRuleId,
+            LastCategory = snapshot.FocusedCategory,
+            LastRemediationSessionId = snapshot.LastRemediationSessionId,
+            ActiveSessionId = snapshot.ActiveSessionId,
+            RankedFindings = lastResult?.AgentFindings ?? Array.Empty<Finding>()
+        };
+
+        if (!string.IsNullOrWhiteSpace(snapshot.FocusedRuleId) && lastResult != null)
+        {
+            entities.LastFinding = lastResult.AgentFindings
+                .FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.RuleId)
+                    && f.RuleId.Equals(snapshot.FocusedRuleId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (entities.LastFinding == null && lastResult != null && lastResult.AgentFindings.Count > 0)
+        {
+            entities.LastFinding = lastResult.AgentFindings[0];
+            entities.LastRuleId ??= entities.LastFinding.RuleId;
+            entities.LastCategory ??= entities.LastFinding.Category;
+        }
+
+        _auditState.RestoreState(lastResult, entities);
+        if (snapshot.RecentTurns != null)
+        {
+            _auditState.RestoreHistory(snapshot.RecentTurns);
+        }
+    }
+
+    private async Task SaveMemorySnapshotAsync()
+    {
+        if (_memoryStore == null)
+            return;
+
+        try
+        {
+            var snapshot = new AgentMemorySnapshot
+            {
+                UtcTimestamp = DateTime.UtcNow,
+                LastIntent = _auditState.Entities.LastIntent,
+                LastTopic = _auditState.Entities.LastTopic,
+                LastAuditIntent = _auditState.Entities.LastAuditIntent,
+                FocusedRuleId = _auditState.Entities.LastRuleId,
+                FocusedCategory = _auditState.Entities.LastCategory,
+                LastRemediationSessionId = _auditState.Entities.LastRemediationSessionId,
+                ActiveSessionId = _auditState.Entities.ActiveSessionId,
+                LatestAuditSnapshotId = GetLatestAuditSnapshotId(),
+                RecentTurns = _auditState.History.TakeLast(DialogueContext.MaxHistoryTurns).ToList()
+            };
+
+            await _memoryStore.SaveAsync(snapshot).ConfigureAwait(false);
+        }
+        catch
+        {
+            // A throwing custom memory store must not discard the result already built
+            // for the user. Built-in stores swallow internally and surface via
+            // PersistenceWarning.
+        }
+    }
+
+    private string? GetLatestAuditSnapshotId()
+    {
+        if (_historyStore == null || _auditState.LastResult == null)
+            return null;
+
+        // Prefer the SnapshotId already stamped on the live result; it is authoritative.
+        // Fall back to the newest history entry for the same intent only for legacy data.
+        if (!string.IsNullOrWhiteSpace(_auditState.LastResult.SnapshotId))
+            return _auditState.LastResult.SnapshotId;
+
+        return _historyStore.GetAll()
+            .FirstOrDefault(e => e.Intent == _auditState.LastResult.Intent)?.SnapshotId;
+    }
+
+    private AgentResult? RehydrateLastResult(AgentMemorySnapshot snapshot)
+    {
+        if (_historyStore == null || string.IsNullOrWhiteSpace(snapshot.LatestAuditSnapshotId))
+            return null;
+
+        var entry = _historyStore.GetAll()
+            .FirstOrDefault(e => e.SnapshotId.Equals(snapshot.LatestAuditSnapshotId, StringComparison.OrdinalIgnoreCase));
+
+        if (entry == null)
+            return null;
+
+        var findings = entry.SnapshotFindings.Select(RehydrateFinding).ToList();
+        var riskScorecard = findings.Count > 0
+            ? new RiskScorecardBuilder().Build(findings, entry.TimestampUtc)
+            : null;
+
+        return new AgentResult
+        {
+            Intent = entry.Intent,
+            AgentFindings = findings,
+            UtcTimestamp = entry.TimestampUtc,
+            Summary = $"Rehydrated audit from {entry.TimestampUtc:yyyy-MM-dd HH:mm} UTC.",
+            PassedCount = entry.PassedCount,
+            FailedCount = entry.FailedCount,
+            SuppressedCount = entry.SuppressedCount,
+            CrashedCount = entry.CrashedCount,
+            CapabilityReport = entry.CapabilityReport ?? string.Empty,
+            RuleResults = entry.RuleResults,
+            Warnings = entry.Warnings,
+            LogAnalysisResult = entry.LogAnalysisResult,
+            Scorecard = entry.Scorecard,
+            RiskScorecard = riskScorecard,
+            SnapshotId = entry.SnapshotId
+        };
+    }
+
+    private static Finding RehydrateFinding(AuditSnapshotFinding snapshot)
+    {
+        return new Finding
+        {
+            RuleId = snapshot.RuleId,
+            Category = string.IsNullOrWhiteSpace(snapshot.Category) ? "Unknown" : snapshot.Category,
+            Severity = ParseSeverityString(snapshot.Severity),
+            Confidence = ParseConfidenceString(snapshot.Confidence),
+            EvidenceSignals = snapshot.EvidenceSignals,
+            SourceHost = "localhost",
+            Target = string.IsNullOrWhiteSpace(snapshot.Target) ? "unknown" : snapshot.Target,
+            ShortDescription = string.IsNullOrWhiteSpace(snapshot.ShortDescription)
+                ? $"Finding {snapshot.RuleId}"
+                : snapshot.ShortDescription,
+            Details = $"Rehydrated from audit history snapshot for {snapshot.RuleId}.",
+            GroupedCount = snapshot.GroupedCount,
+            RepresentativeTargets = snapshot.RepresentativeTargets,
+            RiskDrivers = snapshot.RiskDrivers,
+            Fingerprint = string.IsNullOrWhiteSpace(snapshot.Fingerprint) ? null! : snapshot.Fingerprint
+        };
+    }
+
+    private static Severity ParseSeverityString(string severity) => severity.ToLowerInvariant() switch
+    {
+        "info" => Severity.Info,
+        "low" => Severity.Low,
+        "medium" => Severity.Medium,
+        "high" => Severity.High,
+        "critical" => Severity.Critical,
+        _ => Severity.Info
+    };
+
+    private static DetectionConfidence ParseConfidenceString(string? confidence) => confidence?.ToLowerInvariant() switch
+    {
+        "low" => DetectionConfidence.Low,
+        "medium" => DetectionConfidence.Medium,
+        "high" => DetectionConfidence.High,
+        "confirmed" => DetectionConfidence.Confirmed,
+        _ => DetectionConfidence.Unknown
+    };
 
     private static string GetHelpText() =>
         "I can help you audit your Linux system security. Try asking:\n" +

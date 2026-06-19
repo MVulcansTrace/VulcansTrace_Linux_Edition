@@ -80,6 +80,36 @@ The Security Agent keeps a lightweight, deterministic dialogue context so multi-
 
 All inference is rule-based and testable. The context lives in `DialogueContext` and is persisted in memory per `SecurityAgent` instance; it is not sent to any external service.
 
+### Cross-Session Memory
+
+The agent persists a lightweight conversation-memory snapshot so it can resume context after the application restarts:
+
+- **What is saved** — last intent/topic, last audit intent, focused rule ID and category, active/last remediation session ID, the most recent 20 dialogue turns, and a reference to the latest audit-history snapshot.
+- **What is not saved** — full findings are not duplicated. The snapshot references the existing `IAuditHistoryStore` entry and rehydrates a synthetic `AgentResult` from its `SnapshotFindings` on startup. The rehydrated result now also restores the original `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`; `RemediationPlan` and `RemediationSession` are not duplicated because they have their own persistence stores.
+- **Where it lives** — `JsonFileAgentMemoryStore` writes atomically to `~/.config/VulcansTrace/agent-memory.json` (temp file + rename) with an in-memory fallback if the filesystem is unavailable. Saves use async file I/O and are awaited before the result is returned so the restored context matches the last completed agent action.
+- **When it loads/restores** — `SecurityAgent` loads the snapshot on construction, restores the `EntityFrame` and recent history, and rehydrates `LastResult` from audit history. If the referenced history entry is missing, the focus fields are cleared to avoid half-restored state. Snapshots older than 30 days are ignored. Corrupt or missing fields in `SnapshotFindings` are replaced with safe defaults so startup cannot crash on bad JSON.
+- **When it saves** — after completed query, audit, explanation, baseline, remediation, and session-management actions, the current entity frame and history are snapshotted and persisted. A throwing custom store does not discard the result already returned to the caller.
+- **Warning surfacing** — `JsonFileAgentMemoryStore.PersistenceWarning` is surfaced in the Avalonia UI as an info message, like the warnings from other stores.
+
+This makes follow-ups like `"what should I fix first?"`, `"fix it"`, and explicit references like `"explain TEST-001"` work immediately after reopening the application, as long as the audit history store still contains the referenced snapshot.
+
+## Follow-Up Suggestions
+
+Every agent reply now includes a small set of contextual follow-up suggestions. They are generated deterministically by `AgentSuggestionProvider` from the current `AgentResult` and `EntityFrame`, with no external LLM:
+
+| Result state | Example suggestions |
+| --- | --- |
+| Audit with Critical/High findings | `What should I fix first?`, `Why is this critical?`, `Show only <category> issues`, `Explain <top-rule>`, `What's my risk grade?` |
+| Audit with no findings | `Set baseline`, `Check another area`, `Run a full audit` (after a targeted audit) |
+| After explaining a finding | `Fix it`, `Remediate it`, `Show related <category> findings`, `What should I fix first?` |
+| After starting/resuming remediation | `Verify session`, `Add a note`, `List sessions` |
+| After `PrioritizeRemediation` | `Fix <first-rule>`, `Show all findings`, `What's my risk grade?` |
+| After `SetBaseline` | `Check drift` |
+| After `CheckDrift` | `Show baseline`, `Update baseline` |
+| After `RiskScore` | `Show only <top-category> issues`, `What should I fix first?` |
+
+In the Avalonia UI, suggestions appear as clickable chips below the agent message they belong to. Clicking a chip executes the suggestion using its `Intent`: audit-intent suggestions call `RunAuditAsync` directly, while all other suggestions fall back to the natural-language query path. This guarantees that chips such as **Show all findings** route to the correct audit intent instead of being re-parsed and misrouted. The CLI and JSON output include suggestions as structured data but do not render interactive chips.
+
 ## Session Timeline
 
 Guided remediation sessions (`remediate <finding>`) record an immutable event timeline for audit traceability:
@@ -381,6 +411,8 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, cron job, package vulnerability, container, and Kubernetes checks.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
+- **Follow-up suggestion chips** — every agent message with suggestions shows a row of clickable chips (`What should I fix first?`, `Fix it`, `Check drift`, etc.). Clicking a chip runs the underlying query.
+- **Cross-session memory** — the agent restores the last conversation context (topic, focused finding, recent turns, and last result) when the Avalonia app restarts, using the lightweight `agent-memory.json` snapshot and the existing audit-history store.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Configuration baselines persisted to the user config directory (`~/.config/VulcansTrace/baselines.json`) when available, with in-memory fallback. Baselines are intent-scoped; each intent has one active baseline at a time. Drift detection re-runs the last completed audit intent and compares against the active baseline, surfacing new and worsened findings.
 - Accept Risk suppressions by finding fingerprint when available, with legacy rule-ID/target matching for older entries. Suppressions can last 7 days, 30 days, 90 days, or permanently. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
@@ -496,7 +528,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 
 ## Current Limitations
 
-- It is a deterministic, conversation-aware rule-based assistant, not an LLM-backed conversational system. Context is held in memory for the current agent instance and is rebuilt from the last turn each time.
+- It is a deterministic, conversation-aware rule-based assistant, not an LLM-backed conversational system. Conversation context is persisted across application restarts via the lightweight `IAgentMemoryStore`; it is never sent to an external service.
 - `SecurityAgent.AskAsync` is currently single-threaded. `DialogueManager.Resolve` snapshots `EntityFrame` under the context lock to make the read contract explicit, but concurrent callers should serialize at the UI/CLI layer until a broader concurrency review is done.
 - Scanner parsers are pragmatic and command-output based, so unusual distro output may need parser tests and adjustments.
 - Capability status reports command availability and permission visibility, not semantic completeness of every data source.
@@ -510,7 +542,6 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 
 ## Roadmap
 
-- Add richer follow-up explanation flows that can compare related findings and suggest next triage steps.
 - Expand conversation-aware inference to cover more remediation note and session-management shortcuts.
 - Add a policy editing surface in the Avalonia UI.
 - Expand scanner fixtures across more distributions and command variants.
@@ -583,6 +614,11 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [IntentInferenceEngine.cs](../VulcansTrace.Linux.Agent/Dialogue/IntentInferenceEngine.cs) — deterministic topic-aware intent inference and `BuildTarget`
 - [ResponseTemplateProvider.cs](../VulcansTrace.Linux.Agent/Dialogue/ResponseTemplateProvider.cs) — clarification prompts for ambiguous queries
 - [AgentQuery.cs](../VulcansTrace.Linux.Agent/Query/AgentQuery.cs) — structured query record with raw query text for inference
+- [SuggestedFollowUp.cs](../VulcansTrace.Linux.Agent/Suggestions/SuggestedFollowUp.cs) — follow-up suggestion data
+- [AgentSuggestionProvider.cs](../VulcansTrace.Linux.Agent/Suggestions/AgentSuggestionProvider.cs) — deterministic suggestion generation
+- [IAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/IAgentMemoryStore.cs) — cross-session memory store contract
+- [AgentMemorySnapshot.cs](../VulcansTrace.Linux.Agent/Memory/AgentMemorySnapshot.cs) — persisted memory snapshot
+- [JsonFileAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/JsonFileAgentMemoryStore.cs) — JSON-backed memory persistence
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
 - [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)

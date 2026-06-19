@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -26,6 +28,8 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private string _confidence = "";
     private string _evidenceSignalsDisplay = "";
     private IReadOnlyList<CopyableCommand> _verificationCommands = Array.Empty<CopyableCommand>();
+    private IReadOnlyList<SuggestedFollowUp> _suggestions = Array.Empty<SuggestedFollowUp>();
+    private ICommand? _suggestionCommand;
     private RemediationSection? _remediationSection;
 
     /// <summary>Gets or sets the message text shown to the user.</summary>
@@ -125,6 +129,29 @@ public sealed class AgentMessageViewModel : ViewModelBase
 
     /// <summary>Gets whether this message has verification commands to display.</summary>
     public bool HasVerificationCommands => _verificationCommands.Count > 0;
+
+    /// <summary>Gets or sets the contextual follow-up suggestions for this message.</summary>
+    public IReadOnlyList<SuggestedFollowUp> Suggestions
+    {
+        get => _suggestions;
+        set
+        {
+            if (SetField(ref _suggestions, value))
+            {
+                OnPropertyChanged(nameof(HasSuggestions));
+            }
+        }
+    }
+
+    /// <summary>Gets whether this message has follow-up suggestions to display.</summary>
+    public bool HasSuggestions => _suggestions.Count > 0;
+
+    /// <summary>Gets or sets the command invoked when a suggestion chip is clicked.</summary>
+    public ICommand? SuggestionCommand
+    {
+        get => _suggestionCommand;
+        set => SetField(ref _suggestionCommand, value);
+    }
 
     private string _sessionId = "";
     private RemediationSessionStatus _sessionStatus;

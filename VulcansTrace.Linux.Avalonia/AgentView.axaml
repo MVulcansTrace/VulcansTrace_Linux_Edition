@@ -4,6 +4,7 @@
              xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
              xmlns:explanations="using:VulcansTrace.Linux.Agent.Explanations"
              xmlns:sessions="using:VulcansTrace.Linux.Agent.Sessions"
+             xmlns:suggestions="using:VulcansTrace.Linux.Agent.Suggestions"
              x:Class="VulcansTrace.Linux.Avalonia.AgentView"
              x:DataType="vm:AgentViewModel">
 
@@ -450,6 +451,30 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                             </StackPanel>
+                                            <!-- Suggestion chips -->
+                                            <WrapPanel Orientation="Horizontal"
+                                                       Margin="0,8,0,0"
+                                                       IsVisible="{Binding HasSuggestions}">
+                                                <ItemsControl ItemsSource="{Binding Suggestions}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="suggestions:SuggestedFollowUp">
+                                                            <Button Content="{Binding Label}"
+                                                                    FontSize="10"
+                                                                    Padding="6,3"
+                                                                    Margin="0,0,6,4"
+                                                                    Background="#1e3a5f"
+                                                                    Foreground="#e2e8f0"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:AgentMessageViewModel)DataContext).SuggestionCommand}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </WrapPanel>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

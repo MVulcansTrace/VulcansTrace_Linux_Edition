@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Input;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -22,6 +25,7 @@ internal sealed class AgentResultPresenter
     private readonly Func<string?> _getCategoryFilter;
     private readonly Action<bool> _setPrivilegeWarning;
     private readonly Action<string> _setPrivilegeWarningText;
+    private readonly Func<SuggestedFollowUp, Task> _executeSuggestion;
 
     public AgentResultPresenter(
         ObservableCollection<AgentMessageViewModel> messages,
@@ -29,7 +33,8 @@ internal sealed class AgentResultPresenter
         Func<SeverityFilterOption?> getSeverityFilter,
         Func<string?> getCategoryFilter,
         Action<bool> setPrivilegeWarning,
-        Action<string> setPrivilegeWarningText)
+        Action<string> setPrivilegeWarningText,
+        Func<SuggestedFollowUp, Task> executeSuggestion)
     {
         _messages = messages ?? throw new ArgumentNullException(nameof(messages));
         _categoryFilters = categoryFilters ?? throw new ArgumentNullException(nameof(categoryFilters));
@@ -37,47 +42,50 @@ internal sealed class AgentResultPresenter
         _getCategoryFilter = getCategoryFilter ?? throw new ArgumentNullException(nameof(getCategoryFilter));
         _setPrivilegeWarning = setPrivilegeWarning ?? throw new ArgumentNullException(nameof(setPrivilegeWarning));
         _setPrivilegeWarningText = setPrivilegeWarningText ?? throw new ArgumentNullException(nameof(setPrivilegeWarningText));
+        _executeSuggestion = executeSuggestion ?? throw new ArgumentNullException(nameof(executeSuggestion));
     }
 
     public void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
+        AgentMessageViewModel? suggestionAnchor = null;
+
         if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
-            AddAgentMessage(result.CapabilityReport, true);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true));
 
         if (result.Intent == AgentIntent.FixFinding
             && result.Warnings.Count == 0
             && result.RemediationPlan?.Sections.Count == 1)
         {
-            AddInteractiveRemediationMessage(result);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddInteractiveRemediationMessage(result));
         }
         else if (result.Intent == AgentIntent.StartRemediation && result.RemediationSession != null)
         {
-            AddSessionMessage(result);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
         }
         else if (result.Intent == AgentIntent.ResumeRemediation && result.RemediationSession != null)
         {
-            AddSessionMessage(result);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
         }
         else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
         {
-            AddVerificationResultMessage(result);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddVerificationResultMessage(result));
         }
         else if (result.Intent == AgentIntent.ListRemediationSessions)
         {
-            AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0));
         }
         else if ((result.Intent == AgentIntent.AddSessionNote || result.Intent == AgentIntent.AddStepNote)
             && result.RemediationSession != null)
         {
-            AddNoteConfirmationMessage(result);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddNoteConfirmationMessage(result));
         }
         else
         {
-            AddAgentMessage(result.Summary, result.AgentFindings.Count == 0);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.AgentFindings.Count == 0));
 
             if (showPassedCount && result.PassedCount > 0)
             {
-                AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true);
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true));
             }
 
             if (result.AgentFindings.Count > 0)
@@ -106,11 +114,33 @@ internal sealed class AgentResultPresenter
 
         if (showWarnings && result.Warnings.Count > 0)
         {
-            AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true);
+            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true));
             DetectPrivilegeWarning(result.Warnings);
         }
 
+        AttachSuggestions(result, suggestionAnchor);
         ApplyChatFilters();
+    }
+
+    private static void TrackSuggestionAnchor(ref AgentMessageViewModel? anchor, AgentMessageViewModel? candidate)
+    {
+        // Anchor chips to the first substantive agent message, skipping info-only
+        // messages such as the capability report so the chips stay near the summary/findings.
+        if (anchor == null && candidate is { IsUser: false, IsInfo: false })
+            anchor = candidate;
+    }
+
+    private void AttachSuggestions(AgentResult result, AgentMessageViewModel? anchor)
+    {
+        if (anchor == null || result.Suggestions.Count == 0)
+            return;
+
+        anchor.Suggestions = result.Suggestions;
+        anchor.SuggestionCommand = new RelayCommand<SuggestedFollowUp>(async suggestion =>
+        {
+            if (suggestion != null && !string.IsNullOrWhiteSpace(suggestion.Query))
+                await _executeSuggestion(suggestion);
+        });
     }
 
     public void AddUserMessage(string text)
@@ -123,15 +153,17 @@ internal sealed class AgentResultPresenter
         });
     }
 
-    public void AddAgentMessage(string text, bool isInfo)
+    public AgentMessageViewModel AddAgentMessage(string text, bool isInfo)
     {
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = text,
             IsUser = false,
             IsInfo = isInfo,
             Timestamp = DateTime.Now
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
     public void AddAgentFinding(Finding finding)
@@ -260,12 +292,12 @@ internal sealed class AgentResultPresenter
         return details.ToString().TrimEnd();
     }
 
-    private void AddInteractiveRemediationMessage(AgentResult result)
+    private AgentMessageViewModel AddInteractiveRemediationMessage(AgentResult result)
     {
         var section = result.RemediationPlan!.Sections[0];
         var severity = ParseSeverityFromSummary(section.FindingSummary);
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = result.Summary,
             Details = $"Risk: {section.RiskNote}",
@@ -274,10 +306,12 @@ internal sealed class AgentResultPresenter
             Severity = severity,
             Timestamp = DateTime.Now,
             RemediationSection = section
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
-    private void AddSessionMessage(AgentResult result)
+    private AgentMessageViewModel AddSessionMessage(AgentResult result)
     {
         var session = result.RemediationSession!;
         var section = session.RemediationPlan.Sections.FirstOrDefault();
@@ -286,7 +320,7 @@ internal sealed class AgentResultPresenter
             && session.StepStates.TryGetValue(section.RuleId, out var stepState)
             && stepState == RemediationStepState.Blocked;
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = result.Summary,
             Details = section != null && !sectionIsBlocked ? $"Risk: {section.RiskNote}" : "",
@@ -298,15 +332,17 @@ internal sealed class AgentResultPresenter
             SessionId = session.SessionId,
             SessionStatus = session.Status,
             SessionTimeline = session.Timeline
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
-    private void AddVerificationResultMessage(AgentResult result)
+    private AgentMessageViewModel AddVerificationResultMessage(AgentResult result)
     {
         var session = result.RemediationSession!;
         var v = session.VerificationResult;
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = result.Summary,
             IsUser = false,
@@ -316,17 +352,18 @@ internal sealed class AgentResultPresenter
             SessionStatus = session.Status,
             IsVerificationResult = true,
             SessionTimeline = session.Timeline
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
-    private void AddNoteConfirmationMessage(AgentResult result)
+    private AgentMessageViewModel AddNoteConfirmationMessage(AgentResult result)
     {
         var session = result.RemediationSession!;
         var note = session.Notes.LastOrDefault();
         if (note == null)
         {
-            AddAgentMessage(result.Summary, true);
-            return;
+            return AddAgentMessage(result.Summary, true);
         }
 
         var location = string.IsNullOrEmpty(note.RuleId)
@@ -336,7 +373,7 @@ internal sealed class AgentResultPresenter
             ? $" ({note.EvidenceLinks.Count} evidence link(s))"
             : "";
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = $"Note added to {location}{evidenceHint}: {note.Text}",
             IsUser = false,
@@ -345,7 +382,9 @@ internal sealed class AgentResultPresenter
             SessionId = session.SessionId,
             SessionStatus = session.Status,
             SessionTimeline = session.Timeline
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
     public void ApplyChatFilters()
@@ -355,6 +394,9 @@ internal sealed class AgentResultPresenter
 
         foreach (var msg in _messages)
         {
+            if (msg == null)
+                continue;
+
             if (msg.IsUser || msg.IsInfo || string.IsNullOrEmpty(msg.Category))
             {
                 msg.IsVisible = true;

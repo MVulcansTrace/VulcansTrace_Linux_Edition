@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Suggestions;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -64,4 +65,10 @@ public sealed record AgentResult
 
     /// <summary>Persisted remediation sessions, populated for ListRemediationSessions intent.</summary>
     public IReadOnlyList<RemediationSession> RemediationSessions { get; init; } = Array.Empty<RemediationSession>();
+
+    /// <summary>Contextual follow-up suggestions generated for this result.</summary>
+    public IReadOnlyList<SuggestedFollowUp> Suggestions { get; init; } = Array.Empty<SuggestedFollowUp>();
+
+    /// <summary>Audit-history snapshot ID for this result, when persisted.</summary>
+    public string? SnapshotId { get; init; }
 }
