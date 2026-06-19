@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
+using VulcansTrace.Linux.Engine;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -71,4 +72,15 @@ public sealed record AgentResult
 
     /// <summary>Audit-history snapshot ID for this result, when persisted.</summary>
     public string? SnapshotId { get; init; }
+
+    /// <summary>
+    /// Cross-category posture correlations detected for this audit.
+    /// These do not create new findings; they annotate combinations of existing findings.
+    /// </summary>
+    public IReadOnlyList<PostureCorrelation> PostureCorrelations { get; init; } = Array.Empty<PostureCorrelation>();
+
+    /// <summary>
+    /// A composed narrative summary for the result, if generated.
+    /// </summary>
+    public Dialogue.Narrative? Narrative { get; init; }
 }

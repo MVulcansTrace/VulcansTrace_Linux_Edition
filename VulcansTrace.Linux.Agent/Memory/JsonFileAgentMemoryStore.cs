@@ -89,6 +89,21 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
             var snapshot = JsonSerializer.Deserialize<AgentMemorySnapshot>(json, _jsonOptions);
             if (snapshot != null)
             {
+                // System.Text.Json does not preserve the dictionary comparer. Rebuild with
+                // OrdinalIgnoreCase and normalized uppercase keys so rule lookups remain
+                // case-insensitive after a restart.
+                if (snapshot.RuleHistory.Count > 0)
+                {
+                    var normalized = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kvp in snapshot.RuleHistory)
+                    {
+                        var upperKey = kvp.Key.ToUpperInvariant();
+                        normalized[upperKey] = kvp.Value with { RuleId = upperKey };
+                    }
+
+                    snapshot = snapshot with { RuleHistory = normalized };
+                }
+
                 _snapshot = snapshot;
             }
         }

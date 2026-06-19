@@ -38,6 +38,9 @@ public sealed class SecurityAgent : IAgent
     private readonly DialogueManager _dialogueManager;
     private readonly IAgentSuggestionProvider _suggestionProvider;
     private readonly IAgentMemoryStore? _memoryStore;
+    private readonly IRuleMemoryRecorder _ruleMemoryRecorder;
+    private readonly IPostureCorrelator _postureCorrelator;
+    private readonly INarrativeComposer _narrativeComposer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -115,6 +118,9 @@ public sealed class SecurityAgent : IAgent
         _dialogueManager = new DialogueManager();
         _suggestionProvider = suggestionProvider ?? new AgentSuggestionProvider();
         _memoryStore = memoryStore;
+        _ruleMemoryRecorder = new RuleMemoryRecorder();
+        _postureCorrelator = new PostureCorrelator();
+        _narrativeComposer = new NarrativeComposer();
 
         RestoreMemorySnapshot();
     }
@@ -168,7 +174,13 @@ public sealed class SecurityAgent : IAgent
         }
         else if (agentQuery.Intent == AgentIntent.VerifyRemediation)
         {
-            result = await _guidedRemediationService.RunVerificationAsync(agentQuery.TargetReference ?? "", ct);
+            var target = agentQuery.TargetReference ?? "";
+            if (!string.IsNullOrWhiteSpace(target) && !IsSessionId(target))
+            {
+                return await VerifyFindingAsync(target, ct).ConfigureAwait(false);
+            }
+
+            result = await _guidedRemediationService.RunVerificationAsync(target, ct);
         }
         else if (agentQuery.Intent == AgentIntent.ListRemediationSessions)
         {
@@ -359,7 +371,7 @@ public sealed class SecurityAgent : IAgent
         // Phase 5: Build summary
         var summary = _resultComposer.BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount, crashedCount);
 
-        return _resultFinalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+        var result = _resultFinalizer.FinalizeAudit(new AgentResultFinalizationRequest(
             intent,
             agentFindings,
             logAnalysisResult,
@@ -372,6 +384,22 @@ public sealed class SecurityAgent : IAgent
             crashedCount,
             capabilityReport,
             historyEntries));
+
+        // Phase 6: Update persistent per-rule memory so future turns can reference history.
+        _auditState.Entities.RuleHistory = _ruleMemoryRecorder.Record(result, _auditState.Entities.RuleHistory);
+
+        // Phase 7: Detect cross-category posture correlations (e.g., FW-002 + SSH-002).
+        var postureCorrelations = _postureCorrelator.Correlate(result.AgentFindings);
+        if (postureCorrelations.Count > 0)
+        {
+            result = result with { PostureCorrelations = postureCorrelations };
+        }
+
+        // Phase 8: Compose a traceable narrative from findings, correlations, and memory.
+        var narrative = _narrativeComposer.Compose(result, _auditState.Entities.RuleHistory, _auditState.SnapshotEntities());
+        result = result with { Narrative = narrative };
+
+        return result;
     }
 
     private static bool IsFollowUpIntent(AgentIntent intent) => intent switch
@@ -461,10 +489,84 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
         var result = await _guidedRemediationService.RunVerificationAsync(sessionId, ct).ConfigureAwait(false);
+
+        UpdateMemoryFromVerification(result);
+
         return await CompleteStructuredResultAsync(
             $"verify session {sessionId}",
             new AgentQuery(AgentIntent.VerifyRemediation, sessionId),
             result).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Verifies whether a specific finding has been remediated by re-running
+    /// the relevant audit and reporting whether the rule still fails.
+    /// </summary>
+    public async Task<AgentResult> VerifyFindingAsync(string ruleId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ruleId);
+        ct.ThrowIfCancellationRequested();
+
+        if (_auditState.LastResult == null)
+        {
+            return new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = "Run an audit first, then ask me to verify a specific finding.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            };
+        }
+
+        var intent = _auditState.LastResult.Intent;
+        var auditResult = await RunAuditCoreAsync(intent, null, ct).ConfigureAwait(false);
+        var stillFailing = auditResult.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+            && f.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
+
+        var summary = stillFailing
+            ? $"**{ruleId}** is still failing after re-audit."
+            : $"**{ruleId}** is no longer detected. The remediation appears to have worked.";
+
+        var result = auditResult with
+        {
+            Intent = AgentIntent.VerifyRemediation,
+            Summary = summary
+        };
+
+        if (!stillFailing)
+        {
+            _auditState.Entities.RuleHistory = _ruleMemoryRecorder.MarkVerifiedFixed(
+                new[] { ruleId },
+                auditResult.UtcTimestamp,
+                _auditState.Entities.RuleHistory);
+        }
+
+        UpdateMemoryFromVerification(result);
+
+        return await CompleteStructuredResultAsync(
+            $"verify finding {ruleId}",
+            new AgentQuery(AgentIntent.VerifyRemediation, ruleId),
+            result).ConfigureAwait(false);
+    }
+
+    private void UpdateMemoryFromVerification(AgentResult result)
+    {
+        var verification = result.RemediationSession?.VerificationResult;
+        if (verification == null)
+            return;
+
+        var fixedRuleIds = verification.FixedFindings
+            .Select(f => f.RuleId)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .ToList();
+
+        if (fixedRuleIds.Count == 0)
+            return;
+
+        _auditState.Entities.RuleHistory = _ruleMemoryRecorder.MarkVerifiedFixed(
+            fixedRuleIds,
+            result.UtcTimestamp,
+            _auditState.Entities.RuleHistory);
     }
 
     /// <inheritdoc />
@@ -572,12 +674,16 @@ public sealed class SecurityAgent : IAgent
         return (sessionId, noteText, links.Count > 0 ? links : null);
     }
 
+    private static readonly System.Text.RegularExpressions.Regex SessionIdOnlyRegex = new(
+        @"^[0-9a-fA-F]{8}$",
+        System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static bool IsSessionId(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && SessionIdOnlyRegex.IsMatch(value);
+
     private static (string SessionId, string RuleId, string NoteText, IReadOnlyList<string>? Links) ParseStepNoteQuery(string rawQuery, AgentQuery agentQuery)
     {
-        // TargetReference may be the session ID (8 hex chars) or the rule ID when no session ID is present
-        var possibleTarget = agentQuery.TargetReference ?? "";
-        var isSessionId = System.Text.RegularExpressions.Regex.IsMatch(possibleTarget, @"^[0-9a-fA-F]{8}$");
-        var sessionId = isSessionId ? possibleTarget : "";
+        var sessionId = "";
         var ruleId = "";
         var noteText = rawQuery;
         var links = new List<string>();
@@ -606,9 +712,20 @@ public sealed class SecurityAgent : IAgent
             noteText = "";
         }
 
-        // Strip the session ID only if it appears as the next token (constrained position)
-        if (!string.IsNullOrEmpty(sessionId))
+        // Session ID is the next token if it is an 8-char hex value. This is more
+        // deterministic than relying on TargetReference, which may match a hex word
+        // later in the note body when multiple 8-char hex substrings are present.
+        var secondSpace = noteText.IndexOf(' ');
+        var candidate = secondSpace > 0 ? noteText[..secondSpace] : noteText;
+        if (SessionIdOnlyRegex.IsMatch(candidate))
         {
+            sessionId = candidate;
+            noteText = secondSpace > 0 ? noteText[(secondSpace + 1)..].Trim() : "";
+        }
+        else if (agentQuery.TargetReference is not null && SessionIdOnlyRegex.IsMatch(agentQuery.TargetReference))
+        {
+            // Fallback to the resolved target reference if it is a valid session ID.
+            sessionId = agentQuery.TargetReference;
             if (noteText.StartsWith(sessionId, StringComparison.OrdinalIgnoreCase))
             {
                 noteText = noteText[sessionId.Length..].Trim();
@@ -672,7 +789,7 @@ public sealed class SecurityAgent : IAgent
         return result;
     }
 
-    private static readonly TimeSpan MaxMemorySnapshotAge = TimeSpan.FromDays(30);
+    private static readonly TimeSpan MaxMemorySnapshotAge = TimeSpan.FromDays(90);
 
     private void RestoreMemorySnapshot()
     {
@@ -711,7 +828,8 @@ public sealed class SecurityAgent : IAgent
             LastCategory = snapshot.FocusedCategory,
             LastRemediationSessionId = snapshot.LastRemediationSessionId,
             ActiveSessionId = snapshot.ActiveSessionId,
-            RankedFindings = lastResult?.AgentFindings ?? Array.Empty<Finding>()
+            RankedFindings = lastResult?.AgentFindings ?? Array.Empty<Finding>(),
+            RuleHistory = snapshot.RuleHistory ?? new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
         };
 
         if (!string.IsNullOrWhiteSpace(snapshot.FocusedRuleId) && lastResult != null)
@@ -753,7 +871,8 @@ public sealed class SecurityAgent : IAgent
                 LastRemediationSessionId = _auditState.Entities.LastRemediationSessionId,
                 ActiveSessionId = _auditState.Entities.ActiveSessionId,
                 LatestAuditSnapshotId = GetLatestAuditSnapshotId(),
-                RecentTurns = _auditState.History.TakeLast(DialogueContext.MaxHistoryTurns).ToList()
+                RecentTurns = _auditState.History.TakeLast(DialogueContext.MaxHistoryTurns).ToList(),
+                RuleHistory = _auditState.Entities.RuleHistory
             };
 
             await _memoryStore.SaveAsync(snapshot).ConfigureAwait(false);

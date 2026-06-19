@@ -39,4 +39,11 @@ public sealed record AgentMemorySnapshot
 
     /// <summary>Recent conversation turns retained for continuity.</summary>
     public IReadOnlyList<DialogueTurn> RecentTurns { get; init; } = Array.Empty<DialogueTurn>();
+
+    /// <summary>
+    /// Per-rule audit history used to provide continuity ("this has been open for two weeks").
+    /// Keys are rule IDs; values track severity history and remediation state.
+    /// </summary>
+    public IReadOnlyDictionary<string, RuleMemoryEntry> RuleHistory { get; init; } =
+        new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
 }

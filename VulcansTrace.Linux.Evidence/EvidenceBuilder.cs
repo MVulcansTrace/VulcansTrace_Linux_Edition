@@ -196,6 +196,16 @@ public sealed class EvidenceBuilder
             files["remediation.md"] = Encoding.UTF8.GetBytes(remediationPlanMarkdown);
         }
 
+        if (!string.IsNullOrWhiteSpace(result.AgentNarrativeMarkdown))
+        {
+            files["agent-narrative.md"] = Encoding.UTF8.GetBytes(result.AgentNarrativeMarkdown);
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.PostureCorrelationsMarkdown))
+        {
+            files["posture-correlations.md"] = Encoding.UTF8.GetBytes(result.PostureCorrelationsMarkdown);
+        }
+
         if (result.Scorecard != null)
         {
             if (_scorecardHtmlFormatter != null)

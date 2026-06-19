@@ -9,6 +9,24 @@ namespace VulcansTrace.Linux.Agent.Query;
 /// </summary>
 public sealed class QueryParser : IQueryParser
 {
+    private readonly IEntityExtractor _entityExtractor;
+
+    /// <summary>
+    /// Initializes a new <see cref="QueryParser"/> with the default entity extractor.
+    /// </summary>
+    public QueryParser()
+        : this(new EntityExtractor())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new <see cref="QueryParser"/> with a custom entity extractor.
+    /// </summary>
+    public QueryParser(IEntityExtractor entityExtractor)
+    {
+        _entityExtractor = entityExtractor ?? throw new ArgumentNullException(nameof(entityExtractor));
+    }
+
     private static readonly (string[] Keywords, AgentIntent Intent, int Weight)[] Patterns =
     {
         (new[] { "secure", "safe", "audit", "full check", "health", "scan everything", "check everything" }, AgentIntent.FullAudit, 2),
@@ -52,7 +70,7 @@ public sealed class QueryParser : IQueryParser
     private static readonly Regex RuleIdPattern = new(@"[A-Za-z]{2,}-\d{3,}", RegexOptions.Compiled);
     private static readonly Regex SessionIdPattern = new(@"\b[0-9a-fA-F]{8}\b", RegexOptions.Compiled);
 
-    private static readonly string[] CategoryKeywords =
+    internal static readonly string[] CategoryKeywords =
     {
         "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara", "processruntime", "process", "runtime", "ld_preload", "injection", "deleted binary", "proc"
     };
@@ -87,9 +105,14 @@ public sealed class QueryParser : IQueryParser
             }
         }
 
+        var entityFrame = _entityExtractor.Extract(query);
+
         if (bestScore == 0)
         {
-            return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query);
+            return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query)
+            {
+                Entities = entityFrame
+            };
         }
 
         var alternatives = scoredIntents
@@ -102,7 +125,10 @@ public sealed class QueryParser : IQueryParser
         var isAmbiguous = alternatives.Count > 0 && tiedIntents.All(IsAuditIntent);
 
         var targetReference = ExtractTargetReference(query, bestIntent);
-        return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous, query);
+        return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous, query)
+        {
+            Entities = entityFrame
+        };
     }
 
     private static bool IsAuditIntent(AgentIntent intent) => intent switch

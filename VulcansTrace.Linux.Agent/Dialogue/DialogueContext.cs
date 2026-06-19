@@ -147,6 +147,7 @@ public class DialogueContext
             Entities.LastTopic = clone.LastTopic;
             Entities.LastAuditIntent = clone.LastAuditIntent;
             Entities.LastRemediationSession = clone.LastRemediationSession;
+            Entities.RuleHistory = clone.RuleHistory;
 
             // Rebuild the rule-ID lookup table so explicit references like
             // "explain FW-001" work immediately after a restart.

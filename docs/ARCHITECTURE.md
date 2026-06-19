@@ -114,6 +114,64 @@ The agent layer now persists conversation context across process restarts throug
 
 Every `AgentResult` carries an `IReadOnlyList<SuggestedFollowUp>` produced by `AgentSuggestionProvider`. The provider is deterministic, LLM-free, and maps `(AgentResult, EntityFrame)` to contextual next queries such as `What should I fix first?`, `Fix it`, `Remediate it`, `Check drift`, and `Show baseline`. The Avalonia `AgentResultPresenter` attaches the suggestions to the first substantive agent message of a result (skipping info-only capability reports) and binds each chip to `AgentViewModel.ExecuteSuggestionAsync`. `ExecuteSuggestionAsync` routes by the suggestion's `Intent`: audit intents call `RunAuditAsync` directly, while non-audit intents execute the underlying query through `AskAsync`.
 
+### Frame-Based NLU
+
+The agent adds a second layer of deterministic entity extraction on top of the existing keyword parser:
+
+- `IEntityExtractor` / `EntityExtractor` — extracts structured entities from raw user queries using regex and keyword matching. Supported entities include rule IDs (`FW-001`), categories (`firewall`, `ssh`), remediation session IDs, severity filters (`critical`, `high`), time windows (`last week`, `last 3 days`), remediation verbs (`fix`, `remediate`, `verify`, `explain`, `resume`), and ordinal references (`the third one`).
+- `QueryEntityFrame` — immutable record that carries all extracted entities.
+- `AgentQuery.Entities` — the parser attaches the entity frame to every parsed query.
+- `DialogueManager.EnrichWithEntityFrame` — uses the frame to resolve obvious intent/reference cases before the full inference engine runs, e.g. a single rule ID plus `explain` becomes `ExplainFinding`, a session ID plus `verify` becomes `VerifyRemediation`.
+
+This layer remains fully deterministic and introduces no external NLP/LLM dependencies.
+
+### Per-Rule Memory
+
+The agent persists per-rule history across process restarts:
+
+- `IRuleMemoryRecorder` / `RuleMemoryRecorder` — records one severity snapshot per rule per audit, computes a trend (`New`, `Stable`, `Improving`, `Worsening`), and tracks `LastRemediationAttemptUtc` and `LastVerifiedFixedUtc`.
+- `RuleMemoryEntry`, `RuleSeveritySnapshot`, `RuleStatusTrend` — domain types for the history model.
+- `AgentMemorySnapshot.RuleHistory` — the memory snapshot now stores a dictionary of rule histories.
+- `JsonFileAgentMemoryStore` — normalizes rule IDs to uppercase on load so case-insensitive lookups survive JSON round-trips.
+- `SecurityAgent` — records history after every audit and stamps verified-fixed timestamps after session verification or targeted `VerifyFindingAsync`.
+
+### Cross-Category Posture Correlation
+
+Beyond the temporal/network correlations produced by `TraceMapCorrelator`, the agent now detects dangerous combinations of static posture findings:
+
+- `IPostureCorrelator` / `PostureCorrelator` — matches audit findings against a declarative registry of `PostureCorrelationPattern`s.
+- `PostureCorrelation` — records the matched rule pair, combined severity, narrative, and finding IDs.
+- Default patterns include `FW-002` + `SSH-002` (password SSH exposed to the internet), `FW-004` + `PORT-*` (exposed ports without a firewall), and `USER-001` + `SSH-002` (weak password policy + password SSH).
+- Correlations attach to `AgentResult.PostureCorrelations`; they do not create new findings and are deduplicated by `(PatternId, RuleIdA, RuleIdB)`.
+
+### Narrative Composition Engine
+
+The agent composes analyst-style prose from findings, correlations, and memory:
+
+- `INarrativeComposer` / `NarrativeComposer` — builds a `Narrative` with summary, key findings, combined risk, continuity, and next-steps paragraphs.
+- `Narrative` — immutable record with `FullText`, per-paragraph accessors, and `SourceIds`.
+- Every non-generic paragraph cites source IDs: rule IDs for findings, posture pattern IDs for correlations, rule IDs for memory entries. The correlation paragraph always renders `[RuleIdA + RuleIdB]` so the traceability invariant holds even when a pattern template omits the IDs.
+- `AgentResult.Narrative` — populated for audit results.
+- `AgentResultPresenter` and the CLI render the narrative; the Avalonia UI uses a `MarkdownInlinesConverter` so `**bold**` and `*italic*` render with actual formatting. Evidence bundles include the narrative as `agent-narrative.md` and posture correlations as `posture-correlations.md` when present.
+
+### Proactive, State-Triggered Suggestions
+
+`AgentSuggestionProvider` now uses posture correlations and rule history to generate proactive follow-ups:
+
+- When a correlated pair is detected, it suggests fixing both rules together.
+- When a current rule has been stale or worsening for 7+ days, it suggests prioritizing it.
+- After verification, if a correlated finding remains, it suggests fixing the related rule next.
+
+All suggestions still only reference findings that exist in the current result.
+
+### Targeted Finding Verification
+
+In addition to session-based verification, `SecurityAgent` exposes `VerifyFindingAsync(ruleId)`:
+
+- Re-runs the last audit intent.
+- Reports whether the specified rule is still failing.
+- Stamps `LastVerifiedFixedUtc` when the rule no longer appears in the re-audit.
+
 2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), live process runtime state (memory maps, environment variables, executable paths, command lines, parent-child relationships, and duplicate-field / truncation metadata from `/proc/<pid>/`), YARA rule matches for SUID/SGID binaries, running process executables, and cron scripts, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed posture checks into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
@@ -196,8 +254,12 @@ Notification services are pluggable:
 - `IThreatIntelStore`: abstraction for offline IOC storage with add, clear, and query-by-type operations.
 - `IocEntry`: immutable IOC record (`Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`).
 - `CriticalChain`: record representing a detected critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) on a single host, with chronologically sorted `FindingIds`.
-- `AgentQuery`: structured user request containing `AgentIntent`, optional target reference, confidence, ambiguity flag, and the original raw query text for inference reuse.
+- `AgentQuery`: structured user request containing `AgentIntent`, optional target reference, confidence, ambiguity flag, the original raw query text for inference reuse, and a `QueryEntityFrame` with extracted entities.
+- `QueryEntityFrame`: deterministic entity frame carrying rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, ordinals, and tokens.
 - `SuggestedFollowUp`: a contextual next-step suggestion with a user-facing label, the query to execute, and the mapped `AgentIntent`.
+- `PostureCorrelation` / `PostureCorrelationPattern`: cross-category posture correlation records and declarative pattern definitions.
+- `RuleMemoryEntry` / `RuleSeveritySnapshot` / `RuleStatusTrend`: per-rule history model.
+- `Narrative`: composed multi-paragraph response with traceable source IDs.
 - `IAgentMemoryStore` / `AgentMemorySnapshot`: persistence contract and lightweight snapshot for cross-session conversation memory.
 - `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore. It also supports `RestoreHistory` to rehydrate recent turns from a persisted snapshot.
 - `EntityFrame`: shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session.

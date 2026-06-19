@@ -96,6 +96,12 @@ public sealed record AnalysisResult
     /// <summary>Optional risk scorecard aggregating findings into a graded score.</summary>
     public RiskScorecard? RiskScorecard { get; init; }
 
+    /// <summary>Optional Security Agent narrative markdown included in evidence exports.</summary>
+    public string AgentNarrativeMarkdown { get; init; } = string.Empty;
+
+    /// <summary>Optional Security Agent posture-correlation markdown included in evidence exports.</summary>
+    public string PostureCorrelationsMarkdown { get; init; } = string.Empty;
+
     /// <summary>
     /// Gets the start of the time range covered by the analysis.
     /// When using <c>with</c> expressions to modify time range properties, set

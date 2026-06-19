@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
@@ -43,6 +44,13 @@ public sealed class EntityFrame
     /// <summary>The last remediation session object, when loaded or created.</summary>
     public RemediationSession? LastRemediationSession { get; set; }
 
+    /// <summary>
+    /// Per-rule audit history restored from persistent memory.
+    /// Used by NLG and suggestion providers to add continuity.
+    /// </summary>
+    public IReadOnlyDictionary<string, RuleMemoryEntry> RuleHistory { get; set; } =
+        new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Creates a shallow copy of the current entity frame.</summary>
     public EntityFrame Clone()
     {
@@ -57,7 +65,8 @@ public sealed class EntityFrame
             LastIntent = LastIntent,
             LastTopic = LastTopic,
             LastAuditIntent = LastAuditIntent,
-            LastRemediationSession = LastRemediationSession
+            LastRemediationSession = LastRemediationSession,
+            RuleHistory = RuleHistory
         };
     }
 
@@ -74,5 +83,6 @@ public sealed class EntityFrame
         LastIntent = AgentIntent.Help;
         LastTopic = ConversationTopic.Unknown;
         LastAuditIntent = AgentIntent.FullAudit;
+        RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
     }
 }

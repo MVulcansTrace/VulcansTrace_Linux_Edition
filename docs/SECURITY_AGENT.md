@@ -84,14 +84,63 @@ All inference is rule-based and testable. The context lives in `DialogueContext`
 
 The agent persists a lightweight conversation-memory snapshot so it can resume context after the application restarts:
 
-- **What is saved** — last intent/topic, last audit intent, focused rule ID and category, active/last remediation session ID, the most recent 20 dialogue turns, and a reference to the latest audit-history snapshot.
+- **What is saved** — last intent/topic, last audit intent, focused rule ID and category, active/last remediation session ID, the most recent 20 dialogue turns, a per-rule `RuleHistory` snapshot, and a reference to the latest audit-history snapshot.
 - **What is not saved** — full findings are not duplicated. The snapshot references the existing `IAuditHistoryStore` entry and rehydrates a synthetic `AgentResult` from its `SnapshotFindings` on startup. The rehydrated result now also restores the original `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`; `RemediationPlan` and `RemediationSession` are not duplicated because they have their own persistence stores.
 - **Where it lives** — `JsonFileAgentMemoryStore` writes atomically to `~/.config/VulcansTrace/agent-memory.json` (temp file + rename) with an in-memory fallback if the filesystem is unavailable. Saves use async file I/O and are awaited before the result is returned so the restored context matches the last completed agent action.
-- **When it loads/restores** — `SecurityAgent` loads the snapshot on construction, restores the `EntityFrame` and recent history, and rehydrates `LastResult` from audit history. If the referenced history entry is missing, the focus fields are cleared to avoid half-restored state. Snapshots older than 30 days are ignored. Corrupt or missing fields in `SnapshotFindings` are replaced with safe defaults so startup cannot crash on bad JSON.
+- **When it loads/restores** — `SecurityAgent` loads the snapshot on construction, restores the `EntityFrame` and recent history, and rehydrates `LastResult` from audit history. If the referenced history entry is missing, the focus fields are cleared to avoid half-restored state. Snapshots older than 90 days are ignored. Corrupt or missing fields in `SnapshotFindings` are replaced with safe defaults so startup cannot crash on bad JSON.
 - **When it saves** — after completed query, audit, explanation, baseline, remediation, and session-management actions, the current entity frame and history are snapshotted and persisted. A throwing custom store does not discard the result already returned to the caller.
 - **Warning surfacing** — `JsonFileAgentMemoryStore.PersistenceWarning` is surfaced in the Avalonia UI as an info message, like the warnings from other stores.
 
 This makes follow-ups like `"what should I fix first?"`, `"fix it"`, and explicit references like `"explain TEST-001"` work immediately after reopening the application, as long as the audit history store still contains the referenced snapshot.
+
+### Per-Rule Memory and Trend Tracking
+
+In addition to conversation context, the agent keeps a lightweight per-rule memory store:
+
+- **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, and a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`).
+- **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries.
+- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening; the suggestion provider uses it to recommend stale or worsening findings for attention; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
+- **Where it lives** — rule history is serialized inside the same `agent-memory.json` snapshot and restored on startup. It is not sent to any external service.
+
+### Frame-Based Entity Extraction
+
+The parser extracts a structured `QueryEntityFrame` from free text before intent inference runs:
+
+| Entity | Example matches | Used for |
+| --- | --- | --- |
+| Rule IDs | `FW-001`, `SSH-003`, `PORT-002` | Targeted explanations, remediation, and verification |
+| Categories | `firewall`, `ssh`, `filesystem` | Category filtering and follow-up inference |
+| Session IDs | `abc12345`, `deadbeef` | Session notes, resume, and verification |
+| Severity filters | `critical`, `high`, `medium` | Result filtering and prioritization |
+| Time windows | `last 7 days`, `this week` | Potential future time-scoped queries |
+| Remediation verbs | `fix`, `remediate`, `verify` | Disambiguating intent when keywords overlap |
+| Ordinals | `the first one`, `the second finding` | Resolving references against ranked findings |
+
+Extraction is deterministic, uses word-boundary regex matching, and runs in `EntityExtractor`. The extracted frame is merged with parser output and anaphora resolution before `IntentInferenceEngine` selects the final intent.
+
+### Posture Correlation
+
+The agent can surface posture correlations: pairs of rule failures that together represent a higher-risk condition than either finding alone. Correlations are produced by `PostureCorrelator` and rendered in the narrative and evidence exports:
+
+| Pattern | Meaning |
+| --- | --- |
+| `FW-002 + SSH-002` | An SSH port is open and the firewall does not explicitly allow it, or password authentication is enabled without firewall coverage. |
+| `FW-004 + PORT-*` | Firewall tooling is missing while listening ports are exposed. |
+| `USER-001 + SSH-002` | Multiple UID-0 accounts exist and password SSH authentication is enabled. |
+
+Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` within a result, and the narrative paragraph always cites both rule IDs so the claim is traceable to the underlying findings.
+
+### Narrative Composition
+
+Agent replies are composed as multi-paragraph prose by `NarrativeComposer`:
+
+- **Summary paragraph** — high-level audit outcome and total counts.
+- **Key findings paragraph** — a compact list of the highest-severity findings, citing rule IDs, severity, and what was observed.
+- **Correlation paragraph** — lists any posture correlations with both rule IDs.
+- **Memory paragraph** — highlights repeated, improving, or worsening issues using per-rule memory.
+- **Traceability invariant** — every non-generic paragraph cites source IDs (rule IDs, finding fingerprints, or correlation keys) in its rendered text. `Narrative.SourceIds` collects these IDs and is validated by automated tests.
+
+The composed `AgentResult.Narrative` is rendered in the Avalonia chat panel (with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`), stripped of markdown in the CLI, and included in evidence exports as `agent-narrative.md`. Posture correlations are exported as `posture-correlations.md` when present.
 
 ## Follow-Up Suggestions
 
@@ -100,15 +149,29 @@ Every agent reply now includes a small set of contextual follow-up suggestions. 
 | Result state | Example suggestions |
 | --- | --- |
 | Audit with Critical/High findings | `What should I fix first?`, `Why is this critical?`, `Show only <category> issues`, `Explain <top-rule>`, `What's my risk grade?` |
+| Audit with posture correlations | `Fix <rule-a> and <rule-b> together` |
+| Audit with current stale or worsening finding | `Prioritize <rule> — is still open`, `Prioritize <rule> — is worsening` |
 | Audit with no findings | `Set baseline`, `Check another area`, `Run a full audit` (after a targeted audit) |
 | After explaining a finding | `Fix it`, `Remediate it`, `Show related <category> findings`, `What should I fix first?` |
 | After starting/resuming remediation | `Verify session`, `Add a note`, `List sessions` |
 | After `PrioritizeRemediation` | `Fix <first-rule>`, `Show all findings`, `What's my risk grade?` |
+| After verifying a finding | related current-finding suggestions, including correlated follow-ups when applicable |
 | After `SetBaseline` | `Check drift` |
 | After `CheckDrift` | `Show baseline`, `Update baseline` |
 | After `RiskScore` | `Show only <top-category> issues`, `What should I fix first?` |
 
 In the Avalonia UI, suggestions appear as clickable chips below the agent message they belong to. Clicking a chip executes the suggestion using its `Intent`: audit-intent suggestions call `RunAuditAsync` directly, while all other suggestions fall back to the natural-language query path. This guarantees that chips such as **Show all findings** route to the correct audit intent instead of being re-parsed and misrouted. The CLI and JSON output include suggestions as structured data but do not render interactive chips.
+
+## Verify Loop
+
+The agent can verify whether an individual finding is still present without starting a full remediation session:
+
+- **API** — `SecurityAgent.VerifyFindingAsync(ruleId, ct)` re-runs the last audit intent and checks whether a finding with the requested rule ID appears in the new result.
+- **Memory update** — if the finding is no longer present, `RuleMemoryRecorder.MarkVerifiedFixed` stamps `LastVerifiedFixedUtc` for that rule. The updated rule history is saved to the cross-session memory snapshot.
+- **Narrative** — the result includes a short narrative explaining whether the finding is fixed, still present, or not found in the current context.
+- **Suggestions** — after verification, suggestions are generated from the current re-audit result, including related correlated findings when applicable.
+
+This is useful for quick one-off checks after applying a manual fix: call `VerifyFindingAsync("FW-001")` and the agent reports the current status while keeping the rule-memory timeline accurate.
 
 ## Session Timeline
 
@@ -353,7 +416,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 
 ## How The Pipeline Works
 
-1. `DialogueManager` resolves the raw query in conversation context. It first runs `QueryParser` to produce an `AgentQuery` with intent, confidence, alternatives, and target reference, then `AnaphoraResolver` resolves pronouns and ordinals, and finally `IntentInferenceEngine` applies topic-aware deterministic inference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
+1. `DialogueManager` resolves the raw query in conversation context. It first runs `QueryParser` to produce an `AgentQuery` with intent, confidence, alternatives, and target reference, then `EntityExtractor` populates a `QueryEntityFrame` with rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, and ordinals. `AnaphoraResolver` resolves pronouns and ordinals, and finally `IntentInferenceEngine` applies topic-aware deterministic inference. Ambiguous audit-area prompts ask for clarification instead of running a guessed check.
 2. `SecurityAgent` acts as the orchestration entry point and delegates scanner execution to `ScannerCoordinator`.
 3. `ScanDataBuilder` collects scanner output and data-source capability status into a thread-safe snapshot.
 4. `RuleEvaluationService` resolves built-in role defaults and user overrides from `~/.config/VulcansTrace/policy.json`, filters rules by intent, invokes contextual rules when they opt into `IContextualRule`, converts crashes into explicit rule results, and applies disabled, auto-pass, and severity override policy.
@@ -363,11 +426,15 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 8. `AgentResultComposer` builds user-facing audit summaries and deterministic data-source capability reports.
 9. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer` and adds log-derived findings when raw log text is available.
 10. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` so follow-up questions like `explain FW-001` can resolve without relying on text matching.
-11. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
-12. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
-13. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-14. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
-15. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
+11. `PostureCorrelator` scans failed rule results for known multi-rule posture correlations (e.g., `FW-002+SSH-002`) and adds deduplicated `PostureCorrelation` records to `AgentResult`.
+12. `RuleMemoryRecorder` updates the per-rule memory history with severity snapshots and trend status from the current audit.
+13. `NarrativeComposer` builds the multi-paragraph `AgentResult.Narrative` from findings, posture correlations, rule-memory history, and data-source capability data, ensuring every non-generic paragraph cites source IDs.
+14. `AgentSuggestionProvider` generates deterministic follow-up suggestions from the final `AgentResult` and `EntityFrame`, including correlated-pair fixes, stale/worsening prioritization, and verification follow-ups.
+15. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
+16. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
+17. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
+18. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+19. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
 
@@ -412,7 +479,8 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - **Follow-up suggestion chips** — every agent message with suggestions shows a row of clickable chips (`What should I fix first?`, `Fix it`, `Check drift`, etc.). Clicking a chip runs the underlying query.
-- **Cross-session memory** — the agent restores the last conversation context (topic, focused finding, recent turns, and last result) when the Avalonia app restarts, using the lightweight `agent-memory.json` snapshot and the existing audit-history store.
+- **Narrative rendering** — the composed `AgentResult.Narrative` is rendered in the chat panel with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`; intraword underscores are preserved so snake_case rule IDs stay readable.
+- **Cross-session memory** — the agent restores the last conversation context (topic, focused finding, recent turns, rule history, and last result) when the Avalonia app restarts, using the lightweight `agent-memory.json` snapshot and the existing audit-history store.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Configuration baselines persisted to the user config directory (`~/.config/VulcansTrace/baselines.json`) when available, with in-memory fallback. Baselines are intent-scoped; each intent has one active baseline at a time. Drift detection re-runs the last completed audit intent and compares against the active baseline, surfacing new and worsened findings.
 - Accept Risk suppressions by finding fingerprint when available, with legacy rule-ID/target matching for older entries. Suppressions can last 7 days, 30 days, 90 days, or permanently. Expired suppressions stop applying immediately, remain in the review queue for 30 days, and are pruned after that retention window. Suppressions are persisted to the user config directory when available; if persistence fails, the UI reports that suppressions are session-only.
@@ -619,6 +687,21 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [IAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/IAgentMemoryStore.cs) — cross-session memory store contract
 - [AgentMemorySnapshot.cs](../VulcansTrace.Linux.Agent/Memory/AgentMemorySnapshot.cs) — persisted memory snapshot
 - [JsonFileAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/JsonFileAgentMemoryStore.cs) — JSON-backed memory persistence
+- [RuleMemoryEntry.cs](../VulcansTrace.Linux.Agent/Memory/RuleMemoryEntry.cs) — per-rule memory record
+- [RuleMemoryRecorder.cs](../VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs) — records severity snapshots and trend status per rule
+- [QueryEntityFrame.cs](../VulcansTrace.Linux.Agent/Query/QueryEntityFrame.cs) — structured entity frame for NLU
+- [EntityExtractor.cs](../VulcansTrace.Linux.Agent/Query/EntityExtractor.cs) — extracts rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, and ordinals
+- [PostureCorrelator.cs](../VulcansTrace.Linux.Engine/PostureCorrelator.cs) — deterministic multi-rule posture correlation
+- [NarrativeComposer.cs](../VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs) — composes traceable multi-paragraph agent replies
+- [MarkdownInlinesConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown in Avalonia chat
+- [Program.cs](../VulcansTrace.Linux.Cli/Program.cs) — CLI entry point including markdown stripping and session management
+- [SecurityAgent.cs](../VulcansTrace.Linux.Agent/SecurityAgent.cs) — agent orchestration, including `VerifyFindingAsync`
+- [RuleMemoryRecorderTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs)
+- [NarrativeComposerTests.cs](../VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs)
+- [PostureCorrelatorTests.cs](../VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs)
+- [EntityExtractorTests.cs](../VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs)
+- [AgentSuggestionProviderTests.cs](../VulcansTrace.Linux.Tests/Agent/Suggestions/AgentSuggestionProviderTests.cs)
+- [SecurityAgentMemoryIntegrationTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/SecurityAgentMemoryIntegrationTests.cs)
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)
 - [AutoFixPolicy.cs](../VulcansTrace.Linux.Agent/Remediation/AutoFixPolicy.cs)

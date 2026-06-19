@@ -54,6 +54,7 @@ public static class Program
                 "demo" => await RunDemoAsync(args),
                 "diff" => await RunDiffAsync(args),
                 "doctor" => await RunDoctorAsync(args),
+                "verify-finding" => await RunVerifyFindingAsync(args),
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
                 "threat-intel" => await RunThreatIntelAsync(args),
@@ -106,6 +107,12 @@ public static class Program
 
         var criticalCount = result.AgentFindings.Count(f => f.Severity == Core.Severity.Critical);
         Console.WriteLine($"  Critical findings: {criticalCount}");
+
+        if (result.Narrative != null)
+        {
+            Console.WriteLine();
+            Console.WriteLine(StripMarkdown(result.Narrative.FullText));
+        }
 
         if (!string.IsNullOrEmpty(outputJson))
         {
@@ -165,6 +172,47 @@ public static class Program
         var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
         var auditExitCode = criticalCount > 0 ? 2 : 0;
         return Math.Max(auditExitCode, autoFixExitCode);
+    }
+
+    private static async Task<int> RunVerifyFindingAsync(string[] args)
+    {
+        if (args.Length < 2 || args[1].StartsWith("--", StringComparison.Ordinal))
+        {
+            return PrintError("Rule ID required. Usage: vulcanstrace verify-finding <rule-id> [--role <role>]");
+        }
+
+        var ruleId = args[1];
+        var role = ParseArg(args, "--role", "Workstation")!;
+
+        if (!Enum.TryParse<MachineRole>(role, true, out var machineRole))
+        {
+            return PrintError($"Unknown role: {role}");
+        }
+
+        using var services = AgentFactory.Create(machineRole);
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var result = await services.Agent.VerifyFindingAsync(ruleId, cts.Token);
+        Console.WriteLine(StripMarkdown(result.Summary));
+
+        if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
+        {
+            Console.WriteLine();
+            Console.WriteLine(StripMarkdown(result.Narrative.FullText));
+        }
+
+        if (result.Summary.Contains("Run an audit first", StringComparison.OrdinalIgnoreCase))
+            return 1;
+
+        var stillFailing = result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+            && f.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
+
+        return stillFailing ? 2 : 0;
     }
 
     private static async Task<int> RunDemoAsync(string[] args)
@@ -1348,6 +1396,17 @@ public static class Program
         return 0;
     }
 
+    private static string StripMarkdown(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return markdown;
+
+        var text = markdown;
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\*\*(.+?)\*\*", "$1");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"_(.+?)_", "$1");
+        return text;
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine("VulcansTrace Linux Edition - CLI");
@@ -1358,6 +1417,7 @@ public static class Program
         Console.WriteLine("  vulcanstrace demo run --scenario <name> [--duration <seconds>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>]");
         Console.WriteLine("  vulcanstrace diff --baseline <file> --incident <file> [--output-json <file>] [--output-html <file>] [--output-evidence <zip>] [--signing-key <hex>]");
         Console.WriteLine("  vulcanstrace doctor [--output-json <file>]");
+        Console.WriteLine("  vulcanstrace verify-finding <rule-id> [--role <role>]");
         Console.WriteLine("  vulcanstrace schedule list");
         Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
         Console.WriteLine("  vulcanstrace schedule edit --id <id> [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>] [--notify-on-critical|--no-notify-on-critical] [--enabled|--disabled]");

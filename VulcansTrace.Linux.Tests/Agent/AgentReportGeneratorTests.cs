@@ -1,7 +1,9 @@
+using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
@@ -256,5 +258,38 @@ public class AgentReportGeneratorTests
         var analysisResult = _generator.ToAnalysisResult(agentResult);
 
         Assert.Null(analysisResult.RiskScorecard);
+    }
+
+    [Fact]
+    public void ToAnalysisResult_WithNarrativeAndPostureCorrelations_PreservesExportMarkdown()
+    {
+        var agentResult = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>(),
+            Narrative = new Narrative
+            {
+                Summary = "Audit narrative.",
+                CorrelationsParagraph = "**Combined risk:** FW-002 plus SSH-002."
+            },
+            PostureCorrelations = new[]
+            {
+                new PostureCorrelation
+                {
+                    PatternId = "POSTURE-001",
+                    RuleIdA = "FW-002",
+                    RuleIdB = "SSH-002",
+                    CombinedSeverity = Severity.Critical,
+                    Narrative = "Password SSH is exposed."
+                }
+            }
+        };
+
+        var analysisResult = _generator.ToAnalysisResult(agentResult);
+
+        Assert.Contains("Audit narrative.", analysisResult.AgentNarrativeMarkdown);
+        Assert.Contains("POSTURE-001", analysisResult.PostureCorrelationsMarkdown);
+        Assert.Contains("FW-002", analysisResult.PostureCorrelationsMarkdown);
+        Assert.Contains("SSH-002", analysisResult.PostureCorrelationsMarkdown);
     }
 }

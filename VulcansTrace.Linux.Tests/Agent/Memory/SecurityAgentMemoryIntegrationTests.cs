@@ -218,10 +218,109 @@ public class SecurityAgentMemoryIntegrationTests
         Assert.NotNull(followUp.AgentFindings[0].Fingerprint);
     }
 
-    private static SecurityAgent CreateAgent(IAuditHistoryStore historyStore, IAgentMemoryStore memoryStore, IBaselineStore? baselineStore = null)
+    [Fact]
+    public async Task Restart_RestoresRuleHistory_AndTracksTrend()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var firstAgent = CreateAgent(historyStore, memoryStore);
+        await firstAgent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var secondAgent = CreateAgent(historyStore, memoryStore);
+        var loadedMemory = memoryStore.Load();
+
+        Assert.NotNull(loadedMemory);
+        Assert.Single(loadedMemory.RuleHistory);
+        Assert.True(loadedMemory.RuleHistory.ContainsKey("TEST-001"));
+        var entry = loadedMemory.RuleHistory["TEST-001"];
+        Assert.Equal(RuleStatusTrend.New, entry.Trend);
+        Assert.Single(entry.SeverityHistory);
+
+        // Re-run with a rule that now reports Critical severity.
+        var worseningAgent = CreateAgent(historyStore, memoryStore, rule: new TestRule(Severity.Critical));
+        await worseningAgent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        entry = loadedMemory.RuleHistory["TEST-001"];
+        Assert.Equal(RuleStatusTrend.Worsening, entry.Trend);
+        Assert.Equal(2, entry.SeverityHistory.Count);
+        Assert.Equal(Severity.Critical, entry.LastSeverity);
+    }
+
+    [Fact]
+    public async Task VerifyFindingAsync_ReRunsAudit_AndReportsStatus()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var agent = CreateAgent(historyStore, memoryStore);
+        await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var verifyResult = await agent.VerifyFindingAsync("TEST-001", CancellationToken.None);
+
+        Assert.Equal(AgentIntent.VerifyRemediation, verifyResult.Intent);
+        Assert.Contains("TEST-001", verifyResult.Summary);
+    }
+
+    [Fact]
+    public async Task VerifyFindingAsync_WhenRuleNoLongerFails_RecordsVerifiedFixed()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var failingAgent = CreateAgent(historyStore, memoryStore, rule: new TestRule(Severity.High));
+        await failingAgent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        // Swap to a passing rule, restore state, and verify the original rule.
+        var passingAgent = CreateAgent(historyStore, memoryStore, rule: new PassingTestRule());
+        var verifyResult = await passingAgent.VerifyFindingAsync("TEST-001", CancellationToken.None);
+
+        Assert.Contains("no longer detected", verifyResult.Summary, StringComparison.OrdinalIgnoreCase);
+
+        var loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        Assert.True(loadedMemory.RuleHistory.ContainsKey("TEST-001"));
+        Assert.NotNull(loadedMemory.RuleHistory["TEST-001"].LastVerifiedFixedUtc);
+    }
+
+    [Fact]
+    public async Task AskAsync_VerifyFindingQuery_RoutesToTargetedVerification()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var failingAgent = CreateAgent(historyStore, memoryStore, rule: new TestRule(Severity.High));
+        await failingAgent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+
+        var passingAgent = CreateAgent(historyStore, memoryStore, rule: new PassingTestRule());
+        var verifyResult = await passingAgent.AskAsync("verify finding TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.VerifyRemediation, verifyResult.Intent);
+        Assert.Contains("no longer detected", verifyResult.Summary, StringComparison.OrdinalIgnoreCase);
+
+        var loadedMemory = memoryStore.Load();
+        Assert.NotNull(loadedMemory);
+        Assert.NotNull(loadedMemory.RuleHistory["TEST-001"].LastVerifiedFixedUtc);
+    }
+
+    [Fact]
+    public async Task VerifyFindingAsync_WithoutPriorAudit_AsksForAudit()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var agent = CreateAgent(historyStore, memoryStore);
+        var verifyResult = await agent.VerifyFindingAsync("TEST-001", CancellationToken.None);
+
+        Assert.Contains("Run an audit first", verifyResult.Summary);
+    }
+
+    private static SecurityAgent CreateAgent(IAuditHistoryStore historyStore, IAgentMemoryStore memoryStore, IBaselineStore? baselineStore = null, IRule? rule = null)
     {
         var scanner = new TestScanner();
-        var rule = new TestRule();
+        rule ??= new TestRule();
         return new SecurityAgent(
             new IScanner[] { scanner },
             new IRule[] { rule },
@@ -243,18 +342,42 @@ public class SecurityAgentMemoryIntegrationTests
 
     private sealed class TestRule : IRule
     {
+        private readonly Severity _severity;
+
+        public TestRule(Severity severity = Severity.High)
+        {
+            _severity = severity;
+        }
+
         public string Id => "TEST-001";
         public string Category => "Test";
         public string Description => "Test rule for memory integration";
         public string WhatItChecks => "Always fails for testing";
         public IReadOnlyList<string> SupportedDataSources => new[] { "Test" };
-        public Severity Severity => Severity.High;
+        public Severity Severity => _severity;
         public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
         public IReadOnlyList<MitreTechnique> MitreTechniques => Array.Empty<MitreTechnique>();
 
         public RuleResult Evaluate(ScanData data)
         {
-            return RuleResult.Fail(Id, Category, Id, "Test finding for memory integration", Severity.High, "target");
+            return RuleResult.Fail(Id, Category, Id, "Test finding for memory integration", _severity, "target");
+        }
+    }
+
+    private sealed class PassingTestRule : IRule
+    {
+        public string Id => "TEST-001";
+        public string Category => "Test";
+        public string Description => "Test rule that passes";
+        public string WhatItChecks => "Always passes for testing";
+        public IReadOnlyList<string> SupportedDataSources => new[] { "Test" };
+        public Severity Severity => Severity.Info;
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
+        public IReadOnlyList<MitreTechnique> MitreTechniques => Array.Empty<MitreTechnique>();
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Pass(Id, Category, Id, "Test rule passes");
         }
     }
 }

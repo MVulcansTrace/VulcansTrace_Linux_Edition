@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-07
+Last updated: 2026-06-19
 
 ### Doctor — Data-Source Self-Diagnostic
 - Added `DoctorService` and `DoctorResult` in `VulcansTrace.Linux.Agent/Diagnostics/` that run the same `ScannerCoordinator` used during audits in read-only probe mode and produce normalized capability rows plus deterministic capability reports via `AgentResultComposer`.
@@ -555,6 +555,72 @@ Last updated: 2026-06-07
 - Avalonia UI has a new **Risk Score** tab with color-coded grade badge, numeric score, summary status, and per-category DataGrid.
 - 25+ unit tests covering builder logic, grade boundaries, control-weight guards (zero, negative, max value), raw-score grading, category ordering, and ViewModel behavior.
   - Code: `VulcansTrace.Linux.Core/RiskScorecard.cs`, `VulcansTrace.Linux.Core/CategoryRisk.cs`, `VulcansTrace.Linux.Agent/Reports/RiskScorecardBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/IRiskScorecardBuilder.cs`, `VulcansTrace.Linux.Evidence/Formatters/RiskScorecardHtmlFormatter.cs`, `VulcansTrace.Linux.Evidence/Formatters/RiskScorecardMarkdownFormatter.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/RiskScorecardViewModel.cs`, `VulcansTrace.Linux.Tests/Agent/RiskScorecardBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/RiskScorecardViewModelTests.cs`
+
+### Security Agent — "Alive Without Being Alive" Enhancements
+Implemented six incremental build phases to make the deterministic, local agent feel context-aware and proactive without introducing an external LLM or sending system data anywhere.
+
+- **Phase 1 — Per-rule memory**
+  - Added `RuleMemoryEntry`, `RuleSeveritySnapshot`, and `RuleStatusTrend` in `VulcansTrace.Linux.Agent/Memory/`.
+  - Added `IRuleMemoryRecorder` / `RuleMemoryRecorder`; records one snapshot per rule per audit using the worst severity among all findings for that rule.
+  - Tracks `FirstSeenUtc`, `LastSeenUtc`, `LastVerifiedFixedUtc`, a rolling severity history, and a deterministic status trend (`New`, `Stable`, `Improving`, `Worsening`).
+  - Memory is grouped by `RuleId` so repeated targets do not create duplicate history entries.
+  - Code: `VulcansTrace.Linux.Agent/Memory/RuleMemoryEntry.cs`, `RuleSeveritySnapshot.cs`, `RuleStatusTrend.cs`, `IRuleMemoryRecorder.cs`, `RuleMemoryRecorder.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs`
+
+- **Phase 2 — Frame-based NLU**
+  - Added `QueryEntityFrame` and `IEntityExtractor` / `EntityExtractor`.
+  - Extracts rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, and ordinals from free-text queries using deterministic regex and word-boundary matching.
+  - `DialogueManager` enriches the parsed query with the entity frame before inference, and `SecurityAgent` uses extracted entities for follow-up resolution. Low-score queries still keep their entity frame so inputs such as `verify finding FW-001` can be routed correctly.
+  - Code: `VulcansTrace.Linux.Agent/Query/QueryEntityFrame.cs`, `VulcansTrace.Linux.Agent/Query/IEntityExtractor.cs`, `VulcansTrace.Linux.Agent/Query/EntityExtractor.cs`, `VulcansTrace.Linux.Agent/Dialogue/DialogueManager.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`
+
+- **Phase 3 — Posture correlation**
+  - Added `PostureCorrelation`, `PostureCorrelationPattern`, `IPostureCorrelator`, and `PostureCorrelator` in `VulcansTrace.Linux.Engine`.
+  - Built-in correlation patterns include `FW-002+SSH-002`, `FW-004+PORT-*`, and `USER-001+SSH-002`.
+  - Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` and rendered in the narrative with both rule IDs so every correlation claim is traceable.
+  - Code: `VulcansTrace.Linux.Engine/PostureCorrelator.cs`, `VulcansTrace.Linux.Engine/PostureCorrelation.cs`, `VulcansTrace.Linux.Engine/PostureCorrelationPattern.cs`, `VulcansTrace.Linux.Engine/IPostureCorrelator.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs`
+
+- **Phase 4 — NLG composition**
+  - Added `Narrative`, `INarrativeComposer`, and `NarrativeComposer`.
+  - Composes multi-paragraph prose from findings, rule-memory history, and posture correlations.
+  - Every non-generic paragraph cites source IDs in its rendered text; `Narrative.SourceIds` collects the IDs for automated traceability checks.
+  - `AgentResult.Narrative` carries the composed text and source list through the UI, CLI, and evidence pipeline; evidence bundles write it as `agent-narrative.md`.
+  - Code: `VulcansTrace.Linux.Agent/Dialogue/Narrative.cs`, `INarrativeComposer.cs`, `NarrativeComposer.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs`
+
+- **Phase 5 — Proactive suggestions**
+  - Extended `AgentSuggestionProvider` to suggest correlated-pair fixes, current stale/worsening prioritization, and related fixes after verification.
+  - Suggestions remain deterministic and grounded in `AgentResult` and `EntityFrame`; no external model is used.
+  - Code: `VulcansTrace.Linux.Agent/Suggestions/AgentSuggestionProvider.cs`, `VulcansTrace.Linux.Agent/Suggestions/SuggestedFollowUp.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Suggestions/AgentSuggestionProviderTests.cs`
+
+- **Phase 6 — Verify loop**
+  - Added `SecurityAgent.VerifyFindingAsync(ruleId)` and the CLI command `vulcanstrace verify-finding <rule-id>`.
+  - Re-runs the last audit intent, reports whether the requested finding is still present, and stamps `LastVerifiedFixedUtc` in rule memory when the finding is resolved.
+  - Natural-language inputs such as `verify finding FW-001` route to targeted verification, while 8-character session IDs still route to session verification.
+  - Updates the narrative and follow-up suggestions after verification.
+  - Code: `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Memory/SecurityAgentMemoryIntegrationTests.cs`
+
+- **Display polish**
+  - Avalonia `MarkdownInlinesConverter` renders `**bold**` and `*italic*` as styled Inlines while ignoring intraword `_` so snake_case identifiers remain intact.
+  - CLI strips markdown markers from agent narrative text for clean terminal output.
+  - Evidence exports include `agent-narrative.md` and `posture-correlations.md` when those agent fields are present.
+  - Code: `VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Agent/Reports/AgentReportGenerator.cs`, `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`
+
+- **Bug-fix pass**
+  - Fixed `VerifyFindingAsync` memory persistence by writing updated rule history back to the entity frame and saving the cross-session memory snapshot.
+  - Fixed user-facing targeted verification routing from chat and CLI.
+  - Fixed stale rule-memory suggestions so they only reference findings present in the current result.
+  - Fixed evidence export propagation for agent narratives and posture correlations.
+  - Grouped `RuleMemoryRecorder` snapshots by `RuleId` to prevent duplicate history entries across multiple targets for the same rule.
+  - Deduplicated `PostureCorrelator` output with a per-result key set.
+  - Hardened `EntityExtractor` verb/category matching with word boundaries and substring category detection.
+  - Strengthened narrative traceability so the posture-correlation paragraph always cites both rule IDs.
+  - Fixed intraword `_` italic mangling in Avalonia markdown rendering.
+  - Hardened `ParseStepNoteQuery` against session-ID misidentification by using a dedicated regex that does not steal CVE IDs or hashes from note text.
+  - Cross-session memory snapshot retention increased from 30 to **90 days**.
 
 ## 2) Profiles and Their Capabilities
 

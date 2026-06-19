@@ -319,6 +319,50 @@ The headless CLI can automatically remediate multiple findings after an audit:
 - Apply failures trigger automatic rollback for that section.
 - Critical findings still return exit code `2` even when auto-fix succeeds.
 
+## Security Agent — Narrative Response and Posture Correlation
+
+The Security Agent now composes analyst-style narrative responses and flags dangerous combinations of findings.
+
+### Narrative Response
+
+1. Open the **Security Agent** panel.
+2. Type: `Is my system secure?`
+3. The agent runs a full audit and returns a multi-paragraph narrative:
+   - **Summary** — total findings and severity breakdown.
+   - **Key findings** — top findings ordered by severity.
+   - **Combined risk** — any posture correlations (e.g., `FW-002` + `SSH-002`).
+   - **Continuity** — rules that have been open for a long time, with trend (`still open`, `worsening`, `improving`).
+   - **Next steps** — suggested actions.
+4. In the Avalonia UI, bold headers and emphasis render with actual formatting via the markdown-to-inlines converter.
+
+### Posture Correlation Example
+
+To see a combined-risk narrative, you need two findings that the correlator knows about:
+
+1. Ensure the firewall allows SSH from anywhere (`FW-002` fires).
+2. Ensure `PasswordAuthentication yes` is set in SSH (`SSH-002` fires).
+3. Type: `Check my SSH` or `Is my system secure?`
+4. The narrative includes a paragraph such as:
+   > **[FW-002 + SSH-002]** FW-002 allows SSH from anywhere and SSH-002 has password authentication enabled. Either one alone is risky; together they create a straight path to root access.
+5. A follow-up chip suggests: **Fix FW-002 and SSH-002 together**.
+
+### Per-Rule Memory and Continuity
+
+1. Run an audit that produces `FW-001`.
+2. Close and reopen the application (memory is persisted to `~/.config/VulcansTrace/agent-memory.json`).
+3. Re-run the same audit so `FW-001` fires again.
+4. The narrative continuity paragraph says something like:
+   > **FW-001** was first seen 2 weeks ago and is still open.
+5. If severity increased, it says:
+   > **FW-001** was first seen 2 weeks ago and has worsened.
+
+### Verify a Specific Finding
+
+1. After `FW-001` fires, remediate it manually.
+2. Type: `Verify finding FW-001`
+3. The agent re-runs the audit intent and reports whether `FW-001` is still failing.
+4. If it is resolved, the agent records `LastVerifiedFixedUtc` in memory.
+
 ## CIS Compliance Scorecard
 
 After any agent audit, view the formal compliance scorecard:

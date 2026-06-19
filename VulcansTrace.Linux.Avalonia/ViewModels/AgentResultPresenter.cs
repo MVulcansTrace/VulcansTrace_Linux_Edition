@@ -83,6 +83,11 @@ internal sealed class AgentResultPresenter
         {
             TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.AgentFindings.Count == 0));
 
+            if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
+            {
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false));
+            }
+
             if (showPassedCount && result.PassedCount > 0)
             {
                 TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true));

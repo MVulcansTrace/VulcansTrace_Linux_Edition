@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Core;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
@@ -379,5 +380,63 @@ public class QueryParserTests
 
         Assert.Equal(AgentIntent.AddSessionNote, result.Intent);
         Assert.Null(result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_PopulatesEntityFrameWithRuleId()
+    {
+        var result = _parser.Parse("explain FW-001");
+
+        Assert.Single(result.Entities.RuleIds);
+        Assert.Contains("FW-001", result.Entities.RuleIds);
+        Assert.Equal(AgentIntent.ExplainFinding, result.Entities.RemediationVerb);
+    }
+
+    [Fact]
+    public void Parse_NoKeywordScore_StillPopulatesEntityFrame()
+    {
+        var result = _parser.Parse("verify finding TEST-001");
+
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.Single(result.Entities.RuleIds);
+        Assert.Contains("TEST-001", result.Entities.RuleIds);
+        Assert.Equal(AgentIntent.VerifyRemediation, result.Entities.RemediationVerb);
+    }
+
+    [Fact]
+    public void Parse_PopulatesEntityFrameWithMultipleEntities()
+    {
+        var result = _parser.Parse("fix the high ssh findings from last week");
+
+        Assert.Empty(result.Entities.RuleIds);
+        Assert.Contains("ssh", result.Entities.Categories);
+        Assert.Equal(Severity.High, result.Entities.SeverityFilter);
+        Assert.Equal(TimeSpan.FromDays(7), result.Entities.TimeWindow);
+        Assert.Equal(AgentIntent.FixFinding, result.Entities.RemediationVerb);
+    }
+
+    [Fact]
+    public void Parse_PopulatesEntityFrameWithSessionId()
+    {
+        var result = _parser.Parse("verify session abc12345");
+
+        Assert.Equal("abc12345", result.Entities.SessionId);
+        Assert.Equal(AgentIntent.VerifyRemediation, result.Entities.RemediationVerb);
+    }
+
+    [Fact]
+    public void Parse_PopulatesEntityFrameWithOrdinal()
+    {
+        var result = _parser.Parse("explain the third one");
+
+        Assert.Equal(3, result.Entities.OrdinalReference);
+    }
+
+    [Fact]
+    public void Parse_EntityFrameEmptyForUnknownQuery()
+    {
+        var result = _parser.Parse("tell me a joke");
+
+        Assert.False(result.Entities.HasEntities);
     }
 }

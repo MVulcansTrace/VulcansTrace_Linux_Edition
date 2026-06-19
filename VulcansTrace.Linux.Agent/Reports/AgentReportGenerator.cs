@@ -1,5 +1,7 @@
+using System.Text;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -75,7 +77,37 @@ public sealed class AgentReportGenerator
             ActiveSuppressions = activeSuppressions,
             CapabilityReport = agentResult.CapabilityReport,
             Scorecard = agentResult.Scorecard,
-            RiskScorecard = agentResult.RiskScorecard
+            RiskScorecard = agentResult.RiskScorecard,
+            AgentNarrativeMarkdown = agentResult.Narrative?.FullText ?? string.Empty,
+            PostureCorrelationsMarkdown = FormatPostureCorrelations(agentResult.PostureCorrelations)
         };
+    }
+
+    private static string FormatPostureCorrelations(IReadOnlyList<PostureCorrelation> correlations)
+    {
+        if (correlations.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("# Posture Correlations");
+        sb.AppendLine();
+
+        foreach (var correlation in correlations)
+        {
+            sb.AppendLine($"## {correlation.PatternId}");
+            sb.AppendLine();
+            sb.AppendLine($"- Rules: `{correlation.RuleIdA}` + `{correlation.RuleIdB}`");
+            sb.AppendLine($"- Combined severity: {correlation.CombinedSeverity}");
+            sb.AppendLine($"- Narrative: {correlation.Narrative}");
+
+            if (correlation.FindingIds.Count > 0)
+            {
+                sb.AppendLine($"- Finding IDs: {string.Join(", ", correlation.FindingIds)}");
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString().TrimEnd();
     }
 }

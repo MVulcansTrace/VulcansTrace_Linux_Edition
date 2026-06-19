@@ -53,7 +53,8 @@ public sealed class DialogueManager
 
         var parsed = _queryParser.Parse(query);
         var resolution = _anaphoraResolver.Resolve(query, entities);
-        var (inferred, wasInferred) = _inferenceEngine.Infer(parsed, resolution, entities, query);
+        var enriched = EnrichWithEntityFrame(parsed, entities);
+        var (inferred, wasInferred) = _inferenceEngine.Infer(enriched, resolution, entities, query);
 
         // Anaphoric explain: "explain it" after an explanation should target
         // the focused finding even though the parser produced no reference.
@@ -67,6 +68,58 @@ public sealed class DialogueManager
         // Return the inferred query. If it is still ambiguous, the caller
         // (SecurityAgent) will use BuildClarificationPrompt to ask the user.
         return inferred;
+    }
+
+    /// <summary>
+    /// Uses the extracted entity frame to resolve obvious intent/reference cases
+    /// before the full inference engine runs.
+    /// </summary>
+    private static AgentQuery EnrichWithEntityFrame(AgentQuery parsed, EntityFrame entities)
+    {
+        var frame = parsed.Entities;
+        if (!frame.HasEntities)
+            return parsed;
+
+        var intent = parsed.Intent;
+        var target = parsed.TargetReference;
+
+        // A single rule ID plus a remediation verb is a strong signal.
+        if (frame.RuleIds.Count == 1)
+        {
+            target ??= frame.RuleIds[0];
+
+            if (intent == AgentIntent.Help && frame.RemediationVerb.HasValue)
+            {
+                intent = frame.RemediationVerb.Value;
+            }
+        }
+
+        // A session ID plus verify/resume is a strong signal.
+        if (!string.IsNullOrWhiteSpace(frame.SessionId))
+        {
+            target ??= frame.SessionId;
+
+            if (intent == AgentIntent.Help && frame.RemediationVerb == AgentIntent.VerifyRemediation)
+                intent = AgentIntent.VerifyRemediation;
+            if (intent == AgentIntent.Help && frame.RemediationVerb == AgentIntent.ResumeRemediation)
+                intent = AgentIntent.ResumeRemediation;
+        }
+
+        // If the parser was ambiguous, a single category can break the tie.
+        if (parsed.IsAmbiguous && frame.Categories.Count == 1 && string.IsNullOrWhiteSpace(target))
+        {
+            target = frame.Categories[0];
+        }
+
+        if (intent == parsed.Intent && target == parsed.TargetReference)
+            return parsed;
+
+        return parsed with
+        {
+            Intent = intent,
+            TargetReference = target,
+            Confidence = Math.Max(parsed.Confidence, 0.8)
+        };
     }
 
     /// <summary>

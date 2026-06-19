@@ -52,6 +52,18 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Add note to session abc12345 <text>` — append a free-text note to a remediation session
 - `Note for step FW-001 in session abc12345 <text>` — append a note to a specific step within a session
 
+The agent composes narrative responses from findings, posture correlations, and per-rule memory:
+
+- `Is my system secure?` — produces a multi-paragraph narrative with summary, key findings, combined risk, continuity, and next steps.
+- `Check my SSH` — when both `FW-002` and `SSH-002` fire, the narrative explains that password-based SSH exposed to the internet creates a straight path to root.
+- `What should I fix first?` — returns a severity-ordered remediation plan; if a correlated pair such as `FW-002` + `SSH-002` exists, the agent suggests fixing them together.
+
+Proactive suggestion chips also appear automatically:
+
+- After an audit with correlated findings — `Fix FW-002 and SSH-002 together`.
+- After a finding has been open for 7+ days — `Prioritize FW-001 — still open`.
+- After verifying a session where a correlated finding remains — `Fix related SSH-002`.
+
 After an audit, you can also ask follow-up questions without re-running scans:
 
 - `What changed since the last audit?`
@@ -71,6 +83,7 @@ After an audit, you can also ask follow-up questions without re-running scans:
 - `Verify remediation abc12345` — before/after verification for an active remediation session; blocked or failed verification is recorded in the session timeline
 - `List my sessions` / `Show sessions` — lists all persisted remediation sessions with ID, status, rule ID, and creation time
 - `Resume session abc12345` — reloads a previously saved remediation session into the chat panel for review or continued verification
+- `Verify finding FW-001` — re-run the original audit intent and verify whether a specific rule is still failing
 - `Which findings are suppressed?`
 - `What's my risk grade?` — returns the aggregate Risk Scorecard after an audit
 - `Risk score` — alias for the above
@@ -258,6 +271,16 @@ Run audits without launching the desktop UI:
 ```bash
 vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
 ```
+
+### Verify a Specific Finding
+
+After manually remediating a finding, verify whether it is still detected:
+
+```bash
+vulcanstrace verify-finding FW-001
+```
+
+The CLI re-runs the original audit intent, reports whether the rule is still failing, and records `LastVerifiedFixedUtc` in the agent memory when the finding is resolved.
 
 ## Doctor — Data-Source Self-Diagnostic
 

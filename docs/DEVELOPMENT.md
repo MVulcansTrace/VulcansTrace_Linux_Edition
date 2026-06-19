@@ -23,7 +23,7 @@ Run all tests:
 dotnet test
 ```
 
-The test suite contains **2 610 tests** covering unit, integration, detector, evidence, UI, live stream, demo mode, and performance scenarios.
+The test suite contains **2 804 tests** covering unit, integration, detector, evidence, UI, live stream, demo mode, and performance scenarios.
 
 Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Tests/Data/Real/Samples`
@@ -83,6 +83,28 @@ for the step-by-step HMAC signing key flow.
 8. Add tests in `VulcansTrace.Linux.Tests/Agent` and/or `VulcansTrace.Linux.Tests/Avalonia` (scanner fixtures, rule behavior, intent parsing, and UI audit-state behavior).
 9. Update `RuleCatalogTests.cs` if adding rules to the catalog.
 10. Update docs in `docs/SECURITY_AGENT.md` and `docs/portfolio/16-Security-Agent/`.
+
+## Adding a Posture Correlation Pattern
+
+1. Add a `PostureCorrelationPattern` to `PostureCorrelator.DefaultPatterns()` in `VulcansTrace.Linux.Engine/PostureCorrelator.cs`.
+2. Use `{RuleIdA}` and `{RuleIdB}` placeholders in `NarrativeTemplate` so the rendered correlation paragraph is traceable.
+3. Add a unit test in `VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs` covering the new pattern and deduplication behavior.
+4. Update `docs/ARCHITECTURE.md`, `docs/SECURITY_AGENT.md`, and `docs/DEMO.md` if the pattern is user-facing.
+
+## Extending the Narrative Composer
+
+1. Update `NarrativeComposer` in `VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs`.
+2. Ensure every non-generic paragraph cites source IDs in its rendered text; add the IDs to `Narrative.SourceIds`.
+3. Add or update tests in `VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs`, including the `EveryClaimIsTraceable` invariant.
+4. Update `docs/ARCHITECTURE.md` and `docs/SECURITY_AGENT.md`.
+
+## Extending Frame-Based NLU
+
+1. Add new entity types to `QueryEntityFrame` in `VulcansTrace.Linux.Agent/Query/QueryEntityFrame.cs`.
+2. Implement extraction in `EntityExtractor` in `VulcansTrace.Linux.Agent/Query/EntityExtractor.cs`.
+3. If the entity should affect intent resolution, update `DialogueManager.EnrichWithEntityFrame` in `VulcansTrace.Linux.Agent/Dialogue/DialogueManager.cs`.
+4. Add tests in `VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs` and `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`.
+5. Update `docs/ARCHITECTURE.md` and `docs/SECURITY_AGENT.md`.
 
 ## Making a Rule Auto-Fixable
 

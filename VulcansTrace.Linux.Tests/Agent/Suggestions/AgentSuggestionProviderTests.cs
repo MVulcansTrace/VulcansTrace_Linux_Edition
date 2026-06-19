@@ -1,9 +1,11 @@
 using VulcansTrace.Linux.Agent.Dialogue;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Engine;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent.Suggestions;
@@ -174,6 +176,141 @@ public class AgentSuggestionProviderTests
     }
 
 
+
+    [Fact]
+    public void Audit_WithPostureCorrelation_SuggestsFixingPairTogether()
+    {
+        var finding1 = CreateFinding("FW-002", "Firewall", Severity.High);
+        var finding2 = CreateFinding("SSH-002", "SSH", Severity.High);
+        var result = CreateResult(AgentIntent.FullAudit, finding1, finding2) with
+        {
+            PostureCorrelations = new[]
+            {
+                new PostureCorrelation
+                {
+                    PatternId = "POSTURE-001",
+                    RuleIdA = "FW-002",
+                    RuleIdB = "SSH-002",
+                    Narrative = "Pair risk.",
+                    CombinedSeverity = Severity.Critical,
+                    FindingIds = new[] { finding1.Id, finding2.Id }
+                }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, new EntityFrame());
+
+        Assert.Contains(suggestions, s => s.Label.Contains("FW-002") && s.Label.Contains("SSH-002"));
+    }
+
+    [Fact]
+    public void Audit_WithStaleFinding_SuggestsPrioritizeBasedOnMemory()
+    {
+        var result = CreateResult(AgentIntent.FullAudit, CreateFinding("FW-001", "Firewall", Severity.High));
+        var entities = new EntityFrame
+        {
+            RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["FW-001"] = new RuleMemoryEntry
+                {
+                    RuleId = "FW-001",
+                    FirstSeenUtc = DateTime.UtcNow.AddDays(-10),
+                    LastSeverity = Severity.High,
+                    SeverityHistory = new[]
+                    {
+                        new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow.AddDays(-10), Severity = Severity.High },
+                        new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow, Severity = Severity.High }
+                    },
+                    Trend = RuleStatusTrend.Stable
+                }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, entities);
+
+        Assert.Contains(suggestions, s => s.Label.Contains("FW-001") && s.Label.Contains("still open"));
+    }
+
+    [Fact]
+    public void Audit_WithStaleMemoryForAbsentFinding_DoesNotSuggestMissingRule()
+    {
+        var result = CreateResult(AgentIntent.FullAudit, CreateFinding("SSH-002", "SSH", Severity.High));
+        var entities = new EntityFrame
+        {
+            RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["FW-001"] = new RuleMemoryEntry
+                {
+                    RuleId = "FW-001",
+                    FirstSeenUtc = DateTime.UtcNow.AddDays(-10),
+                    LastSeverity = Severity.High,
+                    SeverityHistory = new[]
+                    {
+                        new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow.AddDays(-10), Severity = Severity.High },
+                        new RuleSeveritySnapshot { UtcTimestamp = DateTime.UtcNow.AddDays(-9), Severity = Severity.High }
+                    },
+                    Trend = RuleStatusTrend.Stable,
+                    LastVerifiedFixedUtc = DateTime.UtcNow
+                }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, entities);
+
+        Assert.DoesNotContain(suggestions, s => s.Label.Contains("FW-001"));
+        Assert.DoesNotContain(suggestions, s => s.Query.Contains("FW-001"));
+    }
+
+    [Fact]
+    public void VerifyRemediation_WithRemainingCorrelatedFinding_SuggestsRelatedFix()
+    {
+        var finding1 = CreateFinding("FW-002", "Firewall", Severity.High);
+        var finding2 = CreateFinding("SSH-002", "SSH", Severity.High);
+        var result = CreateResult(AgentIntent.VerifyRemediation, finding1, finding2) with
+        {
+            PostureCorrelations = new[]
+            {
+                new PostureCorrelation
+                {
+                    PatternId = "POSTURE-001",
+                    RuleIdA = "FW-002",
+                    RuleIdB = "SSH-002",
+                    Narrative = "Pair risk.",
+                    CombinedSeverity = Severity.Critical,
+                    FindingIds = new[] { finding1.Id, finding2.Id }
+                }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, new EntityFrame());
+
+        Assert.Contains(suggestions, s => s.Label.Contains("Fix related SSH-002"));
+    }
+
+    [Fact]
+    public void Suggestions_NeverReferenceMissingFinding()
+    {
+        var result = CreateResult(AgentIntent.FullAudit, CreateFinding("FW-001", "Firewall", Severity.High));
+        result = result with
+        {
+            PostureCorrelations = new[]
+            {
+                new PostureCorrelation
+                {
+                    PatternId = "POSTURE-001",
+                    RuleIdA = "FW-001",
+                    RuleIdB = "MISSING-002",
+                    Narrative = "Pair risk.",
+                    CombinedSeverity = Severity.Critical,
+                    FindingIds = new[] { Guid.NewGuid(), Guid.NewGuid() }
+                }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, new EntityFrame());
+
+        Assert.DoesNotContain(suggestions, s => s.Label.Contains("MISSING-002"));
+    }
 
     private static AgentResult CreateResult(AgentIntent intent, params Finding[] findings)
     {

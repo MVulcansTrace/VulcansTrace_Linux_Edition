@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Dialogue;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -134,12 +135,15 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
         var topCategory = GetTopCategory(result.AgentFindings);
         var hasHighCritical = result.AgentFindings.Any(f => f.Severity >= Severity.High);
 
-        Add(new SuggestedFollowUp { Label = "What should I fix first?", Query = "what should I fix first?", Intent = AgentIntent.PrioritizeRemediation }, suggestions);
+        Add(new SuggestedFollowUp { Label = "What should I fix first?", Query = "what should i fix first?", Intent = AgentIntent.PrioritizeRemediation }, suggestions);
 
         if (hasHighCritical)
         {
             Add(new SuggestedFollowUp { Label = "Why is this critical?", Query = "why is this critical?", Intent = AgentIntent.ExplainCritical }, suggestions);
         }
+
+        AddPostureCorrelationSuggestions(result, entities, suggestions);
+        AddMemoryAwareSuggestions(result, entities, suggestions);
 
         if (!string.IsNullOrWhiteSpace(topCategory))
         {
@@ -163,6 +167,61 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
 
         Add(new SuggestedFollowUp { Label = "What's my risk grade?", Query = "what's my risk grade?", Intent = AgentIntent.RiskScore }, suggestions);
         Add(new SuggestedFollowUp { Label = "Set baseline", Query = "set baseline", Intent = AgentIntent.SetBaseline }, suggestions);
+    }
+
+    private static void AddPostureCorrelationSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)
+    {
+        var correlation = result.PostureCorrelations.FirstOrDefault();
+        if (correlation == null)
+            return;
+
+        var hasA = result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+            && f.RuleId.Equals(correlation.RuleIdA, StringComparison.OrdinalIgnoreCase));
+        var hasB = result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+            && f.RuleId.Equals(correlation.RuleIdB, StringComparison.OrdinalIgnoreCase));
+
+        if (!hasA || !hasB)
+            return;
+
+        Add(new SuggestedFollowUp
+        {
+            Label = $"Fix {correlation.RuleIdA} and {correlation.RuleIdB} together",
+            Query = $"remediate {correlation.RuleIdA} {correlation.RuleIdB}",
+            Intent = AgentIntent.StartRemediation
+        }, suggestions);
+    }
+
+    private static void AddMemoryAwareSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)
+    {
+        var currentRuleIds = result.AgentFindings
+            .Select(f => f.RuleId)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var stale = entities.RuleHistory.Values
+            .Where(e => currentRuleIds.Contains(e.RuleId))
+            .Where(e => e.SeverityHistory.Count >= 2)
+            .Where(e => (DateTime.UtcNow - e.FirstSeenUtc).TotalDays >= 7)
+            .OrderByDescending(e => e.LastSeverity)
+            .FirstOrDefault();
+
+        if (stale == null)
+            return;
+
+        var trendText = stale.Trend switch
+        {
+            RuleStatusTrend.Worsening => "is worsening",
+            RuleStatusTrend.Stable => "is still open",
+            RuleStatusTrend.Improving => "is improving",
+            _ => "has history"
+        };
+
+        Add(new SuggestedFollowUp
+        {
+            Label = $"Prioritize {stale.RuleId} — {trendText}",
+            Query = $"fix {stale.RuleId}",
+            Intent = AgentIntent.FixFinding
+        }, suggestions);
     }
 
     private static void AddExplanationSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)
@@ -214,6 +273,26 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
             Add(new SuggestedFollowUp { Label = "Add a note", Query = $"add note to session {sessionId}", Intent = AgentIntent.AddSessionNote }, suggestions);
+        }
+
+        // If a correlated finding remains after verification, suggest addressing it next.
+        var correlation = result.PostureCorrelations.FirstOrDefault();
+        if (correlation != null)
+        {
+            var ruleAFound = result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+                && f.RuleId.Equals(correlation.RuleIdA, StringComparison.OrdinalIgnoreCase));
+            var remainingRuleId = ruleAFound ? correlation.RuleIdB : correlation.RuleIdA;
+
+            if (result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
+                && f.RuleId.Equals(remainingRuleId, StringComparison.OrdinalIgnoreCase)))
+            {
+                Add(new SuggestedFollowUp
+                {
+                    Label = $"Fix related {remainingRuleId}",
+                    Query = $"fix {remainingRuleId}",
+                    Intent = AgentIntent.FixFinding
+                }, suggestions);
+            }
         }
 
         Add(new SuggestedFollowUp { Label = "List sessions", Query = "list sessions", Intent = AgentIntent.ListRemediationSessions }, suggestions);

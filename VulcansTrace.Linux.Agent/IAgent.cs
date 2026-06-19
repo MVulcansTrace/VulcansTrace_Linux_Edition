@@ -79,6 +79,17 @@ public interface IAgent
     Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct);
 
     /// <summary>
+    /// Re-runs the last audit intent and verifies whether a specific rule is still failing.
+    /// </summary>
+    /// <param name="ruleId">The rule ID to verify, for example <c>FW-001</c>.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the targeted verification outcome.</returns>
+    Task<AgentResult> VerifyFindingAsync(string ruleId, CancellationToken ct)
+    {
+        throw new NotSupportedException("This agent does not support targeted finding verification.");
+    }
+
+    /// <summary>
     /// Records that a remediation session was exported by appending an Exported timeline event.
     /// </summary>
     /// <param name="sessionId">The session ID that was exported.</param>

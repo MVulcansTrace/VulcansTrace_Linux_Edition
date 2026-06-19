@@ -20,6 +20,7 @@
         <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
         <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
         <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
+        <conv:MarkdownInlinesConverter x:Key="MarkdownInlinesConverter" />
 
         <DataTemplate x:Key="CommandRowTemplate" DataType="explanations:CopyableCommand">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -165,9 +166,12 @@
                                         MaxWidth="520"
                                         HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignmentConverter}}">
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="{Binding Text}"
-                                                   TextWrapping="Wrap"
-                                                   Foreground="{Binding IsUser, Converter={StaticResource BoolToForegroundConverter}}"/>
+                                        <TextBlock TextWrapping="Wrap"
+                                                   Foreground="{Binding IsUser, Converter={StaticResource BoolToForegroundConverter}}">
+                                            <TextBlock.Inlines>
+                                                <Binding Path="Text" Converter="{StaticResource MarkdownInlinesConverter}"/>
+                                            </TextBlock.Inlines>
+                                        </TextBlock>
                                         <TextBlock Text="{Binding Details}"
                                                    TextWrapping="Wrap"
                                                    Foreground="#94a3b8"

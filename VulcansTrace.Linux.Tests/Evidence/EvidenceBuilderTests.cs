@@ -148,6 +148,28 @@ public class EvidenceBuilderTests
     }
 
     [Fact]
+    public void Build_WithAgentNarrativeAndPostureCorrelations_IncludesMarkdownArtifacts()
+    {
+        var builder = CreateBuilder();
+        var result = SingleFindingResult() with
+        {
+            AgentNarrativeMarkdown = "**Summary:** Persistent issue.",
+            PostureCorrelationsMarkdown = "# Posture Correlations\n\nFW-002 + SSH-002"
+        };
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+
+        Assert.Contains("agent-narrative.md", names);
+        Assert.Contains("posture-correlations.md", names);
+        Assert.Equal("**Summary:** Persistent issue.", ReadEntry(zip, "agent-narrative.md"));
+        Assert.Contains("FW-002 + SSH-002", ReadEntry(zip, "posture-correlations.md"));
+    }
+
+    [Fact]
     public void Build_TimestampBefore1980_ClampsToZipMin()
     {
         var builder = CreateBuilder();
@@ -1195,6 +1217,15 @@ public class EvidenceBuilderTests
         var names = zip.Entries.Select(e => e.FullName).ToArray();
         Assert.DoesNotContain("log-diff.md", names);
         Assert.DoesNotContain("log-diff.html", names);
+    }
+
+    private static string ReadEntry(ZipArchive zip, string name)
+    {
+        var entry = zip.GetEntry(name);
+        Assert.NotNull(entry);
+        using var stream = entry!.Open();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return reader.ReadToEnd();
     }
 
     private static byte[] TamperFileInZip(byte[] zipBytes, string targetEntry, Func<byte[], byte[]> tamper)
