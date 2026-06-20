@@ -46,6 +46,7 @@ public sealed class SecurityAgent : IAgent
     private readonly ProactiveAlertDetector _proactiveAlertDetector;
     private readonly AttackChainNarrator _attackChainNarrator;
     private readonly RemediationWisdomAnalyzer _remediationWisdomAnalyzer;
+    private readonly CrossScannerValidator _crossScannerValidator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -130,6 +131,7 @@ public sealed class SecurityAgent : IAgent
         _proactiveAlertDetector = new ProactiveAlertDetector();
         _attackChainNarrator = new AttackChainNarrator();
         _remediationWisdomAnalyzer = new RemediationWisdomAnalyzer();
+        _crossScannerValidator = new CrossScannerValidator();
 
         RestoreMemorySnapshot();
     }
@@ -364,6 +366,11 @@ public sealed class SecurityAgent : IAgent
             FindingNoiseBudget.DefaultMaxRepresentativesPerCategory,
             warnings,
             producerLabel: "agent rules");
+
+        // Phase 3.5: Deterministic cross-scanner validation.
+        // Adjusts confidence when independent scanner data supports or contradicts findings.
+        agentFindings = _crossScannerValidator.Validate(agentFindings, scanData, warnings);
+
         var historyEntries = agentFindings
             .Select(f => (f.RuleId ?? $"__null-{f.Fingerprint}", f))
             .ToList();

@@ -1,3 +1,5 @@
+using VulcansTrace.Linux.Core;
+
 namespace VulcansTrace.Linux.Agent.Reports;
 
 /// <summary>
@@ -73,7 +75,7 @@ public static class AuditDiffCalculator
                         Fingerprint = afterFinding.Fingerprint ?? beforeFinding.Fingerprint
                     });
                 }
-                else if (HasMeaningfulConfidenceChange(beforeFinding.Confidence, afterFinding.Confidence))
+                else if (HasMeaningfulConfidenceChange(beforeFinding, afterFinding))
                 {
                     confidenceChangedFindings.Add(new ConfidenceChangeFinding
                     {
@@ -159,12 +161,61 @@ public static class AuditDiffCalculator
             && string.Equals(beforeFinding.Target, afterFinding.Target, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool HasMeaningfulConfidenceChange(string beforeConfidence, string afterConfidence)
+    private static bool HasMeaningfulConfidenceChange(AuditSnapshotFinding beforeFinding, AuditSnapshotFinding afterFinding)
     {
+        var beforeConfidence = beforeFinding.Confidence;
+        var afterConfidence = afterFinding.Confidence;
+
         if (string.Equals(beforeConfidence, afterConfidence, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return !IsUnknownConfidence(beforeConfidence) && !IsUnknownConfidence(afterConfidence);
+        var hasCrossScannerContradiction = HasCrossScannerContradiction(beforeFinding.EvidenceSignals)
+            || HasCrossScannerContradiction(afterFinding.EvidenceSignals);
+
+        if (hasCrossScannerContradiction)
+            return true;
+
+        if (IsUnknownConfidence(beforeConfidence) || IsUnknownConfidence(afterConfidence))
+            return false;
+
+        // Agent rule findings start at Low (a single evidence signal) and commonly reach
+        // Medium via one cross-scanner support signal. A Low<->Medium transition is
+        // therefore usually scanner-availability churn (e.g. `ss` became
+        // permission-limited), not a change in the underlying finding. Suppress it
+        // unless a contradiction signal is present.
+        // Revisit if baseline confidence sourcing diversifies (e.g. FindingAssemblyService
+        // emits 2+ signals, yielding Medium/High without cross-scanner validation).
+        var ranks = new[] { ConfidenceRank(beforeConfidence), ConfidenceRank(afterConfidence) };
+        Array.Sort(ranks);
+        if (ranks[0] == 1 && ranks[1] == 2) // Low <-> Medium
+            return false;
+
+        return true;
+    }
+
+    private static bool HasCrossScannerContradiction(IReadOnlyList<EvidenceSignal> signals) =>
+        signals.Any(s =>
+            s.Source.Equals("CrossScannerValidation", StringComparison.OrdinalIgnoreCase) &&
+            (s.Name.Contains("Contradicts", StringComparison.OrdinalIgnoreCase) ||
+             s.Explanation.Contains("contradict", StringComparison.OrdinalIgnoreCase) ||
+             s.Explanation.Contains("weakening", StringComparison.OrdinalIgnoreCase)));
+
+    private static int ConfidenceRank(string confidence)
+    {
+        if (Enum.TryParse<DetectionConfidence>(confidence, ignoreCase: true, out var parsed))
+        {
+            return parsed switch
+            {
+                DetectionConfidence.Unknown => 0,
+                DetectionConfidence.Low => 1,
+                DetectionConfidence.Medium => 2,
+                DetectionConfidence.High => 3,
+                DetectionConfidence.Confirmed => 4,
+                _ => 0
+            };
+        }
+
+        return 0;
     }
 
     private static bool IsUnknownConfidence(string confidence) =>

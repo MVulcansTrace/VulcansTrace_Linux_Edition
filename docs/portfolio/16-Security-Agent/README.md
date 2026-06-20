@@ -20,6 +20,7 @@ Documentation is organized for two audiences:
 - **Data-source capability reporting** — records whether scanner inputs are available, unavailable, permission-limited, or intentionally not checked
 - **Doctor self-diagnostic** — runs every scanner in read-only probe mode via `DoctorService` and returns normalized capability rows plus the same deterministic capability report used during audits; available from `vulcanstrace doctor` and a dedicated Avalonia **Doctor** tab, with color-coded summary status and a warnings banner for command failures or permission limits
 - **Rule-based posture checks** — evaluates firewall, port, service, SSH, file permission, filesystem audit, kernel hardening, network, cron job, package vulnerability, container, Kubernetes, threat intel, and YARA rules without external AI dependencies
+- **Cross-scanner confidence validation** — after rules fire, a deterministic pass raises confidence on Critical/High/Medium findings when independent scanner sources support them and lowers confidence when available scanner data contradicts reachability. Only `Available` scanner capabilities are trusted; support-only `Low` ↔ `Medium` drift is suppressed as scanner-availability noise while contradiction-driven drops still surface
 - **Role-aware local policy** — tunes selected rules for Workstation, Server, LabBox, Router, and DevMachine profiles with JSON overrides; the Avalonia UI includes a role dropdown for hot-swapping without code changes
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
@@ -74,6 +75,8 @@ Documentation is organized for two audiences:
 - [DoctorService.cs](../../../VulcansTrace.Linux.Agent/Diagnostics/DoctorService.cs) — read-only scanner probe and diagnostic result composition
 - [DoctorResult.cs](../../../VulcansTrace.Linux.Agent/Diagnostics/DoctorResult.cs) — diagnostic result model with capabilities and warnings
 - [AgentLogAnalysisService.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentLogAnalysisService.cs) — optional pasted-log analysis bridge to `SentryAnalyzer`
+- [CrossScannerValidator.cs](../../../VulcansTrace.Linux.Agent/Analysis/CrossScannerValidator.cs) — deterministic cross-scanner confidence validation
+- [CrossScannerValidationSignal.cs](../../../VulcansTrace.Linux.Agent/Analysis/CrossScannerValidationSignal.cs) — support/contradiction evidence signal model
 - [AgentResultFinalizer.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs) — final `AgentResult` construction, scorecard attachment, and audit-state updates
 - [AgentAuditState.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentAuditState.cs) — previous audit result, previous audit intent, and finding lookup state for follow-up questions
 - [AgentFollowUpService.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up question handlers

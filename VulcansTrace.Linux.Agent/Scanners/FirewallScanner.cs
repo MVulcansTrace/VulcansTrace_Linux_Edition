@@ -168,22 +168,81 @@ public sealed class FirewallScanner : IScanner
             if (currentChain == null)
                 continue;
 
-            // Simple heuristic: lines starting with common actions
-            var actions = new[] { "accept", "drop", "reject", "log", "counter", "jump", "goto" };
-            var firstWord = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-            if (firstWord != null && actions.Any(a => line.Contains(a, StringComparison.OrdinalIgnoreCase)))
+            var rule = ParseNftablesRuleLine(line, currentChain);
+            if (rule != null)
             {
-                builder.AddFirewallRule(new FirewallRule
-                {
-                    Chain = currentChain,
-                    RawLine = line,
-                    Target = firstWord,
-                    Protocol = "all",
-                    Source = "0.0.0.0/0",
-                    Destination = "0.0.0.0/0"
-                });
+                builder.AddFirewallRule(rule);
             }
         }
+    }
+
+    internal static FirewallRule? ParseNftablesRuleLine(string line, string chain)
+    {
+        if (line.StartsWith("type ", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith("policy ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var tokens = line.Split(new[] { ' ', '\t', ',', ';', '{', '}', '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+            return null;
+
+        var actionTokens = new[] { "accept", "drop", "reject", "log", "jump", "goto" };
+        string? target = null;
+        for (var i = tokens.Length - 1; i >= 0; i--)
+        {
+            if (actionTokens.Any(a => tokens[i].Equals(a, StringComparison.OrdinalIgnoreCase)))
+            {
+                target = tokens[i];
+                break;
+            }
+        }
+
+        if (target == null)
+            return null;
+
+        var protocol = tokens.Any(t => t.Equals("tcp", StringComparison.OrdinalIgnoreCase))
+            ? "tcp"
+            : tokens.Any(t => t.Equals("udp", StringComparison.OrdinalIgnoreCase))
+                ? "udp"
+                : "all";
+
+        return new FirewallRule
+        {
+            Chain = chain,
+            RawLine = line,
+            Target = target,
+            Protocol = protocol,
+            Source = ReadNftablesAddress(tokens, "saddr") ?? "0.0.0.0/0",
+            Destination = ReadNftablesAddress(tokens, "daddr") ?? "0.0.0.0/0",
+            DestinationPort = ReadNftablesPort(tokens)
+        };
+    }
+
+    private static string? ReadNftablesAddress(string[] tokens, string key)
+    {
+        for (var i = 0; i + 1 < tokens.Length; i++)
+        {
+            if (tokens[i].Equals(key, StringComparison.OrdinalIgnoreCase))
+                return tokens[i + 1].Trim('"');
+        }
+
+        return null;
+    }
+
+    private static string? ReadNftablesPort(string[] tokens)
+    {
+        for (var i = 0; i + 1 < tokens.Length; i++)
+        {
+            if (!tokens[i].Equals("dport", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var candidate = tokens[i + 1].Trim('"');
+            return int.TryParse(candidate, out _) ? candidate : null;
+        }
+
+        return null;
     }
 
     private static async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(

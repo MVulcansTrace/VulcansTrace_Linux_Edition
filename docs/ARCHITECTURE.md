@@ -88,18 +88,19 @@ The Security Agent provides a parallel local posture path:
 2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, logging and audit configuration, cron job entries and script permissions, installed package inventory and pending security updates, unattended-upgrades configuration, interface, route, connection state, container runtime state, Kubernetes pod security posture, live process runtime state, YARA rule matches, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and dual-layer CIS Benchmark mappings.
-5. `FindingExplanationService` and `SingleRuleExplanationService` apply **adaptive explanation depth** when explaining a finding: `ExplanationDepthResolver` selects a tier from the rule's `RuleMemoryEntry` (history length, closed remediation cycles, trend), and `AdaptiveExplanationBuilder` appends deterministic history, root-cause, or escalation paragraphs without LLM reasoning.
-6. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
-7. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
-8. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
-9. `PostureCorrelator` scans findings for declarative multi-rule correlations.
-10. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
-11. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
-12. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
-13. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
-14. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
-15. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
-16. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
+5. `CrossScannerValidator` checks Critical/High/Medium findings against independent `ScanData` sources. Support adds a `CrossScannerValidation` evidence signal and raises confidence one level, capped at `High`; contradiction adds the same source signal and lowers confidence one level, down to `Unknown`. It never removes the original finding and only trusts data sources whose capability status is `Available`.
+6. `FindingExplanationService` and `SingleRuleExplanationService` apply **adaptive explanation depth** when explaining a finding: `ExplanationDepthResolver` selects a tier from the rule's `RuleMemoryEntry` (history length, closed remediation cycles, trend), and `AdaptiveExplanationBuilder` appends deterministic history, root-cause, or escalation paragraphs without LLM reasoning.
+7. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
+8. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
+9. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
+10. `PostureCorrelator` scans findings for declarative multi-rule correlations.
+11. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
+12. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
+13. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
+14. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
+15. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
+16. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
+17. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
 
 A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW-002` → `FW`) and category-specific remediation-wisdom guidance text, keeping prefix knowledge in one place rather than duplicating it across the attack-chain mapper and wisdom analyzer.
 

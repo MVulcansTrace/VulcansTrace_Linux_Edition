@@ -130,6 +130,23 @@ The agent can surface posture correlations: pairs of rule failures that together
 
 Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` within a result, and the narrative paragraph always cites both rule IDs so the claim is traceable to the underlying findings. Correlated pairs also feed the attack-chain narrator, which orders matched rules into kill-chain stages and narrates the full path rather than presenting the findings side by side.
 
+### Cross-Scanner Confidence Validation
+
+The agent can adjust the confidence of Critical, High, and Medium findings when independent scanner data sources support or contradict them. This is a deterministic, read-only pass over already-collected `ScanData` — not a new sub-agent or external validation step.
+
+| Rule | Validating sources | Meaning |
+| --- | --- | --- |
+| `FW-002` (High branch only) | `PortScanner` + `NetworkScanner` | Supports exposure when port 22 is listening and a non-loopback interface is up. Contradicts exposure when an available port scanner finds no public SSH listener or an available network scanner finds no up non-loopback interface. The Medium branch ("no explicit SSH rule") is neutral. |
+| `PORT-002` | `FirewallScanner` | Supports exposure when the firewall scanner reports no active firewall or an explicit ACCEPT rule for that port. Contradicts reachability when an active firewall has a DROP/REJECT rule for that port. Recognizes both iptables and nftables dport syntax. |
+| `PORT-003` | `FirewallScanner` | Supports database exposure when the firewall scanner reports no active firewall or an explicit ACCEPT rule for that port; contradicts reachability when an active firewall has a DROP/REJECT rule for that port. (PORT-003 already fires from the port scanner's `OpenPorts`, so the firewall is the independent source — reading `OpenPorts` again would be self-referential.) |
+| `SSH-002` | `ServiceScanner` + `PortScanner` | Supports reachable password-auth exposure when SSH is running and port 22 is listening. Contradicts the reachable-exposure claim when an available service or port scanner does not find that reachable SSH path. |
+| `SRV-001` | `PortScanner` | Supports Telnet exposure when port 23 is listening; contradicts the reachable-service claim when an available port scanner does not find a public Telnet listener. |
+| `USER-001` | `ServiceScanner` + `PortScanner` | Supports remote exploitation context only when SSH is running and port 22 is listening. Lack of SSH reachability is neutral because it does not disprove the additional UID-0 account. |
+
+Support raises confidence one level, capped at `High`. Contradiction lowers confidence one level, down to `Unknown`. A neutral result leaves confidence unchanged. A source is only trusted when its `DataSourceCapability` status is `Available`; `PermissionLimited` or `Unavailable` sources are skipped rather than interpreted as support or contradiction. Every adjusted finding carries an `EvidenceSignal` with source `CrossScannerValidation`; signal names start with `Supports:` or `Contradicts:` so the reason is visible in explanations and evidence exports.
+
+Because agent findings start at `Low` and support usually raises them to `Medium`, `AuditDiffCalculator` treats support-only `Low` ↔ `Medium` confidence changes as unchanged. This prevents baseline-drift noise when scanner availability fluctuates (for example, `ss` becoming permission-limited). Contradiction-driven confidence changes still surface as drift, including `Low` → `Unknown`.
+
 ### Narrative Composition
 
 Agent replies are composed as multi-paragraph prose by `NarrativeComposer`:
@@ -427,22 +444,23 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 5. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints derived from rule ID, category, source host, and target. Severity, timestamps, and description text are excluded so the same underlying issue can be tracked when its wording or severity changes.
 6. `ExplanationProvider` fills markdown templates for each finding and parses them into structured explanation sections.
 7. Suppressions expired longer than the 30-day review retention window are pruned, active fingerprint-scoped suppressions are applied first, legacy rule-ID/target suppressions remain supported, and rule pass/fail/suppressed counts are added to `AgentResult`.
-8. `AgentResultComposer` builds user-facing audit summaries and deterministic data-source capability reports.
-9. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer` and adds log-derived findings when raw log text is available.
-10. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` so follow-up questions like `explain FW-001` can resolve without relying on text matching.
-11. `PostureCorrelator` scans failed rule results for known multi-rule posture correlations (e.g., `FW-002+SSH-002`) and adds deduplicated `PostureCorrelation` records to `AgentResult`.
-12. `AttackChainNarrator` maps failed findings to deterministic kill-chain stages and builds ordered attack-chain paths from posture correlations plus continuation-graph traversal, surfacing them in `AgentResult.AttackChains`.
-13. `ProactiveAlertDetector` identifies current findings whose rule was previously verified fixed and emits one alert per returned rule in `AgentResult.ProactiveAlerts`, including category-specific regression guidance.
-14. `RuleMemoryRecorder` updates the per-rule memory history with severity snapshots, trend status, and remediation cycles from the current audit. Real attempts open pending cycles; verification completes the verified-fixed phase; when a previously verified-fixed rule fails again, the open `RemediationCycle` is closed and `LastVerifiedFixedUtc` is consumed.
-15. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level `TrajectoryDirection` and weighted severity delta, surfacing it in `AgentResult.SystemTrajectory`.
-16. `RemediationWisdomAnalyzer` counts closed remediation cycles per current rule and emits category-specific guidance for rules with two or more fix-and-return cycles in `AgentResult.RemediationWisdom`.
-17. `NarrativeComposer` builds the multi-paragraph `AgentResult.Narrative` from findings, posture correlations, attack chains, proactive alerts, system trajectory, remediation wisdom, rule-memory history, and data-source capability data, ensuring every non-generic paragraph cites source IDs.
-18. `AgentSuggestionProvider` generates deterministic follow-up suggestions from the final `AgentResult` and `EntityFrame`, including correlated-pair fixes, stale/worsening prioritization, and verification follow-ups.
-19. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
-20. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
-21. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-22. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
-23. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
+8. `CrossScannerValidator` checks each Critical/High/Medium finding against independent `ScanData` sources. Support adds a `CrossScannerValidation` `EvidenceSignal` and raises confidence one level, capped at `High`; contradiction adds the same source signal and lowers confidence one level, down to `Unknown`.
+9. `AgentResultComposer` builds user-facing audit summaries and deterministic data-source capability reports.
+10. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer` and adds log-derived findings when raw log text is available.
+11. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` so follow-up questions like `explain FW-001` can resolve without relying on text matching.
+12. `PostureCorrelator` scans failed rule results for known multi-rule posture correlations (e.g., `FW-002+SSH-002`) and adds deduplicated `PostureCorrelation` records to `AgentResult`.
+13. `AttackChainNarrator` maps failed findings to deterministic kill-chain stages and builds ordered attack-chain paths from posture correlations plus continuation-graph traversal, surfacing them in `AgentResult.AttackChains`.
+14. `ProactiveAlertDetector` identifies current findings whose rule was previously verified fixed and emits one alert per returned rule in `AgentResult.ProactiveAlerts`, including category-specific regression guidance.
+15. `RuleMemoryRecorder` updates the per-rule memory history with severity snapshots, trend status, and remediation cycles from the current audit. Real attempts open pending cycles; verification completes the verified-fixed phase; when a previously verified-fixed rule fails again, the open `RemediationCycle` is closed and `LastVerifiedFixedUtc` is consumed.
+16. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level `TrajectoryDirection` and weighted severity delta, surfacing it in `AgentResult.SystemTrajectory`.
+17. `RemediationWisdomAnalyzer` counts closed remediation cycles per current rule and emits category-specific guidance for rules with two or more fix-and-return cycles in `AgentResult.RemediationWisdom`.
+18. `NarrativeComposer` builds the multi-paragraph `AgentResult.Narrative` from findings, posture correlations, attack chains, proactive alerts, system trajectory, remediation wisdom, rule-memory history, and data-source capability data, ensuring every non-generic paragraph cites source IDs.
+19. `AgentSuggestionProvider` generates deterministic follow-up suggestions from the final `AgentResult` and `EntityFrame`, including correlated-pair fixes, stale/worsening prioritization, and verification follow-ups.
+20. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
+21. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
+22. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
+23. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+24. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
 
@@ -720,6 +738,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [AttackChainStageMapping.cs](../VulcansTrace.Linux.Agent/Analysis/AttackChainStageMapping.cs) — maps rule IDs to deterministic kill-chain stages
 - [AttackChainNarrator.cs](../VulcansTrace.Linux.Agent/Analysis/AttackChainNarrator.cs) — builds ordered attack-chain narratives
 - [ProactiveAlertDetector.cs](../VulcansTrace.Linux.Agent/Analysis/ProactiveAlertDetector.cs) — detects returned-after-fix findings and attaches category-specific regression guidance
+- [CrossScannerValidator.cs](../VulcansTrace.Linux.Agent/Analysis/CrossScannerValidator.cs) — deterministic cross-scanner confidence validation
+- [CrossScannerValidationSignal.cs](../VulcansTrace.Linux.Agent/Analysis/CrossScannerValidationSignal.cs) — support/contradiction evidence signal model
 - [SystemTrajectoryAnalyzer.cs](../VulcansTrace.Linux.Agent/Analysis/SystemTrajectoryAnalyzer.cs) — aggregates per-rule trends and verified-fixed absent rules into system trajectory
 - [RemediationWisdomAnalyzer.cs](../VulcansTrace.Linux.Agent/Analysis/RemediationWisdomAnalyzer.cs) — detects repeated remediation-recurrence patterns
 - [RuleCategoryResolver.cs](../VulcansTrace.Linux.Agent/Rules/RuleCategoryResolver.cs) — shared rule-prefix/category resolver
@@ -729,6 +749,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [SecurityAgent.cs](../VulcansTrace.Linux.Agent/SecurityAgent.cs) — agent orchestration, including `VerifyFindingAsync`
 - [RuleMemoryRecorderTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs)
 - [NarrativeComposerTests.cs](../VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs)
+- [CrossScannerValidatorTests.cs](../VulcansTrace.Linux.Tests/Agent/Analysis/CrossScannerValidatorTests.cs)
 - [ExplanationDepthResolverTests.cs](../VulcansTrace.Linux.Tests/Agent/ExplanationDepthResolverTests.cs)
 - [PostureCorrelatorTests.cs](../VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs)
 - [EntityExtractorTests.cs](../VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs)

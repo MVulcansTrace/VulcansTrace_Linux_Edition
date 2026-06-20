@@ -78,7 +78,7 @@ Last updated: 2026-06-20
 - `IocEntry.Confidence` renamed to `ThreatScore` (int 0–100) to eliminate naming collision with detection confidence. Updated parser, rules, tests, and docs.
 - All 5 evidence formatters (CSV, HTML, Markdown, JSON, STIX) export `Confidence` and `EvidenceSignals` alongside severity and category.
 - Avalonia UI `FindingItemViewModel` exposes confidence for display; DataGrid and Agent chat cards include confidence and evidence signal names; text search covers confidence and evidence signal names.
-- Audit history, audit diff, baseline drift, scheduled audit snapshots, and remediation verification snapshots preserve confidence metadata; confidence-only audit changes appear in the Audit Diff window.
+- Audit history, audit diff, baseline drift, scheduled audit snapshots, and remediation verification snapshots preserve confidence metadata. Confidence-only audit changes appear in the Audit Diff window, except support-only `Low` ↔ `Medium` transitions: because agent rule findings start at `Low` and commonly reach `Medium` via one cross-scanner support signal, those transitions are treated as scanner-availability churn rather than a meaningful state change. Contradiction-driven confidence drops still surface.
 - Code: `VulcansTrace.Linux.Core/DetectionConfidence.cs`, `EvidenceSignal.cs`, `IocEntry.cs`
 - Code: `VulcansTrace.Linux.Engine/Confidence/FindingConfidenceCalculator.cs`, `RiskEscalator.cs`
 - Code: `VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs`
@@ -595,6 +595,15 @@ Implemented six incremental build phases to make the deterministic, local agent 
   - Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` and rendered in the narrative with both rule IDs so every correlation claim is traceable.
   - Code: `VulcansTrace.Linux.Engine/PostureCorrelator.cs`, `VulcansTrace.Linux.Engine/PostureCorrelation.cs`, `VulcansTrace.Linux.Engine/PostureCorrelationPattern.cs`, `VulcansTrace.Linux.Engine/IPostureCorrelator.cs`
   - Tests: `VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs`
+
+- **Phase 3.5 — Cross-scanner confidence validation**
+  - Added `CrossScannerValidator` and `CrossScannerValidationSignal` in `VulcansTrace.Linux.Agent.Analysis`.
+  - After rule findings are assembled and noise-budgeted, the validator checks each Critical/High/Medium finding against independent `ScanData` sources. Support adds a `CrossScannerValidation` evidence signal and raises `DetectionConfidence` one level, capped at `High`; contradiction adds a `CrossScannerValidation` evidence signal and lowers confidence one level, down to `Unknown`; neutral data leaves confidence unchanged.
+  - Only data sources with `CapabilityStatus.Available` are trusted; `PermissionLimited` or `Unavailable` sources are skipped rather than interpreted as support or contradiction.
+  - Initial validation registry: `FW-002` (High branch only) with port/network interfaces, `PORT-002` and `PORT-003` against firewall ACCEPT/no-firewall or DROP/REJECT, `SSH-002` against running SSH service plus listener, `SRV-001` against telnet listener, and `USER-001` against reachable SSH path.
+  - `AuditDiffCalculator` suppresses support-only `Low` ↔ `Medium` confidence transitions as scanner-availability noise; contradiction-driven confidence changes still surface.
+  - Code: `VulcansTrace.Linux.Agent/Analysis/CrossScannerValidator.cs`, `VulcansTrace.Linux.Agent/Analysis/CrossScannerValidationSignal.cs`, `VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Analysis/CrossScannerValidatorTests.cs`, `VulcansTrace.Linux.Tests/Agent/AuditDiffCalculatorTests.cs`
 
 - **Phase 4 — NLG composition**
   - Added `Narrative`, `INarrativeComposer`, and `NarrativeComposer`.

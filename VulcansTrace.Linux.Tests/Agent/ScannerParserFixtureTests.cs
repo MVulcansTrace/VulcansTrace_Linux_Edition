@@ -118,6 +118,26 @@ public class ScannerParserFixtureTests
         Assert.Contains(data.FirewallRules, r => r.Chain == "input");
         Assert.Contains(data.FirewallRules, r => r.Chain == "forward");
         Assert.Contains(data.FirewallRules, r => r.Chain == "output");
+
+        var sshAccept = Assert.Single(data.FirewallRules, r => r.Chain == "input" && r.DestinationPort == "22");
+        Assert.Equal("accept", sshAccept.Target);
+        Assert.Equal("tcp", sshAccept.Protocol);
+        Assert.Equal("192.168.1.0/24", sshAccept.Source);
+
+        var counterDrop = Assert.Single(data.FirewallRules, r => r.Chain == "input" && r.RawLine == "counter drop");
+        Assert.Equal("drop", counterDrop.Target);
+    }
+
+    [Fact]
+    public void FirewallScanner_ParseNftablesRuleLine_DportAccept_ReturnsActionAndPort()
+    {
+        var rule = FirewallScanner.ParseNftablesRuleLine("tcp dport 8080 accept", "input");
+
+        Assert.NotNull(rule);
+        Assert.Equal("input", rule.Chain);
+        Assert.Equal("accept", rule.Target);
+        Assert.Equal("tcp", rule.Protocol);
+        Assert.Equal("8080", rule.DestinationPort);
     }
 
     [Fact]

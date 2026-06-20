@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Core;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
@@ -88,6 +89,59 @@ public class AuditDiffCalculatorTests
         Assert.Equal("Confirmed", changed.NewConfidence);
         Assert.Empty(diff.UnchangedFindings);
         Assert.Equal("1 finding changed confidence.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_LowToMediumConfidence_NotReportedAsChange()
+    {
+        // Agent findings are Low by default and only reach Medium via a single
+        // cross-scanner support signal, so Low<->Medium is scanner-availability
+        // churn, not a posture change.
+        var before = CreateEntryWithConfidence(new[] { ("PORT-003", "0.0.0.0:3306", "Critical", "Low") });
+        var after = CreateEntryWithConfidence(new[] { ("PORT-003", "0.0.0.0:3306", "Critical", "Medium") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        Assert.Empty(diff.ConfidenceChangedFindings);
+        Assert.Single(diff.UnchangedFindings);
+        Assert.Equal("No changes between audits.", diff.Narrative);
+    }
+
+    [Fact]
+    public void Calculate_LowToUnknownWithContradiction_ReportedAsChange()
+    {
+        var before = CreateEntryWithConfidence(new[] { ("PORT-003", "0.0.0.0:3306", "Critical", "Low") });
+        var after = CreateEntryWithConfidenceAndSignals(
+            new[] { ("PORT-003", "0.0.0.0:3306", "Critical", "Unknown") },
+            new[]
+            {
+                new EvidenceSignal
+                {
+                    Source = "CrossScannerValidation",
+                    Name = "Contradicts: Firewall block contradicts exposed database",
+                    Explanation = "The firewall scanner contradicts the reachable exposure claim."
+                }
+            });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        var changed = Assert.Single(diff.ConfidenceChangedFindings);
+        Assert.Equal("Low", changed.OldConfidence);
+        Assert.Equal("Unknown", changed.NewConfidence);
+        Assert.Contains(changed.EvidenceSignals, s => s.Name.StartsWith("Contradicts:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Calculate_MediumToHighConfidence_Detected()
+    {
+        var before = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "Medium") });
+        var after = CreateEntryWithConfidence(new[] { ("FW-001", "A", "High", "High") });
+
+        var diff = AuditDiffCalculator.Calculate(before, after);
+
+        var changed = Assert.Single(diff.ConfidenceChangedFindings);
+        Assert.Equal("Medium", changed.OldConfidence);
+        Assert.Equal("High", changed.NewConfidence);
     }
 
     [Fact]
@@ -373,6 +427,26 @@ public class AuditDiffCalculatorTests
                 Target = f.Target,
                 Severity = f.Severity,
                 Confidence = f.Confidence,
+                ShortDescription = "Test"
+            }).ToList()
+        };
+    }
+
+    private static AuditHistoryEntry CreateEntryWithConfidenceAndSignals(
+        (string RuleId, string Target, string Severity, string Confidence)[] findings,
+        IReadOnlyList<EvidenceSignal> signals)
+    {
+        return new AuditHistoryEntry
+        {
+            SnapshotId = Guid.NewGuid().ToString(),
+            Intent = VulcansTrace.Linux.Agent.Query.AgentIntent.FullAudit,
+            SnapshotFindings = findings.Select(f => new AuditSnapshotFinding
+            {
+                RuleId = f.RuleId,
+                Target = f.Target,
+                Severity = f.Severity,
+                Confidence = f.Confidence,
+                EvidenceSignals = signals,
                 ShortDescription = "Test"
             }).ToList()
         };
