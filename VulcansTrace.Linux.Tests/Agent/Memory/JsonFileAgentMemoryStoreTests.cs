@@ -164,4 +164,61 @@ public class JsonFileAgentMemoryStoreTests : IDisposable
         Assert.True(loaded.RuleHistory.ContainsKey("FW-001"));
         Assert.Equal("FW-001", loaded.RuleHistory["FW-001"].RuleId);
     }
+
+    [Fact]
+    public void Load_LegacySnapshotWithoutCycles_DeserializesToEmptyCycles()
+    {
+        File.WriteAllText(_filePath, "{\"ruleHistory\": {\"fw-001\": {\"ruleId\": \"fw-001\", \"category\": \"Firewall\", \"lastSeverity\": \"High\", \"trend\": \"Stable\", \"lastVerifiedFixedUtc\": \"2026-06-10T00:00:00Z\"}}}");
+
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        var entry = loaded.RuleHistory["FW-001"];
+        Assert.NotNull(entry.RemediationCycles);
+        Assert.Empty(entry.RemediationCycles);
+        Assert.Equal(new DateTime(2026, 6, 10, 0, 0, 0, DateTimeKind.Utc), entry.LastVerifiedFixedUtc);
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_RoundTripsRemediationCycles()
+    {
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var snapshot = new AgentMemorySnapshot
+        {
+            RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["SSH-002"] = new RuleMemoryEntry
+                {
+                    RuleId = "SSH-002",
+                    Category = "SSH",
+                    RemediationCycles = new[]
+                    {
+                        new RemediationCycle
+                        {
+                            AttemptedUtc = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                            VerifiedFixedUtc = new DateTime(2026, 6, 2, 0, 0, 0, DateTimeKind.Utc),
+                            ReturnedUtc = new DateTime(2026, 6, 5, 0, 0, 0, DateTimeKind.Utc),
+                            CycleNumber = 1
+                        },
+                        new RemediationCycle
+                        {
+                            AttemptedUtc = new DateTime(2026, 6, 6, 0, 0, 0, DateTimeKind.Utc),
+                            VerifiedFixedUtc = new DateTime(2026, 6, 7, 0, 0, 0, DateTimeKind.Utc),
+                            CycleNumber = 2
+                        }
+                    }
+                }
+            }
+        };
+
+        await store.SaveAsync(snapshot);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        var entry = loaded.RuleHistory["SSH-002"];
+        Assert.Equal(2, entry.RemediationCycles.Count);
+        Assert.True(entry.RemediationCycles[0].IsClosed);
+        Assert.False(entry.RemediationCycles[1].IsClosed);
+    }
 }

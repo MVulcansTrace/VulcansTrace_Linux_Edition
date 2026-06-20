@@ -38,4 +38,7 @@ public sealed record RuleMemoryEntry
 
     /// <summary>The most recent target observed for this rule.</summary>
     public string LastTarget { get; init; } = string.Empty;
+
+    /// <summary>History of remediation cycles for this rule.</summary>
+    public IReadOnlyList<RemediationCycle> RemediationCycles { get; init; } = Array.Empty<RemediationCycle>();
 }

@@ -83,4 +83,24 @@ public sealed record AgentResult
     /// A composed narrative summary for the result, if generated.
     /// </summary>
     public Dialogue.Narrative? Narrative { get; init; }
+
+    /// <summary>
+    /// System-level trajectory derived from per-rule trend history.
+    /// </summary>
+    public SystemTrajectory? SystemTrajectory { get; init; }
+
+    /// <summary>
+    /// Findings that have returned after a previous verified fix, surfaced proactively.
+    /// </summary>
+    public IReadOnlyList<ProactiveAlert> ProactiveAlerts { get; init; } = Array.Empty<ProactiveAlert>();
+
+    /// <summary>
+    /// Deterministic attack chains built from posture-backed finding relationships.
+    /// </summary>
+    public IReadOnlyList<AttackChain> AttackChains { get; init; } = Array.Empty<AttackChain>();
+
+    /// <summary>
+    /// Remediation wisdom for rules with repeated fix-and-return cycles.
+    /// </summary>
+    public IReadOnlyList<RemediationWisdom> RemediationWisdom { get; init; } = Array.Empty<RemediationWisdom>();
 }

@@ -52,10 +52,14 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Add note to session abc12345 <text>` — append a free-text note to a remediation session
 - `Note for step FW-001 in session abc12345 <text>` — append a note to a specific step within a session
 
-The agent composes narrative responses from findings, posture correlations, and per-rule memory:
+The agent composes narrative responses from findings, posture correlations, per-rule memory, system trajectory, proactive alerts, relationship-backed attack chains, and remediation wisdom:
 
-- `Is my system secure?` — produces a multi-paragraph narrative with summary, key findings, combined risk, continuity, and next steps.
+- `Is my system secure?` — produces a multi-paragraph narrative with summary, key findings, combined risk, system trajectory, proactive alerts, attack chains, remediation patterns, continuity, and next steps.
 - `Check my SSH` — when both `FW-002` and `SSH-002` fire, the narrative explains that password-based SSH exposed to the internet creates a straight path to root.
+- `Is my system secure?` after multiple audits — may include a trajectory paragraph such as "Across your recent audits, the system is trending worsening. 2 rule(s) worsening (SSH-002, SSH-001), 1 rule(s) improving (KERN-001)."
+- After a verified fix returns — the narrative includes a proactive alert such as "[SSH-002] returned after being verified fixed 3 days ago. Something re-applied the insecure configuration..."
+- When a posture correlation has a continuation-graph path — the narrative renders an ordered path such as "This is one attack chain: [FW-002] SSH is exposed to the internet, making the host visible to scanning and reconnaissance campaigns (T1562.004) → [SSH-002] Password authentication allows remote brute-force attempts against the exposed SSH service (T1021.004, T1110) → [SSH-001] PermitRootLogin allows an attacker who obtains root credentials to execute commands as root directly (T1021.004, T1110). Fix any one link and the chain breaks."
+- After repeated fix-and-return cycles — the narrative renders a remediation pattern such as "[SSH-002] has been fixed and returned 3 times. A one-time fix won't hold here. You likely have a config-management tool (Ansible, cloud-init) re-applying the insecure SSH setting. Check your playbooks."
 - `What should I fix first?` — returns a severity-ordered remediation plan; if a correlated pair such as `FW-002` + `SSH-002` exists, the agent suggests fixing them together.
 
 Proactive suggestion chips also appear automatically:
@@ -280,7 +284,7 @@ After manually remediating a finding, verify whether it is still detected:
 vulcanstrace verify-finding FW-001
 ```
 
-The CLI re-runs the original audit intent, reports whether the rule is still failing, and records `LastVerifiedFixedUtc` in the agent memory when the finding is resolved. Actual remediation attempts are recorded separately as `LastRemediationAttemptUtc` after a guided session step is marked in progress, completed, or failed, or after live `--auto-fix` executes an apply command; both timestamps appear in the continuity narrative if the rule is seen again later.
+The CLI re-runs the original audit intent, reports whether the rule is still failing, and records `LastVerifiedFixedUtc` in the agent memory when the finding is resolved. If the same finding appears in a later audit, the agent closes the remediation cycle and renders a proactive alert. Actual remediation attempts are recorded as `LastRemediationAttemptUtc` and as pending remediation cycles after a guided session step is marked in progress, completed, or failed, or after live `--auto-fix` executes an apply command; timestamps and closed-cycle counts appear in the narrative if the rule is seen again later.
 
 ## Doctor — Data-Source Self-Diagnostic
 

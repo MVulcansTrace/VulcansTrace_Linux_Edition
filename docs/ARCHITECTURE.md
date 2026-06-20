@@ -85,6 +85,22 @@ The **Log Diff** subsystem provides a parallel comparison path for forensic time
 The Security Agent provides a parallel local posture path:
 
 1. A natural-language query is parsed into an `AgentIntent` by `QueryParser`, then resolved through `DialogueManager` which applies anaphora resolution and topic-aware deterministic inference before `SecurityAgent` routes the final `AgentQuery`.
+2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, logging and audit configuration, cron job entries and script permissions, installed package inventory and pending security updates, unattended-upgrades configuration, interface, route, connection state, container runtime state, Kubernetes pod security posture, live process runtime state, YARA rule matches, and data-source capability status for local Linux commands.
+3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
+4. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and dual-layer CIS Benchmark mappings.
+5. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
+6. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
+7. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
+8. `PostureCorrelator` scans findings for declarative multi-rule correlations.
+9. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
+10. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
+11. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
+12. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
+13. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
+14. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
+15. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
+
+A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW-002` → `FW`) and category-specific remediation-wisdom guidance text, keeping prefix knowledge in one place rather than duplicating it across the attack-chain mapper and wisdom analyzer.
 
 ### Conversation Awareness
 
@@ -141,16 +157,16 @@ Beyond the temporal/network correlations produced by `TraceMapCorrelator`, the a
 
 - `IPostureCorrelator` / `PostureCorrelator` — matches audit findings against a declarative registry of `PostureCorrelationPattern`s.
 - `PostureCorrelation` — records the matched rule pair, combined severity, narrative, and finding IDs.
-- Default patterns include `FW-002` + `SSH-002` (password SSH exposed to the internet), `FW-004` + `PORT-*` (exposed ports without a firewall), and `USER-001` + `SSH-002` (weak password policy + password SSH).
+- Default patterns include `FW-002` + `SSH-002` (password SSH exposed to the internet), `FW-004` + `PORT-*` (exposed ports without a firewall), and `USER-001` + `SSH-002` (additional UID-0 accounts + password SSH).
 - Correlations attach to `AgentResult.PostureCorrelations`; they do not create new findings and are deduplicated by `(PatternId, RuleIdA, RuleIdB)`.
 
 ### Narrative Composition Engine
 
-The agent composes analyst-style prose from findings, correlations, and memory:
+The agent composes analyst-style prose from findings, correlations, attack chains, proactive alerts, system trajectory, remediation wisdom, and memory:
 
-- `INarrativeComposer` / `NarrativeComposer` — builds a `Narrative` with summary, key findings, combined risk, continuity, and next-steps paragraphs.
+- `INarrativeComposer` / `NarrativeComposer` — builds a `Narrative` with summary, key findings, combined risk, trajectory, proactive alerts, attack chains, remediation patterns, continuity, and next-steps paragraphs.
 - `Narrative` — immutable record with `FullText`, per-paragraph accessors, and `SourceIds`.
-- Every non-generic paragraph cites source IDs: rule IDs for findings, posture pattern IDs for correlations, rule IDs for memory entries. The correlation paragraph always renders `[RuleIdA + RuleIdB]` so the traceability invariant holds even when a pattern template omits the IDs.
+- Every non-generic paragraph cites source IDs: rule IDs for findings, posture pattern IDs for correlations and attack chains, rule IDs for memory/trajectory/wisdom entries. The correlation paragraph always renders `[RuleIdA + RuleIdB]` so the traceability invariant holds even when a pattern template omits the IDs.
 - `AgentResult.Narrative` — populated for audit results.
 - `AgentResultPresenter` and the CLI render the narrative; the Avalonia UI uses a `MarkdownInlinesConverter` so `**bold**` and `*italic*` render with actual formatting. Evidence bundles include the narrative as `agent-narrative.md` and posture correlations as `posture-correlations.md` when present.
 
@@ -172,16 +188,6 @@ In addition to session-based verification, `SecurityAgent` exposes `VerifyFindin
 - Reports whether the specified rule is still failing.
 - Stamps `LastVerifiedFixedUtc` when the rule no longer appears in the re-audit.
 
-2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings (world-writable files, SUID/SGID binaries, unowned files, sticky-bit checks, /tmp mount options), kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration (password-stack and auth-stack configs, `pwquality.conf`, `faillock.conf`), logging and audit configuration (rsyslog, journald, auditd rules, logrotate, central forwarding), cron job entries and script permissions, installed package inventory and pending security updates (via dpkg, apt, and optionally debsecan for CVE enrichment), unattended-upgrades configuration, interface, route, connection state, container runtime state (Docker/containerd availability, running containers, privileged mode, image tags, socket exposure/mounts, risky base-image hints, namespace isolation), Kubernetes pod security posture (privileged pods, hostNetwork/hostPID/hostIPC sharing, root containers, missing security contexts), live process runtime state (memory maps, environment variables, executable paths, command lines, parent-child relationships, and duplicate-field / truncation metadata from `/proc/<pid>/`), YARA rule matches for SUID/SGID binaries, running process executables, and cron scripts, and data-source capability status for local Linux commands.
-3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
-4. `FindingAssemblyService` converts failed posture checks into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and **dual-layer CIS Benchmark mappings** (CIS Controls v8 + CIS Ubuntu 24.04 LTS technical controls).
-5. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
-6. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
-7. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, appends a lightweight `AuditHistoryEntry` when an `IAuditHistoryStore` is available (setting `AgentResult.SnapshotId`), builds the final `AgentResult`, and updates `AgentAuditState` for follow-up questions.
-8. `AgentFollowUpService`, `FindingExplanationService`, and `BaselineDriftService` answer deterministic follow-up questions, selected-finding explanations, baseline save/show, and drift comparison without making `SecurityAgent` own those workflows directly.
-9. `AuditDiffCalculator` compares audit snapshots for history diffs and baseline drift detection.
-10. `IBaselineStore` persists user-designated known-good baselines; `JsonFileBaselineStore` writes to `~/.config/VulcansTrace/baselines.json`.
-11. `AgentReportGenerator` can adapt agent results back into `AnalysisResult`.
 - `FindingAssemblyService` maps `RuleResult.MitreTechniques` to `Finding.MitreTechniques` so agent posture findings carry MITRE ATT&CK context through every export path.
 - `RemediationMarkdownFormatter` renders exported session reports with a `## Notes` section that groups session notes and step notes (by rule ID), showing timestamps, text, and extracted evidence links. Remediation plan exports include an `## Impact Preview` block per section showing expected impact, rollback path, verification command, risk before/after, command count, rollback availability, restart impact, and lockout risk. Remediation sections now also carry `MitreTechniques` for threat-contextualized remediation planning.
 - `RemediationImpactSimulator` analyzes each `RemediationSection` before it is displayed or executed, deriving risk metrics from the section's commands, safety classifications, and finding metadata. It detects restart impact (via `CommandSafety.ServiceRestart` and `systemctl restart/reload` patterns), lockout risk (via SSH config changes, iptables/UFW port-22 blocks, and default-deny rules), and produces a structured `RemediationImpactPreview` with all simulation fields. The simulator is called per-section by `RemediationPlanBuilder` with fault-isolating `try/catch` so a malformed section does not abort the entire plan.
@@ -258,7 +264,11 @@ Notification services are pluggable:
 - `QueryEntityFrame`: deterministic entity frame carrying rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, ordinals, and tokens.
 - `SuggestedFollowUp`: a contextual next-step suggestion with a user-facing label, the query to execute, and the mapped `AgentIntent`.
 - `PostureCorrelation` / `PostureCorrelationPattern`: cross-category posture correlation records and declarative pattern definitions.
-- `RuleMemoryEntry` / `RuleSeveritySnapshot` / `RuleStatusTrend`: per-rule history model.
+- `AttackChain` / `AttackChainLink`: ordered kill-chain path built from posture-backed staged findings, carrying rule IDs, MITRE technique IDs, and source posture pattern IDs.
+- `SystemTrajectory`: system-level trend direction derived from aggregated per-rule trends and verified-fixed absent rules, with weighted severity delta and example rule IDs.
+- `ProactiveAlert`: a finding that returned after a previous verified fix, citing the rule ID, last verified-fixed timestamp, and category-specific regression guidance.
+- `RemediationWisdom`: deterministic guidance for rules with repeated remediation-recurrence cycles.
+- `RuleMemoryEntry` / `RuleSeveritySnapshot` / `RuleStatusTrend` / `RemediationCycle`: per-rule history model; `RemediationCycle` records one attempt → verified-fixed → returned loop and can remain pending between phases.
 - `Narrative`: composed multi-paragraph response with traceable source IDs.
 - `IAgentMemoryStore` / `AgentMemorySnapshot`: persistence contract and lightweight snapshot for cross-session conversation memory.
 - `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore. It also supports `RestoreHistory` to rehydrate recent turns from a persisted snapshot.

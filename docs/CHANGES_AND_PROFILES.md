@@ -640,6 +640,56 @@ Implemented six incremental build phases to make the deterministic, local agent 
   - Code: `VulcansTrace.Linux.Agent/Memory/IRuleMemoryRecorder.cs`, `VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs`
   - Tests: `VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs`, `VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs`
 
+### Security Agent — Deepening the Instincts (Attack Chains, Trajectory, Proactivity, Remediation Wisdom)
+
+Extended the deterministic, local agent with four narrative capabilities that build on existing machinery (findings, MITRE mappings, per-rule memory, posture correlations) without adding an external LLM or sending data anywhere.
+
+- **Attack Chain Narratives**
+  - Added deterministic kill-chain stage mapping (`AttackChainStageMapping`) for relevant rule IDs (e.g., `FW-002` → Reconnaissance, `SSH-002` → Credential Access, `SSH-001` → Execution).
+  - Added `AttackChainNarrator` that builds ordered attack chains from posture correlations and deterministic continuation-graph traversal, cites rule IDs and MITRE technique IDs, and renders paths such as "FW-002 (T1562.004) → SSH-002 (T1021.004, T1110) → SSH-001 (T1021.004, T1110)".
+  - Added `AttackChain` / `AttackChainLink` records to Core and surfaced them in `AgentResult.AttackChains`.
+  - Code: `VulcansTrace.Linux.Agent/Analysis/AttackChainStageMapping.cs`, `AttackChainNarrator.cs`, `VulcansTrace.Linux.Core/AttackChain.cs`, `AttackChainStage.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/AttackChainNarratorTests.cs`
+
+- **System Trajectory Intelligence**
+  - Added `SystemTrajectoryAnalyzer` that aggregates per-rule `RuleStatusTrend` values and verified-fixed absent rules into a system-level direction (`Improving`, `Worsening`, `Stable`), weighted by severity.
+  - Added `SystemTrajectory` record to Core and surfaced it in `AgentResult.SystemTrajectory`.
+  - Narrative renders the net direction and cites example rule IDs; ellipsis is shown when more than three example rules exist.
+  - Code: `VulcansTrace.Linux.Agent/Analysis/SystemTrajectoryAnalyzer.cs`, `VulcansTrace.Linux.Core/SystemTrajectory.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/SystemTrajectoryAnalyzerTests.cs`
+
+- **Proactive Volunteering**
+  - Added `ProactiveAlertDetector` that flags current findings whose rule was previously verified fixed, surfacing them in `AgentResult.ProactiveAlerts` before `LastVerifiedFixedUtc` is consumed and attaching category-specific regression guidance.
+  - Narrative renders an alert such as "[SSH-002] returned after being verified fixed 3 days ago. Something re-applied the insecure configuration..."
+  - Alerts are deduplicated by rule ID and guarded against same-audit false positives.
+  - Code: `VulcansTrace.Linux.Agent/Analysis/ProactiveAlertDetector.cs`, `VulcansTrace.Linux.Core/ProactiveAlert.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/ProactiveAlertDetectorTests.cs`
+
+- **Remediation Wisdom**
+  - Added `RemediationCycle` to `RuleMemoryEntry`; `RuleMemoryRecorder` opens a pending cycle on real remediation attempts, completes the verified-fixed phase on `MarkVerifiedFixed`, and closes it when the rule is seen failing again.
+  - Added `RemediationWisdomAnalyzer` that counts closed cycles and emits category-specific guidance for rules with two or more fix-and-return cycles.
+  - Added `RuleCategoryResolver` to centralize rule-prefix parsing and guidance text.
+  - Narrative renders "[SSH-002] has been fixed and returned 3 times... check your playbooks."
+  - Code: `VulcansTrace.Linux.Agent/Memory/RemediationCycle.cs`, `VulcansTrace.Linux.Agent/Analysis/RemediationWisdomAnalyzer.cs`, `RuleCategoryResolver.cs`, `VulcansTrace.Linux.Core/RemediationWisdom.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/RemediationWisdomAnalyzerTests.cs`, `VulcansTrace.Linux.Tests/Agent/Rules/RuleCategoryResolverTests.cs`
+
+- **Bug-fix pass**
+  - Added duplicate-cycle guard so a single verified-fix timestamp cannot create multiple remediation cycles.
+  - `RuleMemoryRecorder.Record` now consumes `LastVerifiedFixedUtc` when a failing rule has a pending verified-fix timestamp, preventing chronic proactive alerts and duplicate cycle creation.
+  - Reordered `SecurityAgent.RunAuditCoreAsync` so `ProactiveAlertDetector` runs before `Record`.
+  - Deduped `ProactiveAlertDetector` and `RemediationWisdomAnalyzer` inputs by rule ID to avoid duplicate entries for multi-finding rules.
+  - Deduped `AttackChainNarrator` links by rule ID, keeping the highest-severity link.
+  - Prevented attack-chain narratives from being created by stage order alone; chains now require a posture-backed seed and extend through deterministic continuation-graph traversal.
+  - Added deterministic attack-chain opening variation so multiple rendered chains do not all begin with the same sentence.
+  - Added category-specific proactive-alert regression guidance via `RuleCategoryResolver`.
+  - Corrected the `USER-001` chain rationale to describe additional UID-0 accounts instead of weak password policy.
+  - Counted verified-fixed rules that are absent from current findings as improving trajectory signals.
+  - Remediation attempts now open pending `RemediationCycle` records instead of only updating `LastRemediationAttemptUtc`.
+  - Added ellipsis in trajectory examples when more than three rules are cited.
+  - Added attack-chain source pattern IDs to `Narrative.SourceIds`.
+  - Preserved original attempt timestamps when `MarkVerifiedFixed` is called multiple times for the same open cycle.
+  - Tests: updated `RuleMemoryRecorderTests.cs`, `NarrativeComposerTests.cs`, `JsonFileAgentMemoryStoreTests.cs`
+
 ## 2) Profiles and Their Capabilities
 
 Profiles are defined in:

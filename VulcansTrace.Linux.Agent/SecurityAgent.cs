@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent.Analysis;
 using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -41,6 +42,10 @@ public sealed class SecurityAgent : IAgent
     private readonly IRuleMemoryRecorder _ruleMemoryRecorder;
     private readonly IPostureCorrelator _postureCorrelator;
     private readonly INarrativeComposer _narrativeComposer;
+    private readonly SystemTrajectoryAnalyzer _systemTrajectoryAnalyzer;
+    private readonly ProactiveAlertDetector _proactiveAlertDetector;
+    private readonly AttackChainNarrator _attackChainNarrator;
+    private readonly RemediationWisdomAnalyzer _remediationWisdomAnalyzer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -121,6 +126,10 @@ public sealed class SecurityAgent : IAgent
         _ruleMemoryRecorder = new RuleMemoryRecorder();
         _postureCorrelator = new PostureCorrelator();
         _narrativeComposer = new NarrativeComposer();
+        _systemTrajectoryAnalyzer = new SystemTrajectoryAnalyzer();
+        _proactiveAlertDetector = new ProactiveAlertDetector();
+        _attackChainNarrator = new AttackChainNarrator();
+        _remediationWisdomAnalyzer = new RemediationWisdomAnalyzer();
 
         RestoreMemorySnapshot();
     }
@@ -385,17 +394,34 @@ public sealed class SecurityAgent : IAgent
             capabilityReport,
             historyEntries));
 
-        // Phase 6: Update persistent per-rule memory so future turns can reference history.
-        _auditState.Entities.RuleHistory = _ruleMemoryRecorder.Record(result, _auditState.Entities.RuleHistory);
-
-        // Phase 7: Detect cross-category posture correlations (e.g., FW-002 + SSH-002).
+        // Phase 6: Detect cross-category posture correlations (e.g., FW-002 + SSH-002).
         var postureCorrelations = _postureCorrelator.Correlate(result.AgentFindings);
         if (postureCorrelations.Count > 0)
         {
             result = result with { PostureCorrelations = postureCorrelations };
         }
 
-        // Phase 8: Compose a traceable narrative from findings, correlations, and memory.
+        // Phase 7: Build ordered attack-chain narratives from findings and correlations.
+        var attackChains = _attackChainNarrator.BuildChains(result.AgentFindings, result.PostureCorrelations);
+        result = result with { AttackChains = attackChains };
+
+        // Phase 8: Detect findings that returned after a verified fix.
+        // This runs before Record() so it can see LastVerifiedFixedUtc before it is consumed.
+        var proactiveAlerts = _proactiveAlertDetector.Detect(result.AgentFindings, _auditState.Entities.RuleHistory, result.UtcTimestamp);
+        result = result with { ProactiveAlerts = proactiveAlerts };
+
+        // Phase 9: Update persistent per-rule memory so future turns can reference history.
+        _auditState.Entities.RuleHistory = _ruleMemoryRecorder.Record(result, _auditState.Entities.RuleHistory);
+
+        // Phase 10: Compute system-level trajectory from per-rule trend history.
+        var systemTrajectory = _systemTrajectoryAnalyzer.Analyze(result.AgentFindings, _auditState.Entities.RuleHistory);
+        result = result with { SystemTrajectory = systemTrajectory };
+
+        // Phase 11: Surface remediation wisdom for rules with repeated fix-and-return cycles.
+        var remediationWisdom = _remediationWisdomAnalyzer.Analyze(result.AgentFindings, _auditState.Entities.RuleHistory);
+        result = result with { RemediationWisdom = remediationWisdom };
+
+        // Phase 12: Compose a traceable narrative from findings, correlations, and memory.
         var narrative = _narrativeComposer.Compose(result, _auditState.Entities.RuleHistory, _auditState.SnapshotEntities());
         result = result with { Narrative = narrative };
 

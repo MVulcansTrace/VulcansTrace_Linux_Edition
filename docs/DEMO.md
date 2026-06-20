@@ -321,7 +321,7 @@ The headless CLI can automatically remediate multiple findings after an audit:
 
 ## Security Agent — Narrative Response and Posture Correlation
 
-The Security Agent now composes analyst-style narrative responses and flags dangerous combinations of findings.
+The Security Agent now composes analyst-style narrative responses and flags dangerous combinations of findings, system trajectory, proactive regressions, relationship-backed attack chains, and repeated remediation cycles.
 
 ### Narrative Response
 
@@ -331,20 +331,27 @@ The Security Agent now composes analyst-style narrative responses and flags dang
    - **Summary** — total findings and severity breakdown.
    - **Key findings** — top findings ordered by severity.
    - **Combined risk** — any posture correlations (e.g., `FW-002` + `SSH-002`).
+   - **Trajectory** — system-level direction aggregated from per-rule trends and verified-fixed absent rules, weighted by severity.
+   - **Proactive alerts** — findings that returned after a previous verified fix, with the exact timestamp and category-specific regression guidance.
+   - **Attack chains** — ordered kill-chain paths built from posture correlations and deterministic continuation-graph traversal, citing rule IDs and MITRE techniques.
+   - **Remediation patterns** — rules that have been fixed and returned multiple times, with category-specific guidance.
    - **Continuity** — rules that have been open for a long time, with trend (`still open`, `worsening`, `improving`).
    - **Next steps** — suggested actions.
 4. In the Avalonia UI, bold headers and emphasis render with actual formatting via the markdown-to-inlines converter.
 
 ### Posture Correlation Example
 
-To see a combined-risk narrative, you need two findings that the correlator knows about:
+To see a combined-risk or attack-chain narrative, you need two findings that the correlator knows about:
 
 1. Ensure the firewall allows SSH from anywhere (`FW-002` fires).
 2. Ensure `PasswordAuthentication yes` is set in SSH (`SSH-002` fires).
-3. Type: `Check my SSH` or `Is my system secure?`
-4. The narrative includes a paragraph such as:
+3. Optionally ensure `PermitRootLogin yes` is set (`SSH-001` fires) to see a three-stage chain.
+4. Type: `Check my SSH` or `Is my system secure?`
+5. The narrative includes a posture-correlation paragraph such as:
    > **[FW-002 + SSH-002]** FW-002 allows SSH from anywhere and SSH-002 has password authentication enabled. Either one alone is risky; together they create a straight path to root access.
-5. A follow-up chip suggests: **Fix FW-002 and SSH-002 together**.
+6. If the staged rules align, it also renders an attack-chain paragraph such as:
+   > **Attack chain:** [FW-002] SSH is exposed to the internet, making the host visible to scanning and reconnaissance campaigns (T1562.004) → [SSH-002] Password authentication allows remote brute-force attempts against the exposed SSH service (T1021.004, T1110). Fix any one link and the chain breaks.
+7. A follow-up chip suggests: **Fix FW-002 and SSH-002 together**.
 
 ### Per-Rule Memory and Continuity
 
@@ -357,15 +364,17 @@ To see a combined-risk narrative, you need two findings that the correlator know
    > **FW-001** was first seen 2 weeks ago and has worsened.
 6. If you previously marked a remediation step in progress/completed/failed or ran live auto-fix, it also notes the attempt:
    > **FW-001** was first seen 2 weeks ago and is still open. A remediation was attempted 3 days ago.
-7. If the rule was verified fixed earlier and has returned, it says:
-   > **FW-001** was first seen 2 weeks ago and is still open. It was verified fixed 1 week ago but has returned.
+7. If the rule was verified fixed earlier and has returned, the proactive-alerts paragraph (not the memory paragraph) reports the regression:
+   > **Proactive alerts:** [FW-001] returned after being verified fixed 1 week ago. Check firewall startup scripts, network-manager hooks, container orchestration, or reboot-time rule loaders that may have rebuilt the policy.
+8. If the rule has been fixed and returned two or more times, the remediation-pattern paragraph adds:
+   > **Remediation pattern:** [FW-001] has been fixed and returned 3 times. ...
 
 ### Verify a Specific Finding
 
 1. After `FW-001` fires, remediate it manually.
 2. Type: `Verify finding FW-001`
 3. The agent re-runs the audit intent and reports whether `FW-001` is still failing.
-4. If it is resolved, the agent records `LastVerifiedFixedUtc` in memory.
+4. If it is resolved, the agent records `LastVerifiedFixedUtc` in memory and completes the verified-fixed phase of the pending `RemediationCycle`, or opens a verified cycle if no attempt was recorded.
 
 ## CIS Compliance Scorecard
 

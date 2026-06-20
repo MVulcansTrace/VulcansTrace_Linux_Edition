@@ -16,6 +16,18 @@ public sealed record Narrative
     /// <summary>Paragraph describing cross-category correlations, if any.</summary>
     public string CorrelationsParagraph { get; init; } = string.Empty;
 
+    /// <summary>Paragraph describing system-level trajectory, if enough history exists.</summary>
+    public string TrajectoryParagraph { get; init; } = string.Empty;
+
+    /// <summary>Paragraph proactively flagging returned findings, if any.</summary>
+    public string ProactiveAlertsParagraph { get; init; } = string.Empty;
+
+    /// <summary>Paragraph describing ordered attack chains, if any.</summary>
+    public string AttackChainsParagraph { get; init; } = string.Empty;
+
+    /// <summary>Paragraph adding remediation wisdom for recurring findings, if any.</summary>
+    public string RemediationWisdomParagraph { get; init; } = string.Empty;
+
     /// <summary>Paragraph adding memory-backed continuity, if any.</summary>
     public string MemoryParagraph { get; init; } = string.Empty;
 
@@ -28,6 +40,10 @@ public sealed record Narrative
         Summary,
         KeyFindingsParagraph,
         CorrelationsParagraph,
+        TrajectoryParagraph,
+        ProactiveAlertsParagraph,
+        AttackChainsParagraph,
+        RemediationWisdomParagraph,
         MemoryParagraph,
         NextStepsParagraph
     }.Where(p => !string.IsNullOrWhiteSpace(p)));

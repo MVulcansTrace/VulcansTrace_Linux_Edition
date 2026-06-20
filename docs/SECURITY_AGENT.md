@@ -97,9 +97,9 @@ This makes follow-ups like `"what should I fix first?"`, `"fix it"`, and explici
 
 In addition to conversation context, the agent keeps a lightweight per-rule memory store:
 
-- **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastRemediationAttemptUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, and a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`).
-- **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries. `LastRemediationAttemptUtc` is stamped only after observable remediation progress: a guided session step is marked in progress, completed, or failed, or a live CLI auto-fix actually executes an apply command. Creating a plan or session alone does not count as an attempt.
-- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening, and now also surfaces remediation attempts and verified-fixed timestamps; the suggestion provider uses it to recommend stale or worsening findings for attention; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
+- **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastRemediationAttemptUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`), and a `RemediationCycles` list. Each `RemediationCycle` records one attempt → verified-fixed → returned loop, including timestamps for each phase and a monotonic cycle number.
+- **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries. `LastRemediationAttemptUtc` is stamped only after observable remediation progress: a guided session step is marked in progress, completed, or failed, or a live CLI auto-fix actually executes an apply command. Creating a plan or session alone does not count as an attempt. A real attempt opens or updates a pending `RemediationCycle`; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` and completes that cycle's verified-fixed phase. If the same rule fails again later, `RuleMemoryRecorder` closes the cycle with the returned timestamp and clears `LastVerifiedFixedUtc` so the event is not double-counted.
+- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening, surfaces remediation attempts and verified-fixed timestamps, and reports rules that have been fixed and returned multiple times. The suggestion provider uses it to recommend stale or worsening findings for attention. `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
 - **Where it lives** — rule history is serialized inside the same `agent-memory.json` snapshot and restored on startup. It is not sent to any external service.
 
 ### Frame-Based Entity Extraction
@@ -128,7 +128,7 @@ The agent can surface posture correlations: pairs of rule failures that together
 | `FW-004 + PORT-*` | Firewall tooling is missing while listening ports are exposed. |
 | `USER-001 + SSH-002` | Multiple UID-0 accounts exist and password SSH authentication is enabled. |
 
-Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` within a result, and the narrative paragraph always cites both rule IDs so the claim is traceable to the underlying findings.
+Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` within a result, and the narrative paragraph always cites both rule IDs so the claim is traceable to the underlying findings. Correlated pairs also feed the attack-chain narrator, which orders matched rules into kill-chain stages and narrates the full path rather than presenting the findings side by side.
 
 ### Narrative Composition
 
@@ -137,8 +137,12 @@ Agent replies are composed as multi-paragraph prose by `NarrativeComposer`:
 - **Summary paragraph** — high-level audit outcome and total counts.
 - **Key findings paragraph** — a compact list of the highest-severity findings, citing rule IDs, severity, and what was observed.
 - **Correlation paragraph** — lists any posture correlations with both rule IDs.
+- **Trajectory paragraph** — aggregates per-rule trend data plus verified-fixed rules that are absent from current findings into a system-level direction (`improving`, `worsening`, `stable`), weighted by severity and citing example rule IDs. Only rendered when at least two rule signals are available.
+- **Proactive alerts paragraph** — flags findings that returned after a previous verified fix, citing the rule ID, elapsed time since the last verified fix, and concise category-specific regression guidance (the underlying `ProactiveAlert` carries the exact UTC timestamp).
+- **Attack chain paragraph** — walks through ordered kill-chain paths built from posture correlations and a deterministic continuation graph, citing each rule ID and its MITRE ATT&CK techniques.
+- **Remediation pattern paragraph** — highlights rules that have been fixed and returned multiple times, citing the exact cycle count and giving category-specific guidance (e.g., config-management re-application for SSH).
 - **Memory paragraph** — highlights repeated, improving, or worsening issues using per-rule memory.
-- **Traceability invariant** — every non-generic paragraph cites source IDs (rule IDs, finding fingerprints, or correlation keys) in its rendered text. `Narrative.SourceIds` collects these IDs and is validated by automated tests.
+- **Traceability invariant** — every non-generic paragraph cites source IDs (rule IDs, finding fingerprints, correlation keys, or attack-chain pattern IDs) in its rendered text. `Narrative.SourceIds` collects these IDs and is validated by automated tests.
 
 The composed `AgentResult.Narrative` is rendered in the Avalonia chat panel (with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`), stripped of markdown in the CLI, and included in evidence exports as `agent-narrative.md`. Posture correlations are exported as `posture-correlations.md` when present.
 
@@ -427,14 +431,18 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 9. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer` and adds log-derived findings when raw log text is available.
 10. `AgentResultFinalizer` attaches `ComplianceScorecardBuilder` and `RiskScorecardBuilder` output, builds the final `AgentResult`, and updates `AgentAuditState` so follow-up questions like `explain FW-001` can resolve without relying on text matching.
 11. `PostureCorrelator` scans failed rule results for known multi-rule posture correlations (e.g., `FW-002+SSH-002`) and adds deduplicated `PostureCorrelation` records to `AgentResult`.
-12. `RuleMemoryRecorder` updates the per-rule memory history with severity snapshots and trend status from the current audit.
-13. `NarrativeComposer` builds the multi-paragraph `AgentResult.Narrative` from findings, posture correlations, rule-memory history, and data-source capability data, ensuring every non-generic paragraph cites source IDs.
-14. `AgentSuggestionProvider` generates deterministic follow-up suggestions from the final `AgentResult` and `EntityFrame`, including correlated-pair fixes, stale/worsening prioritization, and verification follow-ups.
-15. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
-16. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
-17. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-18. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
-19. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
+12. `AttackChainNarrator` maps failed findings to deterministic kill-chain stages and builds ordered attack-chain paths from posture correlations plus continuation-graph traversal, surfacing them in `AgentResult.AttackChains`.
+13. `ProactiveAlertDetector` identifies current findings whose rule was previously verified fixed and emits one alert per returned rule in `AgentResult.ProactiveAlerts`, including category-specific regression guidance.
+14. `RuleMemoryRecorder` updates the per-rule memory history with severity snapshots, trend status, and remediation cycles from the current audit. Real attempts open pending cycles; verification completes the verified-fixed phase; when a previously verified-fixed rule fails again, the open `RemediationCycle` is closed and `LastVerifiedFixedUtc` is consumed.
+15. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level `TrajectoryDirection` and weighted severity delta, surfacing it in `AgentResult.SystemTrajectory`.
+16. `RemediationWisdomAnalyzer` counts closed remediation cycles per current rule and emits category-specific guidance for rules with two or more fix-and-return cycles in `AgentResult.RemediationWisdom`.
+17. `NarrativeComposer` builds the multi-paragraph `AgentResult.Narrative` from findings, posture correlations, attack chains, proactive alerts, system trajectory, remediation wisdom, rule-memory history, and data-source capability data, ensuring every non-generic paragraph cites source IDs.
+18. `AgentSuggestionProvider` generates deterministic follow-up suggestions from the final `AgentResult` and `EntityFrame`, including correlated-pair fixes, stale/worsening prioritization, and verification follow-ups.
+19. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
+20. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
+21. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
+22. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+23. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
 
@@ -688,10 +696,17 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [AgentMemorySnapshot.cs](../VulcansTrace.Linux.Agent/Memory/AgentMemorySnapshot.cs) — persisted memory snapshot
 - [JsonFileAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/JsonFileAgentMemoryStore.cs) — JSON-backed memory persistence
 - [RuleMemoryEntry.cs](../VulcansTrace.Linux.Agent/Memory/RuleMemoryEntry.cs) — per-rule memory record
-- [RuleMemoryRecorder.cs](../VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs) — records severity snapshots and trend status per rule
+- [RuleMemoryRecorder.cs](../VulcansTrace.Linux.Agent/Memory/RuleMemoryRecorder.cs) — records severity snapshots, trend status, and remediation cycles per rule
+- [RemediationCycle.cs](../VulcansTrace.Linux.Agent/Memory/RemediationCycle.cs) — single attempt → verified-fixed → returned cycle
 - [QueryEntityFrame.cs](../VulcansTrace.Linux.Agent/Query/QueryEntityFrame.cs) — structured entity frame for NLU
 - [EntityExtractor.cs](../VulcansTrace.Linux.Agent/Query/EntityExtractor.cs) — extracts rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, and ordinals
 - [PostureCorrelator.cs](../VulcansTrace.Linux.Engine/PostureCorrelator.cs) — deterministic multi-rule posture correlation
+- [AttackChainStageMapping.cs](../VulcansTrace.Linux.Agent/Analysis/AttackChainStageMapping.cs) — maps rule IDs to deterministic kill-chain stages
+- [AttackChainNarrator.cs](../VulcansTrace.Linux.Agent/Analysis/AttackChainNarrator.cs) — builds ordered attack-chain narratives
+- [ProactiveAlertDetector.cs](../VulcansTrace.Linux.Agent/Analysis/ProactiveAlertDetector.cs) — detects returned-after-fix findings and attaches category-specific regression guidance
+- [SystemTrajectoryAnalyzer.cs](../VulcansTrace.Linux.Agent/Analysis/SystemTrajectoryAnalyzer.cs) — aggregates per-rule trends and verified-fixed absent rules into system trajectory
+- [RemediationWisdomAnalyzer.cs](../VulcansTrace.Linux.Agent/Analysis/RemediationWisdomAnalyzer.cs) — detects repeated remediation-recurrence patterns
+- [RuleCategoryResolver.cs](../VulcansTrace.Linux.Agent/Rules/RuleCategoryResolver.cs) — shared rule-prefix/category resolver
 - [NarrativeComposer.cs](../VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs) — composes traceable multi-paragraph agent replies
 - [MarkdownInlinesConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown in Avalonia chat
 - [Program.cs](../VulcansTrace.Linux.Cli/Program.cs) — CLI entry point including markdown stripping and session management

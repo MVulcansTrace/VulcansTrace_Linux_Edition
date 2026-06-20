@@ -27,6 +27,10 @@ public sealed class NarrativeComposer : INarrativeComposer
         var summary = ComposeSummary(result, sources);
         var keyFindings = ComposeKeyFindings(result, sources);
         var correlations = ComposeCorrelations(result, sources);
+        var trajectory = ComposeTrajectory(result, sources);
+        var proactiveAlerts = ComposeProactiveAlerts(result, sources);
+        var attackChains = ComposeAttackChains(result, sources);
+        var remediationWisdom = ComposeRemediationWisdom(result, sources);
         var memory = ComposeMemory(result, ruleHistory, result.UtcTimestamp, sources);
         var nextSteps = ComposeNextSteps(result, sources);
 
@@ -35,6 +39,10 @@ public sealed class NarrativeComposer : INarrativeComposer
             Summary = summary,
             KeyFindingsParagraph = keyFindings,
             CorrelationsParagraph = correlations,
+            TrajectoryParagraph = trajectory,
+            ProactiveAlertsParagraph = proactiveAlerts,
+            AttackChainsParagraph = attackChains,
+            RemediationWisdomParagraph = remediationWisdom,
             MemoryParagraph = memory,
             NextStepsParagraph = nextSteps,
             SourceIds = sources.ToList()
@@ -197,6 +205,136 @@ public sealed class NarrativeComposer : INarrativeComposer
     {
         var suffix = count == 1 ? unit : $"{unit}s";
         return $"{count} {suffix} ago";
+    }
+
+    private static string ComposeTrajectory(AgentResult result, HashSet<string> sources)
+    {
+        var trajectory = result.SystemTrajectory;
+        if (trajectory == null || !trajectory.HasEnoughHistory)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.Append("**Trajectory:** ");
+
+        var directionText = trajectory.Direction switch
+        {
+            TrajectoryDirection.Improving => "improving",
+            TrajectoryDirection.Worsening => "worsening",
+            TrajectoryDirection.Stable => "stable",
+            _ => "stable"
+        };
+
+        sb.Append($"Across your recent audits, the system is trending {directionText}. ");
+
+        var parts = new List<string>();
+        if (trajectory.ImprovingCount > 0)
+        {
+            var examples = FormatExamples(trajectory.ImprovingRuleIds);
+            sources.UnionWith(trajectory.ImprovingRuleIds);
+            parts.Add($"{trajectory.ImprovingCount} rule(s) improving ({examples})");
+        }
+
+        if (trajectory.WorseningCount > 0)
+        {
+            var examples = FormatExamples(trajectory.WorseningRuleIds);
+            sources.UnionWith(trajectory.WorseningRuleIds);
+            parts.Add($"{trajectory.WorseningCount} rule(s) worsening ({examples})");
+        }
+
+        if (trajectory.StableCount > 0)
+        {
+            var examples = FormatExamples(trajectory.StableRuleIds);
+            sources.UnionWith(trajectory.StableRuleIds);
+            parts.Add($"{trajectory.StableCount} rule(s) stable ({examples})");
+        }
+
+        if (parts.Count > 0)
+        {
+            sb.Append(string.Join(", ", parts));
+            sb.Append('.');
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private static string FormatExamples(IReadOnlyList<string> ruleIds)
+    {
+        if (ruleIds.Count == 0)
+            return string.Empty;
+
+        var examples = ruleIds.Take(3).Select(r => $"**{r}**");
+        var suffix = ruleIds.Count > 3 ? ", …" : string.Empty;
+        return string.Join(", ", examples) + suffix;
+    }
+
+    private static string ComposeProactiveAlerts(AgentResult result, HashSet<string> sources)
+    {
+        if (result.ProactiveAlerts.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("**Proactive alerts:**");
+
+        foreach (var alert in result.ProactiveAlerts.Take(3))
+        {
+            sources.Add(alert.RuleId);
+            var whenText = alert.DaysSinceVerifiedFixed switch
+            {
+                0 => "today",
+                1 => "yesterday",
+                _ => $"{alert.DaysSinceVerifiedFixed} days ago"
+            };
+
+            var guidance = string.IsNullOrWhiteSpace(alert.Guidance)
+                ? "Check for automation, reboot-time defaults, configuration management, or base-image drift that may have restored the finding."
+                : alert.Guidance;
+
+            sb.Append($"• **[{alert.RuleId}]** returned after being verified fixed {whenText}. ");
+            sb.Append(guidance);
+            sb.AppendLine();
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private static string ComposeAttackChains(AgentResult result, HashSet<string> sources)
+    {
+        if (result.AttackChains.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("**Attack chain:**");
+
+        foreach (var chain in result.AttackChains.Take(3))
+        {
+            foreach (var ruleId in chain.RuleIds)
+            {
+                sources.Add(ruleId);
+            }
+
+            sources.UnionWith(chain.SourcePatternIds);
+
+            sb.AppendLine($"• {chain.Narrative}");
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private static string ComposeRemediationWisdom(AgentResult result, HashSet<string> sources)
+    {
+        if (result.RemediationWisdom.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("**Remediation pattern:**");
+
+        foreach (var wisdom in result.RemediationWisdom.Take(3))
+        {
+            sources.Add(wisdom.RuleId);
+            sb.AppendLine($"• **[{wisdom.RuleId}]** has been fixed and returned {wisdom.CycleCount} times. {wisdom.Guidance}");
+        }
+
+        return sb.ToString().Trim();
     }
 
     private static string ComposeNextSteps(AgentResult result, HashSet<string> sources)
