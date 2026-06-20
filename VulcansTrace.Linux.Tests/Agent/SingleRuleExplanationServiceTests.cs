@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
@@ -17,7 +18,7 @@ public class SingleRuleExplanationServiceTests
         var state = new AgentAuditState();
         var service = CreateService(new FailingRule(), state: state);
 
-        var result = await service.ExplainAsync(new FailingRule(), CancellationToken.None);
+        var result = await service.ExplainAsync(new FailingRule(), EmptyHistory(), CancellationToken.None);
 
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
         Assert.Single(result.AgentFindings);
@@ -39,7 +40,7 @@ public class SingleRuleExplanationServiceTests
         var rule = new FailingRule();
         var service = CreateService(rule, state: state, policyProvider: policyStore, machineRole: MachineRole.Workstation);
 
-        var result = await service.ExplainAsync(rule, CancellationToken.None);
+        var result = await service.ExplainAsync(rule, EmptyHistory(), CancellationToken.None);
 
         Assert.Empty(result.AgentFindings);
         Assert.Contains("Rule TEST-001 is disabled by policy for Workstation.", result.Summary);
@@ -56,7 +57,7 @@ public class SingleRuleExplanationServiceTests
         var rule = new FailingRule();
         var service = CreateService(rule, suppressionStore: suppressionStore);
 
-        var result = await service.ExplainAsync(rule, CancellationToken.None);
+        var result = await service.ExplainAsync(rule, EmptyHistory(), CancellationToken.None);
 
         Assert.Single(result.AgentFindings);
         Assert.Equal(RuleStatus.Failed, result.RuleResults[0].Status);
@@ -70,11 +71,72 @@ public class SingleRuleExplanationServiceTests
         var rule = new PassingRule();
         var service = CreateService(rule);
 
-        var result = await service.ExplainAsync(rule, CancellationToken.None);
+        var result = await service.ExplainAsync(rule, EmptyHistory(), CancellationToken.None);
 
         Assert.Empty(result.AgentFindings);
         Assert.Equal("Rule TEST-002 passed — no issue to explain.", result.Summary);
         Assert.Equal(1, result.PassedCount);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_StandardDepth_NoAdaptiveSections()
+    {
+        var rule = new FailingRule();
+        var service = CreateService(rule);
+
+        var result = await service.ExplainAsync(rule, EmptyHistory(), CancellationToken.None);
+
+        Assert.DoesNotContain("History", result.Summary);
+        Assert.DoesNotContain("Root cause", result.Summary);
+        Assert.DoesNotContain("What changed", result.Summary);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_FamiliarDepth_AddsHistorySection()
+    {
+        var rule = new FailingRule();
+        var service = CreateService(rule);
+        var history = CreateHistory("TEST-001", Severity.High, Severity.High);
+
+        var result = await service.ExplainAsync(rule, history, CancellationToken.None);
+
+        Assert.Contains("History", result.Summary);
+        Assert.Contains("[TEST-001]", result.Summary);
+        Assert.Contains("2 retained audit snapshot(s)", result.Summary);
+        Assert.DoesNotContain("Root cause", result.Summary);
+        Assert.DoesNotContain("What changed", result.Summary);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_RecurringDepth_AddsRootCauseSection()
+    {
+        var rule = new FwRule();
+        var service = CreateService(rule);
+        var history = CreateHistoryWithCycles("FW-001", Severity.High, closedCycleCount: 2);
+
+        var result = await service.ExplainAsync(rule, history, CancellationToken.None);
+
+        Assert.Contains("History", result.Summary);
+        Assert.Contains("Root cause", result.Summary);
+        Assert.Contains("firewall keeps reverting", result.Summary);
+        Assert.Contains("completed 2 remediation cycle(s)", result.Summary);
+        Assert.DoesNotContain("What changed", result.Summary);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_EscalatingDepth_AddsSeverityTimeline()
+    {
+        var rule = new FailingRule();
+        var service = CreateService(rule);
+        var history = CreateHistory("TEST-001", Severity.Medium, Severity.High);
+
+        var result = await service.ExplainAsync(rule, history, CancellationToken.None);
+
+        Assert.Contains("History", result.Summary);
+        Assert.Contains("What changed", result.Summary);
+        Assert.Contains("**[TEST-001]** severity escalated from Medium to High", result.Summary);
+        Assert.DoesNotContain("Root cause", result.Summary);
+        Assert.DoesNotContain("completed 0 remediation cycle(s)", result.Summary);
     }
 
     private static SingleRuleExplanationService CreateService(
@@ -112,6 +174,83 @@ public class SingleRuleExplanationServiceTests
             Details = "Previous details",
             TimeRangeStart = now,
             TimeRangeEnd = now
+        };
+    }
+
+    private static IReadOnlyDictionary<string, RuleMemoryEntry> EmptyHistory() =>
+        new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
+
+    private static IReadOnlyDictionary<string, RuleMemoryEntry> CreateHistory(
+        string ruleId,
+        params Severity[] severities)
+    {
+        var now = DateTime.UtcNow;
+        var snapshots = severities
+            .Select((severity, index) => new RuleSeveritySnapshot
+            {
+                UtcTimestamp = now.AddDays(-(severities.Length - 1 - index)),
+                Severity = severity
+            })
+            .ToArray();
+
+        var previous = snapshots[^2].Severity;
+        var current = snapshots[^1].Severity;
+        var trend = current > previous
+            ? RuleStatusTrend.Worsening
+            : current < previous
+                ? RuleStatusTrend.Improving
+                : RuleStatusTrend.Stable;
+
+        return new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ruleId] = new RuleMemoryEntry
+            {
+                RuleId = ruleId,
+                Category = "Test",
+                FirstSeenUtc = snapshots[0].UtcTimestamp,
+                LastSeenUtc = snapshots[^1].UtcTimestamp,
+                SeverityHistory = snapshots,
+                Trend = trend,
+                LastSeverity = current
+            }
+        };
+    }
+
+    private static IReadOnlyDictionary<string, RuleMemoryEntry> CreateHistoryWithCycles(
+        string ruleId,
+        Severity severity,
+        int closedCycleCount)
+    {
+        var now = DateTime.UtcNow;
+        var cycles = Enumerable.Range(1, closedCycleCount)
+            .Select(i => new RemediationCycle
+            {
+                CycleNumber = i,
+                AttemptedUtc = now.AddDays(-30 * (closedCycleCount - i + 1)),
+                VerifiedFixedUtc = now.AddDays(-25 * (closedCycleCount - i + 1)),
+                ReturnedUtc = now.AddDays(-10 * (closedCycleCount - i + 1))
+            })
+            .ToArray();
+
+        var snapshots = new[]
+        {
+            new RuleSeveritySnapshot { UtcTimestamp = now.AddDays(-10), Severity = severity },
+            new RuleSeveritySnapshot { UtcTimestamp = now, Severity = severity }
+        };
+
+        return new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ruleId] = new RuleMemoryEntry
+            {
+                RuleId = ruleId,
+                Category = "Firewall",
+                FirstSeenUtc = snapshots[0].UtcTimestamp,
+                LastSeenUtc = snapshots[^1].UtcTimestamp,
+                SeverityHistory = snapshots,
+                RemediationCycles = cycles,
+                Trend = RuleStatusTrend.Stable,
+                LastSeverity = severity
+            }
         };
     }
 
@@ -154,6 +293,22 @@ public class SingleRuleExplanationServiceTests
         public RuleResult Evaluate(ScanData data)
         {
             return RuleResult.Pass(Id, Category, Id, Description);
+        }
+    }
+
+    private sealed class FwRule : IRule
+    {
+        public string Id => "FW-001";
+        public string Category => "Firewall";
+        public string Description => "Firewall rule failed";
+        public string WhatItChecks => "Firewall";
+        public IReadOnlyList<string> SupportedDataSources => Array.Empty<string>();
+        public Severity Severity => Severity.High;
+        public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();
+
+        public RuleResult Evaluate(ScanData data)
+        {
+            return RuleResult.Fail(Id, Category, Id, Description, Severity, "0.0.0.0/0");
         }
     }
 

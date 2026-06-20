@@ -26,6 +26,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
 | Agent intents | 33: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, YaraCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
 | CIS mapping coverage | 78 / 81 rules (96%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark. Threat intel rules (TI-001/002/003) intentionally have no CIS mappings. |
+| Explanation depth tiers | 4: Standard, Familiar, Recurring, Escalating — selected deterministically from per-rule memory |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
 | Auto-fix policies | 3: Conservative (ReadOnly only), Standard (ReadOnly + ConfigChange), Aggressive (+ ServiceRestart). Destructive and Unknown are never auto-executed. |
 | Command safety levels | 5: ReadOnly, ConfigChange, ServiceRestart, PackageInstall, Destructive, Unknown |
@@ -56,6 +57,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **Reduces false positives with explicit local context** — Workstation, Server, LabBox, Router, and DevMachine profiles tune selected rules without weakening the global rule catalog
 - **Keeps trust high** — deterministic rules and markdown explanations make findings auditable
 - **Stays local-first** — no external AI call is required to answer security questions
+- **Adapts depth to context** — single-rule explanations stay concise for new findings and automatically deepen (history, root-cause guidance, severity timeline) when the rule has been seen repeatedly or is worsening, reducing repeated-information fatigue without adding an LLM
 - **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, active suppression notes, and CIS Benchmark mappings preserved in exported evidence
 - **Dual-layer compliance context** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical), giving auditors precise 1:1 traceability from a finding to the exact benchmark section it validates
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
@@ -77,6 +79,9 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [AgentResultFinalizer.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs) — result construction, scorecard attachment, and audit-state update
 - [AgentFollowUpService.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up workflows
 - [FindingExplanationService.cs](../../../../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs) — selected-finding and referenced-rule explanation workflow
+- [ExplanationDepth.cs](../../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs) — explanation depth tier enum
+- [ExplanationDepthResolver.cs](../../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepthResolver.cs) — deterministic depth resolver from rule memory
+- [AdaptiveExplanationBuilder.cs](../../../../VulcansTrace.Linux.Agent/Explanations/AdaptiveExplanationBuilder.cs) — appends history/root-cause/escalation sections
 - [BaselineDriftService.cs](../../../../VulcansTrace.Linux.Agent/Baselines/BaselineDriftService.cs) — baseline save/show/drift workflow
 - [IScanner.cs](../../../../VulcansTrace.Linux.Agent/Scanners/IScanner.cs) — thread-safe scanner aggregation
 - [DataSourceCapability.cs](../../../../VulcansTrace.Linux.Agent/Scanners/DataSourceCapability.cs) — data-source availability and permission status

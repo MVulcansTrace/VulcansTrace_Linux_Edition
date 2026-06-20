@@ -1,4 +1,6 @@
+using System.Text;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
@@ -24,12 +26,17 @@ internal sealed class FindingExplanationService
         _singleRuleExplanationService = singleRuleExplanationService ?? throw new ArgumentNullException(nameof(singleRuleExplanationService));
     }
 
-    public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+    public Task<AgentResult> ExplainFindingAsync(
+        Finding finding,
+        IReadOnlyDictionary<string, RuleMemoryEntry> ruleHistory,
+        CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(finding);
+        ArgumentNullException.ThrowIfNull(ruleHistory);
         ct.ThrowIfCancellationRequested();
 
         var structured = _explanationProvider.ParseStructuredFromText(finding.Details);
-        var summary = BuildStructuredSummary(finding, structured);
+        var summary = BuildStructuredSummary(finding, structured, ruleHistory);
 
         return Task.FromResult(new AgentResult
         {
@@ -49,17 +56,18 @@ internal sealed class FindingExplanationService
         {
             var reference = agentQuery.TargetReference;
             var matched = _auditState.FindPreviousFinding(reference);
+            var ruleHistory = _auditState.Entities.RuleHistory;
 
             if (matched != null)
             {
-                return await ExplainFindingAsync(matched, ct);
+                return await ExplainFindingAsync(matched, ruleHistory, ct);
             }
 
             var matchingRule = _ruleEvaluationService.FindRuleById(reference);
 
             if (matchingRule != null)
             {
-                return await _singleRuleExplanationService.ExplainAsync(matchingRule, ct);
+                return await _singleRuleExplanationService.ExplainAsync(matchingRule, ruleHistory, ct);
             }
 
             return new AgentResult
@@ -80,7 +88,10 @@ internal sealed class FindingExplanationService
         };
     }
 
-    private static string BuildStructuredSummary(Finding finding, StructuredExplanation structured)
+    private static string BuildStructuredSummary(
+        Finding finding,
+        StructuredExplanation structured,
+        IReadOnlyDictionary<string, RuleMemoryEntry> ruleHistory)
     {
         var parts = new List<string>
         {
@@ -118,6 +129,15 @@ internal sealed class FindingExplanationService
             parts.Add($"**Caveats:** {structured.Caveats}");
         }
 
-        return string.Join("\n", parts);
+        var sb = new StringBuilder();
+        sb.Append(string.Join("\n", parts));
+
+        if (!string.IsNullOrWhiteSpace(finding.RuleId))
+        {
+            ruleHistory.TryGetValue(finding.RuleId, out var entry);
+            AdaptiveExplanationBuilder.AppendAdaptiveSections(sb, finding, entry, DateTime.UtcNow);
+        }
+
+        return sb.ToString();
     }
 }

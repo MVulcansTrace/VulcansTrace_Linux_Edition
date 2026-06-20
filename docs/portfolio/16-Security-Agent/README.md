@@ -24,6 +24,7 @@ Documentation is organized for two audiences:
 - **Human-readable explanations** — turns failed rules into markdown-backed explanations with template variables
 - **Stable finding fingerprints** — tracks the same posture issue across audit history, suppression matching, and evidence exports without depending on volatile wording or timestamps
 - **Structured explanation sections** — separates what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats
+- **Adaptive explanation depth** — single-rule explanations deepen based on per-rule memory: first-time findings stay concise, recurring rules append category-specific root-cause guidance, and worsening rules add a severity timeline; depth is a deterministic function of history length, closed remediation cycles, and trend
 - **Copyable verification commands** — exposes only verification-section commands for clipboard copy and labels each with command safety and structural badges
 - **Log-analysis bridge** — can include pasted firewall logs through the existing `SentryAnalyzer`
 - **Evidence compatibility** — converts agent output back into `AnalysisResult` through `AgentReportGenerator`, preserves rule IDs, fingerprints, capability reports, and active suppression notes in evidence exports
@@ -78,6 +79,9 @@ Documentation is organized for two audiences:
 - [AgentFollowUpService.cs](../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up question handlers
 - [FindingExplanationService.cs](../../../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs) — selected-finding and referenced-rule explanation flow
 - [SingleRuleExplanationService.cs](../../../VulcansTrace.Linux.Agent/Reports/SingleRuleExplanationService.cs) — explain-by-rule path for targeted single-rule checks
+- [ExplanationDepth.cs](../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs) — explanation depth tier enum
+- [ExplanationDepthResolver.cs](../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepthResolver.cs) — deterministic depth resolver from rule memory
+- [AdaptiveExplanationBuilder.cs](../../../VulcansTrace.Linux.Agent/Explanations/AdaptiveExplanationBuilder.cs) — appends history/root-cause/escalation sections
 - [Finding.cs](../../../VulcansTrace.Linux.Core/Finding.cs) — stable finding fingerprints
 - [AuditDiffCalculator.cs](../../../VulcansTrace.Linux.Agent/Reports/AuditDiffCalculator.cs) — fingerprint-aware audit diffing
 - [BaselineDriftService.cs](../../../VulcansTrace.Linux.Agent/Baselines/BaselineDriftService.cs) — baseline save, baseline display, and drift comparison workflow

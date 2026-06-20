@@ -23,8 +23,8 @@
 | `KubernetesCheck` | `Check my kubernetes` / `Check my pods` | Kubernetes pod security rules (privileged pods, host namespaces, root containers, security contexts) |
 | `ThreatIntelCheck` | `Check threat intel` / `Check malicious IPs` | Threat intel correlation rules (TI-001, TI-002, TI-003) against imported STIX/MISP IOCs |
 | `YaraCheck` | `Run a YARA scan` / `Check for malware signatures` | YARA rule scanning (YARA-001) for SUID/SGID binaries, running process executables, and cron scripts against bundled and custom rules |
-| `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule |
-| `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected |
+| `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule; explanation depth adapts to the rule's history (Standard → Familiar → Recurring → Escalating) |
+| `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected; depth adapts to the rule's history |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
 | `ExplainCritical` | `Why is this critical?` | Explain Critical/High findings from the last audit |
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
@@ -169,6 +169,7 @@ User query
 | Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, crashed, and not-applicable check totals |
 | Risk Score tab | Shows aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score, summary status, and per-category breakdown |
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
+| Adaptive explanation depth | Explanation cards add **History**, **Root cause**, and **What changed** sections when the rule's persisted history meets the depth thresholds; first-time findings stay concise |
 | Local policy | Applies built-in role defaults and JSON overrides for enabled state, auto-pass, severity, and contextual parameters |
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected findings by fingerprint when available, falls back to legacy rule-ID/target entries, supports 7/30/90-day or permanent duration, and warns if persistence is unavailable |

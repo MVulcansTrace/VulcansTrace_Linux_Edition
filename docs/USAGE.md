@@ -55,6 +55,11 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 The agent composes narrative responses from findings, posture correlations, per-rule memory, system trajectory, proactive alerts, relationship-backed attack chains, and remediation wisdom:
 
 - `Is my system secure?` — produces a multi-paragraph narrative with summary, key findings, combined risk, system trajectory, proactive alerts, attack chains, remediation patterns, continuity, and next steps.
+- `Explain FW-001` — the explanation depth adapts to the rule's history:
+  - First time you ask, or with no history, you get the concise structured explanation (what was found, why it matters, how to verify, next action).
+  - After the rule has been retained in multiple audit snapshots, a **History** paragraph notes when it was first seen and whether it is stable, improving, or worsening.
+  - After two or more completed remediation cycles, a **Root cause** paragraph adds category-specific guidance (for example, firewall rules that keep reverting often point to a startup script or config-management tool).
+  - If the severity is escalating, a **What changed** paragraph traces the severity timeline so you can compare the current finding to previous audits.
 - `Check my SSH` — when both `FW-002` and `SSH-002` fire, the narrative explains that password-based SSH exposed to the internet creates a straight path to root.
 - `Is my system secure?` after multiple audits — may include a trajectory paragraph such as "Across your recent audits, the system is trending worsening. 2 rule(s) worsening (SSH-002, SSH-001), 1 rule(s) improving (KERN-001)."
 - After a verified fix returns — the narrative includes a proactive alert such as "[SSH-002] returned after being verified fixed 3 days ago. Something re-applied the insecure configuration..."

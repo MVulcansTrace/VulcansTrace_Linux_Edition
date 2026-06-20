@@ -88,17 +88,18 @@ The Security Agent provides a parallel local posture path:
 2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, logging and audit configuration, cron job entries and script permissions, installed package inventory and pending security updates, unattended-upgrades configuration, interface, route, connection state, container runtime state, Kubernetes pod security posture, live process runtime state, YARA rule matches, and data-source capability status for local Linux commands.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and dual-layer CIS Benchmark mappings.
-5. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
-6. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
-7. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
-8. `PostureCorrelator` scans findings for declarative multi-rule correlations.
-9. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
-10. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
-11. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
-12. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
-13. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
-14. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
-15. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
+5. `FindingExplanationService` and `SingleRuleExplanationService` apply **adaptive explanation depth** when explaining a finding: `ExplanationDepthResolver` selects a tier from the rule's `RuleMemoryEntry` (history length, closed remediation cycles, trend), and `AdaptiveExplanationBuilder` appends deterministic history, root-cause, or escalation paragraphs without LLM reasoning.
+6. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
+7. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
+8. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
+9. `PostureCorrelator` scans findings for declarative multi-rule correlations.
+10. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
+11. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
+12. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
+13. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
+14. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
+15. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
+16. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
 
 A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW-002` → `FW`) and category-specific remediation-wisdom guidance text, keeping prefix knowledge in one place rather than duplicating it across the attack-chain mapper and wisdom analyzer.
 
@@ -150,6 +151,7 @@ The agent persists per-rule history across process restarts:
 - `AgentMemorySnapshot.RuleHistory` — the memory snapshot now stores a dictionary of rule histories.
 - `JsonFileAgentMemoryStore` — normalizes rule IDs to uppercase on load so case-insensitive lookups survive JSON round-trips.
 - `SecurityAgent` — records history after every audit, stamps remediation-attempt timestamps when a guided remediation step reaches in-progress/completed/failed state, and stamps verified-fixed timestamps after session verification or targeted `VerifyFindingAsync`.
+- Single-rule explanations use the same memory via `ExplanationDepthResolver` and `AdaptiveExplanationBuilder` to deepen explanation content when history warrants it.
 
 ### Cross-Category Posture Correlation
 
@@ -269,6 +271,9 @@ Notification services are pluggable:
 - `ProactiveAlert`: a finding that returned after a previous verified fix, citing the rule ID, last verified-fixed timestamp, and category-specific regression guidance.
 - `RemediationWisdom`: deterministic guidance for rules with repeated remediation-recurrence cycles.
 - `RuleMemoryEntry` / `RuleSeveritySnapshot` / `RuleStatusTrend` / `RemediationCycle`: per-rule history model; `RemediationCycle` records one attempt → verified-fixed → returned loop and can remain pending between phases.
+- `ExplanationDepth`: enum (`Standard`, `Familiar`, `Recurring`, `Escalating`) that selects how much context a single-rule explanation includes.
+- `ExplanationDepthResolver`: deterministic resolver that maps a `RuleMemoryEntry` to an `ExplanationDepth` from history length, closed remediation cycle count, and trend.
+- `AdaptiveExplanationBuilder`: appends history, root-cause, and escalation paragraphs to a single-rule explanation based on the resolved depth.
 - `Narrative`: composed multi-paragraph response with traceable source IDs.
 - `IAgentMemoryStore` / `AgentMemorySnapshot`: persistence contract and lightweight snapshot for cross-session conversation memory.
 - `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore. It also supports `RestoreHistory` to rehydrate recent turns from a persisted snapshot.

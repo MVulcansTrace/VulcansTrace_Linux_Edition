@@ -1,3 +1,6 @@
+using System.Text;
+using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
@@ -30,9 +33,13 @@ internal sealed class SingleRuleExplanationService
         _machineRole = machineRole;
     }
 
-    public async Task<AgentResult> ExplainAsync(IRule rule, CancellationToken ct)
+    public async Task<AgentResult> ExplainAsync(
+        IRule rule,
+        IReadOnlyDictionary<string, RuleMemoryEntry> ruleHistory,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(ruleHistory);
         ct.ThrowIfCancellationRequested();
 
         var scannerResult = await _scannerCoordinator.RunAsync(ct);
@@ -66,7 +73,7 @@ internal sealed class SingleRuleExplanationService
         var summary = result.Status == RuleStatus.Crashed
             ? $"Rule {rule.Id} could not be evaluated."
             : agentFindings.Count > 0
-                ? $"Explanation for [{agentFindings[0].Severity}] {agentFindings[0].ShortDescription}\n\n{agentFindings[0].Details}"
+                ? BuildExplanationSummary(agentFindings[0], ruleHistory)
                 : $"Rule {rule.Id} passed — no issue to explain.";
 
         var singleRuleResult = new AgentResult
@@ -84,5 +91,21 @@ internal sealed class SingleRuleExplanationService
         };
 
         return singleRuleResult;
+    }
+
+    private static string BuildExplanationSummary(
+        Finding finding,
+        IReadOnlyDictionary<string, RuleMemoryEntry> ruleHistory)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"Explanation for [{finding.Severity}] {finding.ShortDescription}\n\n{finding.Details}");
+
+        if (!string.IsNullOrWhiteSpace(finding.RuleId))
+        {
+            ruleHistory.TryGetValue(finding.RuleId, out var entry);
+            AdaptiveExplanationBuilder.AppendAdaptiveSections(sb, finding, entry, DateTime.UtcNow);
+        }
+
+        return sb.ToString();
     }
 }

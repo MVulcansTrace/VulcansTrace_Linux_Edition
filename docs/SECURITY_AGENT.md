@@ -99,7 +99,7 @@ In addition to conversation context, the agent keeps a lightweight per-rule memo
 
 - **What is tracked** — for every rule that has failed at least once, a `RuleMemoryEntry` records `FirstSeenUtc`, `LastSeenUtc`, `LastRemediationAttemptUtc`, `LastVerifiedFixedUtc`, a rolling list of `RuleSeveritySnapshot` records, a deterministic `RuleStatusTrend` (`New`, `Stable`, `Improving`, `Worsening`), and a `RemediationCycles` list. Each `RemediationCycle` records one attempt → verified-fixed → returned loop, including timestamps for each phase and a monotonic cycle number.
 - **How it is recorded** — `RuleMemoryRecorder` is invoked after each audit. Findings are grouped by `RuleId` and one snapshot is written per rule using the worst severity observed in that audit, so repeated targets do not create duplicate history entries. `LastRemediationAttemptUtc` is stamped only after observable remediation progress: a guided session step is marked in progress, completed, or failed, or a live CLI auto-fix actually executes an apply command. Creating a plan or session alone does not count as an attempt. A real attempt opens or updates a pending `RemediationCycle`; `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` and completes that cycle's verified-fixed phase. If the same rule fails again later, `RuleMemoryRecorder` closes the cycle with the returned timestamp and clears `LastVerifiedFixedUtc` so the event is not double-counted.
-- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening, surfaces remediation attempts and verified-fixed timestamps, and reports rules that have been fixed and returned multiple times. The suggestion provider uses it to recommend stale or worsening findings for attention. `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
+- **How it is used** — the narrative composer references memory to explain whether an issue is new, recurring, improving, or worsening, surfaces remediation attempts and verified-fixed timestamps, and reports rules that have been fixed and returned multiple times. The suggestion provider uses it to recommend stale or worsening findings for attention. Single-rule explanations (`ExplainFinding`) use the same memory to select an explanation depth tier: new findings get the concise standard explanation, recurring rules get category-specific root-cause guidance, and worsening rules get a severity timeline. `VerifyFindingAsync` stamps `LastVerifiedFixedUtc` when the finding is no longer present.
 - **Where it lives** — rule history is serialized inside the same `agent-memory.json` snapshot and restored on startup. It is not sent to any external service.
 
 ### Frame-Based Entity Extraction
@@ -462,7 +462,20 @@ The agent supports three explanation paths:
 
 When no selected finding or target reference is available, the agent returns guidance instead of running an unrelated full audit.
 
-Explanations are rendered as structured sections: what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats. Each explanation includes MITRE ATT&CK technique context when the triggering rule has technique mappings, helping analysts understand the adversary behavior the finding addresses. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
+Explanations are rendered as structured sections: what was found, why it matters, how to verify, preconditions, backup commands, suggested next action, rollback commands, confidence, and caveats. The explanation depth adapts deterministically based on the rule's persisted history:
+
+| Depth tier | Trigger | Extra sections added |
+| --- | --- | --- |
+| **Standard** | No meaningful history (fewer than 2 retained severity snapshots) | None — the concise structured explanation. |
+| **Familiar** | Seen in 2+ retained audit snapshots, stable or improving, with fewer than 2 closed remediation cycles | A brief **History** paragraph with retained snapshot count, first seen, and trend. |
+| **Recurring** | 2+ closed remediation cycles | **History** plus a **Root cause** paragraph with category-specific guidance from `RuleCategoryResolver` (e.g., "The firewall keeps reverting — look for a startup script or orchestration layer that re-applies rules after boot"). |
+| **Escalating** | Severity trend is worsening | **History** plus a **What changed** paragraph that traces the severity escalation timeline. If 2+ closed remediation cycles also exist, the **Root cause** paragraph is included too. |
+
+`LastVerifiedFixedUtc` is surfaced independently of closed-cycle count, so a rule that was verified fixed but has not yet returned still shows when it was last verified fixed, without claiming zero completed cycles.
+
+Every adaptive paragraph cites the rule ID so the traceability invariant holds. The depth function uses only immutable `RuleMemoryEntry` fields (retained severity-history length, closed remediation cycle count, and trend); there is no LLM reasoning or guessing.
+
+Each explanation includes MITRE ATT&CK technique context when the triggering rule has technique mappings, helping analysts understand the adversary behavior the finding addresses. The UI extracts copyable commands only from the verification section and labels them with a heuristic safety classification plus structural badges for sudo usage, command chains, pipes, redirects, and download-and-execute patterns. Suggested action commands are kept in the explanation/remediation preview path, safety-labeled in exported remediation plans with the same structural warnings, and never applied automatically.
 
 **Interactive Remediation Preview** — When a user asks `fix FW-001` after an audit, the agent builds a single-section `RemediationPlan` for that finding, runs `RemediationPlanValidator` to ensure risky or unclassified commands have explicit rollback guidance, and returns the plan as an interactive remediation card only when validation succeeds. The card opens with a compact **Impact Preview** panel summarizing the expected impact, rollback path, verification command, risk before/after, command count, rollback availability, restart impact, and lockout risk before the detailed command lists. Below that, it surfaces preconditions as a checklist, backup commands, apply commands, rollback commands, and verification commands — each with the same safety and structural badges used for verification commands. Rollback paths rendered in the preview are displayed in monospace font when they are actual commands, or in the default prose font when they are natural-language hints. If validation fails because rollback guidance is missing, the plan is blocked and the UI does not expose copyable apply/backup commands.
 
@@ -657,6 +670,9 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [GuidedRemediationService.cs](../VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs)
 - [FindingExplanationService.cs](../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs)
 - [SingleRuleExplanationService.cs](../VulcansTrace.Linux.Agent/Reports/SingleRuleExplanationService.cs)
+- [ExplanationDepth.cs](../VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs) — depth tier enum
+- [ExplanationDepthResolver.cs](../VulcansTrace.Linux.Agent/Explanations/ExplanationDepthResolver.cs) — deterministic depth resolver from rule memory
+- [AdaptiveExplanationBuilder.cs](../VulcansTrace.Linux.Agent/Explanations/AdaptiveExplanationBuilder.cs) — appends history/root-cause/escalation sections
 - [LoggingAuditRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/LoggingAuditRules.cs)
 - [CronJobRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/CronJobRules.cs)
 - [PackageVulnerabilityRules.cs](../VulcansTrace.Linux.Agent/Rules/SecurityRules/PackageVulnerabilityRules.cs)
@@ -713,6 +729,7 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [SecurityAgent.cs](../VulcansTrace.Linux.Agent/SecurityAgent.cs) — agent orchestration, including `VerifyFindingAsync`
 - [RuleMemoryRecorderTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs)
 - [NarrativeComposerTests.cs](../VulcansTrace.Linux.Tests/Agent/NarrativeComposerTests.cs)
+- [ExplanationDepthResolverTests.cs](../VulcansTrace.Linux.Tests/Agent/ExplanationDepthResolverTests.cs)
 - [PostureCorrelatorTests.cs](../VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs)
 - [EntityExtractorTests.cs](../VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs)
 - [AgentSuggestionProviderTests.cs](../VulcansTrace.Linux.Tests/Agent/Suggestions/AgentSuggestionProviderTests.cs)

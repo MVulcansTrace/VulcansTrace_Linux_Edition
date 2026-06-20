@@ -5,7 +5,7 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 ### Doctor — Data-Source Self-Diagnostic
 - Added `DoctorService` and `DoctorResult` in `VulcansTrace.Linux.Agent/Diagnostics/` that run the same `ScannerCoordinator` used during audits in read-only probe mode and produce normalized capability rows plus deterministic capability reports via `AgentResultComposer`.
@@ -486,6 +486,21 @@ Last updated: 2026-06-19
   - Docs: `README.md`, `docs/portfolio/` (17 implementation portfolios),
     `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, `docs/USAGE.md`,
     `docs/DEVELOPMENT.md`, `docs/HMAC_EVIDENCE.md`, `docs/SECURITY_AGENT.md`
+
+### Security Agent — Adaptive Explanation Depth
+- Added deterministic, history-aware depth tiers for single-rule explanations.
+  - `ExplanationDepth` enum (`Standard`, `Familiar`, `Recurring`, `Escalating`) in `VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs`.
+  - `ExplanationDepthResolver` selects the tier from a `RuleMemoryEntry` using retained history length, closed remediation cycle count, and `RuleStatusTrend`. Worsening trend takes precedence over cycle count.
+  - `AdaptiveExplanationBuilder` appends deterministic extra sections:
+    - **Familiar**: brief history paragraph (retained snapshot count, first seen, trend).
+    - **Recurring**: history plus category-specific **Root cause** guidance from `RuleCategoryResolver`.
+    - **Escalating**: history plus **What changed** severity timeline; root cause is included when 2+ closed cycles also exist.
+  - `LastVerifiedFixedUtc` is surfaced independently of closed-cycle count, so a verified-but-not-yet-returned rule still shows when it was last verified fixed without rendering a false "0 remediation cycle(s)" claim.
+- `FindingExplanationService.ExplainFindingAsync` and `SingleRuleExplanationService.ExplainAsync` now accept the current rule-history dictionary and forward it to `AdaptiveExplanationBuilder`.
+- `SecurityAgent.ExplainFindingAsync` passes `_auditState.Entities.RuleHistory` to the explanation service.
+- Tests cover all four tiers, boundary conditions (zero cycles, mixed open/closed cycles, verified-fixed without cycles), stale-snapshot relative-time wording, and the verified-fixed refinement.
+  - Code: `VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs`, `ExplanationDepthResolver.cs`, `AdaptiveExplanationBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs`, `SingleRuleExplanationService.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/ExplanationDepthResolverTests.cs`, `FindingExplanationServiceTests.cs`, `SingleRuleExplanationServiceTests.cs`
 
 ### Live Stream / Real-Time Kernel Telemetry
 - Added live stream pipeline that captures network events directly from the Linux kernel and runs the detector pipeline in real time.

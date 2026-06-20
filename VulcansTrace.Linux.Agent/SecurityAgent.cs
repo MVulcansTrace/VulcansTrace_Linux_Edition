@@ -488,7 +488,7 @@ public sealed class SecurityAgent : IAgent
         ArgumentNullException.ThrowIfNull(finding);
         ct.ThrowIfCancellationRequested();
 
-        var result = await _findingExplanationService.ExplainFindingAsync(finding, ct);
+        var result = await _findingExplanationService.ExplainFindingAsync(finding, _auditState.Entities.RuleHistory, ct);
 
         // Keep the dialogue context consistent with the AskAsync explanation path
         // so pronoun follow-ups like "fix it" work after explaining a selected finding.

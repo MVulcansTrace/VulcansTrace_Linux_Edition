@@ -190,6 +190,27 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 **Trade-off:** The scorecard is a management abstraction, not a substitute for individual finding review. A family can Pass at 90% while still having failed rules that need remediation.
 
+## Adaptive Explanation Depth
+
+**Decision:** Single-rule explanations use per-rule memory to select one of four depth tiers (`Standard`, `Familiar`, `Recurring`, `Escalating`). The tier is a deterministic function of history length, closed remediation cycle count, and trend status.
+
+**Rationale:**
+
+- Repeating the same concise explanation for a rule that has been seen many times creates information fatigue and hides the fact that the issue is chronic.
+- Adding an LLM to rewrite explanations would break the deterministic, auditable design of the agent. The depth decision must be data-driven and reproducible.
+- `RuleMemoryEntry` already records severity snapshots, remediation cycles, and trend, so the explanation services can look up the same memory the narrative composer uses.
+
+**Tier behavior:**
+
+- `Standard` — fewer than 2 retained snapshots: show only the structured explanation sections.
+- `Familiar` — 2+ retained snapshots but fewer than 2 closed cycles and not worsening: add a brief history paragraph.
+- `Recurring` — 2+ closed remediation cycles: add history and a category-specific **Root cause** paragraph from `RuleCategoryResolver`.
+- `Escalating` — worsening trend: add history and a **What changed** severity timeline; root cause is included if 2+ closed cycles also exist.
+
+**Verified-fixed handling:** `LastVerifiedFixedUtc` is surfaced independently of closed-cycle count. A rule can be verified fixed without having returned, so it has zero closed cycles but still benefits from showing when it was last verified fixed. This avoids the false claim "completed 0 remediation cycle(s)" while preserving useful continuity context.
+
+**Trade-off:** The depth thresholds are constants. A rule with a long stable history but no remediation cycles stays in the `Familiar` tier; if users want deeper guidance for chronic-but-never-remediated rules, the thresholds can be tuned or a new tier added later.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.
