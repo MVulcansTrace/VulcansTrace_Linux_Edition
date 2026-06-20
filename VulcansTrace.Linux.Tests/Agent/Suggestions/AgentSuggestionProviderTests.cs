@@ -44,17 +44,21 @@ public class AgentSuggestionProviderTests
     }
 
     [Fact]
-    public void TargetedAudit_WithNoFindings_SuggestsFullAudit()
+    public void TargetedAudit_WithNoFindings_SuggestsFullAuditAndBlindSpot()
     {
         var result = CreateResult(AgentIntent.FirewallCheck);
         var entities = new EntityFrame();
 
         var suggestions = _provider.GetSuggestions(result, entities);
 
-        Assert.Equal(3, suggestions.Count);
+        // Assert the blind-spot chip and the no-findings staples are present without pinning an
+        // exact count (brittle against future suggestion additions). The blind-spot chip is the
+        // load-bearing assertion.
         Assert.Contains(suggestions, s => s.Label == "Set baseline");
         Assert.Contains(suggestions, s => s.Label == "Check another area");
         Assert.Contains(suggestions, s => s.Label == "Run a full audit");
+        Assert.Contains(suggestions, s => s.Query == "check network" && s.Intent == AgentIntent.NetworkCheck);
+        Assert.InRange(suggestions.Count, 4, AgentSuggestionProvider.MaxSuggestions);
     }
 
     [Fact]
@@ -310,6 +314,57 @@ public class AgentSuggestionProviderTests
         var suggestions = _provider.GetSuggestions(result, new EntityFrame());
 
         Assert.DoesNotContain(suggestions, s => s.Label.Contains("MISSING-002"));
+    }
+
+    [Fact]
+    public void TargetedAudit_WithUncheckedCategories_SuggestsBlindSpotCheck()
+    {
+        var result = CreateResult(AgentIntent.SshCheck);
+        var entities = new EntityFrame
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "SSH", UtcTimestamp = DateTime.UtcNow }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, entities);
+
+        Assert.Contains(suggestions, s => s.Query == "check firewall" && s.Intent == AgentIntent.FirewallCheck);
+    }
+
+    [Fact]
+    public void FullAudit_WithUncheckedCategories_DoesNotSuggestBlindSpotChecks()
+    {
+        var result = CreateResult(AgentIntent.FullAudit);
+        var entities = new EntityFrame
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "SSH", UtcTimestamp = DateTime.UtcNow }
+            }
+        };
+
+        var suggestions = _provider.GetSuggestions(result, entities);
+
+        Assert.DoesNotContain(suggestions, s => s.Query == "check filesystem security");
+        Assert.DoesNotContain(suggestions, s => s.Query == "check firewall");
+    }
+
+    [Fact]
+    public void TargetedAudit_WithAllCategoriesChecked_DoesNotSuggestBlindSpotChecks()
+    {
+        var result = CreateResult(AgentIntent.SshCheck);
+        var entities = new EntityFrame
+        {
+            CheckedCategories = IntentCategoryMap.AllCategories
+                .Select(c => new CategoryAuditEntry { Category = c, UtcTimestamp = DateTime.UtcNow })
+                .ToArray()
+        };
+
+        var suggestions = _provider.GetSuggestions(result, entities);
+
+        Assert.DoesNotContain(suggestions, s => s.Query == "check filesystem security");
     }
 
     private static AgentResult CreateResult(AgentIntent intent, params Finding[] findings)

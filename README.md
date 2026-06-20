@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2924 passing](https://img.shields.io/badge/Tests-2924%20passing-2E7D32)
+![Tests: 2986 passing](https://img.shields.io/badge/Tests-2986%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -74,6 +74,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Adaptive Explanation Depth** — single-rule explanations deepen based on the rule's history. First-time findings keep a concise structured explanation; recurring rules append category-specific root-cause guidance; worsening rules add a severity timeline and "what changed" wording. No LLM reasoning — depth is a deterministic function of history length, closed remediation cycles, and trend.
 - **Frame-Based NLU** — deterministic entity extraction on top of keyword parsing: rule IDs, categories, session IDs, severity filters, time windows, and remediation verbs are extracted from loose natural-language input.
 - **Proactive, State-Triggered Suggestions** — follow-up chips suggest fixing correlated pairs together, prioritizing stale/worsening findings, and addressing related findings after verification.
+- **Long-Horizon Category Coverage Tracking** — the agent remembers which of the 17 audit categories have been checked across sessions, surfaces blind spots after partial audits with a narrative coverage note, and offers one-click chips such as *Check filesystem security* to finish the review. Coverage survives restarts and is preserved through drift checks, verification re-audits, and category-filter fallback.
 - **Trace Map / Incident Graph** — interactive attack-chain visualization on the timeline canvas. Correlated findings are connected with directed edges (escalation, temporal sequence, same-host links). Click any finding to highlight its connected chain and read a narrative attack story. Supports category-based or host-based grouping. Performance guardrails suppress rendering when >100 edges are detected.
 - **Automated Incident Response Playbooks** — when `TraceMapCorrelator` detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same host), the system auto-generates active countermeasures: `iptables`/`ip6tables` DROP rules to block the attacker's C2 IP and tagged `auditd` connect telemetry for analyst correlation. Countermeasures run through a dry-run preview first, then require explicit analyst confirmation before live deployment. Invalid attacker IPs are rejected, duplicates are deduplicated, and verification uses exact-rule matching.
 - **Multi-channel Notifications** — Desktop (`notify-send`), Email (SMTP), and Webhook (HTTP POST) channels for critical-finding alerts.

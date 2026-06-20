@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Memory;
+using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
@@ -448,6 +449,92 @@ public class NarrativeComposerTests
 
         Assert.Empty(narrative.RemediationWisdomParagraph);
         Assert.DoesNotContain("Remediation pattern", narrative.FullText);
+    }
+
+    [Fact]
+    public void Compose_TargetedAuditWithUncheckedCategories_AddsCoverageParagraph()
+    {
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            AgentFindings = Array.Empty<Finding>(),
+            UtcTimestamp = DateTime.UtcNow
+        };
+        var entities = new EntityFrame
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "SSH", UtcTimestamp = DateTime.UtcNow }
+            }
+        };
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), entities);
+
+        Assert.Contains("Coverage note", narrative.CoverageParagraph);
+        Assert.Contains("SSH", narrative.CoverageParagraph);
+        Assert.Contains("haven't checked", narrative.CoverageParagraph);
+        Assert.Contains(narrative.CoverageParagraph, narrative.FullText);
+    }
+
+    [Fact]
+    public void Compose_FullAudit_DoesNotAddCoverageParagraph()
+    {
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            AgentFindings = Array.Empty<Finding>()
+        };
+        var entities = new EntityFrame
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "Firewall", UtcTimestamp = DateTime.UtcNow }
+            }
+        };
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), entities);
+
+        Assert.Empty(narrative.CoverageParagraph);
+        Assert.DoesNotContain("Coverage note", narrative.FullText);
+    }
+
+    [Fact]
+    public void Compose_TargetedAuditWithAllCategoriesChecked_DoesNotAddCoverageParagraph()
+    {
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            AgentFindings = Array.Empty<Finding>()
+        };
+        var entities = new EntityFrame
+        {
+            CheckedCategories = IntentCategoryMap.AllCategories
+                .Select(c => new CategoryAuditEntry { Category = c, UtcTimestamp = DateTime.UtcNow })
+                .ToArray()
+        };
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), entities);
+
+        Assert.Empty(narrative.CoverageParagraph);
+    }
+
+    [Fact]
+    public void Compose_TargetedAuditWithEmptyCheckedCategories_DoesNotThrow()
+    {
+        // A targeted intent with no recorded categories must not index into an empty list. On the
+        // production same-turn path Phase 9.5 has already recorded the category, but Compose has an
+        // implicit never-throw contract for direct callers (tests, freshly restored frames).
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            AgentFindings = Array.Empty<Finding>(),
+            UtcTimestamp = DateTime.UtcNow
+        };
+        var entities = new EntityFrame(); // CheckedCategories defaults to empty
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), entities);
+
+        Assert.Empty(narrative.CoverageParagraph);
     }
 
     private static Finding CreateFinding(string ruleId, string category, Severity severity)

@@ -439,4 +439,32 @@ public class QueryParserTests
 
         Assert.False(result.Entities.HasEntities);
     }
+
+    [Fact]
+    public void Parse_CategorySuggestionQueries_RoundTripToExpectedIntent()
+    {
+        // Every chip query produced by IntentCategoryMap.GetSuggestionQuery must parse back to the
+        // category's own audit intent, otherwise the blind-spot chip triggers the wrong (or no) audit.
+        foreach (var category in IntentCategoryMap.AllCategories)
+        {
+            var expected = IntentCategoryMap.GetIntent(category!)!.Value;
+            var query = IntentCategoryMap.GetSuggestionQuery(category!);
+
+            var parsed = _parser.Parse(query);
+
+            Assert.True(parsed.Intent == expected,
+                $"chip query '{query}' for category '{category}' parsed to {parsed.Intent}, expected {expected}");
+        }
+    }
+
+    [Fact]
+    public void Parse_CheckSsh_IsNotAmbiguous()
+    {
+        // The SSH chip uses "check ssh config" (not "check ssh") so it outranks the PortCheck "ss"
+        // substring match inside "ssh" and resolves unambiguously to SshCheck.
+        var parsed = _parser.Parse(IntentCategoryMap.GetSuggestionQuery("SSH"));
+
+        Assert.Equal(AgentIntent.SshCheck, parsed.Intent);
+        Assert.False(parsed.IsAmbiguous);
+    }
 }

@@ -80,11 +80,52 @@ The Security Agent keeps a lightweight, deterministic dialogue context so multi-
 
 All inference is rule-based and testable. The context lives in `DialogueContext` and is persisted in memory per `SecurityAgent` instance; it is not sent to any external service.
 
+### Category Coverage and Blind-Spot Surfacing
+
+The agent tracks which of the 17 targeted audit categories have been checked across the current conversation and prior sessions. It uses this coverage map to surface blind spots after partial audits, nudging the analyst toward areas that have not been reviewed without waiting for the user to ask.
+
+The 17 tracked categories are:
+
+| Category | Typical prompt |
+| --- | --- |
+| `Firewall` | `Check my firewall` |
+| `Network` | `Who am I talking to?` |
+| `Service` | `What services are running?` |
+| `Port` | `What ports are open?` |
+| `SSH` | `Check my SSH` |
+| `FilePermission` | `Check file permissions` |
+| `FilesystemAudit` | `Check my filesystem` |
+| `Kernel` | `Check my kernel hardening` |
+| `UserAccount` | `Check my user accounts` |
+| `Logging` | `Check my logging` |
+| `CronJob` | `Check my cron jobs` |
+| `PackageVulnerability` | `Check package vulnerabilities` |
+| `Container` | `Check my containers` |
+| `Kubernetes` | `Check my kubernetes` |
+| `ThreatIntel` | `Check threat intel` |
+| `Yara` | `Run a YARA scan` |
+| `ProcessRuntime` | `Check my processes` |
+
+How coverage works:
+
+- `FullAudit` marks all 17 categories as checked at once.
+- Every targeted audit (`Check my firewall`, `Check my SSH`, etc.) marks exactly one category.
+- Coverage is cumulative. If you check firewall today and SSH tomorrow, both are remembered.
+- Coverage persists across application restarts via the same `agent-memory.json` snapshot that stores rule history and conversation context.
+- Coverage is preserved across speculative re-audits such as `Check drift`, `Verify remediation`, `Verify finding`, and category-filter fallback, so these operations do not accidentally reset your long-horizon view.
+- `EntityFrame.Clear()` resets coverage when the conversation is explicitly started fresh.
+
+After a targeted audit, the narrative includes a **Coverage note** when unchecked categories remain, for example:
+
+> **Coverage note:** You've audited Firewall and SSH. You haven't checked Network, Service and Port, plus 12 more yet. Running those checks would reduce your blind spots.
+
+The agent also adds a clickable follow-up chip for the first unchecked category, such as `Check filesystem security`, `Check user accounts`, or `Check running processes`. The chip query is chosen to route unambiguously back to the correct audit intent (for example, `check ssh config` is used instead of a bare `ssh` query that could be mistaken for a port check).
+
 ### Cross-Session Memory
 
 The agent persists a lightweight conversation-memory snapshot so it can resume context after the application restarts:
 
-- **What is saved** — last intent/topic, last audit intent, focused rule ID and category, active/last remediation session ID, the most recent 20 dialogue turns, a per-rule `RuleHistory` snapshot, and a reference to the latest audit-history snapshot.
+- **What is saved** — last intent/topic, last audit intent, focused rule ID and category, active/last remediation session ID, the most recent 20 dialogue turns, a per-rule `RuleHistory` snapshot, the `CheckedCategories` coverage list, and a reference to the latest audit-history snapshot.
 - **What is not saved** — full findings are not duplicated. The snapshot references the existing `IAuditHistoryStore` entry and rehydrates a synthetic `AgentResult` from its `SnapshotFindings` on startup. The rehydrated result now also restores the original `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`; `RemediationPlan` and `RemediationSession` are not duplicated because they have their own persistence stores.
 - **Where it lives** — `JsonFileAgentMemoryStore` writes atomically to `~/.config/VulcansTrace/agent-memory.json` (temp file + rename) with an in-memory fallback if the filesystem is unavailable. Saves use async file I/O and are awaited before the result is returned so the restored context matches the last completed agent action.
 - **When it loads/restores** — `SecurityAgent` loads the snapshot on construction, restores the `EntityFrame` and recent history, and rehydrates `LastResult` from audit history. If the referenced history entry is missing, the focus fields are cleared to avoid half-restored state. Snapshots older than 90 days are ignored. Corrupt or missing fields in `SnapshotFindings` are replaced with safe defaults so startup cannot crash on bad JSON.
@@ -173,6 +214,7 @@ Every agent reply now includes a small set of contextual follow-up suggestions. 
 | Audit with posture correlations | `Fix <rule-a> and <rule-b> together` |
 | Audit with current stale or worsening finding | `Prioritize <rule> — is still open`, `Prioritize <rule> — is worsening` |
 | Audit with no findings | `Set baseline`, `Check another area`, `Run a full audit` (after a targeted audit) |
+| Targeted audit with unchecked categories | `Check <first-unchecked-category>` (e.g. `Check filesystem security`, `Check running processes`) |
 | After explaining a finding | `Fix it`, `Remediate it`, `Show related <category> findings`, `What should I fix first?` |
 | After starting/resuming remediation | `Verify session`, `Add a note`, `List sessions` |
 | After `PrioritizeRemediation` | `Fix <first-rule>`, `Show all findings`, `What's my risk grade?` |
@@ -725,7 +767,10 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [ResponseTemplateProvider.cs](../VulcansTrace.Linux.Agent/Dialogue/ResponseTemplateProvider.cs) — clarification prompts for ambiguous queries
 - [AgentQuery.cs](../VulcansTrace.Linux.Agent/Query/AgentQuery.cs) — structured query record with raw query text for inference
 - [SuggestedFollowUp.cs](../VulcansTrace.Linux.Agent/Suggestions/SuggestedFollowUp.cs) — follow-up suggestion data
-- [AgentSuggestionProvider.cs](../VulcansTrace.Linux.Agent/Suggestions/AgentSuggestionProvider.cs) — deterministic suggestion generation
+- [AgentSuggestionProvider.cs](../VulcansTrace.Linux.Agent/Suggestions/AgentSuggestionProvider.cs) — deterministic suggestion generation, including blind-spot coverage chips
+- [IntentCategoryMap.cs](../VulcansTrace.Linux.Agent/Query/IntentCategoryMap.cs) — central intent↔category mapping and suggestion queries
+- [CategoryCoverageRecorder.cs](../VulcansTrace.Linux.Agent/Memory/CategoryCoverageRecorder.cs) — records checked categories and computes blind spots
+- [CategoryAuditEntry.cs](../VulcansTrace.Linux.Agent/Memory/CategoryAuditEntry.cs) — timestamped category coverage record
 - [IAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/IAgentMemoryStore.cs) — cross-session memory store contract
 - [AgentMemorySnapshot.cs](../VulcansTrace.Linux.Agent/Memory/AgentMemorySnapshot.cs) — persisted memory snapshot
 - [JsonFileAgentMemoryStore.cs](../VulcansTrace.Linux.Agent/Memory/JsonFileAgentMemoryStore.cs) — JSON-backed memory persistence
@@ -754,6 +799,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [PostureCorrelatorTests.cs](../VulcansTrace.Linux.Tests/Engine/PostureCorrelatorTests.cs)
 - [EntityExtractorTests.cs](../VulcansTrace.Linux.Tests/Agent/EntityExtractorTests.cs)
 - [AgentSuggestionProviderTests.cs](../VulcansTrace.Linux.Tests/Agent/Suggestions/AgentSuggestionProviderTests.cs)
+- [CategoryCoverageRecorderTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/CategoryCoverageRecorderTests.cs)
+- [JsonFileAgentMemoryStoreTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/JsonFileAgentMemoryStoreTests.cs)
 - [SecurityAgentMemoryIntegrationTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/SecurityAgentMemoryIntegrationTests.cs)
 - [RemediationPlanBuilder.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationPlanBuilder.cs)
 - [RemediationExecutor.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationExecutor.cs)

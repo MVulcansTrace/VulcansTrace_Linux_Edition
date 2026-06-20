@@ -139,6 +139,83 @@ public class JsonFileAgentMemoryStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAndLoad_RoundTripsCheckedCategories()
+    {
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var snapshot = new AgentMemorySnapshot
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "SSH", UtcTimestamp = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc) },
+                new CategoryAuditEntry { Category = "Firewall", UtcTimestamp = new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc) }
+            }
+        };
+
+        await store.SaveAsync(snapshot);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(2, loaded.CheckedCategories.Count);
+        Assert.Contains(loaded.CheckedCategories, e => e.Category == "SSH" && e.UtcTimestamp == new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc));
+        Assert.Contains(loaded.CheckedCategories, e => e.Category == "Firewall" && e.UtcTimestamp == new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_PreservesCheckedCategoriesOrderAndDuplicates()
+    {
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var snapshot = new AgentMemorySnapshot
+        {
+            CheckedCategories = new[]
+            {
+                new CategoryAuditEntry { Category = "SSH", UtcTimestamp = new DateTime(2026, 6, 20, 12, 0, 0, DateTimeKind.Utc) },
+                new CategoryAuditEntry { Category = "Firewall", UtcTimestamp = new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc) },
+                new CategoryAuditEntry { Category = "ssh", UtcTimestamp = new DateTime(2026, 6, 20, 10, 0, 0, DateTimeKind.Utc) }
+            }
+        };
+
+        await store.SaveAsync(snapshot);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Equal(3, loaded.CheckedCategories.Count);
+        Assert.Equal("SSH", loaded.CheckedCategories[0].Category);
+        Assert.Equal("Firewall", loaded.CheckedCategories[1].Category);
+        Assert.Equal("ssh", loaded.CheckedCategories[2].Category);
+    }
+
+    [Fact]
+    public void Load_PascalCaseKeys_BindsCaseInsensitively()
+    {
+        // The store writes camelCase but must also read PascalCase (hand-edited / external files)
+        // so legacy or externally-authored snapshots don't silently drop fields.
+        File.WriteAllText(_filePath,
+            "{\"CheckedCategories\":[{\"Category\":\"SSH\",\"UtcTimestamp\":\"2026-06-20T12:00:00Z\"}]," +
+            "\"LastIntent\":\"FullAudit\"}");
+
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.Single(loaded.CheckedCategories);
+        Assert.Equal("SSH", loaded.CheckedCategories[0].Category);
+        Assert.Equal(AgentIntent.FullAudit, loaded.LastIntent);
+    }
+
+    [Fact]
+    public void Load_LegacySnapshotWithoutCheckedCategories_DeserializesToEmptyList()
+    {
+        File.WriteAllText(_filePath, "{\"lastIntent\": \"FullAudit\", \"lastTopic\": \"Audit\"}");
+
+        var store = new JsonFileAgentMemoryStore(_filePath);
+        var loaded = store.Load();
+
+        Assert.NotNull(loaded);
+        Assert.NotNull(loaded.CheckedCategories);
+        Assert.Empty(loaded.CheckedCategories);
+    }
+
+    [Fact]
     public void Load_MissingRuleHistory_ReturnsEmptyDictionary()
     {
         File.WriteAllText(_filePath, "{\"lastIntent\": \"FullAudit\", \"lastTopic\": \"Audit\"}");

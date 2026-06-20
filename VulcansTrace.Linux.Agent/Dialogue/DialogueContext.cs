@@ -129,7 +129,24 @@ public class DialogueContext
     /// <summary>
     /// Restores the full dialogue state captured by <see cref="SnapshotState"/>.
     /// </summary>
-    public void RestoreState(AgentResult? lastResult, EntityFrame entities)
+    /// <param name="preserveCoverage">
+    /// When <c>true</c>, the cumulative <see cref="EntityFrame.CheckedCategories"/> recorded by an
+    /// inner audit is kept as-is instead of being reverted. Follow-up services (drift, remediation
+    /// verification, filter fallback) wrap a speculative audit in SnapshotState/RestoreState to avoid
+    /// clobbering the user's last result, but coverage is long-horizon cumulative memory, not transient
+    /// display state, so a real audit run through those paths must still count.
+    /// </param>
+    /// <param name="preserveRuleHistory">
+    /// When <c>true</c>, the cumulative <see cref="EntityFrame.RuleHistory"/> recorded by an inner
+    /// audit is kept as-is instead of being reverted. Like coverage, per-rule severity history,
+    /// remediation cycles, and verified-fixed state are long-horizon memory that should survive
+    /// speculative-audit wrappers.
+    /// </param>
+    public void RestoreState(
+        AgentResult? lastResult,
+        EntityFrame entities,
+        bool preserveCoverage = false,
+        bool preserveRuleHistory = false)
     {
         ArgumentNullException.ThrowIfNull(entities);
 
@@ -147,7 +164,12 @@ public class DialogueContext
             Entities.LastTopic = clone.LastTopic;
             Entities.LastAuditIntent = clone.LastAuditIntent;
             Entities.LastRemediationSession = clone.LastRemediationSession;
-            Entities.RuleHistory = clone.RuleHistory;
+
+            if (!preserveRuleHistory)
+                Entities.RuleHistory = clone.RuleHistory;
+
+            if (!preserveCoverage)
+                Entities.CheckedCategories = clone.CheckedCategories;
 
             // Rebuild the rule-ID lookup table so explicit references like
             // "explain FW-001" work immediately after a restart.

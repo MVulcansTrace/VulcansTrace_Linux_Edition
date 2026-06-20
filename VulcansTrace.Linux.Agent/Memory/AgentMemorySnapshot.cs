@@ -46,4 +46,10 @@ public sealed record AgentMemorySnapshot
     /// </summary>
     public IReadOnlyDictionary<string, RuleMemoryEntry> RuleHistory { get; init; } =
         new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Categories that have been audited, with the most recent timestamp for each.
+    /// Used to surface long-horizon coverage blind spots.
+    /// </summary>
+    public IReadOnlyList<CategoryAuditEntry> CheckedCategories { get; init; } = Array.Empty<CategoryAuditEntry>();
 }

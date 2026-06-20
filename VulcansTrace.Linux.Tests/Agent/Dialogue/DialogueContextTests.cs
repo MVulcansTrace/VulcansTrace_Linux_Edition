@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Dialogue;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -98,6 +99,86 @@ public class DialogueContextTests
         context.RememberResult(null);
 
         Assert.Null(context.LastResult);
+    }
+
+    [Fact]
+    public void RestoreState_PreserveCoverage_KeepsLiveCheckedCategories()
+    {
+        var context = new DialogueContext();
+        var liveCoverage = new[]
+        {
+            new CategoryAuditEntry { Category = "SSH", UtcTimestamp = DateTime.UtcNow }
+        };
+        context.Entities.CheckedCategories = liveCoverage;
+
+        var savedEntities = new EntityFrame { CheckedCategories = Array.Empty<CategoryAuditEntry>() };
+
+        // preserveCoverage keeps the just-recorded (live) coverage; the stale snapshot is ignored.
+        context.RestoreState(null, savedEntities, preserveCoverage: true);
+
+        var kept = Assert.Single(context.Entities.CheckedCategories);
+        Assert.Equal("SSH", kept.Category);
+    }
+
+    [Fact]
+    public void RestoreState_PreserveRuleHistory_KeepsLiveRuleHistory()
+    {
+        var context = new DialogueContext();
+        var liveHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FW-001"] = new RuleMemoryEntry
+            {
+                RuleId = "FW-001",
+                Category = "Firewall",
+                LastSeverity = Severity.High
+            }
+        };
+        context.Entities.RuleHistory = liveHistory;
+
+        var savedEntities = new EntityFrame
+        {
+            RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        };
+
+        context.RestoreState(null, savedEntities, preserveRuleHistory: true);
+
+        Assert.True(context.Entities.RuleHistory.ContainsKey("FW-001"));
+        Assert.Equal(Severity.High, context.Entities.RuleHistory["FW-001"].LastSeverity);
+    }
+
+    [Fact]
+    public void RestoreState_Default_RevertsRuleHistoryFromSnapshot()
+    {
+        var context = new DialogueContext();
+        context.Entities.RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FW-001"] = new RuleMemoryEntry { RuleId = "FW-001", Category = "Firewall" }
+        };
+
+        var savedEntities = new EntityFrame
+        {
+            RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        };
+
+        context.RestoreState(null, savedEntities);
+
+        Assert.Empty(context.Entities.RuleHistory);
+    }
+
+    [Fact]
+    public void RestoreState_Default_RevertsCheckedCategoriesFromSnapshot()
+    {
+        var context = new DialogueContext();
+        context.Entities.CheckedCategories = new[]
+        {
+            new CategoryAuditEntry { Category = "SSH", UtcTimestamp = DateTime.UtcNow }
+        };
+
+        var savedEntities = new EntityFrame { CheckedCategories = Array.Empty<CategoryAuditEntry>() };
+
+        context.RestoreState(null, savedEntities);
+
+        Assert.Empty(context.Entities.CheckedCategories);
     }
 
     private static Finding CreateFinding(string ruleId, string category)

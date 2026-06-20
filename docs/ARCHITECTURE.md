@@ -97,10 +97,11 @@ The Security Agent provides a parallel local posture path:
 11. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
 12. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
 13. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
-14. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
-15. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
-16. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, and memory.
-17. `AgentSuggestionProvider` generates deterministic follow-up suggestions.
+14. `CategoryCoverageRecorder` records which audit category was just checked. A targeted audit intent records one category; `FullAudit` records all 17 categories. The timestamped list is stored in the entity frame and persisted in the cross-session memory snapshot.
+15. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
+16. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
+17. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, memory, and category coverage.
+18. `AgentSuggestionProvider` generates deterministic follow-up suggestions, including blind-spot chips after partial audits.
 
 A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW-002` → `FW`) and category-specific remediation-wisdom guidance text, keeping prefix knowledge in one place rather than duplicating it across the attack-chain mapper and wisdom analyzer.
 
@@ -109,7 +110,7 @@ A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW
 The agent layer adds deterministic, LLM-free dialogue support through the `VulcansTrace.Linux.Agent.Dialogue` namespace:
 
 - `DialogueContext` — tracks the current `ConversationTopic`, last `AgentIntent`, focused `Finding`, resolved entities (rule ID, category, session ID, ordinal), and a capped history of `DialogueTurn` records. It also provides `SnapshotState`/`RestoreState` so follow-up services that run nested audits can restore the full entity frame afterward.
-- `EntityFrame` — shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session. `DialogueManager.Resolve` snapshots it under the context lock before handing it to the resolver and inference engine.
+- `EntityFrame` — shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, active remediation session, and the `CheckedCategories` coverage list. `DialogueManager.Resolve` snapshots it under the context lock before handing it to the resolver and inference engine.
 - `EntityExtractor` — extracts rule IDs (`FW-001`), session IDs, ordinals (`1st`, `second one`), categories, and anaphora markers (`it`, `that`, `this one`) with word-boundary awareness and keyword ordering that lets specific terms (`ssh`, `filesystem`, `suid`) beat generic substrings (`service`, `file`).
 - `AnaphoraResolver` — resolves pronouns and ordinals against a snapshot of `EntityFrame`. Ordinals map to ranked findings from the last audit; explicit rule IDs take precedence over pronouns. Session references (`verify it`, `check it`) only resolve when the topic is `Remediation` or a session exists.
 - `IntentInferenceEngine` — re-evaluates parsed queries against `(prior topic, resolved entities, raw query)` and infers intents such as `FixFinding` after an explanation, `VerifyRemediation` after remediation, or `FilterCategory` after an audit. `BuildTarget` composes the final target from resolved references, parser output, and entity fallbacks, with explicit references taking precedence. It returns a confidence-weighted query and a flag indicating whether inference was applied.
@@ -123,7 +124,7 @@ The agent layer adds deterministic, LLM-free dialogue support through the `Vulca
 The agent layer now persists conversation context across process restarts through the `VulcansTrace.Linux.Agent.Memory` namespace:
 
 - `IAgentMemoryStore` — abstracts asynchronous load/save of a lightweight `AgentMemorySnapshot`.
-- `AgentMemorySnapshot` — captures last intent/topic, last audit intent, focused rule ID/category, active/last remediation session ID, the latest audit-history snapshot ID, and up to 20 recent `DialogueTurn`s. It intentionally does not duplicate full findings.
+- `AgentMemorySnapshot` — captures last intent/topic, last audit intent, focused rule ID/category, active/last remediation session ID, the latest audit-history snapshot ID, up to 20 recent `DialogueTurn`s, the per-rule `RuleHistory` dictionary, and the `CheckedCategories` list. It intentionally does not duplicate full findings.
 - `JsonFileAgentMemoryStore` — persists atomically to `~/.config/VulcansTrace/agent-memory.json` with string-enums for readability and an in-memory fallback on failure. Writes use async file I/O and are awaited before results return.
 - `InMemoryAgentMemoryStore` — non-durable fallback.
 - `SecurityAgent.RestoreMemorySnapshot` / `SaveMemorySnapshotAsync` — loads the snapshot on construction and saves after every turn. Restoration rehydrates a synthetic `AgentResult` from the referenced `AuditHistoryEntry` (including `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`) so follow-ups like `what should I fix first?` and `fix it` work immediately after reopening the app. Stale snapshots are ignored, corrupt fields are defaulted, and missing history entries clear stale focus state.
@@ -154,6 +155,21 @@ The agent persists per-rule history across process restarts:
 - `SecurityAgent` — records history after every audit, stamps remediation-attempt timestamps when a guided remediation step reaches in-progress/completed/failed state, and stamps verified-fixed timestamps after session verification or targeted `VerifyFindingAsync`.
 - Single-rule explanations use the same memory via `ExplanationDepthResolver` and `AdaptiveExplanationBuilder` to deepen explanation content when history warrants it.
 
+### Category Coverage Tracking
+
+The agent tracks which of the 17 targeted audit categories have been checked across turns and sessions, and surfaces blind spots after partial audits:
+
+- `CategoryAuditEntry` — records a checked category and the UTC timestamp it was last audited.
+- `CategoryCoverageRecorder` — updates coverage after every audit intent. A targeted intent marks one category; `FullAudit` marks all 17 categories. It also computes the unchecked subset for blind-spot reporting.
+- `IntentCategoryMap` — central, single-source mapping between `AgentIntent` values and canonical category names (`Firewall`, `Network`, `Service`, `Port`, `SSH`, `FilePermission`, `FilesystemAudit`, `Kernel`, `UserAccount`, `Logging`, `CronJob`, `PackageVulnerability`, `Container`, `Kubernetes`, `ThreatIntel`, `Yara`, `ProcessRuntime`). This ensures the narrative composer, suggestion provider, and rule filter all agree on category boundaries.
+- `EntityFrame.CheckedCategories` and `AgentMemorySnapshot.CheckedCategories` — carry the timestamped coverage list in memory and across restarts. `EntityFrame.Clear()` resets coverage when the user starts a fresh conversation.
+- `NarrativeComposer.ComposeCoverage` — appends a **Coverage note** paragraph after targeted audits when unchecked categories remain. It lists the categories already audited, then up to three unchecked categories in catalog order with a `plus N more` suffix when applicable, e.g. "You've audited Firewall and SSH. You haven't checked Network, Service and Port, plus 12 more yet." The paragraph is suppressed when there is no prior coverage or when all categories are checked.
+- `AgentSuggestionProvider.AddCoverageSuggestions` — emits one blind-spot follow-up chip for the first unchecked category after a targeted audit, using `IntentCategoryMap` to produce a user-friendly label and a query that routes back to the correct intent (e.g. `Check filesystem security`). The current category is excluded so the chip nudges toward a different area.
+- Speculative-audit wrappers (`BaselineDriftService`, `GuidedRemediationService`, `AgentFollowUpService`) preserve cumulative coverage and rule history by calling `DialogueContext.RestoreState(..., preserveCoverage: true, preserveRuleHistory: true)`. This prevents drift checks, verification re-audits, and filter-category fallback audits from resetting long-horizon memory.
+- `JsonFileAgentMemoryStore` reads coverage with `PropertyNameCaseInsensitive = true` so PascalCase legacy files and camelCase current files both round-trip correctly.
+
+Coverage is cumulative memory, not transient display state. It survives `SnapshotState`/`RestoreState` cycles that are used to isolate speculative audits from the main conversation context.
+
 ### Cross-Category Posture Correlation
 
 Beyond the temporal/network correlations produced by `TraceMapCorrelator`, the agent now detects dangerous combinations of static posture findings:
@@ -167,7 +183,7 @@ Beyond the temporal/network correlations produced by `TraceMapCorrelator`, the a
 
 The agent composes analyst-style prose from findings, correlations, attack chains, proactive alerts, system trajectory, remediation wisdom, and memory:
 
-- `INarrativeComposer` / `NarrativeComposer` — builds a `Narrative` with summary, key findings, combined risk, trajectory, proactive alerts, attack chains, remediation patterns, continuity, and next-steps paragraphs.
+- `INarrativeComposer` / `NarrativeComposer` — builds a `Narrative` with summary, key findings, combined risk, trajectory, proactive alerts, attack chains, remediation patterns, continuity, next-steps, and (after partial audits) coverage-note paragraphs.
 - `Narrative` — immutable record with `FullText`, per-paragraph accessors, and `SourceIds`.
 - Every non-generic paragraph cites source IDs: rule IDs for findings, posture pattern IDs for correlations and attack chains, rule IDs for memory/trajectory/wisdom entries. The correlation paragraph always renders `[RuleIdA + RuleIdB]` so the traceability invariant holds even when a pattern template omits the IDs.
 - `AgentResult.Narrative` — populated for audit results.
@@ -180,8 +196,9 @@ The agent composes analyst-style prose from findings, correlations, attack chain
 - When a correlated pair is detected, it suggests fixing both rules together.
 - When a current rule has been stale or worsening for 7+ days, it suggests prioritizing it.
 - After verification, if a correlated finding remains, it suggests fixing the related rule next.
+- After a targeted audit with unchecked categories remaining, it suggests the first blind-spot category (e.g. `Check filesystem security`).
 
-All suggestions still only reference findings that exist in the current result.
+All suggestions still only reference findings that exist in the current result. The coverage chip is based on the cumulative category list rather than the current result's findings.
 
 ### Targeted Finding Verification
 
@@ -266,6 +283,9 @@ Notification services are pluggable:
 - `AgentQuery`: structured user request containing `AgentIntent`, optional target reference, confidence, ambiguity flag, the original raw query text for inference reuse, and a `QueryEntityFrame` with extracted entities.
 - `QueryEntityFrame`: deterministic entity frame carrying rule IDs, categories, session IDs, severity filters, time windows, remediation verbs, ordinals, and tokens.
 - `SuggestedFollowUp`: a contextual next-step suggestion with a user-facing label, the query to execute, and the mapped `AgentIntent`.
+- `CategoryAuditEntry`: timestamped record that a specific audit category was checked.
+- `CategoryCoverageRecorder`: records `CheckedCategories` after each audit and computes the unchecked subset for blind-spot surfacing.
+- `IntentCategoryMap`: central mapping between `AgentIntent` values and canonical category names, plus reverse lookups and suggestion text for coverage chips.
 - `PostureCorrelation` / `PostureCorrelationPattern`: cross-category posture correlation records and declarative pattern definitions.
 - `AttackChain` / `AttackChainLink`: ordered kill-chain path built from posture-backed staged findings, carrying rule IDs, MITRE technique IDs, and source posture pattern IDs.
 - `SystemTrajectory`: system-level trend direction derived from aggregated per-rule trends and verified-fixed absent rules, with weighted severity delta and example rule IDs.
@@ -278,7 +298,7 @@ Notification services are pluggable:
 - `Narrative`: composed multi-paragraph response with traceable source IDs.
 - `IAgentMemoryStore` / `AgentMemorySnapshot`: persistence contract and lightweight snapshot for cross-session conversation memory.
 - `DialogueContext`: in-memory conversation state including topic, entities, focused finding, a capped history of `DialogueTurn` records, and `SnapshotState`/`RestoreState` for nested-audit save/restore. It also supports `RestoreHistory` to rehydrate recent turns from a persisted snapshot.
-- `EntityFrame`: shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, and active remediation session.
+- `EntityFrame`: shallow-copyable container for the focused rule ID, category, session IDs, ranked findings, last intent/topic, active remediation session, and the `CheckedCategories` coverage list.
 - `ReferenceResolution`: result of anaphora resolution with flags for anaphora presence, resolved rule ID, category, session ID, ordinal, and finding.
 - `ConversationTopic`: enum (`Unknown`, `Audit`, `Explanation`, `Remediation`, `Help`, `Comparison`, `Drift`) used to gate intent inference.
 - `CountermeasureCommand`: record representing an active defense command (`IptablesDrop` or `AuditdMonitor`) with apply command, rollback command, safety classification, and target host.

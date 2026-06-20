@@ -51,6 +51,12 @@ public sealed class EntityFrame
     public IReadOnlyDictionary<string, RuleMemoryEntry> RuleHistory { get; set; } =
         new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Categories that have been audited in this session, restored from persistent memory.
+    /// Used to compute coverage blind spots.
+    /// </summary>
+    public IReadOnlyList<CategoryAuditEntry> CheckedCategories { get; set; } = Array.Empty<CategoryAuditEntry>();
+
     /// <summary>Creates a shallow copy of the current entity frame.</summary>
     public EntityFrame Clone()
     {
@@ -66,7 +72,8 @@ public sealed class EntityFrame
             LastTopic = LastTopic,
             LastAuditIntent = LastAuditIntent,
             LastRemediationSession = LastRemediationSession,
-            RuleHistory = RuleHistory
+            RuleHistory = RuleHistory,
+            CheckedCategories = CheckedCategories
         };
     }
 
@@ -84,5 +91,6 @@ public sealed class EntityFrame
         LastTopic = ConversationTopic.Unknown;
         LastAuditIntent = AgentIntent.FullAudit;
         RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
+        CheckedCategories = Array.Empty<CategoryAuditEntry>();
     }
 }

@@ -13,6 +13,7 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() }
     };

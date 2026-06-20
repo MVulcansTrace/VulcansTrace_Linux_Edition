@@ -31,6 +31,9 @@ public sealed record Narrative
     /// <summary>Paragraph adding memory-backed continuity, if any.</summary>
     public string MemoryParagraph { get; init; } = string.Empty;
 
+    /// <summary>Paragraph surfacing long-horizon coverage blind spots after partial audits.</summary>
+    public string CoverageParagraph { get; init; } = string.Empty;
+
     /// <summary>Paragraph suggesting next steps.</summary>
     public string NextStepsParagraph { get; init; } = string.Empty;
 
@@ -45,6 +48,7 @@ public sealed record Narrative
         AttackChainsParagraph,
         RemediationWisdomParagraph,
         MemoryParagraph,
+        CoverageParagraph,
         NextStepsParagraph
     }.Where(p => !string.IsNullOrWhiteSpace(p)));
 

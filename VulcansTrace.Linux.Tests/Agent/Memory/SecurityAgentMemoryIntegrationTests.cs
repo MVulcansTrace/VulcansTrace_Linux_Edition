@@ -379,6 +379,68 @@ public class SecurityAgentMemoryIntegrationTests
         Assert.Null(loadedMemory.RuleHistory["TEST-001"].LastRemediationAttemptUtc);
     }
 
+    [Fact]
+    public async Task Restart_PersistsCheckedCategories_AcrossTargetedAudits()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var firstAgent = CreateAgent(historyStore, memoryStore);
+        await firstAgent.AskAsync("check firewall", null, CancellationToken.None);
+
+        var afterFirst = memoryStore.Load();
+        Assert.NotNull(afterFirst);
+        Assert.Contains(afterFirst.CheckedCategories, c => c.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase));
+
+        // Rehydrate into a fresh agent and run a second targeted audit; coverage must accumulate.
+        var secondAgent = CreateAgent(historyStore, memoryStore);
+        await secondAgent.AskAsync("check ssh", null, CancellationToken.None);
+
+        var afterSecond = memoryStore.Load();
+        Assert.NotNull(afterSecond);
+        Assert.Contains(afterSecond.CheckedCategories, c => c.Category.Equals("Firewall", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(afterSecond.CheckedCategories, c => c.Category.Equals("SSH", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task FilterCategoryFallback_PersistsCoverageForFallbackAudit()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+
+        var agent = CreateAgent(historyStore, memoryStore);
+
+        // No prior audit → FilterCategory runs a fallback NetworkCheck audit. The recorded category
+        // must survive the SnapshotState/RestoreState wrapper (regression test for coverage loss).
+        await agent.AskAsync("show only network issues", null, CancellationToken.None);
+
+        var loaded = memoryStore.Load();
+        Assert.NotNull(loaded);
+        Assert.Contains(loaded.CheckedCategories, c => c.Category.Equals("Network", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task CheckDrift_PreservesCumulativeMemoryFromReAudit()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var memoryStore = new InMemoryAgentMemoryStore();
+        var baselineStore = new InMemoryBaselineStore();
+
+        var agent = CreateAgent(historyStore, memoryStore, baselineStore);
+        await agent.RunAuditAsync(AgentIntent.FullAudit, null, CancellationToken.None);
+        await agent.SetBaselineAsync("baseline", null, CancellationToken.None);
+
+        // Drift detection runs the same FullAudit intent inside a SnapshotState/RestoreState wrapper.
+        // Cumulative memory (rule history + coverage) from that re-audit must survive the restore.
+        await agent.AskAsync("check drift", null, CancellationToken.None);
+
+        var loaded = memoryStore.Load();
+        Assert.NotNull(loaded);
+        Assert.True(loaded.RuleHistory.ContainsKey("TEST-001"));
+        Assert.Equal(2, loaded.RuleHistory["TEST-001"].SeverityHistory.Count);
+        Assert.Equal(IntentCategoryMap.AllCategories.Count, loaded.CheckedCategories.Count);
+    }
+
     private static SecurityAgent CreateAgent(
         IAuditHistoryStore historyStore,
         IAgentMemoryStore memoryStore,

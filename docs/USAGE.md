@@ -72,6 +72,13 @@ Proactive suggestion chips also appear automatically:
 - After an audit with correlated findings — `Fix FW-002 and SSH-002 together`.
 - After a finding has been open for 7+ days — `Prioritize FW-001 — still open`.
 - After verifying a session where a correlated finding remains — `Fix related SSH-002`.
+- After a targeted audit with unchecked categories remaining — `Check filesystem security`, `Check user accounts`, `Check running processes`, etc.
+
+The agent also keeps a long-horizon **category coverage map** across sessions. A `FullAudit` marks all 17 audit categories as checked; each targeted audit marks one category. When you run a partial audit and other categories remain unchecked, the narrative includes a coverage note such as:
+
+> **Coverage note:** You've audited Firewall and SSH. You haven't checked Network, Service and Port, plus 12 more yet. Running those checks would reduce your blind spots.
+
+Coverage is preserved across `Check drift`, `Verify remediation`, `Verify finding`, and category-filter fallback audits, so these operations do not reset your cumulative view. It is stored in the same `agent-memory.json` snapshot as rule history and conversation context.
 
 After an audit, you can also ask follow-up questions without re-running scans:
 

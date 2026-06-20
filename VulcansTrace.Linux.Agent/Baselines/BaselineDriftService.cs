@@ -277,7 +277,9 @@ internal sealed class BaselineDriftService
         }
         finally
         {
-            _auditState.RestoreState(savedState.LastResult, savedState.Entities);
+            // Preserve the cumulative memory recorded by the drift re-audit; only the transient
+            // last-result/ranked-findings state should be reverted.
+            _auditState.RestoreState(savedState.LastResult, savedState.Entities, preserveCoverage: true, preserveRuleHistory: true);
         }
     }
 

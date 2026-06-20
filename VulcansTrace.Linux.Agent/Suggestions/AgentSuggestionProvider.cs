@@ -120,6 +120,8 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
 
     private static void AddAuditSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)
     {
+        AddCoverageSuggestions(result, entities, suggestions);
+
         if (result.AgentFindings.Count == 0)
         {
             Add(new SuggestedFollowUp { Label = "Set baseline", Query = "set baseline", Intent = AgentIntent.SetBaseline }, suggestions);
@@ -167,6 +169,44 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
 
         Add(new SuggestedFollowUp { Label = "What's my risk grade?", Query = "what's my risk grade?", Intent = AgentIntent.RiskScore }, suggestions);
         Add(new SuggestedFollowUp { Label = "Set baseline", Query = "set baseline", Intent = AgentIntent.SetBaseline }, suggestions);
+    }
+
+    private static void AddCoverageSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)
+    {
+        // Full audits are comprehensive; don't nudge the user about blind spots after one.
+        if (!IntentCategoryMap.IsTargetedAudit(result.Intent))
+            return;
+
+        var currentCategory = IntentCategoryMap.GetCategory(result.Intent);
+        if (string.IsNullOrWhiteSpace(currentCategory))
+            return;
+
+        // Treat the current audit's category as checked so we don't redundantly suggest it. On the
+        // SecurityAgent path Phase 9.5 has already recorded it; the explicit add keeps this correct
+        // for direct/test callers that invoke GetSuggestions before coverage is recorded.
+        var checkedCategories = entities.CheckedCategories.ToList();
+        checkedCategories.Add(new CategoryAuditEntry { Category = currentCategory });
+
+        var uncheckedCategories = CategoryCoverageRecorder.GetUncheckedCategories(checkedCategories);
+        if (uncheckedCategories.Count == 0)
+            return;
+
+        // Suggest the first unchecked category (in catalog order) as a concrete follow-up chip. This
+        // is added first, so when a targeted audit returns many remediation chips the single coverage
+        // chip may displace a lower-priority tail chip under MaxSuggestions — the primary "What should
+        // I fix first?" suggestion is always preserved.
+        foreach (var category in uncheckedCategories.Take(1))
+        {
+            if (IntentCategoryMap.GetIntent(category) is not { } intent)
+                continue;
+
+            Add(new SuggestedFollowUp
+            {
+                Label = IntentCategoryMap.GetSuggestionLabel(category),
+                Query = IntentCategoryMap.GetSuggestionQuery(category),
+                Intent = intent
+            }, suggestions);
+        }
     }
 
     private static void AddPostureCorrelationSuggestions(AgentResult result, EntityFrame entities, List<SuggestedFollowUp> suggestions)

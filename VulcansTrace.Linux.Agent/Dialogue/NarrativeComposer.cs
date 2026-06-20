@@ -1,5 +1,6 @@
 using System.Text;
 using VulcansTrace.Linux.Agent.Memory;
+using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
@@ -32,6 +33,7 @@ public sealed class NarrativeComposer : INarrativeComposer
         var attackChains = ComposeAttackChains(result, sources);
         var remediationWisdom = ComposeRemediationWisdom(result, sources);
         var memory = ComposeMemory(result, ruleHistory, result.UtcTimestamp, sources);
+        var coverage = ComposeCoverage(result, entities);
         var nextSteps = ComposeNextSteps(result, sources);
 
         return new Narrative
@@ -44,6 +46,7 @@ public sealed class NarrativeComposer : INarrativeComposer
             AttackChainsParagraph = attackChains,
             RemediationWisdomParagraph = remediationWisdom,
             MemoryParagraph = memory,
+            CoverageParagraph = coverage,
             NextStepsParagraph = nextSteps,
             SourceIds = sources.ToList()
         };
@@ -182,6 +185,51 @@ public sealed class NarrativeComposer : INarrativeComposer
 
             sb.AppendLine();
         }
+
+        return sb.ToString().Trim();
+    }
+
+    private static string ComposeCoverage(AgentResult result, EntityFrame entities)
+    {
+        // Only surface coverage after targeted audits; full audits are intentionally comprehensive
+        // and should not trigger a "you missed something" message.
+        if (!IntentCategoryMap.IsTargetedAudit(result.Intent))
+            return string.Empty;
+
+        var checkedCategories = CategoryCoverageRecorder.GetCheckedCategories(entities.CheckedCategories);
+        var uncheckedCategories = CategoryCoverageRecorder.GetUncheckedCategories(entities.CheckedCategories);
+
+        if (uncheckedCategories.Count == 0)
+            return string.Empty;
+
+        // On the production same-turn path, Phase 9.5 has already recorded the current category, so
+        // checkedCategories is non-empty. Guard the direct-call / default-frame case (tests, or a frame
+        // restored before any audit this session) so we never index into an empty list.
+        if (checkedCategories.Count == 0)
+            return string.Empty;
+
+        var auditedNames = checkedCategories.Count == 1
+            ? checkedCategories[0]
+            : string.Join(", ", checkedCategories.Take(checkedCategories.Count - 1)) + " and " + checkedCategories[^1];
+
+        const int maxUncheckedExamples = 3;
+        var exampleNames = uncheckedCategories.Take(maxUncheckedExamples).ToList();
+        var remaining = uncheckedCategories.Count - exampleNames.Count;
+
+        var uncheckedText = exampleNames.Count == 1
+            ? exampleNames[0]
+            : string.Join(", ", exampleNames.Take(exampleNames.Count - 1)) + " and " + exampleNames[^1];
+
+        if (remaining > 0)
+        {
+            uncheckedText += $", plus {remaining} more";
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("**Coverage note:** ");
+        sb.Append($"You've audited {auditedNames}. ");
+        sb.Append($"You haven't checked {uncheckedText} yet. ");
+        sb.Append("Running those checks would reduce your blind spots.");
 
         return sb.ToString().Trim();
     }

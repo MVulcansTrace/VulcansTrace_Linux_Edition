@@ -7,6 +7,19 @@ reference and a technical verification checklist.
 
 Last updated: 2026-06-20
 
+### Security Agent — Long-Horizon Category Coverage Tracking
+
+- Added `CategoryAuditEntry`, `CategoryCoverageRecorder`, and `IntentCategoryMap` in `VulcansTrace.Linux.Agent/Memory/` and `VulcansTrace.Linux.Agent/Query/` to track which of the 17 targeted audit categories have been checked across turns and sessions.
+- `FullAudit` marks all 17 categories (`Firewall`, `Network`, `Service`, `Port`, `SSH`, `FilePermission`, `FilesystemAudit`, `Kernel`, `UserAccount`, `Logging`, `CronJob`, `PackageVulnerability`, `Container`, `Kubernetes`, `ThreatIntel`, `Yara`, `ProcessRuntime`) as checked; each targeted intent marks exactly one category.
+- Extended `AgentMemorySnapshot` and `EntityFrame` with `CheckedCategories`; wired save/restore in `SecurityAgent` and `DialogueContext` so coverage survives application restarts and is reset only when the conversation frame is explicitly cleared.
+- `NarrativeComposer` appends a **Coverage note** paragraph after partial audits, listing categories already audited and the next unchecked areas.
+- `AgentSuggestionProvider` emits one blind-spot follow-up chip for the first unchecked category after a targeted audit (e.g. `Check filesystem security`, `Check running processes`), using disambiguating queries such as `check ssh config` for the SSH category.
+- Speculative-audit wrappers (`BaselineDriftService`, `GuidedRemediationService`, `AgentFollowUpService`) preserve cumulative coverage and rule history via `DialogueContext.RestoreState(..., preserveCoverage: true, preserveRuleHistory: true)`, so drift checks, verification re-audits, and filter-category fallback audits do not erase long-horizon memory.
+- Robustness fixes: guarded `ComposeCoverage` against empty coverage, reset `CheckedCategories` in `EntityFrame.Clear()`, enabled `PropertyNameCaseInsensitive` in `JsonFileAgentMemoryStore` for legacy PascalCase files.
+- Tests cover coverage recording for full and targeted audits, narrative rendering, suggestion generation, JSON round-trip, PascalCase binding, `RestoreState` preservation semantics, and drift-check memory retention.
+  - Code: `VulcansTrace.Linux.Agent/Memory/CategoryAuditEntry.cs`, `CategoryCoverageRecorder.cs`, `IntentCategoryMap.cs`, `VulcansTrace.Linux.Agent/Memory/AgentMemorySnapshot.cs`, `VulcansTrace.Linux.Agent/Dialogue/EntityFrame.cs`, `DialogueContext.cs`, `NarrativeComposer.cs`, `AgentSuggestionProvider.cs`, `BaselineDriftService.cs`, `GuidedRemediationService.cs`, `AgentFollowUpService.cs`, `JsonFileAgentMemoryStore.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Memory/CategoryCoverageRecorderTests.cs`, `JsonFileAgentMemoryStoreTests.cs`, `NarrativeComposerTests.cs`, `Agent/Suggestions/AgentSuggestionProviderTests.cs`, `Agent/Memory/SecurityAgentMemoryIntegrationTests.cs`
+
 ### Doctor — Data-Source Self-Diagnostic
 - Added `DoctorService` and `DoctorResult` in `VulcansTrace.Linux.Agent/Diagnostics/` that run the same `ScannerCoordinator` used during audits in read-only probe mode and produce normalized capability rows plus deterministic capability reports via `AgentResultComposer`.
 - CLI `vulcanstrace doctor [--output-json <file>]` probes all local scanner data sources, prints a color-coded summary, and exits with:

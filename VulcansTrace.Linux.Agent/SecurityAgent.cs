@@ -40,6 +40,7 @@ public sealed class SecurityAgent : IAgent
     private readonly IAgentSuggestionProvider _suggestionProvider;
     private readonly IAgentMemoryStore? _memoryStore;
     private readonly IRuleMemoryRecorder _ruleMemoryRecorder;
+    private readonly CategoryCoverageRecorder _categoryCoverageRecorder;
     private readonly IPostureCorrelator _postureCorrelator;
     private readonly INarrativeComposer _narrativeComposer;
     private readonly SystemTrajectoryAnalyzer _systemTrajectoryAnalyzer;
@@ -125,6 +126,7 @@ public sealed class SecurityAgent : IAgent
         _suggestionProvider = suggestionProvider ?? new AgentSuggestionProvider();
         _memoryStore = memoryStore;
         _ruleMemoryRecorder = new RuleMemoryRecorder();
+        _categoryCoverageRecorder = new CategoryCoverageRecorder();
         _postureCorrelator = new PostureCorrelator();
         _narrativeComposer = new NarrativeComposer();
         _systemTrajectoryAnalyzer = new SystemTrajectoryAnalyzer();
@@ -419,6 +421,10 @@ public sealed class SecurityAgent : IAgent
 
         // Phase 9: Update persistent per-rule memory so future turns can reference history.
         _auditState.Entities.RuleHistory = _ruleMemoryRecorder.Record(result, _auditState.Entities.RuleHistory);
+
+        // Phase 9.5: Update long-horizon category coverage so the agent can surface blind spots.
+        _auditState.Entities.CheckedCategories = _categoryCoverageRecorder.Record(
+            intent, result.UtcTimestamp, _auditState.Entities.CheckedCategories);
 
         // Phase 10: Compute system-level trajectory from per-rule trend history.
         var systemTrajectory = _systemTrajectoryAnalyzer.Analyze(result.AgentFindings, _auditState.Entities.RuleHistory);
@@ -906,7 +912,8 @@ public sealed class SecurityAgent : IAgent
             LastRemediationSessionId = snapshot.LastRemediationSessionId,
             ActiveSessionId = snapshot.ActiveSessionId,
             RankedFindings = lastResult?.AgentFindings ?? Array.Empty<Finding>(),
-            RuleHistory = snapshot.RuleHistory ?? new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+            RuleHistory = snapshot.RuleHistory ?? new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase),
+            CheckedCategories = snapshot.CheckedCategories ?? Array.Empty<CategoryAuditEntry>()
         };
 
         if (!string.IsNullOrWhiteSpace(snapshot.FocusedRuleId) && lastResult != null)
@@ -949,7 +956,8 @@ public sealed class SecurityAgent : IAgent
                 ActiveSessionId = _auditState.Entities.ActiveSessionId,
                 LatestAuditSnapshotId = GetLatestAuditSnapshotId(),
                 RecentTurns = _auditState.History.TakeLast(DialogueContext.MaxHistoryTurns).ToList(),
-                RuleHistory = _auditState.Entities.RuleHistory
+                RuleHistory = _auditState.Entities.RuleHistory,
+                CheckedCategories = _auditState.Entities.CheckedCategories
             };
 
             await _memoryStore.SaveAsync(snapshot).ConfigureAwait(false);
