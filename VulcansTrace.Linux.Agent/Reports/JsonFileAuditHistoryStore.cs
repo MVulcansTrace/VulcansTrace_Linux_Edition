@@ -10,6 +10,7 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
 {
     private readonly string _filePath;
     private readonly int _maxEntries;
+    private readonly int _fullDetailCount;
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly List<AuditHistoryEntry> _entries = new();
     private string? _persistenceWarning;
@@ -19,10 +20,12 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
-    public JsonFileAuditHistoryStore(string filePath, int maxEntries = 50)
+    /// <param name="fullDetailCount">Number of newest entries to keep fully detailed; older retained entries are slimmed. Default is 5.</param>
+    public JsonFileAuditHistoryStore(string filePath, int maxEntries = 50, int fullDetailCount = 5)
     {
         _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
         _maxEntries = maxEntries > 0 ? maxEntries : throw new ArgumentOutOfRangeException(nameof(maxEntries), "Must be greater than zero.");
+        _fullDetailCount = fullDetailCount >= 0 ? fullDetailCount : throw new ArgumentOutOfRangeException(nameof(fullDetailCount), "Must be greater than or equal to zero.");
         LoadFromDisk();
     }
 
@@ -30,12 +33,13 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
+    /// <param name="fullDetailCount">Number of newest entries to keep fully detailed; older retained entries are slimmed. Default is 5.</param>
     /// <returns>A configured <see cref="JsonFileAuditHistoryStore"/>.</returns>
-    public static JsonFileAuditHistoryStore CreateDefault(string? configDirectory = null, int maxEntries = 50)
+    public static JsonFileAuditHistoryStore CreateDefault(string? configDirectory = null, int maxEntries = 50, int fullDetailCount = 5)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileAuditHistoryStore(Path.Combine(dir, "audit-history.json"), maxEntries);
+        return new JsonFileAuditHistoryStore(Path.Combine(dir, "audit-history.json"), maxEntries, fullDetailCount);
     }
 
     /// <inheritdoc />
@@ -111,6 +115,19 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     private void Normalize()
     {
         _entries.Sort((a, b) => b.TimestampUtc.CompareTo(a.TimestampUtc));
+
+        // Slim older retained entries so the on-disk file stays bounded even when individual
+        // audits carry large metadata (attack chains, capabilities, rule results, etc.). The
+        // newest entries remain fully detailed because they are the most likely to be rehydrated
+        // for follow-up intents such as ShowEvidence.
+        for (var i = _fullDetailCount; i < _entries.Count; i++)
+        {
+            if (!_entries[i].IsSlimSummary)
+            {
+                _entries[i] = _entries[i].ToSlimSummary();
+            }
+        }
+
         while (_entries.Count > _maxEntries)
         {
             _entries.RemoveAt(_entries.Count - 1);

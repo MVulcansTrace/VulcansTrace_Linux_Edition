@@ -21,7 +21,7 @@ public sealed class ServiceScanner : IScanner
         }, cancellationToken);
 
         var status = DataSourceCapability.FromCommandResult(ok, output, error);
-        builder.AddCapability(new DataSourceCapability { SourceName = "systemctl", Status = status, Detail = error });
+        builder.AddCapability(new DataSourceCapability { SourceName = "systemctl", Status = status, Detail = error, Command = "systemctl list-units --type=service --state=running --no-pager --no-legend" });
 
         if (status == CapabilityStatus.PermissionLimited)
         {

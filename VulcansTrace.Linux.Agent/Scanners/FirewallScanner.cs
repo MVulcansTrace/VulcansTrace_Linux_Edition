@@ -16,10 +16,10 @@ public sealed class FirewallScanner : IScanner
             await RunCommandAsync("iptables", new[] { "-L", "-n", "-v" }, cancellationToken);
 
         var iptablesStatus = DataSourceCapability.FromCommandResult(iptablesOk, iptablesOutput, iptablesError);
-        builder.AddCapability(new DataSourceCapability { SourceName = "iptables", Status = iptablesStatus, Detail = iptablesError });
+        builder.AddCapability(new DataSourceCapability { SourceName = "iptables", Status = iptablesStatus, Detail = iptablesError, Command = "iptables -L -n -v" });
         if (iptablesStatus == CapabilityStatus.Available && !string.IsNullOrWhiteSpace(iptablesOutput))
         {
-            builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = CapabilityStatus.Unknown, Detail = "Not checked because iptables returned usable data." });
+            builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = CapabilityStatus.Unknown, Detail = "Not checked because iptables returned usable data.", Command = "nft list ruleset" });
             builder.FirewallRaw = iptablesOutput;
             builder.FirewallActive = true;
             ParseIptables(iptablesOutput, builder);
@@ -30,7 +30,7 @@ public sealed class FirewallScanner : IScanner
             await RunCommandAsync("nft", new[] { "list", "ruleset" }, cancellationToken);
 
         var nftStatus = DataSourceCapability.FromCommandResult(nftOk, nftOutput, nftError);
-        builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = nftStatus, Detail = nftError });
+        builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = nftStatus, Detail = nftError, Command = "nft list ruleset" });
         if (nftStatus == CapabilityStatus.Available && !string.IsNullOrWhiteSpace(nftOutput))
         {
             builder.FirewallRaw = nftOutput;

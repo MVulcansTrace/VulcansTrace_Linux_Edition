@@ -1,4 +1,5 @@
 using System.Text;
+using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
@@ -52,9 +53,10 @@ internal sealed class FindingExplanationService
     {
         ct.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(agentQuery.TargetReference))
+        var reference = ReferenceResolver.ResolveReference(agentQuery, _auditState.Entities);
+
+        if (!string.IsNullOrWhiteSpace(reference))
         {
-            var reference = agentQuery.TargetReference;
             var matched = _auditState.FindPreviousFinding(reference);
             var ruleHistory = _auditState.Entities.RuleHistory;
 
@@ -75,7 +77,8 @@ internal sealed class FindingExplanationService
                 Intent = AgentIntent.ExplainFinding,
                 Summary = $"I don't have a finding matching '{reference}'. Run an audit first, then ask me to explain a specific finding (e.g., 'explain FW-001').",
                 AgentFindings = Array.Empty<Finding>(),
-                Warnings = Array.Empty<string>()
+                Warnings = Array.Empty<string>(),
+                UtcTimestamp = DateTime.UtcNow
             };
         }
 
@@ -84,7 +87,8 @@ internal sealed class FindingExplanationService
             Intent = AgentIntent.ExplainFinding,
             Summary = "Please specify a finding to explain (e.g., 'explain FW-001') or select one from the findings list.",
             AgentFindings = Array.Empty<Finding>(),
-            Warnings = Array.Empty<string>()
+            Warnings = Array.Empty<string>(),
+            UtcTimestamp = DateTime.UtcNow
         };
     }
 

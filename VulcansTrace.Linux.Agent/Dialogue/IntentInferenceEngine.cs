@@ -66,6 +66,13 @@ public sealed class IntentInferenceEngine
             return (new AgentQuery(AgentIntent.FixFinding, target, 1.0, RawQuery: raw), true);
         }
 
+        // Explanation → evidence / provenance flow.
+        if (priorTopic == ConversationTopic.Explanation && LooksLikeEvidenceRequest(parsed, raw))
+        {
+            var target = BuildTarget(parsed, resolution, entities);
+            return (new AgentQuery(AgentIntent.ShowEvidence, target, 1.0, RawQuery: raw), true);
+        }
+
         // Audit/Explanation → filter category.
         if ((priorTopic == ConversationTopic.Audit || priorTopic == ConversationTopic.Explanation)
             && (LooksLikeFilterRequest(parsed, raw) || (resolution.HasAnaphora && !string.IsNullOrEmpty(resolution.Category))))
@@ -241,6 +248,18 @@ public sealed class IntentInferenceEngine
         return parsed.Intent == AgentIntent.FixFinding
             || parsed.Intent == AgentIntent.StartRemediation
             || LooksLikeFixRequest(parsed, rawQuery);
+    }
+
+    private static bool LooksLikeEvidenceRequest(AgentQuery parsed, string? rawQuery)
+    {
+        var raw = RawText(parsed, rawQuery).ToLowerInvariant();
+        return parsed.Intent == AgentIntent.ShowEvidence
+            || ContainsWholeWord(raw, "prove")
+            || ContainsWholeWord(raw, "evidence")
+            || ContainsWholeWord(raw, "provenance")
+            || ContainsWholeWord(raw, "sources")
+            || (ContainsWholeWord(raw, "triggered") && ContainsWholeWord(raw, "what"))
+            || (ContainsWholeWord(raw, "flagged") && ContainsWholeWord(raw, "why"));
     }
 
     private static bool LooksLikeGuidedRequest(AgentQuery parsed, string? rawQuery)

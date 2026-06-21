@@ -64,7 +64,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = path,
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"{path} not found."
+                Detail = $"{path} not found.",
+                Command = path
             });
             return;
         }
@@ -81,7 +82,8 @@ public sealed class CronJobScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = path,
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = path
             });
         }
         catch (Exception ex)
@@ -90,7 +92,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = path,
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = path
             });
         }
     }
@@ -103,7 +106,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"{directory} not found."
+                Detail = $"{directory} not found.",
+                Command = directory
             });
             return;
         }
@@ -124,7 +128,8 @@ public sealed class CronJobScanner : IScanner
                 {
                     SourceName = directory,
                     Status = CapabilityStatus.Available,
-                    Detail = "No files found in cron.d."
+                    Detail = "No files found in cron.d.",
+                    Command = directory
                 });
             }
         }
@@ -134,7 +139,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = directory
             });
         }
     }
@@ -147,7 +153,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"{directory} not found."
+                Detail = $"{directory} not found.",
+                Command = directory
             });
             return;
         }
@@ -168,7 +175,8 @@ public sealed class CronJobScanner : IScanner
                 {
                     SourceName = directory,
                     Status = CapabilityStatus.Available,
-                    Detail = "No user crontabs found."
+                    Detail = "No user crontabs found.",
+                    Command = directory
                 });
             }
         }
@@ -178,7 +186,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.PermissionLimited,
-                Detail = "Permission denied reading user crontabs (requires root)."
+                Detail = "Permission denied reading user crontabs (requires root).",
+                Command = directory
             });
         }
         catch (Exception ex)
@@ -187,7 +196,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = directory
             });
         }
     }
@@ -200,7 +210,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"{directory} not found."
+                Detail = $"{directory} not found.",
+                Command = directory
             });
             return;
         }
@@ -214,7 +225,8 @@ public sealed class CronJobScanner : IScanner
                 {
                     SourceName = directory,
                     Status = CapabilityStatus.Available,
-                    Detail = "No scripts found."
+                    Detail = "No scripts found.",
+                    Command = directory
                 });
                 return;
             }
@@ -248,7 +260,8 @@ public sealed class CronJobScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = directory,
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = directory
             });
         }
         catch (Exception ex)
@@ -257,7 +270,8 @@ public sealed class CronJobScanner : IScanner
             {
                 SourceName = directory,
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = directory
             });
         }
     }

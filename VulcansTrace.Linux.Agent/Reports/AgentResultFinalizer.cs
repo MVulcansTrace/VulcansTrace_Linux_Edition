@@ -44,12 +44,17 @@ internal sealed class AgentResultFinalizer
             SuppressedCount = request.SuppressedCount,
             CrashedCount = request.CrashedCount,
             CapabilityReport = request.CapabilityReport,
+            DataSourceCapabilities = request.DataSourceCapabilities,
+            AttackChains = request.AttackChains,
             Scorecard = scorecard,
             RiskScorecard = riskScorecard,
             SnapshotId = snapshotId
         };
 
-        _auditState.RememberAudit(result, request.Intent, request.HistoryEntries);
+        // Note: conversation-state remembering is intentionally NOT done here. The audit pipeline
+        // enriches this result with attack chains, posture correlations, trajectory, and narrative
+        // AFTER finalization; the caller remembers that fully enriched result so follow-up intents
+        // (e.g. ShowEvidence) see the complete picture.
         return result;
     }
 
@@ -94,6 +99,8 @@ internal sealed class AgentResultFinalizer
             CrashedCount = request.CrashedCount,
             SnapshotFindings = snapshotFindings,
             CapabilityReport = request.CapabilityReport,
+            DataSourceCapabilities = request.DataSourceCapabilities,
+            AttackChains = request.AttackChains,
             RuleResults = request.RuleResults,
             Warnings = request.Warnings,
             LogAnalysisResult = request.LogAnalysisResult,

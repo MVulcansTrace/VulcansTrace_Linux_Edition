@@ -33,6 +33,12 @@ public sealed record DataSourceCapability
     public string? Detail { get; init; }
 
     /// <summary>
+    /// Optional representative command that produced this data source output
+    /// (e.g. "iptables -L -n -v"). Used for provenance reporting.
+    /// </summary>
+    public string? Command { get; init; }
+
+    /// <summary>
     /// Classifies a command-backed data source from its process result.
     /// </summary>
     public static CapabilityStatus FromCommandResult(bool success, string? stdout, string? stderr)

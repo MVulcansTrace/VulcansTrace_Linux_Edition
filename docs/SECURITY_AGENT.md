@@ -40,6 +40,8 @@ The query parser maps natural-language prompts to structured intents:
 | `Check for malware signatures` | `YaraCheck` | Alias for YARA signature scan |
 | `Explain FW-001` | `ExplainFinding` | Explains a cached finding by rule ID, or runs that single rule if needed |
 | `Explain this finding` | `ExplainFinding` | Explains the currently selected UI finding when one is selected |
+| `Prove FW-001` | `ShowEvidence` | Shows the evidence chain for a finding: scanner source, raw signals, rule rationale, CIS/MITRE context, attack-chain membership, and rule history |
+| `Show evidence for it` (after explaining a finding) | `ShowEvidence` | Shows the evidence chain for the finding that was just explained |
 | `What changed since the last audit?` | `ShowChanges` | Diff the current audit against the previous history entry |
 | `Why is this critical?` | `ExplainCritical` | Explain only Critical/High findings from the last audit |
 | `Show only firewall issues` | `FilterCategory` | Filter the last audit's findings by category (falls back to a fresh category audit when no context exists) |
@@ -187,6 +189,45 @@ The agent can adjust the confidence of Critical, High, and Medium findings when 
 Support raises confidence one level, capped at `High`. Contradiction lowers confidence one level, down to `Unknown`. A neutral result leaves confidence unchanged. A source is only trusted when its `DataSourceCapability` status is `Available`; `PermissionLimited` or `Unavailable` sources are skipped rather than interpreted as support or contradiction. Every adjusted finding carries an `EvidenceSignal` with source `CrossScannerValidation`; signal names start with `Supports:` or `Contradicts:` so the reason is visible in explanations and evidence exports.
 
 Because agent findings start at `Low` and support usually raises them to `Medium`, `AuditDiffCalculator` treats support-only `Low` ↔ `Medium` confidence changes as unchanged. This prevents baseline-drift noise when scanner availability fluctuates (for example, `ss` becoming permission-limited). Contradiction-driven confidence changes still surface as drift, including `Low` → `Unknown`.
+
+### Provenance On Demand
+
+The agent can show a deterministic evidence chain for any cached finding on request. For cached findings, this is not a new scan or an LLM-generated justification — it assembles existing scanner output, rule metadata, compliance mappings, attack-chain membership, and per-rule history into a single markdown response.
+
+Example prompts:
+
+- `prove FW-002`
+- `show evidence for it` (after explaining a finding)
+- `what triggered FW-002?`
+- `why was this flagged?`
+- `show sources for the SSH finding`
+
+The resulting `ShowEvidence` response includes:
+
+1. **Detection source** — the scanner that produced the finding, the command it ran, and the capability status (`Available`, `permission-limited`, `unavailable`).
+2. **Raw evidence** — every `EvidenceSignal` attached to the finding, including cross-scanner validation signals (`Supports:` / `Contradicts:`).
+3. **Rule evaluation** — severity, confidence, and rule description.
+4. **Compliance context** — CIS Benchmark control IDs, names, and benchmark references.
+5. **Threat context** — MITRE ATT&CK technique IDs and names.
+6. **Attack chain membership** — any attack chains the finding participates in, rendered as `RULE-A → RULE-B → ...`.
+7. **History** — first-seen time, snapshot count, trend, and last-verified-fixed timestamp from `RuleMemoryEntry`.
+
+If the referenced finding is not in the current audit cache but the rule ID is known, the agent runs `SingleRuleExplanationService` for that one rule and builds the provenance from the fresh finding. If no reference is provided, the agent falls back to the focused finding from the conversation context or asks the user to specify one. The response is always deterministic and never LLM-generated, but the single-rule fallback can collect fresh scanner data.
+
+Bare category words are resolved against the focused finding: if you have just explained an SSH finding and ask `explain SSH` or `show evidence SSH`, both `ExplainFinding` and `ShowEvidence` resolve the category word to that focused finding rather than to an arbitrary SSH match.
+
+### Audit History Slimming
+
+The agent persists audit history so follow-ups like `what changed since the last audit?`, `show baseline`, and cross-session memory work across restarts. Each history entry can be large because it carries findings, rule results, data-source capabilities, attack chains, and scorecards.
+
+To keep the on-disk `audit-history.json` bounded without losing useful metadata:
+
+- The history store retains the newest **50 entries** by default (`maxEntries`).
+- The newest **5 entries** are kept fully detailed (`fullDetailCount`).
+- Older retained entries are stored as **slim summaries**: they keep counts, timestamp, intent, snapshot ID, `SnapshotFindings` (so diff comparisons still work), and `Scorecard` (so compliance trend charts still work), but drop verbose fields (`DataSourceCapabilities`, `AttackChains`, `RuleResults`, `Warnings`, `LogAnalysisResult`).
+- Slim entries are flagged with `IsSlimSummary`. They are never rehydrated as the agent's live `LastResult` because follow-up intents such as `ShowEvidence` need the full detail.
+
+This keeps startup deserialization and file I/O fast while preserving everything needed for history lists, diffs, and trend charts.
 
 ### Narrative Composition
 

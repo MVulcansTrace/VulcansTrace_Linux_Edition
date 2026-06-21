@@ -1,5 +1,6 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Reports;
@@ -60,17 +61,64 @@ public sealed record AuditHistoryEntry
     /// <summary>Capability report snapshot for this audit.</summary>
     public string? CapabilityReport { get; init; }
 
+    /// <summary>
+    /// Structured data-source capabilities captured during this audit. Persisted so follow-up
+    /// intents (e.g. <see cref="AgentIntent.ShowEvidence"/>) can report accurate provenance after
+    /// a process restart rehydrates the last result from history.
+    /// </summary>
+    /// <remarks>
+    /// This field increases per-snapshot history size. Older entries are slimmed by the history
+    /// store, which empties this field while retaining counts and <see cref="SnapshotFindings"/>.
+    /// </remarks>
+    public IReadOnlyList<DataSourceCapability> DataSourceCapabilities { get; init; } = Array.Empty<DataSourceCapability>();
+
+    /// <summary>
+    /// Attack chains derived from this audit's findings and posture correlations. Persisted so the
+    /// <see cref="AgentIntent.ShowEvidence"/> attack-chain-membership section survives a restart/rehydrate.
+    /// </summary>
+    /// <remarks>
+    /// This field increases per-snapshot history size. Older entries are slimmed by the history
+    /// store, which empties this field while retaining counts and <see cref="SnapshotFindings"/>.
+    /// </remarks>
+    public IReadOnlyList<AttackChain> AttackChains { get; init; } = Array.Empty<AttackChain>();
+
     /// <summary>Detailed rule evaluation results for this audit.</summary>
+    /// <remarks>Empty when <see cref="IsSlimSummary"/> is true.</remarks>
     public IReadOnlyList<RuleResult> RuleResults { get; init; } = Array.Empty<RuleResult>();
 
     /// <summary>Agent warnings produced during this audit.</summary>
+    /// <remarks>Empty when <see cref="IsSlimSummary"/> is true.</remarks>
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
 
     /// <summary>Optional pasted-log analysis result attached to this audit.</summary>
+    /// <remarks>Null when <see cref="IsSlimSummary"/> is true.</remarks>
     public AnalysisResult? LogAnalysisResult { get; init; }
 
     /// <summary>CIS compliance scorecard snapshot for this audit.</summary>
     public VulcansTrace.Linux.Core.Compliance.ComplianceScorecard? Scorecard { get; init; }
+
+    /// <summary>
+    /// True when this entry has been reduced to a slim summary. Verbose fields such as
+    /// <see cref="DataSourceCapabilities"/>, <see cref="AttackChains"/>, <see cref="RuleResults"/>,
+    /// <see cref="Warnings"/>, and <see cref="LogAnalysisResult"/> are empty in slim entries.
+    /// Counts, metadata, <see cref="SnapshotFindings"/>, and <see cref="Scorecard"/> are retained.
+    /// </summary>
+    public bool IsSlimSummary { get; init; }
+
+    /// <summary>
+    /// Returns a slim copy of this entry, preserving only metadata, counts,
+    /// <see cref="SnapshotFindings"/>, and <see cref="Scorecard"/>. Dropping verbose fields
+    /// keeps the on-disk history bounded even as per-audit metadata grows.
+    /// </summary>
+    public AuditHistoryEntry ToSlimSummary() => this with
+    {
+        DataSourceCapabilities = Array.Empty<DataSourceCapability>(),
+        AttackChains = Array.Empty<AttackChain>(),
+        RuleResults = Array.Empty<RuleResult>(),
+        Warnings = Array.Empty<string>(),
+        LogAnalysisResult = null,
+        IsSlimSummary = true
+    };
 }
 
 /// <summary>

@@ -20,7 +20,8 @@ public sealed class LoggingAuditScanner : IScanner
         {
             SourceName = "systemctl logging services",
             Status = CapabilityStatus.Available,
-            Detail = $"rsyslog={rsyslogActive}, journald={journaldActive}, auditd={auditdActive}"
+            Detail = $"rsyslog={rsyslogActive}, journald={journaldActive}, auditd={auditdActive}",
+            Command = "systemctl is-active rsyslog journald auditd"
         });
 
         var (auditRules, auditRulesOk, auditRulesErr) = await ReadAuditdRulesAsync(cancellationToken);
@@ -30,7 +31,8 @@ public sealed class LoggingAuditScanner : IScanner
         {
             SourceName = "auditd rules",
             Status = auditRulesOk ? CapabilityStatus.Available : CapabilityStatus.Unavailable,
-            Detail = auditRulesErr
+            Detail = auditRulesErr,
+            Command = "auditctl -l"
         });
 
         var logRotationConfigured = CheckLogRotation();
@@ -38,7 +40,8 @@ public sealed class LoggingAuditScanner : IScanner
         {
             SourceName = "logrotate",
             Status = logRotationConfigured ? CapabilityStatus.Available : CapabilityStatus.Unavailable,
-            Detail = logRotationConfigured ? "log rotation configured" : "no log rotation configuration found"
+            Detail = logRotationConfigured ? "log rotation configured" : "no log rotation configuration found",
+            Command = "/etc/logrotate.conf /etc/logrotate.d/*"
         });
 
         var (forwardingConfigured, forwardingTargets) = CheckCentralForwarding();
@@ -46,7 +49,8 @@ public sealed class LoggingAuditScanner : IScanner
         {
             SourceName = "log forwarding",
             Status = forwardingConfigured ? CapabilityStatus.Available : CapabilityStatus.Unavailable,
-            Detail = forwardingConfigured ? $"targets: {string.Join(", ", forwardingTargets)}" : "no central forwarding configured"
+            Detail = forwardingConfigured ? $"targets: {string.Join(", ", forwardingTargets)}" : "no central forwarding configured",
+            Command = "/etc/rsyslog.conf /etc/rsyslog.d/*.conf /etc/systemd/journald.conf"
         });
 
         builder.SetLoggingAuditConfig(new LoggingAuditConfig

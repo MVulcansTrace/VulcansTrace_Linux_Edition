@@ -28,7 +28,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "passwd",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "/etc/passwd not found."
+                Detail = "/etc/passwd not found.",
+                Command = "/etc/passwd"
             });
             return;
         }
@@ -48,7 +49,8 @@ public sealed class UserAccountScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "passwd",
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = "/etc/passwd"
             });
         }
         catch (Exception ex)
@@ -57,7 +59,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "passwd",
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = "/etc/passwd"
             });
         }
     }
@@ -94,7 +97,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "shadow",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "/etc/shadow not found."
+                Detail = "/etc/shadow not found.",
+                Command = "/etc/shadow"
             });
             return;
         }
@@ -114,7 +118,8 @@ public sealed class UserAccountScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "shadow",
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = "/etc/shadow"
             });
         }
         catch (UnauthorizedAccessException)
@@ -123,7 +128,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "shadow",
                 Status = CapabilityStatus.PermissionLimited,
-                Detail = "Permission denied reading /etc/shadow."
+                Detail = "Permission denied reading /etc/shadow.",
+                Command = "/etc/shadow"
             });
         }
         catch (Exception ex)
@@ -132,7 +138,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "shadow",
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = "/etc/shadow"
             });
         }
     }
@@ -170,7 +177,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "login.defs",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "/etc/login.defs not found."
+                Detail = "/etc/login.defs not found.",
+                Command = "/etc/login.defs"
             });
             return;
         }
@@ -183,7 +191,8 @@ public sealed class UserAccountScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "login.defs",
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = "/etc/login.defs"
             });
         }
         catch (Exception ex)
@@ -192,7 +201,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "login.defs",
                 Status = CapabilityStatus.Unavailable,
-                Detail = ex.Message
+                Detail = ex.Message,
+                Command = "/etc/login.defs"
             });
         }
     }
@@ -294,7 +304,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "pam",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "No PAM configuration files found."
+                Detail = "No PAM configuration files found.",
+                Command = "/etc/pam.d/* /etc/security/*"
             });
             return;
         }
@@ -305,7 +316,8 @@ public sealed class UserAccountScanner : IScanner
             {
                 SourceName = "pam",
                 Status = CapabilityStatus.PermissionLimited,
-                Detail = "PAM files exist but could not be read (permission denied or read errors)."
+                Detail = "PAM files exist but could not be read (permission denied or read errors).",
+                Command = "/etc/pam.d/* /etc/security/*"
             });
             return;
         }
@@ -320,7 +332,8 @@ public sealed class UserAccountScanner : IScanner
         builder.AddCapability(new DataSourceCapability
         {
             SourceName = "pam",
-            Status = CapabilityStatus.Available
+            Status = CapabilityStatus.Available,
+            Command = "/etc/pam.d/* /etc/security/*"
         });
     }
 }

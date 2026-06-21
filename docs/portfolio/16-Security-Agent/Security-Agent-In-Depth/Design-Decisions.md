@@ -211,6 +211,52 @@ Baselines are user-designated "known good" snapshots, separate from the automati
 
 **Trade-off:** The depth thresholds are constants. A rule with a long stable history but no remediation cycles stays in the `Familiar` tier; if users want deeper guidance for chronic-but-never-remediated rules, the thresholds can be tuned or a new tier added later.
 
+## Provenance On Demand
+
+**Decision:** `ShowEvidence` is a first-class follow-up intent that assembles a deterministic evidence chain for a focused cached finding without running a new scan or calling an LLM. If a known rule ID is not cached, the service can run the existing single-rule explanation path to refresh scanner data, still without LLM generation.
+
+**Rationale:**
+
+- Auditors and analysts need to know *why* a finding was flagged, not just *what* was flagged.
+- A deterministic provenance report can be exported, diffed, and reviewed without depending on non-deterministic summarization.
+- The required inputs already exist in the last audit result: scanner source, executed commands, raw evidence signals, rule metadata, CIS/MITRE mappings, attack-chain membership, and per-rule history.
+
+**Implementation:**
+
+- `ReferenceResolver` provides a shared way to turn a prompt reference such as `FW-002`, `firewall`, or `it` into a concrete rule ID using the focused finding, last finding, or last rule from `EntityFrame`.
+- `EvidenceProvenanceService` collects the matching `Finding`, its `DataSourceCapability` entries, the rule explanation, attack-chain references, and rule-memory snapshots, then formats them into structured markdown sections.
+- If the referenced rule has no cached finding, the agent falls back to `SingleRuleExplanationService` so the user still receives rule rationale and verification steps rather than an error.
+- The response uses `AgentIntent.ShowEvidence` so the UI can render it as an evidence card and quick actions can remain focused on the same finding.
+
+**Trade-off:** The evidence chain is only as complete as the last audit. If a command was unavailable, the capability entry records the limitation explicitly so the user can see whether a conclusion was drawn from full visibility or from partial data.
+
+## Audit History Slimming
+
+**Decision:** The persisted audit history keeps the newest `5` entries fully detailed and replaces older retained entries with slim summaries. The store still caps total entries at `50` by default.
+
+**Rationale:**
+
+- Full audit snapshots include `DataSourceCapabilities`, `AttackChains`, `RuleResults`, warnings, and optionally `LogAnalysisResult`. These fields grow with the rule set and scan surface.
+- Without slimming, the on-disk history file would grow linearly even though most old snapshots are only ever used for trend counts or before/after comparisons.
+- Slimming keeps the history file bounded, JSON parsing fast, and startup I/O predictable without losing the data needed for compliance trend, diff narratives, or scorecard history.
+
+**What is preserved in a slim entry:**
+
+- Timestamp, intent, posture counts, scorecards, snapshot findings with fingerprints, and any exported-state marker.
+- This is enough for `ShowChanges`, drift detection, trend calculation, and narrative summaries.
+
+**What is dropped in a slim entry:**
+
+- `DataSourceCapabilities`, `AttackChains`, `RuleResults`, warnings, and `LogAnalysisResult`.
+
+**Implementation:**
+
+- `AuditHistoryEntry.ToSlimSummary()` returns a copy with the verbose arrays cleared and `IsSlimSummary = true`.
+- `JsonFileAuditHistoryStore.Normalize()` sorts entries newest-first, converts every entry at index `>= fullDetailCount` to its slim form, then trims to `maxEntries`.
+- `AgentAuditState.RehydrateLastResult` defensively skips slim entries when restoring `_lastResult` because a slim entry cannot fully reconstruct the previous audit context.
+
+**Trade-off:** Very old snapshots cannot be re-explained in full detail without re-running the audit. In practice the newest five snapshots cover the recent operational window, and baseline storage remains available for long-lived curated comparisons.
+
 ## Current Tradeoffs
 
 - Keyword intent parsing is simple and predictable but not deeply semantic.

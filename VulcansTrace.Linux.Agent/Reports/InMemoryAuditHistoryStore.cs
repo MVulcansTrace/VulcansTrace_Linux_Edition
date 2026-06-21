@@ -8,6 +8,7 @@ public sealed class InMemoryAuditHistoryStore : IAuditHistoryStore
 {
     private readonly List<AuditHistoryEntry> _entries = new();
     private readonly int _maxEntries;
+    private readonly int _fullDetailCount;
     private readonly string? _persistenceWarning;
     private readonly ReaderWriterLockSlim _lock = new();
 
@@ -16,10 +17,12 @@ public sealed class InMemoryAuditHistoryStore : IAuditHistoryStore
     /// </summary>
     /// <param name="persistenceWarning">Optional warning message explaining why persistence is unavailable.</param>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
-    public InMemoryAuditHistoryStore(string? persistenceWarning = null, int maxEntries = 50)
+    /// <param name="fullDetailCount">Number of newest entries to keep fully detailed; older retained entries are slimmed. Default is 5.</param>
+    public InMemoryAuditHistoryStore(string? persistenceWarning = null, int maxEntries = 50, int fullDetailCount = 5)
     {
         _persistenceWarning = persistenceWarning;
         _maxEntries = maxEntries > 0 ? maxEntries : throw new ArgumentOutOfRangeException(nameof(maxEntries), "Must be greater than zero.");
+        _fullDetailCount = fullDetailCount >= 0 ? fullDetailCount : throw new ArgumentOutOfRangeException(nameof(fullDetailCount), "Must be greater than or equal to zero.");
     }
 
     /// <inheritdoc />
@@ -92,6 +95,15 @@ public sealed class InMemoryAuditHistoryStore : IAuditHistoryStore
     private void Normalize()
     {
         _entries.Sort((a, b) => b.TimestampUtc.CompareTo(a.TimestampUtc));
+
+        for (var i = _fullDetailCount; i < _entries.Count; i++)
+        {
+            if (!_entries[i].IsSlimSummary)
+            {
+                _entries[i] = _entries[i].ToSlimSummary();
+            }
+        }
+
         while (_entries.Count > _maxEntries)
         {
             _entries.RemoveAt(_entries.Count - 1);

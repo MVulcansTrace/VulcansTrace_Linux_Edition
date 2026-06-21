@@ -56,6 +56,7 @@ public sealed class ResponseTemplateProvider
         AgentIntent.YaraCheck => "YARA scan",
         AgentIntent.ProcessRuntimeCheck => "process runtime",
         AgentIntent.ExplainFinding => "explain a finding",
+        AgentIntent.ShowEvidence => "show evidence",
         AgentIntent.ShowChanges => "audit changes",
         AgentIntent.ExplainCritical => "critical finding explanation",
         AgentIntent.FilterCategory => "filter findings",

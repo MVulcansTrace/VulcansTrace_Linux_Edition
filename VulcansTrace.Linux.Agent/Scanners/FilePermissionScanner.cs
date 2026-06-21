@@ -51,7 +51,8 @@ public sealed class FilePermissionScanner : IScanner
             {
                 SourceName = "stat",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "No sensitive paths found on this system."
+                Detail = "No sensitive paths found on this system.",
+                Command = "stat -c '%a %U %G %n'"
             });
             return;
         }
@@ -125,7 +126,8 @@ public sealed class FilePermissionScanner : IScanner
         {
             SourceName = "stat",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "stat -c '%a %U %G %n'"
         });
 
         if (!string.IsNullOrWhiteSpace(stdout))

@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
@@ -42,6 +43,12 @@ public sealed record AgentResult
 
     /// <summary>Human-readable report of which data sources were available during the audit.</summary>
     public string CapabilityReport { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Structured data-source capabilities from the audit, used by follow-up intents
+    /// such as <see cref="Query.AgentIntent.ShowEvidence"/> for provenance reporting.
+    /// </summary>
+    public IReadOnlyList<DataSourceCapability> DataSourceCapabilities { get; init; } = Array.Empty<DataSourceCapability>();
 
     /// <summary>Diff against a prior audit, populated for <see cref="Query.AgentIntent.ShowChanges"/>.</summary>
     public AuditDiff? AuditDiff { get; init; }

@@ -16,18 +16,18 @@ public sealed class PortScanner : IScanner
         var (output, error, ok) = await RunCommandAsync("ss", new[] { "-tulnp" }, cancellationToken);
         var ssStatus = DataSourceCapability.FromCommandResult(ok, output, error);
         var permissionLimited = ssStatus == CapabilityStatus.PermissionLimited;
-        builder.AddCapability(new DataSourceCapability { SourceName = "ss", Status = ssStatus, Detail = error });
+        builder.AddCapability(new DataSourceCapability { SourceName = "ss", Status = ssStatus, Detail = error, Command = "ss -tulnp" });
 
         if (ssStatus != CapabilityStatus.Available || string.IsNullOrWhiteSpace(output))
         {
             (output, error, ok) = await RunCommandAsync("netstat", new[] { "-tulnp" }, cancellationToken);
             var netstatStatus = DataSourceCapability.FromCommandResult(ok, output, error);
             permissionLimited |= netstatStatus == CapabilityStatus.PermissionLimited;
-            builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = netstatStatus, Detail = error });
+            builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = netstatStatus, Detail = error, Command = "netstat -tulnp" });
         }
         else
         {
-            builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = CapabilityStatus.Unknown });
+            builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = CapabilityStatus.Unknown, Command = "netstat -tulnp" });
         }
 
         if (permissionLimited && (!ok || string.IsNullOrWhiteSpace(output) || DataSourceCapability.ContainsPermissionDenied(output)))

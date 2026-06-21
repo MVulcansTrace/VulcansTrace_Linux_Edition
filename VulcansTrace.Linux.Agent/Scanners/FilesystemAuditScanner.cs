@@ -77,7 +77,8 @@ public sealed class FilesystemAuditScanner : IScanner
         {
             SourceName = "find-world-writable-files",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "find / -xdev -type f -perm -002 -exec stat -c '%a %U %G %n' {} +"
         });
 
         if (!string.IsNullOrWhiteSpace(stdout))
@@ -116,7 +117,8 @@ public sealed class FilesystemAuditScanner : IScanner
         {
             SourceName = "find-suid-sgid",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "find / -xdev ( -perm -4000 -o -perm -2000 ) -type f -exec stat -c '%a %U %G %n' {} +"
         });
 
         if (!string.IsNullOrWhiteSpace(stdout))
@@ -164,7 +166,8 @@ public sealed class FilesystemAuditScanner : IScanner
         {
             SourceName = "find-unowned-files",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "find / -xdev ( -nouser -o -nogroup ) -type f -exec stat -c '%a %U %G %n' {} +"
         });
 
         if (!string.IsNullOrWhiteSpace(stdout))
@@ -202,7 +205,8 @@ public sealed class FilesystemAuditScanner : IScanner
         {
             SourceName = "find-world-writable-dirs",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "find / -xdev -type d -perm -002 ! -perm -1000 -exec stat -c '%a %U %G %n' {} +"
         });
 
         if (!string.IsNullOrWhiteSpace(stdout))
@@ -252,7 +256,8 @@ public sealed class FilesystemAuditScanner : IScanner
         {
             SourceName = "findmnt-tmp",
             Status = status,
-            Detail = stderr
+            Detail = stderr,
+            Command = "findmnt -n -o OPTIONS /tmp"
         });
 
         if (success && !string.IsNullOrWhiteSpace(stdout))

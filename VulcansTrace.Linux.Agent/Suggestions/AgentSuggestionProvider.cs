@@ -45,6 +45,7 @@ internal sealed class AgentSuggestionProvider : IAgentSuggestionProvider
                 break;
 
             case AgentIntent.ExplainFinding:
+            case AgentIntent.ShowEvidence:
                 AddExplanationSuggestions(result, entities, suggestions);
                 break;
 

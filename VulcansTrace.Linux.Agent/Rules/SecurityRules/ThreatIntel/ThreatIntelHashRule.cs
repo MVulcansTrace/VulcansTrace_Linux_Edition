@@ -15,7 +15,7 @@ public sealed class ThreatIntelHashRule : IRule
     public string Category => "ThreatIntel";
     public string Description => "File hash matches a known malicious hash from threat intel";
     public string WhatItChecks => "Correlates file hashes against imported threat intel hash IOCs";
-    public IReadOnlyList<string> SupportedDataSources => new[] { "sha256sum", "threat-intel" };
+    public IReadOnlyList<string> SupportedDataSources => new[] { "file-hash" };
     public Severity Severity => Severity.Critical;
 
     public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();

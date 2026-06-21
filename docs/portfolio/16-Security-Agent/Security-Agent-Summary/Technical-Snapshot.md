@@ -24,7 +24,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Baseline persistence | JSON in `~/.config/VulcansTrace/baselines.json` |
 | Data-source capability states | Available, Unavailable, PermissionLimited, Unknown |
 | Finding identity | Stable SHA-256-based fingerprints for audit diffing, suppression matching, baseline tracking, and evidence traceability |
-| Agent intents | 33: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, YaraCheck, ExplainFinding, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
+| Agent intents | 34: FullAudit, FirewallCheck, NetworkCheck, ServiceCheck, PortCheck, SshCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, YaraCheck, ExplainFinding, ShowEvidence, ShowChanges, ExplainCritical, FilterCategory, PrioritizeRemediation, FixFinding, ListSuppressed, SetBaseline, CheckDrift, ShowBaseline, RiskScore, StartRemediation, VerifyRemediation, ListRemediationSessions, ResumeRemediation, Help |
 | CIS mapping coverage | 78 / 81 rules (96%): dual-layer CIS Controls v8 + CIS Ubuntu 24.04 LTS Benchmark. Threat intel rules (TI-001/002/003) intentionally have no CIS mappings. |
 | Explanation depth tiers | 4: Standard, Familiar, Recurring, Escalating — selected deterministically from per-rule memory |
 | CIS mapping fields | ControlId, ControlName, WhyItMatters, BenchmarkReference |
@@ -36,7 +36,9 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Risk scorecard | Aggregate letter grade (A–F), numeric score (0–100), summary status, per-category breakdown ordered by total deduction |
 | Risk scoring formula | `SeverityValue × 5 × AverageControlWeight` per finding; Info findings excluded |
 | Risk grade thresholds | A ≥90, B ≥80, C ≥70, D ≥60, F <60 (named constants on `RiskScorecard`) |
-| Target references | Rule IDs and category keywords extracted from explanation queries |
+| Target references | Rule IDs and category keywords extracted from explanation and evidence queries |
+| On-demand provenance | `ShowEvidence` assembles scanner source, evidence signals, CIS/MITRE context, attack chains, and rule history deterministically |
+| Audit history retention | 50 entries by default; newest 5 fully detailed, older entries slimmed to counts/findings/scorecards |
 | Explanation templates | 13 embedded markdown files |
 | Threat intel formats | STIX 2.1 bundles, MISP event JSON |
 | Threat intel IOC types | IPv4, IPv6, Domain, URL, Port, FileHash (SHA-256/MD5/SHA-1) |
@@ -58,6 +60,8 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **Keeps trust high** — deterministic rules and markdown explanations make findings auditable
 - **Stays local-first** — no external AI call is required to answer security questions
 - **Adapts depth to context** — single-rule explanations stay concise for new findings and automatically deepen (history, root-cause guidance, severity timeline) when the rule has been seen repeatedly or is worsening, reducing repeated-information fatigue without adding an LLM
+- **Makes findings traceable on demand** — `ShowEvidence` lets analysts and auditors see exactly which scanner, command, and signals produced a finding, plus the rule rationale and compliance context, without trusting an LLM summary
+- **Keeps history scalable** — audit snapshots are automatically slimmed after the newest five so persistence stays fast and bounded as per-audit metadata grows
 - **Reuses existing evidence infrastructure** — agent findings can be merged into `AnalysisResult` for reporting workflows, with rule IDs, fingerprints, active suppression notes, and CIS Benchmark mappings preserved in exported evidence
 - **Dual-layer compliance context** — every rule maps to both CIS Controls v8 (organizational) and CIS Ubuntu 24.04 LTS Benchmark (technical), giving auditors precise 1:1 traceability from a finding to the exact benchmark section it validates
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
@@ -79,6 +83,10 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - [AgentResultFinalizer.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs) — result construction, scorecard attachment, and audit-state update
 - [AgentFollowUpService.cs](../../../../VulcansTrace.Linux.Agent/Reports/AgentFollowUpService.cs) — deterministic follow-up workflows
 - [FindingExplanationService.cs](../../../../VulcansTrace.Linux.Agent/Reports/FindingExplanationService.cs) — selected-finding and referenced-rule explanation workflow
+- [EvidenceProvenanceService.cs](../../../../VulcansTrace.Linux.Agent/Reports/EvidenceProvenanceService.cs) — deterministic evidence-chain assembly for `ShowEvidence`
+- [ReferenceResolver.cs](../../../../VulcansTrace.Linux.Agent/Dialogue/ReferenceResolver.cs) — focused-finding/category reference resolution
+- [AuditHistoryEntry.cs](../../../../VulcansTrace.Linux.Agent/Reports/AuditHistoryEntry.cs) — audit snapshot with slim-summary support
+- [JsonFileAuditHistoryStore.cs](../../../../VulcansTrace.Linux.Agent/Reports/JsonFileAuditHistoryStore.cs) — persisted audit history with full-detail/slim rotation
 - [ExplanationDepth.cs](../../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepth.cs) — explanation depth tier enum
 - [ExplanationDepthResolver.cs](../../../../VulcansTrace.Linux.Agent/Explanations/ExplanationDepthResolver.cs) — deterministic depth resolver from rule memory
 - [AdaptiveExplanationBuilder.cs](../../../../VulcansTrace.Linux.Agent/Explanations/AdaptiveExplanationBuilder.cs) — appends history/root-cause/escalation sections

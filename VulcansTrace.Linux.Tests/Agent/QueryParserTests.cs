@@ -39,6 +39,13 @@ public class QueryParserTests
     [InlineData("why is this critical", AgentIntent.ExplainCritical)]
     [InlineData("critical findings", AgentIntent.ExplainCritical)]
     [InlineData("show only firewall issues", AgentIntent.FilterCategory)]
+    [InlineData("prove FW-002", AgentIntent.ShowEvidence)]
+    [InlineData("show me the evidence", AgentIntent.ShowEvidence)]
+    [InlineData("show me the evidence for FW-002", AgentIntent.ShowEvidence)]
+    [InlineData("show evidence for it", AgentIntent.ShowEvidence)]
+    [InlineData("what triggered FW-002", AgentIntent.ShowEvidence)]
+    [InlineData("why was this flagged", AgentIntent.ShowEvidence)]
+    [InlineData("show sources for the SSH finding", AgentIntent.ShowEvidence)]
     [InlineData("what should I fix first", AgentIntent.PrioritizeRemediation)]
     [InlineData("remediation plan", AgentIntent.PrioritizeRemediation)]
     [InlineData("fix FW-001", AgentIntent.FixFinding)]
@@ -466,5 +473,26 @@ public class QueryParserTests
 
         Assert.Equal(AgentIntent.SshCheck, parsed.Intent);
         Assert.False(parsed.IsAmbiguous);
+    }
+
+    [Fact]
+    public void Parse_ShowMeTheEvidence_RoutesToShowEvidenceNotFilterCategory()
+    {
+        // Regression: "show me" (FilterCategory, w3) and "evidence" (ShowEvidence, w3) used to tie,
+        // and last-wins scoring handed the win to FilterCategory. ShowEvidence must now win.
+        var parsed = _parser.Parse("show me the evidence");
+
+        Assert.Equal(AgentIntent.ShowEvidence, parsed.Intent);
+    }
+
+    [Fact]
+    public void Parse_WhatTriggeredTheAudit_DoesNotResolveAuditAsCategoryTarget()
+    {
+        // "audit" is a meta-word about the process, not a finding category; it must not be extracted
+        // as the target (which previously mis-resolved to an arbitrary finding mentioning "audit").
+        var parsed = _parser.Parse("what triggered the audit");
+
+        Assert.Equal(AgentIntent.ShowEvidence, parsed.Intent);
+        Assert.True(string.IsNullOrEmpty(parsed.TargetReference));
     }
 }

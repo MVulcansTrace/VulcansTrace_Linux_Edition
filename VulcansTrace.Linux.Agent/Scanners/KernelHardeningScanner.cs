@@ -54,7 +54,7 @@ public sealed class KernelHardeningScanner : IScanner
         {
             var (stdout, stderr, ok) = await RunCommandAsync("sysctl", new[] { "-a" }, cancellationToken);
             var status = DataSourceCapability.FromCommandResult(ok, stdout, stderr);
-            builder.AddCapability(new DataSourceCapability { SourceName = "sysctl -a", Status = status, Detail = stderr });
+            builder.AddCapability(new DataSourceCapability { SourceName = "sysctl -a", Status = status, Detail = stderr, Command = "sysctl -a" });
 
             if (ok && !string.IsNullOrWhiteSpace(stdout))
             {
@@ -74,7 +74,7 @@ public sealed class KernelHardeningScanner : IScanner
         }
         else
         {
-            builder.AddCapability(new DataSourceCapability { SourceName = "sysctl -a", Status = CapabilityStatus.Available, Detail = "Values already read from /proc/sys" });
+            builder.AddCapability(new DataSourceCapability { SourceName = "sysctl -a", Status = CapabilityStatus.Available, Detail = "Values already read from /proc/sys", Command = "sysctl -a" });
         }
 
         // Secure Boot check
@@ -101,7 +101,8 @@ public sealed class KernelHardeningScanner : IScanner
         {
             SourceName = "/proc/sys",
             Status = anyRead ? CapabilityStatus.Available : CapabilityStatus.Unavailable,
-            Detail = firstError
+            Detail = firstError,
+            Command = "/proc/sys/*"
         });
 
         if (secureBoot.HasValue)
@@ -109,7 +110,8 @@ public sealed class KernelHardeningScanner : IScanner
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "secureboot",
-                Status = CapabilityStatus.Available
+                Status = CapabilityStatus.Available,
+                Command = "mokutil --sb-state"
             });
         }
         else
@@ -118,7 +120,8 @@ public sealed class KernelHardeningScanner : IScanner
             {
                 SourceName = "secureboot",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "Could not determine Secure Boot status (mokutil or efivars unavailable)"
+                Detail = "Could not determine Secure Boot status (mokutil or efivars unavailable)",
+                Command = "mokutil --sb-state"
             });
         }
     }

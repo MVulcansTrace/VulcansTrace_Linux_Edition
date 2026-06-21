@@ -219,6 +219,35 @@ public class FindingExplanationServiceTests
         Assert.Contains("select one from the findings list", result.Summary);
     }
 
+    [Fact]
+    public async Task HandleExplainFindingAsync_CategoryReference_PrefersFocusedFinding()
+    {
+        var state = new AgentAuditState();
+        var service = CreateService(new FailingRule(), state);
+        var first = CreateFinding("SSH-001", "sshd_config", Severity.High) with
+        {
+            Category = "SSH",
+            ShortDescription = "First SSH issue"
+        };
+        var second = CreateFinding("SSH-002", "sshd_config", Severity.High) with
+        {
+            Category = "SSH",
+            ShortDescription = "Second SSH issue"
+        };
+        var batch = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            AgentFindings = new[] { first, second }
+        };
+        state.RememberAudit(batch, AgentIntent.SshCheck, new[] { ("SSH-001", first), ("SSH-002", second) });
+        state.FocusFinding(second, "SSH-002");
+
+        var result = await service.HandleExplainFindingAsync(new AgentQuery(AgentIntent.ExplainFinding, "SSH"), CancellationToken.None);
+
+        Assert.Same(second, Assert.Single(result.AgentFindings));
+        Assert.Contains("Second SSH issue", result.Summary);
+    }
+
     private static FindingExplanationService CreateService(IRule rule, AgentAuditState? state = null)
     {
         state ??= new AgentAuditState();

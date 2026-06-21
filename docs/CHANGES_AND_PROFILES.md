@@ -5,7 +5,21 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-20
+Last updated: 2026-06-21
+
+### Security Agent — Provenance On Demand and Audit History Slimming
+
+- Added `ShowEvidence` intent and `EvidenceProvenanceService` so users can ask for a deterministic evidence chain for any cached finding (e.g. `prove FW-002`, `show evidence for it`, `what triggered FW-002?`). The response assembles scanner source/commands, raw evidence signals, cross-scanner validation, rule evaluation, CIS/MITRE context, attack-chain membership, and per-rule history without calling an LLM; if a known rule ID is not cached, the single-rule fallback can collect fresh scanner data.
+- Added `ReferenceResolver` so bare category words (`explain SSH`, `show evidence SSH`) resolve to the focused finding when its category matches, making `ExplainFinding` and `ShowEvidence` behave consistently after an explanation.
+- Persisted `DataSourceCapabilities` and `AttackChains` in `AuditHistoryEntry` so provenance survives process restarts/rehydration.
+- Fixed `RunAuditCoreAsync` so `RememberAudit` is called after all enrichments (posture correlations, attack chains, trajectory, narrative) are applied. This guarantees `LastResult` contains the fully enriched result the user sees, while the history entry persists the fields needed for restart/follow-up provenance such as findings, capabilities, rule results, warnings, log analysis, scorecard, and attack chains.
+- Hardened `QueryParser` evidence routing with a higher `ShowEvidence` weight so phrases like `show me the evidence` win over filter intents without relying on tuple order.
+- Hardened `EvidenceProvenanceService` capability matching with priority scoring (exact → first-token → substring, longest-name tie-break) so short tokens like `ss` never shadow `sshd_config` or `sshd -T`.
+- Improved markdown escaping for backticks in inline code spans.
+- Added audit-history slimming: `JsonFileAuditHistoryStore` and `InMemoryAuditHistoryStore` keep the newest 5 entries fully detailed and replace older retained entries with slim summaries that preserve counts, `SnapshotFindings`, and `Scorecard` while dropping verbose fields. This keeps `audit-history.json` bounded as per-entry metadata grows.
+- Added `IsSlimSummary` and `ToSlimSummary()` to `AuditHistoryEntry`; added a guard in `SecurityAgent.RehydrateLastResult` so slim entries are not rehydrated as the live `LastResult`.
+  - Code: `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Dialogue/ReferenceResolver.cs`, `VulcansTrace.Linux.Agent/Reports/EvidenceProvenanceService.cs`, `VulcansTrace.Linux.Agent/Reports/AuditHistoryEntry.cs`, `VulcansTrace.Linux.Agent/Reports/JsonFileAuditHistoryStore.cs`, `VulcansTrace.Linux.Agent/Reports/InMemoryAuditHistoryStore.cs`, `VulcansTrace.Linux.Agent/Reports/AgentResultFinalizer.cs`, `VulcansTrace.Linux.Agent/Reports/SingleRuleExplanationService.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/EvidenceProvenanceServiceTests.cs`, `QueryParserTests.cs`, `FindingExplanationServiceTests.cs`, `JsonFileAuditHistoryStoreTests.cs`, `AgentResultFinalizerTests.cs`, `SecurityAgentTests.cs`, `SecurityAgentDialogueIntegrationTests.cs`
 
 ### Security Agent — Long-Horizon Category Coverage Tracking
 

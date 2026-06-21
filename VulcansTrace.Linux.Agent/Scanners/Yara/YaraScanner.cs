@@ -71,7 +71,8 @@ public sealed class YaraScanner : IScanner
             {
                 SourceName = "libyara",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "libyara shared library is not installed or could not be loaded."
+                Detail = "libyara shared library is not installed or could not be loaded.",
+                Command = "libyara scan"
             });
             return;
         }
@@ -83,7 +84,8 @@ public sealed class YaraScanner : IScanner
             {
                 SourceName = "yara-rules",
                 Status = CapabilityStatus.Unavailable,
-                Detail = "No bundled or custom YARA rules could be loaded."
+                Detail = "No bundled or custom YARA rules could be loaded.",
+                Command = "yara-rules"
             });
             return;
         }
@@ -95,7 +97,8 @@ public sealed class YaraScanner : IScanner
             {
                 SourceName = "yara-rules",
                 Status = CapabilityStatus.Unavailable,
-                Detail = string.Join("; ", compileErrors)
+                Detail = string.Join("; ", compileErrors),
+                Command = "yara-rules"
             });
             builder.AddWarning($"YARA rule compilation failed: {string.Join("; ", compileErrors)}");
             return;
@@ -108,7 +111,8 @@ public sealed class YaraScanner : IScanner
             {
                 SourceName = "yara-scan",
                 Status = CapabilityStatus.Available,
-                Detail = "No targets discovered."
+                Detail = "No targets discovered.",
+                Command = "yara <rules> <targets>"
             });
             return;
         }
@@ -175,7 +179,8 @@ public sealed class YaraScanner : IScanner
         {
             SourceName = "yara-scan",
             Status = errors.Count > 0 ? CapabilityStatus.PermissionLimited : CapabilityStatus.Available,
-            Detail = $"Scanned {scanned} target(s), {matchCount} match(es), {errors.Count} error(s)."
+            Detail = $"Scanned {scanned} target(s), {matchCount} match(es), {errors.Count} error(s).",
+            Command = "yara <rules> <targets>"
         });
     }
 
@@ -279,7 +284,8 @@ public sealed class YaraScanner : IScanner
             {
                 SourceName = "yara-suid-sgid",
                 Status = CapabilityStatus.PermissionLimited,
-                Detail = "SUID/SGID discovery returned partial results."
+                Detail = "SUID/SGID discovery returned partial results.",
+                Command = "find / -xdev ( -perm -4000 -o -perm -2000 ) -type f"
             });
         }
 

@@ -25,6 +25,10 @@
 | `YaraCheck` | `Run a YARA scan` / `Check for malware signatures` | YARA rule scanning (YARA-001) for SUID/SGID binaries, running process executables, and cron scripts against bundled and custom rules |
 | `ExplainFinding` | `Explain FW-001` | Resolve previous finding by rule ID, or run one matching rule; explanation depth adapts to the rule's history (Standard → Familiar → Recurring → Escalating) |
 | `ExplainFinding` | `Explain this finding` | Explain the selected UI finding when one is selected; depth adapts to the rule's history |
+| `ExplainFinding` | `Explain SSH` | After explaining/focusing an SSH finding, resolves the category word to that focused finding |
+| `ShowEvidence` | `Prove FW-002` | Show deterministic evidence chain: scanner source/commands, raw signals, rule rationale, CIS/MITRE context, attack chains, and history |
+| `ShowEvidence` | `Show evidence for it` | After explaining a finding, shows the evidence chain for the focused finding |
+| `ShowEvidence` | `What triggered FW-002?` | Alias for provenance on a specific rule |
 | `ShowChanges` | `What changed since the last audit?` | Diff against previous history entry; skips the entry matching the current result's timestamp |
 | `ExplainCritical` | `Why is this critical?` | Explain Critical/High findings from the last audit |
 | `FilterCategory` | `Show only firewall issues` | Filter last audit by category; falls back to fresh category audit if no context |
@@ -174,7 +178,7 @@ User query
 | Privilege banner | Warns when scanner output suggests limited visibility without elevated permissions |
 | Accept Risk | Suppresses selected findings by fingerprint when available, falls back to legacy rule-ID/target entries, supports 7/30/90-day or permanent duration, and warns if persistence is unavailable |
 | Suppressions tab | Reviews expiring, recently expired, permanent, and stale permanent suppressions with renew, convert, edit, and remove actions |
-| Audit history | Persists the latest 50 lightweight audit snapshots by default, tracks successful exports, and compares either the latest two snapshots or selected before/after snapshots with fingerprint matching and a deterministic narrative summary |
+| Audit history | Persists the latest 50 audit snapshots by default; the newest 5 are fully detailed and older retained entries are slimmed to counts, findings, and scorecards. Tracks successful exports and compares either the latest two snapshots or selected before/after snapshots with fingerprint matching and a deterministic narrative summary |
 | Baseline & drift | Persists intent-scoped baselines to the user config directory. Set Baseline saves the last audit as known-good. Check Drift re-runs the audit and diffs against the active baseline. Show Baseline displays saved findings with original details, categories, and fingerprints preserved |
 | Export Audit | Sends the latest agent audit into the shared evidence export flow, including active suppression notes when present |
 | Export Remediation | Writes a guarded markdown remediation preview with preconditions, backup/apply/rollback commands, safety notes, structural command warnings, rollback hints, and verification commands |

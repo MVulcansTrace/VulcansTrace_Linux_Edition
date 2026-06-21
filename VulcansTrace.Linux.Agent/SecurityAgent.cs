@@ -48,6 +48,7 @@ public sealed class SecurityAgent : IAgent
     private readonly AttackChainNarrator _attackChainNarrator;
     private readonly RemediationWisdomAnalyzer _remediationWisdomAnalyzer;
     private readonly CrossScannerValidator _crossScannerValidator;
+    private readonly EvidenceProvenanceService _evidenceProvenanceService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -134,6 +135,10 @@ public sealed class SecurityAgent : IAgent
         _attackChainNarrator = new AttackChainNarrator();
         _remediationWisdomAnalyzer = new RemediationWisdomAnalyzer();
         _crossScannerValidator = new CrossScannerValidator();
+        _evidenceProvenanceService = new EvidenceProvenanceService(
+            _auditState,
+            _ruleEvaluationService,
+            _singleRuleExplanationService);
 
         RestoreMemorySnapshot();
     }
@@ -170,6 +175,10 @@ public sealed class SecurityAgent : IAgent
         else if (agentQuery.Intent == AgentIntent.ExplainFinding)
         {
             result = await _findingExplanationService.HandleExplainFindingAsync(agentQuery, ct);
+        }
+        else if (agentQuery.Intent == AgentIntent.ShowEvidence)
+        {
+            result = await _evidenceProvenanceService.BuildProvenanceAsync(agentQuery, ct);
         }
         else if (IsBaselineIntent(agentQuery.Intent))
         {
@@ -230,13 +239,14 @@ public sealed class SecurityAgent : IAgent
         _dialogueManager.PushTurn(_auditState, rawQuery, agentQuery);
 
         // Update conversation entities for anaphora resolution.
-        // Audit intents are handled by AgentResultFinalizer.RememberAudit.
+        // Audit intents are handled by RunAuditCoreAsync, which remembers the enriched result.
         // Follow-ups and baseline actions update topic/focus without overwriting
         // LastResult so subsequent follow-ups keep audit context.
         switch (agentQuery.Intent)
         {
             case AgentIntent.ExplainFinding:
-                _auditState.Entities.LastIntent = AgentIntent.ExplainFinding;
+            case AgentIntent.ShowEvidence:
+                _auditState.Entities.LastIntent = agentQuery.Intent;
                 _auditState.Entities.LastTopic = ConversationTopic.Explanation;
                 if (result.AgentFindings.Count > 0)
                 {
@@ -314,7 +324,7 @@ public sealed class SecurityAgent : IAgent
                 break;
 
             default:
-                // Audit intents update state via AgentResultFinalizer.RememberAudit;
+                // Audit intents update state in RunAuditCoreAsync (RememberAudit on the enriched result);
                 // all other non-audit intents use the standard topic mapping so
                 // follow-ups have the right context.
                 if (DialogueContext.TopicForIntent(agentQuery.Intent) != ConversationTopic.Audit
@@ -349,6 +359,7 @@ public sealed class SecurityAgent : IAgent
         var scanData = scannerResult.ScanData;
         var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = _resultComposer.BuildCapabilityReport(scanData.Capabilities);
+        var dataSourceCapabilities = _resultComposer.NormalizeCapabilities(scanData.Capabilities);
 
         ct.ThrowIfCancellationRequested();
 
@@ -389,6 +400,13 @@ public sealed class SecurityAgent : IAgent
         // Phase 5: Build summary
         var summary = _resultComposer.BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount, crashedCount);
 
+        // Phase 6 + 7 (computed before finalization). Posture correlations depend only on findings,
+        // and attack chains depend on findings + posture correlations. Building them before
+        // FinalizeAudit lets the attack chains be persisted with the audit history entry, so the
+        // ShowEvidence attack-chain-membership section survives a process restart/rehydrate.
+        var postureCorrelations = _postureCorrelator.Correlate(agentFindings);
+        var attackChains = _attackChainNarrator.BuildChains(agentFindings, postureCorrelations);
+
         var result = _resultFinalizer.FinalizeAudit(new AgentResultFinalizationRequest(
             intent,
             agentFindings,
@@ -401,18 +419,11 @@ public sealed class SecurityAgent : IAgent
             suppressedCount,
             crashedCount,
             capabilityReport,
+            dataSourceCapabilities,
+            attackChains,
             historyEntries));
 
-        // Phase 6: Detect cross-category posture correlations (e.g., FW-002 + SSH-002).
-        var postureCorrelations = _postureCorrelator.Correlate(result.AgentFindings);
-        if (postureCorrelations.Count > 0)
-        {
-            result = result with { PostureCorrelations = postureCorrelations };
-        }
-
-        // Phase 7: Build ordered attack-chain narratives from findings and correlations.
-        var attackChains = _attackChainNarrator.BuildChains(result.AgentFindings, result.PostureCorrelations);
-        result = result with { AttackChains = attackChains };
+        result = result with { PostureCorrelations = postureCorrelations };
 
         // Phase 8: Detect findings that returned after a verified fix.
         // This runs before Record() so it can see LastVerifiedFixedUtc before it is consumed.
@@ -437,6 +448,12 @@ public sealed class SecurityAgent : IAgent
         // Phase 12: Compose a traceable narrative from findings, correlations, and memory.
         var narrative = _narrativeComposer.Compose(result, _auditState.Entities.RuleHistory, _auditState.SnapshotEntities());
         result = result with { Narrative = narrative };
+
+        // Remember the fully enriched result (with attack chains, correlations, trajectory, and
+        // narrative) so follow-up intents such as ShowEvidence observe the complete picture.
+        // FinalizeAudit no longer remembers on its own, because at that point these enrichments
+        // have not yet been applied and would leave LastResult pointing at a stale, chain-less copy.
+        _auditState.RememberAudit(result, intent, historyEntries);
 
         return result;
     }
@@ -995,6 +1012,12 @@ public sealed class SecurityAgent : IAgent
         if (entry == null)
             return null;
 
+        // A slim entry cannot provide the complete picture that follow-up intents such as
+        // ShowEvidence expect. This should never happen for the latest entry because the history
+        // store keeps the newest entries fully detailed, but guard against manual file edits.
+        if (entry.IsSlimSummary)
+            return null;
+
         var findings = entry.SnapshotFindings.Select(RehydrateFinding).ToList();
         var riskScorecard = findings.Count > 0
             ? new RiskScorecardBuilder().Build(findings, entry.TimestampUtc)
@@ -1011,6 +1034,8 @@ public sealed class SecurityAgent : IAgent
             SuppressedCount = entry.SuppressedCount,
             CrashedCount = entry.CrashedCount,
             CapabilityReport = entry.CapabilityReport ?? string.Empty,
+            DataSourceCapabilities = entry.DataSourceCapabilities ?? Array.Empty<DataSourceCapability>(),
+            AttackChains = entry.AttackChains ?? Array.Empty<AttackChain>(),
             RuleResults = entry.RuleResults,
             Warnings = entry.Warnings,
             LogAnalysisResult = entry.LogAnalysisResult,

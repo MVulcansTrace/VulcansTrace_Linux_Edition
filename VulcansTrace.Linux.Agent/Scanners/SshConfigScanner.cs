@@ -21,7 +21,7 @@ public sealed class SshConfigScanner : IScanner
         // Prefer sshd -T when available because it resolves includes, defaults, and recursion.
         var (testOutput, testError, testOk) = await RunCommandAsync("sshd", new[] { "-T" }, cancellationToken);
         var testStatus = DataSourceCapability.FromCommandResult(testOk, testOutput, testError);
-        builder.AddCapability(new DataSourceCapability { SourceName = "sshd -T", Status = testStatus, Detail = testError });
+        builder.AddCapability(new DataSourceCapability { SourceName = "sshd -T", Status = testStatus, Detail = testError, Command = "sshd -T" });
 
         if (testOk && !string.IsNullOrWhiteSpace(testOutput))
         {
@@ -43,7 +43,7 @@ public sealed class SshConfigScanner : IScanner
 
         if (configPath == null)
         {
-            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = "No sshd_config found" });
+            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = "No sshd_config found", Command = "/etc/ssh/sshd_config" });
             builder.AddWarning("SSH config scan skipped: no sshd_config found.");
             builder.SetSshConfig(new SshConfig { ConfigReadable = false });
             return;
@@ -54,11 +54,11 @@ public sealed class SshConfigScanner : IScanner
             var lines = await ReadConfigWithIncludesAsync(configPath, cancellationToken);
             var config = ParseConfigLines(lines);
             builder.SetSshConfig(config);
-            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Available });
+            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Available, Command = "/etc/ssh/sshd_config" });
         }
         catch (Exception ex)
         {
-            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = ex.Message });
+            builder.AddCapability(new DataSourceCapability { SourceName = "sshd_config", Status = CapabilityStatus.Unavailable, Detail = ex.Message, Command = "/etc/ssh/sshd_config" });
             builder.AddWarning($"SSH config scan skipped: failed to read {configPath}. {ex.Message}");
             builder.SetSshConfig(new SshConfig { ConfigReadable = false });
         }

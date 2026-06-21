@@ -62,6 +62,9 @@ public enum AgentIntent
     /// <summary>Request explanation of a previous finding.</summary>
     ExplainFinding,
 
+    /// <summary>Show the evidence chain / provenance for a finding.</summary>
+    ShowEvidence,
+
     /// <summary>Show what changed since the last audit.</summary>
     ShowChanges,
 

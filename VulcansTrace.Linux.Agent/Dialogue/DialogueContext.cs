@@ -270,7 +270,7 @@ public class DialogueContext
     /// <summary>Maps an intent to its high-level conversation topic.</summary>
     public static ConversationTopic TopicForIntent(AgentIntent intent) => intent switch
     {
-        AgentIntent.ExplainFinding or AgentIntent.ExplainCritical => ConversationTopic.Explanation,
+        AgentIntent.ExplainFinding or AgentIntent.ShowEvidence or AgentIntent.ExplainCritical => ConversationTopic.Explanation,
         AgentIntent.FixFinding or AgentIntent.StartRemediation or AgentIntent.VerifyRemediation
             or AgentIntent.ListRemediationSessions or AgentIntent.ResumeRemediation
             or AgentIntent.AddSessionNote or AgentIntent.AddStepNote => ConversationTopic.Remediation,

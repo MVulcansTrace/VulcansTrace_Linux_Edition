@@ -81,7 +81,8 @@ public sealed class ProcessRuntimeScanner : IScanner
             {
                 SourceName = "/proc",
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"Error: {ex.Message}. Scanned {processedCount} processes before failure."
+                Detail = $"Error: {ex.Message}. Scanned {processedCount} processes before failure.",
+                Command = "/proc/<pid>/*"
             });
             return;
         }
@@ -101,7 +102,8 @@ public sealed class ProcessRuntimeScanner : IScanner
         {
             SourceName = "/proc",
             Status = status,
-            Detail = detail
+            Detail = detail,
+            Command = "/proc/<pid>/*"
         });
     }
 

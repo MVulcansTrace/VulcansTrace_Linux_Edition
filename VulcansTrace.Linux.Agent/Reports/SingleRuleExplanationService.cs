@@ -46,6 +46,7 @@ internal sealed class SingleRuleExplanationService
         var scanData = scannerResult.ScanData;
         var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = _resultComposer.BuildCapabilityReport(scanData.Capabilities);
+        var dataSourceCapabilities = _resultComposer.NormalizeCapabilities(scanData.Capabilities);
 
         var evaluatedRule = _ruleEvaluationService.EvaluateRule(rule, scanData, ct);
         warnings.AddRange(evaluatedRule.Warnings);
@@ -87,7 +88,8 @@ internal sealed class SingleRuleExplanationService
             PassedCount = result.Status == RuleStatus.Passed ? 1 : 0,
             FailedCount = result.Status == RuleStatus.Failed ? 1 : 0,
             CrashedCount = result.Status == RuleStatus.Crashed ? 1 : 0,
-            CapabilityReport = capabilityReport
+            CapabilityReport = capabilityReport,
+            DataSourceCapabilities = dataSourceCapabilities
         };
 
         return singleRuleResult;

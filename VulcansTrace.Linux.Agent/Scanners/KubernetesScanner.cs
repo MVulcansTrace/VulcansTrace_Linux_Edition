@@ -32,7 +32,8 @@ public sealed class KubernetesScanner : IScanner
             {
                 SourceName = "kubectl",
                 Status = CapabilityStatus.Unavailable,
-                Detail = $"{kubeConfigPath} not found"
+                Detail = $"{kubeConfigPath} not found",
+                Command = "kubectl get pods --all-namespaces -o json"
             });
             return;
         }
@@ -45,7 +46,8 @@ public sealed class KubernetesScanner : IScanner
         {
             SourceName = "kubectl",
             Status = status,
-            Detail = error
+            Detail = error,
+            Command = "kubectl get pods --all-namespaces -o json"
         });
 
         if (!ok || string.IsNullOrWhiteSpace(output))

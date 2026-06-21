@@ -51,6 +51,10 @@ public sealed class QueryParser : IQueryParser
         (new[] { "changed", "since last", "what changed", "difference", "diff", "compare" }, AgentIntent.ShowChanges, 2),
         (new[] { "why critical", "critical findings", "why high", "why severe", "why is this critical" }, AgentIntent.ExplainCritical, 2),
         (new[] { "only", "just show", "show me", "filter" }, AgentIntent.FilterCategory, 3),
+        // Weight 4 lets evidence/provenance keywords outrank FilterCategory (weight 3) on ambiguous
+        // phrases like "show me the evidence" without relying on tuple order. New intents above
+        // weight 4 should be reviewed against this routing.
+        (new[] { "prove", "evidence", "provenance", "what triggered", "why was this flagged", "show sources" }, AgentIntent.ShowEvidence, 4),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
         (new[] { "fix ", "resolve" }, AgentIntent.FixFinding, 3),
         (new[] { "remediation session", "start remediation", "guided fix", "walk me through", "remediate" }, AgentIntent.StartRemediation, 4),
@@ -72,7 +76,7 @@ public sealed class QueryParser : IQueryParser
 
     internal static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "audit", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara", "processruntime", "process", "runtime", "ld_preload", "injection", "deleted binary", "proc"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara", "processruntime", "process", "runtime", "ld_preload", "injection", "deleted binary", "proc"
     };
 
     /// <inheritdoc />
@@ -156,7 +160,7 @@ public sealed class QueryParser : IQueryParser
 
     private static string? ExtractTargetReference(string rawQuery, AgentIntent intent)
     {
-        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.FilterCategory
+        if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.ShowEvidence && intent != AgentIntent.FilterCategory
             && intent != AgentIntent.FixFinding && intent != AgentIntent.StartRemediation
             && intent != AgentIntent.VerifyRemediation && intent != AgentIntent.ResumeRemediation
             && intent != AgentIntent.AddSessionNote && intent != AgentIntent.AddStepNote)

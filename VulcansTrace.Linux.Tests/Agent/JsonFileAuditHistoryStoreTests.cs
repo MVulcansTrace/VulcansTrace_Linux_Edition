@@ -2,6 +2,9 @@ using System.IO;
 using System.Text.Json;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Core;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
@@ -75,6 +78,36 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Append_PersistsAttackChainsAcrossRecreate()
+    {
+        // Attack chains must survive JSON serialization to disk and back so the ShowEvidence
+        // attack-chain-membership section works after a process restart.
+        var chain = new AttackChain
+        {
+            RuleIds = new[] { "FW-002", "SSH-002" },
+            Links = new[]
+            {
+                new AttackChainLink { RuleId = "FW-002", Stage = AttackChainStage.InitialAccess, StageName = "Initial Access", Severity = Severity.High },
+                new AttackChainLink { RuleId = "SSH-002", Stage = AttackChainStage.Execution, StageName = "Execution", Severity = Severity.High }
+            }
+        };
+
+        var store1 = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        store1.Append(CreateEntry("snap-1") with { AttackChains = new[] { chain } });
+        store1.Dispose();
+
+        var store2 = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        var entry = Assert.Single(store2.GetAll());
+
+        var restored = Assert.Single(entry.AttackChains);
+        Assert.Equal(new[] { "FW-002", "SSH-002" }, restored.RuleIds);
+        Assert.Equal(2, restored.Links.Count);
+        Assert.Equal("SSH-002", restored.Links[1].RuleId);
+        Assert.Equal(Severity.High, restored.Links[1].Severity);
+        Assert.Equal(AttackChainStage.Execution, restored.Links[1].Stage);
+    }
+
+    [Fact]
     public void LoadFromDisk_NormalizesOrderAndPrunesToMaxEntries()
     {
         var now = DateTime.UtcNow;
@@ -92,6 +125,108 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
         Assert.Equal(2, all.Count);
         Assert.Equal("snap-new", all[0].SnapshotId);
         Assert.Equal("snap-mid", all[1].SnapshotId);
+    }
+
+    [Fact]
+    public void Append_KeepsNewestEntriesFull_AndSlimsOlderEntries()
+    {
+        var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10, fullDetailCount: 3);
+        var chain = new AttackChain
+        {
+            RuleIds = new[] { "FW-002", "SSH-002" },
+            Links = new[]
+            {
+                new AttackChainLink { RuleId = "FW-002", Stage = AttackChainStage.InitialAccess, StageName = "Initial Access", Severity = Severity.High },
+                new AttackChainLink { RuleId = "SSH-002", Stage = AttackChainStage.Execution, StageName = "Execution", Severity = Severity.High }
+            }
+        };
+        var caps = new[] { new DataSourceCapability { SourceName = "iptables", Command = "iptables -L -n -v", Status = CapabilityStatus.Available } };
+
+        for (var i = 1; i <= 6; i++)
+        {
+            store.Append(CreateEntry($"snap-{i}") with
+            {
+                AttackChains = new[] { chain },
+                DataSourceCapabilities = caps,
+                RuleResults = new[] { RuleResult.Fail("TEST-001", "Test", "TEST-001", "desc", Severity.High, "target") },
+                Warnings = new[] { "warn" },
+                LogAnalysisResult = new AnalysisResult()
+            });
+        }
+
+        var all = store.GetAll();
+        Assert.Equal(6, all.Count);
+
+        // Newest 3 entries are full.
+        Assert.False(all[0].IsSlimSummary);
+        Assert.False(all[1].IsSlimSummary);
+        Assert.False(all[2].IsSlimSummary);
+        Assert.Single(all[0].AttackChains);
+        Assert.Single(all[0].DataSourceCapabilities);
+        Assert.Single(all[0].RuleResults);
+        Assert.Single(all[0].Warnings);
+        Assert.NotNull(all[0].LogAnalysisResult);
+
+        // Older entries are slim.
+        Assert.True(all[3].IsSlimSummary);
+        Assert.True(all[4].IsSlimSummary);
+        Assert.True(all[5].IsSlimSummary);
+        Assert.Empty(all[3].AttackChains);
+        Assert.Empty(all[3].DataSourceCapabilities);
+        Assert.Empty(all[3].RuleResults);
+        Assert.Empty(all[3].Warnings);
+        Assert.Null(all[3].LogAnalysisResult);
+    }
+
+    [Fact]
+    public void ToSlimSummary_PreservesSnapshotFindingsAndScorecard_DropsVerboseFields()
+    {
+        var scorecard = new VulcansTrace.Linux.Core.Compliance.ComplianceScorecard { OverallScore = 42 };
+        var entry = CreateEntry("snap-1") with
+        {
+            SnapshotFindings = new[]
+            {
+                new AuditSnapshotFinding { RuleId = "FW-001", Target = "22/tcp", Severity = "High", ShortDescription = "SSH exposed" }
+            },
+            Scorecard = scorecard,
+            AttackChains = new[] { new AttackChain { RuleIds = new[] { "FW-002" } } },
+            DataSourceCapabilities = new[] { new DataSourceCapability { SourceName = "iptables" } },
+            RuleResults = new[] { RuleResult.Fail("TEST-001", "Test", "TEST-001", "desc", Severity.High, "target") },
+            Warnings = new[] { "warn" },
+            LogAnalysisResult = new AnalysisResult()
+        };
+
+        var slim = entry.ToSlimSummary();
+
+        Assert.True(slim.IsSlimSummary);
+        Assert.Single(slim.SnapshotFindings);
+        Assert.Equal("FW-001", slim.SnapshotFindings[0].RuleId);
+        Assert.NotNull(slim.Scorecard);
+        Assert.Equal(42, slim.Scorecard.OverallScore);
+        Assert.Empty(slim.AttackChains);
+        Assert.Empty(slim.DataSourceCapabilities);
+        Assert.Empty(slim.RuleResults);
+        Assert.Empty(slim.Warnings);
+        Assert.Null(slim.LogAnalysisResult);
+    }
+
+    [Fact]
+    public void Append_LatestEntry_RemainsFull_AfterManyAppends()
+    {
+        var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 50, fullDetailCount: 5);
+
+        for (var i = 1; i <= 20; i++)
+        {
+            store.Append(CreateEntry($"snap-{i}") with
+            {
+                AttackChains = new[] { new AttackChain { RuleIds = new[] { "FW-002" } } }
+            });
+        }
+
+        var all = store.GetAll();
+        Assert.Equal("snap-20", all[0].SnapshotId);
+        Assert.False(all[0].IsSlimSummary);
+        Assert.Single(all[0].AttackChains);
     }
 
     [Fact]

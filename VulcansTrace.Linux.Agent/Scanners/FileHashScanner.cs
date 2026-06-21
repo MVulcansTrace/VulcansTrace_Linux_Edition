@@ -55,7 +55,8 @@ public sealed class FileHashScanner : IScanner
             {
                 SourceName = "file-hash",
                 Status = CapabilityStatus.Unknown,
-                Detail = "Skipped because no imported file-hash IOCs are loaded."
+                Detail = "Skipped because no imported file-hash IOCs are loaded.",
+                Command = "sha256sum/md5sum/sha1sum <files>"
             });
             return;
         }
@@ -172,7 +173,8 @@ public sealed class FileHashScanner : IScanner
         {
             SourceName = "file-hash",
             Status = failed > 0 ? CapabilityStatus.PermissionLimited : CapabilityStatus.Available,
-            Detail = $"Hashed {hashed} files, {failed} failed."
+            Detail = $"Hashed {hashed} files, {failed} failed.",
+            Command = "sha256sum/md5sum/sha1sum <files>"
         });
     }
 

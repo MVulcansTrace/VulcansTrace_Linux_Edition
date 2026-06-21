@@ -31,7 +31,8 @@ public sealed class ContainerScanner : IScanner
         {
             SourceName = "docker ps",
             Status = dockerPsStatus,
-            Detail = dockerPsError
+            Detail = dockerPsError,
+            Command = "docker ps --format '{{.Names}}|{{.Image}}'"
         });
 
         if (dockerPsOk && !string.IsNullOrWhiteSpace(dockerPsOutput))
@@ -53,7 +54,8 @@ public sealed class ContainerScanner : IScanner
                 {
                     SourceName = "docker inspect",
                     Status = inspectStatus,
-                    Detail = inspectError
+                    Detail = inspectError,
+                    Command = "docker inspect <container>"
                 });
 
                 if (inspectOk && !string.IsNullOrWhiteSpace(inspectOutput))
@@ -99,7 +101,8 @@ public sealed class ContainerScanner : IScanner
             {
                 SourceName = "crictl",
                 Status = crictlStatus,
-                Detail = crictlError
+                Detail = crictlError,
+                Command = "crictl ps -o json"
             });
 
             if (crictlOk && !string.IsNullOrWhiteSpace(crictlOutput))
@@ -120,7 +123,8 @@ public sealed class ContainerScanner : IScanner
         {
             SourceName = "ctr namespace",
             Status = ctrStatus,
-            Detail = ctrError
+            Detail = ctrError,
+            Command = "ctr namespace ls"
         });
 
         if (ctrOk && !string.IsNullOrWhiteSpace(ctrOutput))
@@ -138,7 +142,8 @@ public sealed class ContainerScanner : IScanner
         builder.AddCapability(new DataSourceCapability
         {
             SourceName = "docker.sock",
-            Status = runtimeInfo.DockerSocketExposed ? CapabilityStatus.Available : CapabilityStatus.Unavailable
+            Status = runtimeInfo.DockerSocketExposed ? CapabilityStatus.Available : CapabilityStatus.Unavailable,
+            Command = "/var/run/docker.sock"
         });
     }
 

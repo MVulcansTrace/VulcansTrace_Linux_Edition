@@ -85,5 +85,6 @@ public class FileHashScannerTests
         Assert.Equal("file-hash", capability.SourceName);
         Assert.Equal(CapabilityStatus.Unknown, capability.Status);
         Assert.Contains("Skipped", capability.Detail);
+        Assert.Equal("sha256sum/md5sum/sha1sum <files>", capability.Command);
     }
 }

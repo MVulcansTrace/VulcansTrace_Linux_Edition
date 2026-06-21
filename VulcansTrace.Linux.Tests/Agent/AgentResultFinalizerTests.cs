@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Compliance;
 using Xunit;
@@ -10,7 +11,7 @@ namespace VulcansTrace.Linux.Tests.Agent;
 public class AgentResultFinalizerTests
 {
     [Fact]
-    public void FinalizeAudit_BuildsResultWithScorecardsAndUpdatesState()
+    public void FinalizeAudit_BuildsResultWithScorecards()
     {
         var auditState = new AgentAuditState();
         var complianceScorecard = new ComplianceScorecard { OverallScore = 95, SummaryStatus = "Pass" };
@@ -33,6 +34,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "capability report",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             new[] { ("TEST-001", finding) }));
 
         Assert.Equal(AgentIntent.FullAudit, result.Intent);
@@ -43,9 +46,9 @@ public class AgentResultFinalizerTests
         Assert.Equal("capability report", result.CapabilityReport);
         Assert.Same(complianceScorecard, result.Scorecard);
         Assert.Same(riskScorecard, result.RiskScorecard);
-        Assert.Same(result, auditState.LastResult);
-        Assert.Equal(AgentIntent.FullAudit, auditState.LastAuditIntent);
-        Assert.Same(finding, auditState.FindPreviousFinding("TEST-001"));
+        // FinalizeAudit intentionally does not mutate conversation state; the caller remembers the
+        // (later-enriched) result. State updates are covered by SecurityAgent integration tests.
+        Assert.Null(auditState.LastResult);
         Assert.Same(ruleResult, complianceBuilder.ObservedRuleResults?[0]);
         Assert.Same(finding, riskBuilder.ObservedFindings?[0]);
     }
@@ -71,6 +74,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             Array.Empty<(string, Finding)>()));
 
         Assert.Same(historyStore, complianceBuilder.ObservedHistoryStore);
@@ -95,6 +100,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             Array.Empty<(string, Finding)>()));
 
         Assert.Null(result.Scorecard);
@@ -119,6 +126,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             Array.Empty<(string, Finding)>()));
 
         Assert.Empty(result.AgentFindings);
@@ -150,6 +159,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             Array.Empty<(string, Finding)>()));
 
         Assert.Same(logAnalysis, result.LogAnalysisResult);
@@ -174,10 +185,14 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             Array.Empty<(string, Finding)>()));
 
         Assert.Equal(AgentIntent.SshCheck, result.Intent);
-        Assert.Equal(AgentIntent.SshCheck, auditState.LastAuditIntent);
+        // FinalizeAudit no longer mutates conversation state; the caller remembers the enriched result.
+        Assert.Null(auditState.LastResult);
+        Assert.Equal(AgentIntent.FullAudit, auditState.LastAuditIntent);
     }
 
     private static Finding CreateFinding()
@@ -220,6 +235,8 @@ public class AgentResultFinalizerTests
             SuppressedCount: 0,
             CrashedCount: 0,
             "capability report",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
             new[] { ("TEST-001", finding) }));
 
         Assert.NotNull(result.SnapshotId);
@@ -231,6 +248,61 @@ public class AgentResultFinalizerTests
         Assert.Equal(0, entry.PassedCount);
         Assert.Equal(1, entry.FailedCount);
         Assert.Equal(1, entry.WarningCount);
+    }
+
+    [Fact]
+    public void FinalizeAudit_PersistsCapabilitiesAndAttackChainsOnResultAndHistory()
+    {
+        var auditState = new AgentAuditState();
+        var historyStore = new InMemoryAuditHistoryStore();
+        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var finalizer = new AgentResultFinalizer(auditState, historyStore, scorecardBuilder: null, riskBuilder);
+        var caps = new[]
+        {
+            new DataSourceCapability { SourceName = "iptables", Command = "iptables -L -n -v", Status = CapabilityStatus.Available },
+            new DataSourceCapability { SourceName = "ss", Command = "ss -tulnp", Status = CapabilityStatus.PermissionLimited }
+        };
+        var chains = new[]
+        {
+            new AttackChain
+            {
+                RuleIds = new[] { "FW-002", "SSH-002" },
+                Links = new[]
+                {
+                    new AttackChainLink { RuleId = "FW-002", Stage = AttackChainStage.InitialAccess, StageName = "Initial Access", Severity = Severity.High },
+                    new AttackChainLink { RuleId = "SSH-002", Stage = AttackChainStage.CredentialAccess, StageName = "Credential Access", Severity = Severity.High }
+                }
+            }
+        };
+
+        var result = finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            Array.Empty<Finding>(),
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 0,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            caps,
+            chains,
+            Array.Empty<(string, Finding)>()));
+
+        // Capabilities copied onto the result (unprotected by other assertions before this test).
+        Assert.Equal(2, result.DataSourceCapabilities.Count);
+        Assert.Equal("iptables", result.DataSourceCapabilities[0].SourceName);
+        Assert.Equal(CapabilityStatus.PermissionLimited, result.DataSourceCapabilities[1].Status);
+        // Attack chains copied onto the result and persisted onto the history entry, so the
+        // ShowEvidence attack-chain-membership section survives a restart/rehydrate.
+        Assert.Same(chains, result.AttackChains);
+        var entry = Assert.Single(historyStore.GetAll());
+        Assert.Equal(2, entry.DataSourceCapabilities.Count);
+        Assert.Equal("ss -tulnp", entry.DataSourceCapabilities[1].Command);
+        var persistedChain = Assert.Single(entry.AttackChains);
+        Assert.Equal(new[] { "FW-002", "SSH-002" }, persistedChain.RuleIds);
     }
 
     private sealed class TestComplianceScorecardBuilder(ComplianceScorecard scorecard) : IComplianceScorecardBuilder

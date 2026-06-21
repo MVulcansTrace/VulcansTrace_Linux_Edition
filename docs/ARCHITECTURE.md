@@ -92,16 +92,22 @@ The Security Agent provides a parallel local posture path:
 6. `FindingExplanationService` and `SingleRuleExplanationService` apply **adaptive explanation depth** when explaining a finding: `ExplanationDepthResolver` selects a tier from the rule's `RuleMemoryEntry` (history length, closed remediation cycles, trend), and `AdaptiveExplanationBuilder` appends deterministic history, root-cause, or escalation paragraphs without LLM reasoning.
 7. `AgentLogAnalysisService` optionally analyzes pasted firewall logs through `SentryAnalyzer`.
 8. `AgentResultComposer` builds user-facing summaries and deterministic data-source capability reports.
-9. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`.
-10. `PostureCorrelator` scans findings for declarative multi-rule correlations.
-11. `AttackChainNarrator` maps correlated findings and continuation-graph edges into ordered kill-chain paths.
-12. `ProactiveAlertDetector` flags rules that returned after a previous verified fix and attaches category-specific regression guidance.
-13. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
-14. `CategoryCoverageRecorder` records which audit category was just checked. A targeted audit intent records one category; `FullAudit` records all 17 categories. The timestamped list is stored in the entity frame and persisted in the cross-session memory snapshot.
-15. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
-16. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
-17. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, memory, and category coverage.
-18. `AgentSuggestionProvider` generates deterministic follow-up suggestions, including blind-spot chips after partial audits.
+9. `AgentResultFinalizer` attaches scorecard output and builds the final `AgentResult`, including posture correlations and attack chains so they are persisted with the audit history entry.
+10. `RuleMemoryRecorder` records per-rule severity snapshots, trends, and remediation cycles.
+11. `CategoryCoverageRecorder` records which audit category was just checked. A targeted audit intent records one category; `FullAudit` records all 17 categories. The timestamped list is stored in the entity frame and persisted in the cross-session memory snapshot.
+12. `SystemTrajectoryAnalyzer` aggregates per-rule trends and verified-fixed absent rules into a system-level trajectory.
+13. `RemediationWisdomAnalyzer` detects rules with repeated fix-and-return cycles.
+14. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, memory, and category coverage.
+15. `AgentSuggestionProvider` generates deterministic follow-up suggestions, including blind-spot chips after partial audits.
+16. `DialogueContext`/`AgentAuditState` remembers the fully enriched result so every follow-up intent sees the same attack chains, correlations, and metadata that were displayed to the user.
+
+The `ShowEvidence` follow-up path is handled by `EvidenceProvenanceService`:
+
+- It looks up the referenced finding in the remembered audit result or runs the single rule fresh if only a rule ID is known.
+- It builds a deterministic evidence-chain markdown response from scanner source/commands, raw evidence signals, rule rationale, CIS/MITRE mappings, attack-chain membership, and per-rule history.
+- `ReferenceResolver` (shared with `FindingExplanationService`) handles bare category words: if the focused finding's category matches the query word, that finding is used instead of an arbitrary category match.
+
+The audit history store (`JsonFileAuditHistoryStore` / `InMemoryAuditHistoryStore`) keeps the newest entries fully detailed and replaces older retained entries with slim summaries that preserve counts, `SnapshotFindings`, and `Scorecard` but drop verbose fields such as `DataSourceCapabilities`, `AttackChains`, `RuleResults`, `Warnings`, and `LogAnalysisResult`. This bounds the on-disk file size without breaking diff comparisons or compliance trend charts.
 
 A small `RuleCategoryResolver` helper centralizes rule-prefix parsing (e.g., `FW-002` → `FW`) and category-specific remediation-wisdom guidance text, keeping prefix knowledge in one place rather than duplicating it across the attack-chain mapper and wisdom analyzer.
 
@@ -127,7 +133,7 @@ The agent layer now persists conversation context across process restarts throug
 - `AgentMemorySnapshot` — captures last intent/topic, last audit intent, focused rule ID/category, active/last remediation session ID, the latest audit-history snapshot ID, up to 20 recent `DialogueTurn`s, the per-rule `RuleHistory` dictionary, and the `CheckedCategories` list. It intentionally does not duplicate full findings.
 - `JsonFileAgentMemoryStore` — persists atomically to `~/.config/VulcansTrace/agent-memory.json` with string-enums for readability and an in-memory fallback on failure. Writes use async file I/O and are awaited before results return.
 - `InMemoryAgentMemoryStore` — non-durable fallback.
-- `SecurityAgent.RestoreMemorySnapshot` / `SaveMemorySnapshotAsync` — loads the snapshot on construction and saves after every turn. Restoration rehydrates a synthetic `AgentResult` from the referenced `AuditHistoryEntry` (including `CapabilityReport`, `RuleResults`, `Warnings`, and `LogAnalysisResult`) so follow-ups like `what should I fix first?` and `fix it` work immediately after reopening the app. Stale snapshots are ignored, corrupt fields are defaulted, and missing history entries clear stale focus state.
+- `SecurityAgent.RestoreMemorySnapshot` / `SaveMemorySnapshotAsync` — loads the snapshot on construction and saves after every turn. Restoration rehydrates a synthetic `AgentResult` from the referenced `AuditHistoryEntry` (including `CapabilityReport`, `RuleResults`, `Warnings`, `LogAnalysisResult`, `DataSourceCapabilities`, and `AttackChains`) so follow-ups like `what should I fix first?`, `fix it`, and `prove FW-002` work immediately after reopening the app. Slim history entries are not rehydrated because they lack the full detail needed for follow-ups; stale snapshots are ignored, corrupt fields are defaulted, and missing history entries clear stale focus state.
 
 ### Follow-Up Suggestions
 
