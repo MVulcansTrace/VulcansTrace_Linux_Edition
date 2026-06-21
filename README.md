@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 2986 passing](https://img.shields.io/badge/Tests-2986%20passing-2E7D32)
+![Tests: 3029 passing](https://img.shields.io/badge/Tests-3029%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -65,6 +65,8 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - Kubernetes Security Auditing — checks Kubernetes pod security posture for privileged containers, hostNetwork/hostPID/hostIPC sharing, root containers, and missing security contexts (privilege escalation, readOnlyRootFilesystem, dropped capabilities, confined seccomp).
 - Configuration Baseline & Drift Detection — snapshot a "known good" baseline and continuously monitor for drift.
 - **Recurring Audit Scheduling** — configure automatic recurring audits (daily, weekly, etc.) via standard Linux `cron`. Notifications are sent only when **new** critical findings appear, using fingerprint-aware diffing against previous audit history.
+- **Autonomous Drift Response** — scheduled audits can automatically detect baseline drift and send HMAC-SHA256 signed alerts through desktop, email, or webhook channels. Alerts are rich, binding schedule identity, per-alert nonce, drift findings, attack chains, proactive regression alerts, and a human-approved remediation proposal.
+- **Human-Approved Scheduled Remediation** — drift alerts can include a remediation plan, but commands execute only after explicit operator confirmation via the CLI (`vulcanstrace schedule remediate`) or the Avalonia UI. Rule-prefix scoping keeps a schedule scoped to `FW` from touching `SSH`, `KERN`, or other rule families.
 - **Headless CLI** — run audits and manage schedules from the command line without launching the desktop UI.
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors. Included in the Avalonia UI and evidence exports.
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) derived from all risk-relevant findings, weighted by severity and CIS control importance. Surfaces top risk categories by deduction and is included in the Avalonia UI, agent chat, and evidence exports.
@@ -184,6 +186,15 @@ Manage recurring schedules via CLI:
 ```bash
 dotnet run --project VulcansTrace.Linux.Cli -- schedule list
 dotnet run --project VulcansTrace.Linux.Cli -- schedule add --name "Daily Full Audit" --intent FullAudit --cron "0 6 * * *" --role Server --notify-on-critical --channel Desktop
+
+# Add a schedule with autonomous drift response, signed alerts, and human-approved remediation scoped to firewall rules
+dotnet run --project VulcansTrace.Linux.Cli -- schedule add --name "Firewall Drift Check" --intent FirewallCheck --cron "0 7 * * *" \
+  --role Server --channel Webhook --autonomous-drift-response --autonomous-drift-threshold High \
+  --require-signed-alerts --allow-remediate --remediation-prefixes FW
+
+# Review and execute remediation for a schedule (human approval required)
+dotnet run --project VulcansTrace.Linux.Cli -- schedule remediate --id <schedule-id> --dry-run
+dotnet run --project VulcansTrace.Linux.Cli -- schedule remediate --id <schedule-id> --yes
 ```
 
 Run the Doctor self-diagnostic to verify scanner data-source visibility:

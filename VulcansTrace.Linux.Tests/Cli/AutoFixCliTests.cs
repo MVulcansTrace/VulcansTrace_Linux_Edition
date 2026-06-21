@@ -10,11 +10,27 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Cli;
 
-public class AutoFixCliTests
+public class AutoFixCliTests : IDisposable
 {
-    private static AgentServices CreateServicesWithFakeRunner(FakeProcessRunner runner)
+    private readonly string _tempConfigDir;
+
+    public AutoFixCliTests()
     {
-        var baseServices = AgentFactory.Create();
+        // Each test gets its own isolated config root, injected into AgentFactory so the wired
+        // file-backed stores never touch the operator's real config or the process-wide env var.
+        _tempConfigDir = Path.Combine(Path.GetTempPath(), $"vt-autofix-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempConfigDir);
+    }
+
+    public void Dispose()
+    {
+        try { if (Directory.Exists(_tempConfigDir)) Directory.Delete(_tempConfigDir, recursive: true); }
+        catch { /* best-effort cleanup */ }
+    }
+
+    private AgentServices CreateServicesWithFakeRunner(FakeProcessRunner runner)
+    {
+        var baseServices = AgentFactory.Create(configDirectory: _tempConfigDir);
         return baseServices with
         {
             ProcessRunner = runner,
@@ -26,7 +42,7 @@ public class AutoFixCliTests
     [Fact]
     public async Task HandleAutoFixAsync_NoAutoFixFlag_ReturnsZero()
     {
-        var services = AgentFactory.Create();
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir);
         var result = new AgentResult { AgentFindings = Array.Empty<Finding>() };
 
         var exitCode = await Program.HandleAutoFixAsync(new[] { "audit" }, result, services, default);
@@ -37,7 +53,7 @@ public class AutoFixCliTests
     [Fact]
     public async Task HandleAutoFixAsync_NoFindings_ReturnsZero()
     {
-        var services = AgentFactory.Create();
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir);
         var result = new AgentResult { AgentFindings = Array.Empty<Finding>() };
 
         var exitCode = await Program.HandleAutoFixAsync(new[] { "audit", "--auto-fix" }, result, services, default);
@@ -48,7 +64,7 @@ public class AutoFixCliTests
     [Fact]
     public async Task HandleAutoFixAsync_DryRun_ReturnsZero()
     {
-        var services = AgentFactory.Create();
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir);
         var result = new AgentResult
         {
             AgentFindings = new[]
@@ -66,7 +82,7 @@ public class AutoFixCliTests
     [Fact]
     public async Task HandleAutoFixAsync_DryRun_DoesNotRecordRemediationAttempt()
     {
-        var services = AgentFactory.Create() with { MemoryStore = new InMemoryAgentMemoryStore() };
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir) with { MemoryStore = new InMemoryAgentMemoryStore() };
         await services.MemoryStore.SaveAsync(new AgentMemorySnapshot
         {
             RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)

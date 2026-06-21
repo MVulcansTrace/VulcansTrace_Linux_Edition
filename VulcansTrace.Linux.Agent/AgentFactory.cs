@@ -35,8 +35,13 @@ public static class AgentFactory
     /// Creates and returns all core agent services with their default implementations.
     /// </summary>
     /// <param name="machineRole">The machine role to use for rule tuning. Defaults to <see cref="MachineRole.Workstation"/>.</param>
+    /// <param name="configDirectory">
+    /// Optional explicit base config directory for the file-backed stores. When null (the default)
+    /// stores resolve from XDG_CONFIG_HOME or ~/.config. Tests pass a unique temp dir here so they
+    /// never touch the operator's real config or the process-wide environment variable.
+    /// </param>
     /// <returns>A record containing all wired services.</returns>
-    public static AgentServices Create(MachineRole machineRole = MachineRole.Workstation)
+    public static AgentServices Create(MachineRole machineRole = MachineRole.Workstation, string? configDirectory = null)
     {
         var logSink = new DiagnosticsLogSink();
         var logNormalizer = new LogNormalizer(logSink);
@@ -45,7 +50,7 @@ public static class AgentFactory
         IThreatIntelStore threatIntelStore;
         try
         {
-            threatIntelStore = JsonFileThreatIntelStore.CreateDefault();
+            threatIntelStore = JsonFileThreatIntelStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -114,7 +119,9 @@ public static class AgentFactory
             new PackageVulnerabilityScanner(),
             new ContainerScanner(),
             new KubernetesScanner(),
-            new YaraScanner(),
+            new YaraScanner(
+                engine: null,
+                customRulesDirectory: Path.Combine(VulcansTraceConfig.GetDirectory(configDirectory), "yara")),
             new ProcessRuntimeScanner()
         };
 
@@ -238,7 +245,7 @@ public static class AgentFactory
         ISuppressionStore suppressionStore;
         try
         {
-            suppressionStore = JsonFileSuppressionStore.CreateDefault();
+            suppressionStore = JsonFileSuppressionStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -248,7 +255,7 @@ public static class AgentFactory
         IRulePolicyProvider? policyProvider;
         try
         {
-            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault();
+            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault(configDirectory);
             policyProvider = new DefaultRulePolicyProvider(jsonPolicyStore);
         }
         catch
@@ -259,7 +266,7 @@ public static class AgentFactory
         IAuditHistoryStore auditHistoryStore;
         try
         {
-            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault();
+            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -269,7 +276,7 @@ public static class AgentFactory
         IBaselineStore baselineStore;
         try
         {
-            baselineStore = JsonFileBaselineStore.CreateDefault();
+            baselineStore = JsonFileBaselineStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -279,7 +286,7 @@ public static class AgentFactory
         IScheduleStore scheduleStore;
         try
         {
-            scheduleStore = JsonFileScheduleStore.CreateDefault();
+            scheduleStore = JsonFileScheduleStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -289,7 +296,7 @@ public static class AgentFactory
         ISessionStore sessionStore;
         try
         {
-            sessionStore = JsonFileSessionStore.CreateDefault();
+            sessionStore = JsonFileSessionStore.CreateDefault(configDirectory);
         }
         catch
         {
@@ -299,7 +306,7 @@ public static class AgentFactory
         IAgentMemoryStore memoryStore;
         try
         {
-            memoryStore = JsonFileAgentMemoryStore.CreateDefault();
+            memoryStore = JsonFileAgentMemoryStore.CreateDefault(configDirectory);
         }
         catch
         {

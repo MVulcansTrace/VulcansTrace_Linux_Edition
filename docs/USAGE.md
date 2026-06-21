@@ -154,7 +154,7 @@ For the full capability list and limitations, see [Security Agent](SECURITY_AGEN
 
 ## Recurring Audit Scheduling
 
-VulcansTrace supports automatic recurring audits through the system `crontab`. Schedules can be created and managed from both the GUI and the headless CLI.
+VulcansTrace supports automatic recurring audits through the system `crontab`. Schedules can be created and managed from both the GUI and the headless CLI. Every CLI command also accepts the global flag `--config-dir <dir>` to override the default `~/.config/VulcansTrace` directory.
 
 ### GUI Schedule Editor
 
@@ -170,6 +170,13 @@ The Avalonia UI includes a **Schedules** tab:
    - **Output Directory** — optional directory to write JSON audit results.
    - **Notification Channel** — Desktop, Email, or Webhook.
    - **Notify on critical findings** — whether to send a notification when new critical findings appear.
+   - **Autonomous drift response** — whether to automatically check for baseline drift after the scheduled audit and send a signed alert when drift at or above the threshold is detected.
+   - **Autonomous drift threshold** — severity threshold (Critical, High, Medium, Low, Info) that must be met or exceeded before an autonomous drift alert is sent.
+   - **Require signed alerts** — when enabled, drift alerts are skipped if `VT_ALERT_SIGNING_KEY` is not configured.
+   - **Allow remediation** — enables a human-approved remediation path from drift alerts.
+   - **Allow remediation restart** — permits remediation commands that restart services (requires Allow remediation).
+   - **Allow remediation packages** — permits remediation commands that install or remove packages (requires Allow remediation).
+   - **Remediation rule prefixes** — comma-separated rule-id prefixes (e.g., `FW, KERN`) that remediation may target. Empty means all rules.
    - **Enabled** — whether the schedule is active.
 4. Click **Save**. The schedule is persisted to `~/.config/VulcansTrace/schedules.json`.
 5. Select a schedule and click **Install in Cron** to register it with the system crontab. The schedule must be enabled to install.
@@ -187,6 +194,11 @@ vulcanstrace schedule list
 # Add a schedule
 vulcanstrace schedule add --name "Daily Full Audit" --intent FullAudit --cron "0 6 * * *" --role Server --notify-on-critical --channel Desktop
 
+# Add a schedule with autonomous drift response and signed alerts
+vulcanstrace schedule add --name "Daily Firewall Check" --intent FirewallCheck --cron "0 6 * * *" \
+  --autonomous-drift-response --autonomous-drift-threshold High --require-signed-alerts \
+  --allow-remediate --remediation-prefixes FW
+
 # Edit a schedule
 vulcanstrace schedule edit --id <schedule-id> --cron "0 7 * * 1" --channel Email
 
@@ -203,11 +215,18 @@ vulcanstrace schedule uninstall-cron --id <schedule-id>
 # Run a scheduled audit immediately (also used by cron)
 vulcanstrace schedule run --id <schedule-id>
 
+# Review and execute remediation for a schedule (human approval required)
+vulcanstrace schedule remediate --id <schedule-id>           # preview + prompt
+vulcanstrace schedule remediate --id <schedule-id> --dry-run # preview only
+vulcanstrace schedule remediate --id <schedule-id> --yes     # skip confirmation prompt
+
 # Delete a schedule
 vulcanstrace schedule delete --id <schedule-id>
 ```
 
 Scheduled audits compare critical findings against the previous audit's fingerprints and only notify when **new** critical findings appear. This prevents alert fatigue from recurring known issues.
+
+When **autonomous drift response** is enabled, the scheduled audit also checks for baseline drift and sends a signed alert through the configured notification channel if drift at or above the threshold is detected. Set `VT_ALERT_SIGNING_KEY` to a 64-character hex HMAC key to sign alerts; without it, alerts are sent with the explicit `UNSIGNED` sentinel.
 
 ### Remediation Session Management (CLI)
 
@@ -429,6 +448,26 @@ vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-packages
 
 When a scheduled audit produces new critical findings, a notification is sent through the configured channel. Notification failures are logged to `stderr` and do not affect the audit exit code.
 
+### Drift-Alert Notifications
+
+When a schedule has **autonomous drift response** enabled, drift at or above the configured severity triggers a signed alert through the same notification channel. The alert payload includes:
+
+- `title`, `message` (body)
+- `scheduleId`, `scheduleName`
+- `nonce` — per-alert nonce bound into the signature
+- `maxSeverity`, `driftFindingCount`
+- `ruleIds`, `attackChainNarratives`, `proactiveAlertSummaries`
+- `remediationSummary` — human-approved remediation preview when remediation is enabled
+- `timestampUtc`
+- `signature` — HMAC-SHA256 hex, or `UNSIGNED` when no signing key is configured
+
+Configure signing with:
+
+```bash
+export VT_ALERT_SIGNING_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+export VT_REQUIRE_SIGNED_ALERTS=1   # optional: skip unsigned alerts instead of sending UNSIGNED
+```
+
 ### Desktop Notifications
 
 Uses `notify-send` (Linux desktop notification daemon). Falls back silently if unavailable.
@@ -455,7 +494,7 @@ Configure via environment variable:
 export VT_WEBHOOK_URL=https://hooks.example.com/vulcanstrace
 ```
 
-The webhook receives a JSON POST with `title`, `message`, `scheduleName`, `criticalCount`, and `timestamp`. Failed requests are retried up to 3 times with exponential backoff for transient errors (5xx, timeouts, connection failures).
+The webhook receives a JSON POST with the drift-alert fields above (for drift alerts) or `title`, `message`, `scheduleName`, `criticalCount`, and `timestamp` (for critical-findings notifications). Failed requests are retried up to 3 times with exponential backoff for transient errors (5xx, timeouts, connection failures).
 
 ## Rule Tuning / Local Policy
 

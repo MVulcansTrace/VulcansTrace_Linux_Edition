@@ -1,4 +1,5 @@
 using System.Text.Json;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Rules;
 
@@ -26,11 +27,9 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <returns>A configured <see cref="JsonFileSuppressionStore"/>.</returns>
-    public static JsonFileSuppressionStore CreateDefault()
+    public static JsonFileSuppressionStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileSuppressionStore(Path.Combine(dir, "suppressions.json"));
     }

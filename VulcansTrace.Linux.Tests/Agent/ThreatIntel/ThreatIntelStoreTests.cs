@@ -76,8 +76,17 @@ public class ThreatIntelStoreTests
     [Fact]
     public void JsonFileStore_CreateDefault_DoesNotThrow()
     {
-        var store = JsonFileThreatIntelStore.CreateDefault();
-        Assert.NotNull(store);
-        store.Dispose();
+        var tempConfigDir = Path.Combine(Path.GetTempPath(), $"vt-ti-test-{Guid.NewGuid():N}");
+        try
+        {
+            var store = JsonFileThreatIntelStore.CreateDefault(tempConfigDir);
+            Assert.NotNull(store);
+            store.Dispose();
+        }
+        finally
+        {
+            try { if (Directory.Exists(tempConfigDir)) Directory.Delete(tempConfigDir, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
     }
 }

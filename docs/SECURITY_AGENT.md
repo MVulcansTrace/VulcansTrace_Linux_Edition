@@ -225,6 +225,54 @@ Every agent reply now includes a small set of contextual follow-up suggestions. 
 
 In the Avalonia UI, suggestions appear as clickable chips below the agent message they belong to. Clicking a chip executes the suggestion using its `Intent`: audit-intent suggestions call `RunAuditAsync` directly, while all other suggestions fall back to the natural-language query path. This guarantees that chips such as **Show all findings** route to the correct audit intent instead of being re-parsed and misrouted. The CLI and JSON output include suggestions as structured data but do not render interactive chips.
 
+## Autonomous Drift Response and Scheduled Remediation
+
+The Security Agent can monitor scheduled audits for baseline drift and autonomously alert when configuration changes introduce new or worsened findings. Remediation always requires explicit human approval; the agent never applies fixes on its own.
+
+### How Autonomous Drift Response Works
+
+1. A scheduled audit completes.
+2. If the schedule has **Autonomous drift response** enabled, the agent compares the result against the saved baseline for that intent using `BaselineDriftService`.
+3. When drift at or above the configured severity threshold is found, the agent reuses the already-completed audit result to build a rich alert that includes:
+   - Drift finding counts and severity breakdown.
+   - Attack chains formed by the current findings (scoped to rules that actually drifted).
+   - Proactive alerts for findings that returned after a previous verified fix.
+   - A remediation proposal when human-approved remediation is enabled for the schedule.
+4. The alert is HMAC-SHA256 signed (when `VT_ALERT_SIGNING_KEY` is configured) and pushed through the schedule's notification channel: desktop, email, or webhook.
+5. The alert is best-effort: failures during drift detection or notification are logged but do not affect the scheduled audit's exit code.
+
+### Alert Signing
+
+Signed alerts bind the schedule ID, a per-alert nonce, and every transmitted field into a canonical JSON form that is HMAC-SHA256 signed. The `SignedAlertVerifier` class provides constant-time signature verification. Alerts sent without a signing key carry the explicit `UNSIGNED` sentinel value so recipients cannot mistake them for authenticated alerts.
+
+Operators who require authenticated alerts can:
+
+- Set `VT_ALERT_SIGNING_KEY` to a 64-character hex HMAC key.
+- Enable **Require signed alerts** on a per-schedule basis, or set the `VT_REQUIRE_SIGNED_ALERTS=1` environment variable.
+- When required signing is enabled and no key is configured, the alert is skipped rather than sent unsigned.
+
+### Human-Approved Remediation from Alerts
+
+Schedules can optionally enable **Allow remediation**, which attaches a remediation proposal to the drift alert. The proposal includes:
+
+- How many drift findings are in scope.
+- How many commands are permitted or blocked by the schedule's safety policy.
+- Whether any command would restart services or install/remove packages.
+- Lockout-risk warnings for changes that could block remote access.
+
+Execution requires explicit approval through either the CLI or the Avalonia UI:
+
+- **CLI**: `vulcanstrace schedule remediate --id <schedule-id>` shows a dry-run preview and prompts for confirmation (or `--yes` to skip the prompt).
+- **Avalonia UI**: the schedule list shows a **Remediate** button for schedules with remediation enabled. It opens a preview dialog where the operator reviews the plan and clicks **Execute**.
+
+The schedule's remediation policy controls what is permitted:
+
+- `Allow remediation restart` — permits commands that restart services.
+- `Allow remediation packages` — permits package install/remove operations.
+- `Remediation rule prefixes` — restricts remediation to rule IDs whose first namespace token matches one of the configured prefixes (e.g., `FW` only). Matching is token-based so a prefix of `K` does not accidentally match `KERN-001` or `K8S-002`.
+
+This keeps the Security Agent's Safety contract intact: the agent autonomously investigates and reports, but a human remains in the loop for any system change.
+
 ## Verify Loop
 
 The agent can verify whether an individual finding is still present without starting a full remediation session:
@@ -580,7 +628,8 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - The agent is local-only.
 - It does not send telemetry or analysis data to third-party services. Kubernetes audits run `kubectl` against the user's configured cluster context when kubeconfig exists.
 - It reads host state through local Linux commands.
-- It does not modify firewall rules, services, network interfaces, routes, or files.
+- It does not modify firewall rules, services, network interfaces, routes, or files autonomously.
+- Scheduled drift alerts may include a remediation proposal, but remediation commands are executed only after explicit human approval through the CLI or Avalonia UI.
 - It reports warnings when data cannot be collected.
 - It reports data-source capability status so exported evidence shows which local commands informed the audit.
 
@@ -810,3 +859,11 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [RemediationConsoleFormatter.cs](../VulcansTrace.Linux.Agent/Reports/RemediationConsoleFormatter.cs)
 - [RemediationPlanValidator.cs](../VulcansTrace.Linux.Agent/Reports/RemediationPlanValidator.cs)
 - [RemediationMarkdownFormatter.cs](../VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs) — renders session notes and evidence links in exported markdown reports
+- [AutonomousDriftResponder.cs](../VulcansTrace.Linux.Agent/Autonomous/AutonomousDriftResponder.cs) — orchestrates autonomous drift-response alerts
+- [SignedAlertVerifier.cs](../VulcansTrace.Linux.Agent/Notifications/SignedAlertVerifier.cs) — HMAC-SHA256 signing and verification for drift alerts
+- [INotificationService.cs](../VulcansTrace.Linux.Agent/Notifications/INotificationService.cs) — notification abstraction and signed alert payload record
+- [RemediationScopeFilter.cs](../VulcansTrace.Linux.Agent/Remediation/RemediationScopeFilter.cs) — tokenized rule-prefix scope enforcement for remediation
+- [ScheduleViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs) — Avalonia schedule list and remediation command wiring
+- [RemediationPreviewViewModel.cs](../VulcansTrace.Linux.Avalonia/ViewModels/RemediationPreviewViewModel.cs) — remediation preview dialog ViewModel
+- [RemediationPreviewWindow.axaml](../VulcansTrace.Linux.Avalonia/Views/RemediationPreviewWindow.axaml) — remediation preview dialog UI
+- [VulcansTraceConfig.cs](../VulcansTrace.Linux.Agent/VulcansTraceConfig.cs) — centralized config directory resolution

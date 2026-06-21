@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Scheduling;
+using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -18,6 +22,13 @@ public sealed class ScheduleEditViewModel : ViewModelBase
     private string? _outputDirectory;
     private bool _notifyOnCritical = true;
     private bool _enabled = true;
+    private bool _autonomousDriftResponse = false;
+    private Severity _autonomousDriftSeverityThreshold = Severity.High;
+    private bool _requireSignedAlerts = false;
+    private bool _allowAutoRemediate = false;
+    private bool _allowRemediationRestart = false;
+    private bool _allowRemediationPackages = false;
+    private string _remediationPrefixes = "";
     private NotificationChannel _notificationChannel = NotificationChannel.Desktop;
     private DateTime? _lastRunUtc;
     private DateTime _createdAtUtc = DateTime.UtcNow;
@@ -94,6 +105,33 @@ public sealed class ScheduleEditViewModel : ViewModelBase
         set => SetField(ref _enabled, value);
     }
 
+    /// <summary>
+    /// Gets or sets whether to autonomously respond to baseline drift.
+    /// </summary>
+    public bool AutonomousDriftResponse
+    {
+        get => _autonomousDriftResponse;
+        set => SetField(ref _autonomousDriftResponse, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the severity threshold for autonomous drift alerts.
+    /// </summary>
+    public Severity AutonomousDriftSeverityThreshold
+    {
+        get => _autonomousDriftSeverityThreshold;
+        set => SetField(ref _autonomousDriftSeverityThreshold, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether drift alerts must be cryptographically signed (fail closed when no signing key is set).
+    /// </summary>
+    public bool RequireSignedAlerts
+    {
+        get => _requireSignedAlerts;
+        set => SetField(ref _requireSignedAlerts, value);
+    }
+
     /// <summary>Available audit intents.</summary>
     public AgentIntent[] AvailableIntents { get; } = Enum.GetValues<AgentIntent>();
 
@@ -102,6 +140,48 @@ public sealed class ScheduleEditViewModel : ViewModelBase
 
     /// <summary>Available notification channels.</summary>
     public NotificationChannel[] AvailableChannels { get; } = Enum.GetValues<NotificationChannel>();
+
+    /// <summary>Available severity thresholds.</summary>
+    public Severity[] AvailableSeverities { get; } = new[] { Severity.Critical, Severity.High, Severity.Medium, Severity.Low, Severity.Info };
+
+    /// <summary>
+    /// Gets or sets whether human-approved remediation is enabled for this schedule.
+    /// </summary>
+    public bool AllowAutoRemediate
+    {
+        get => _allowAutoRemediate;
+        set => SetField(ref _allowAutoRemediate, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether remediation may restart services.
+    /// </summary>
+    public bool AllowRemediationRestart
+    {
+        get => _allowRemediationRestart;
+        set => SetField(ref _allowRemediationRestart, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether remediation may install or remove packages.
+    /// </summary>
+    public bool AllowRemediationPackages
+    {
+        get => _allowRemediationPackages;
+        set => SetField(ref _allowRemediationPackages, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the comma-separated rule-id prefixes remediation may target.
+    /// </summary>
+    public string RemediationPrefixes
+    {
+        get => _remediationPrefixes;
+        set => SetField(ref _remediationPrefixes, value);
+    }
+
+    /// <summary>Example rule prefixes for remediation scoping.</summary>
+    public string[] AvailableRulePrefixes { get; } = new[] { "FW", "KERN", "PKG", "SSH", "USER", "FILE", "LOG", "CRON", "CONTAINER", "K8S", "PROCESS" };
 
     /// <summary>
     /// Loads an existing schedule into this ViewModel.
@@ -115,6 +195,13 @@ public sealed class ScheduleEditViewModel : ViewModelBase
         OutputDirectory = schedule.OutputDirectory;
         NotifyOnCritical = schedule.NotifyOnCritical;
         NotificationChannel = schedule.NotificationChannel;
+        AutonomousDriftResponse = schedule.AutonomousDriftResponse;
+        AutonomousDriftSeverityThreshold = schedule.AutonomousDriftSeverityThreshold;
+        RequireSignedAlerts = schedule.RequireSignedAlerts;
+        AllowAutoRemediate = schedule.AllowAutoRemediate;
+        AllowRemediationRestart = schedule.AllowRemediationRestart;
+        AllowRemediationPackages = schedule.AllowRemediationPackages;
+        RemediationPrefixes = string.Join(", ", schedule.AllowedRemediationRulePrefixes ?? Array.Empty<string>());
         Enabled = schedule.Enabled;
         _lastRunUtc = schedule.LastRunUtc;
         _createdAtUtc = schedule.CreatedAtUtc;
@@ -135,9 +222,19 @@ public sealed class ScheduleEditViewModel : ViewModelBase
             OutputDirectory = string.IsNullOrWhiteSpace(OutputDirectory) ? null : OutputDirectory.Trim(),
             NotifyOnCritical = NotifyOnCritical,
             NotificationChannel = NotificationChannel,
+            AutonomousDriftResponse = AutonomousDriftResponse,
+            AutonomousDriftSeverityThreshold = AutonomousDriftSeverityThreshold,
+            RequireSignedAlerts = RequireSignedAlerts,
+            AllowAutoRemediate = AllowAutoRemediate,
+            AllowRemediationRestart = AllowRemediationRestart,
+            AllowRemediationPackages = AllowRemediationPackages,
+            AllowedRemediationRulePrefixes = ParseRemediationPrefixes(RemediationPrefixes),
             Enabled = Enabled,
             LastRunUtc = _lastRunUtc,
             CreatedAtUtc = _createdAtUtc
         };
     }
+
+    private static IReadOnlyList<string> ParseRemediationPrefixes(string value)
+        => RemediationScopeFilter.ParsePrefixes(value);
 }

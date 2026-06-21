@@ -1,4 +1,5 @@
 using System.Text.Json;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -30,11 +31,9 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     /// </summary>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
     /// <returns>A configured <see cref="JsonFileAuditHistoryStore"/>.</returns>
-    public static JsonFileAuditHistoryStore CreateDefault(int maxEntries = 50)
+    public static JsonFileAuditHistoryStore CreateDefault(string? configDirectory = null, int maxEntries = 50)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileAuditHistoryStore(Path.Combine(dir, "audit-history.json"), maxEntries);
     }

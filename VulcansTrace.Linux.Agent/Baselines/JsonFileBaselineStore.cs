@@ -1,4 +1,5 @@
 using System.Text.Json;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 
 namespace VulcansTrace.Linux.Agent.Baselines;
@@ -27,11 +28,9 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <returns>A configured <see cref="JsonFileBaselineStore"/>.</returns>
-    public static JsonFileBaselineStore CreateDefault()
+    public static JsonFileBaselineStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileBaselineStore(Path.Combine(dir, "baselines.json"));
     }

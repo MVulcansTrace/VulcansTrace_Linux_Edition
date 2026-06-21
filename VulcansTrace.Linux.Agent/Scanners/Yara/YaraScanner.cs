@@ -1,4 +1,5 @@
 using System.Reflection;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Scanners;
 
@@ -54,6 +55,9 @@ public sealed class YaraScanner : IScanner
         _commandRunner = commandRunner ?? RunScannerCommandAsync;
         _targetDiscoveryOverride = targetDiscoveryOverride;
     }
+
+    /// <summary>Resolved directory used for optional custom .yar rules.</summary>
+    internal string CustomRulesDirectory => _customRulesDirectory;
 
     /// <inheritdoc />
     public string Name => "Yara";
@@ -388,11 +392,7 @@ public sealed class YaraScanner : IScanner
     }
 
     private static string GetDefaultCustomRulesDirectory()
-    {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        return Path.Combine(configDir, "VulcansTrace", "yara");
-    }
+        => Path.Combine(VulcansTraceConfig.GetDirectory(), "yara");
 
     internal sealed record YaraScanTarget(string ScanPath, string TargetKind, int? ProcessId = null, string DisplayPath = "");
 }

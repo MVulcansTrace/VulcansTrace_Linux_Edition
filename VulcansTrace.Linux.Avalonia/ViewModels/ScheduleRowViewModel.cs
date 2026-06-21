@@ -38,6 +38,12 @@ public sealed class ScheduleRowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(NotificationChannel));
                 OnPropertyChanged(nameof(OutputDirectory));
                 OnPropertyChanged(nameof(LastRunUtc));
+                OnPropertyChanged(nameof(AutonomousDriftResponse));
+                OnPropertyChanged(nameof(AutonomousDriftSeverityThreshold));
+                OnPropertyChanged(nameof(AllowAutoRemediate));
+                OnPropertyChanged(nameof(AllowRemediationRestart));
+                OnPropertyChanged(nameof(AllowRemediationPackages));
+                OnPropertyChanged(nameof(AllowedRemediationPrefixes));
             }
         }
     }
@@ -75,4 +81,22 @@ public sealed class ScheduleRowViewModel : ViewModelBase
 
     /// <summary>Proxy for schedule last run time.</summary>
     public DateTime? LastRunUtc => _schedule.LastRunUtc;
+
+    /// <summary>Proxy for schedule autonomous drift response flag.</summary>
+    public bool AutonomousDriftResponse => _schedule.AutonomousDriftResponse;
+
+    /// <summary>Proxy for schedule autonomous drift severity threshold.</summary>
+    public string AutonomousDriftSeverityThreshold => _schedule.AutonomousDriftSeverityThreshold.ToString();
+
+    /// <summary>Proxy for schedule allow auto-remediate flag.</summary>
+    public bool AllowAutoRemediate => _schedule.AllowAutoRemediate;
+
+    /// <summary>Proxy for whether remediation may restart services.</summary>
+    public bool AllowRemediationRestart => _schedule.AllowRemediationRestart;
+
+    /// <summary>Proxy for whether remediation may install or remove packages.</summary>
+    public bool AllowRemediationPackages => _schedule.AllowRemediationPackages;
+
+    /// <summary>Proxy for the comma-separated remediation rule-prefix scope.</summary>
+    public string AllowedRemediationPrefixes => string.Join(", ", _schedule.AllowedRemediationRulePrefixes);
 }

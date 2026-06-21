@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
@@ -23,6 +24,18 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
         _httpClient = new HttpClient();
     }
 
+    /// <summary>
+    /// Initializes a new instance with a custom HTTP handler. Intended for tests that want to
+    /// capture requests without opening a real socket.
+    /// </summary>
+    /// <param name="webhookUrl">The URL to POST notifications to.</param>
+    /// <param name="handler">The HTTP message handler to use.</param>
+    internal WebhookNotificationService(string webhookUrl, HttpMessageHandler handler)
+    {
+        _webhookUrl = webhookUrl ?? throw new ArgumentNullException(nameof(webhookUrl));
+        _httpClient = new HttpClient(handler ?? throw new ArgumentNullException(nameof(handler)));
+    }
+
     /// <inheritdoc />
     public Task NotifyAsync(string title, string message, CancellationToken ct = default)
     {
@@ -45,6 +58,28 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
             scheduleName,
             criticalCount,
             timestamp = DateTime.UtcNow
+        };
+        return PostAsync(payload, ct);
+    }
+
+    /// <inheritdoc />
+    public Task NotifySignedAlertAsync(SignedAlertMessage alert, CancellationToken ct = default)
+    {
+        var payload = new
+        {
+            title = alert.Title,
+            message = alert.Body,
+            alert.ScheduleId,
+            alert.ScheduleName,
+            alert.Nonce,
+            alert.MaxSeverity,
+            alert.DriftFindingCount,
+            alert.RuleIds,
+            alert.AttackChainNarratives,
+            alert.ProactiveAlertSummaries,
+            remediationSummary = alert.RemediationSummary,
+            alert.TimestampUtc,
+            alert.Signature
         };
         return PostAsync(payload, ct);
     }
@@ -79,6 +114,13 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
 
                 Console.Error.WriteLine($"[VulcansTrace] Webhook notification returned {statusCode}: {response.ReasonPhrase}");
                 return;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Caller cancellation must propagate, not be retried or swallowed.
+                // (HttpClient also throws OperationCanceledException for plain timeouts; those are
+                // not cancellation-requested and fall through to the transient retry below.)
+                throw;
             }
             catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
             {

@@ -5,7 +5,6 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
 
-[Collection("EnvironmentVariableTests")]
 public class JsonFileBaselineStoreTests : IDisposable
 {
     private readonly string _tempFile;
@@ -101,10 +100,9 @@ public class JsonFileBaselineStoreTests : IDisposable
     public void CreateDefault_CreatesDirectoryAndFile()
     {
         var customConfigDir = Path.Combine(Path.GetTempPath(), $"vt-test-config-{Guid.NewGuid()}");
-        Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", customConfigDir);
         try
         {
-            var store = JsonFileBaselineStore.CreateDefault();
+            var store = JsonFileBaselineStore.CreateDefault(customConfigDir);
             store.Save(CreateEntry("base-001", AgentIntent.FullAudit, "Production"));
 
             Assert.True(Directory.Exists(Path.Combine(customConfigDir, "VulcansTrace")));
@@ -112,7 +110,6 @@ public class JsonFileBaselineStoreTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", null);
             try
             {
                 if (Directory.Exists(customConfigDir))

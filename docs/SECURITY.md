@@ -39,15 +39,28 @@ Notifications are sent only when **new** critical findings are detected, using f
 - **Desktop notifications** use the local `notify-send` command. No network calls.
 - **Email notifications** use user-configured SMTP settings via environment variables. No third-party email APIs.
 - **Webhook notifications** POST to a user-configured URL. No telemetry or analytics payloads are included.
+- **Drift alerts** are sent when a scheduled audit has autonomous drift response enabled and baseline drift at or above the configured threshold is detected.
 
 All notification failures are caught and logged to `stderr`; they do not affect audit execution or exit codes.
 
-## Auto-Fix Safety
+## Drift Alert Signing
 
-The CLI `--auto-fix` feature executes shell commands derived from explanation templates. Several guardrails are in place:
+Autonomous drift alerts can be HMAC-SHA256 signed so recipients can verify authenticity and detect tampering.
+
+- Set `VT_ALERT_SIGNING_KEY` to a 64-character hex key. The same key must be available to the verifier.
+- Each signed alert includes a per-alert `Nonce` and the `ScheduleId` in the signed canonical JSON form.
+- `SignedAlertVerifier` uses constant-time comparison (`CryptographicOperations.FixedTimeEquals`) to resist timing attacks.
+- Alerts sent without a signing key carry the explicit `UNSIGNED` sentinel value so recipients cannot mistake them for authenticated alerts.
+- Set `VT_REQUIRE_SIGNED_ALERTS=1` (or enable **Require signed alerts** on a schedule) to skip sending alerts when no key is configured.
+
+The verifier guarantees integrity and origin-binding. It does not, by itself, guarantee freshness (replay resistance); recipients that need replay resistance must maintain a cache of observed nonces and reject duplicates.
+
+## Auto-Fix and Scheduled Remediation Safety
+
+The CLI `--auto-fix` feature and the `vulcanstrace schedule remediate` command execute shell commands derived from explanation templates. Several guardrails are in place:
 
 - Commands are classified by safety impact before execution (`ReadOnly`, `ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, `Unknown`).
-- The default policy permits `ReadOnly` verification and `ConfigChange` only; `--allow-restart` and `--allow-packages` expand the policy explicitly.
+- The default policy permits `ReadOnly` verification and `ConfigChange` only; `--allow-restart` and `--allow-packages` (or the schedule equivalents) expand the policy explicitly.
 - Destructive and unclassified commands are never executed automatically.
 - `RemediationPlanValidator` blocks sections where risky commands lack explicit rollback guidance.
 - Backup commands run before apply commands; backup failures abort the section.
@@ -55,7 +68,10 @@ The CLI `--auto-fix` feature executes shell commands derived from explanation te
 - Commands are fed to bash via stdin (not `-c` argument wrapping) to prevent shell escaping vulnerabilities.
 - `--dry-run` previews the full plan without executing anything.
 - `--yes` skips interactive confirmation; without it, the user must type `yes` to proceed.
-- Auto-fix is a client-side operation; no commands or results leave the local machine.
+- Scheduled remediation applies the schedule's rule-prefix scope via `RemediationScopeFilter` before building the plan, so a schedule scoped to `FW` cannot remediate `SSH`, `KERN`, or other rule families.
+- Auto-fix and scheduled remediation are client-side operations; no commands or results leave the local machine.
+
+The Security Agent never autonomously applies remediation. Every automatic system change requires explicit operator approval.
 
 ## Persistence
 
@@ -66,4 +82,4 @@ Sensitive data is stored in the user's config directory (`~/.config/VulcansTrace
 - `policy.json` — local rule policy overrides.
 - `suppressions.json` — accepted-risk suppressions.
 
-These files contain posture findings and local configuration only. No logs, telemetry, or external data is stored.
+These files contain posture findings and local configuration only. No logs, telemetry, or external data is stored. The location is resolved by `VulcansTraceConfig`, which honors `--config-dir`, `XDG_CONFIG_HOME`, or the default `~/.config/VulcansTrace`.

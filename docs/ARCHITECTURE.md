@@ -239,20 +239,31 @@ The **Automated Incident Response Playbooks** layer extends the Trace Map correl
 
 The Scheduling layer provides recurring audit automation:
 
-1. `AuditSchedule` records define intent, cron expression, machine role, notification channel, and enabled state.
+1. `AuditSchedule` records define intent, cron expression, machine role, notification channel, enabled state, autonomous drift-response settings, signed-alert requirements, and human-approved remediation policy.
 2. `IScheduleStore` persists schedules (`JsonFileScheduleStore` → `~/.config/VulcansTrace/schedules.json`); `InMemoryScheduleStore` provides a fallback.
 3. `CrontabManager` reads/writes the system user crontab, using a unique marker prefix to identify VulcansTrace entries.
 4. `CronExpressionValidator` validates 5-field cron syntax before persistence or crontab installation.
 5. Scheduled audits run through the CLI (`vulcanstrace schedule run --id <id>`), which compares critical findings against the previous `AuditHistoryEntry` via fingerprint diffing and only notifies on new criticals.
-6. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison and compliance trend calculation.
+6. When autonomous drift response is enabled, `AutonomousDriftResponder` compares the audit result against the intent-scoped baseline and sends a signed alert through the configured notification channel if drift meets the severity threshold.
+7. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison and compliance trend calculation.
+8. `VulcansTraceConfig` centralizes config-directory resolution so all file-backed stores respect an explicit directory, a process-wide override (set by `--config-dir`), or the default `XDG_CONFIG_HOME` / `~/.config` fallback.
 
 Notification services are pluggable:
 
-- `INotificationService` abstraction with `NotifyCriticalFindingsAsync`.
+- `INotificationService` abstraction with `NotifyCriticalFindingsAsync` and `NotifySignedAlertAsync`.
+- `SignedAlertMessage` carries the drift-alert payload plus `ScheduleId`, `Nonce`, and `Signature`.
+- `SignedAlertVerifier` computes and verifies HMAC-SHA256 signatures over a stable canonical JSON form using constant-time comparison.
 - `NotifySendNotificationService` shells out to `notify-send` for desktop alerts.
-- `EmailNotificationService` sends SMTP email with TLS and credential support.
-- `WebhookNotificationService` POSTs JSON payloads with retry logic for transient failures.
+- `EmailNotificationService` sends SMTP email with TLS and credential support; it exposes an `IEmailTransport` seam for tests.
+- `WebhookNotificationService` POSTs JSON payloads with retry logic for transient failures; it exposes an `HttpMessageHandler` seam for tests.
 - All notification services catch exceptions and log to `stderr` so notification failures do not crash audits.
+
+The human-approved remediation path for schedules:
+
+1. `vulcanstrace schedule remediate --id <id>` (or the Avalonia **Remediate** button) runs the schedule's intent, builds a `RemediationPlan`, and applies the schedule's rule-prefix scope via `RemediationScopeFilter` before any command is executed.
+2. `BuildScheduleRemediationPolicy` maps schedule flags (`AllowRemediationRestart`, `AllowRemediationPackages`) to an `AutoFixPolicy`.
+3. The operator reviews the dry-run preview and confirms before `RemediationExecutor` executes permitted commands.
+4. `RemediationScopeFilter` uses tokenized rule-ID matching so prefixes such as `FW` match only `FW-001`, not `FWO-002` or `KERN-001`.
 
 ## Key Domain Types
 
@@ -305,6 +316,10 @@ Notification services are pluggable:
 - `CountermeasureType`: enum discriminating `IptablesDrop` and `AuditdMonitor` countermeasure kinds.
 - `FileHashEntry`: scanner output pairing a file path with its SHA-256 hash (`Path`, `Hash`, `Algorithm`).
 - `YaraMatchEntry`: scanner output for a YARA rule match, including the target path, target kind, matching rule identifier, optional process ID, and optional match description.
+- `SignedAlertMessage`: signed drift-alert payload carrying title, body, schedule identity, nonce, severity counts, rule IDs, attack chains, proactive alerts, remediation summary, timestamp, and signature.
+- `SignedAlertVerifier`: HMAC-SHA256 signer/verifier for `SignedAlertMessage` with constant-time comparison and a stable canonical JSON form.
+- `RemediationScopeFilter`: tokenized rule-prefix filter shared between alert composition and remediation execution.
+- `VulcansTraceConfig`: centralized config-directory resolver used by all file-backed stores.
 
 ## Detection Layers
 

@@ -5,7 +5,7 @@
         x:DataType="vm:ScheduleEditViewModel"
         Title="Edit Schedule"
         Width="420"
-        Height="460"
+        Height="640"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
@@ -37,6 +37,29 @@
             <StackPanel Orientation="Horizontal" Spacing="16">
                 <CheckBox Content="Notify on critical findings" IsChecked="{Binding NotifyOnCritical}" Foreground="#e2e8f0"/>
                 <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="#e2e8f0"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <CheckBox Content="Autonomous drift response" IsChecked="{Binding AutonomousDriftResponse}" Foreground="#e2e8f0"/>
+                <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding AutonomousDriftResponse}">
+                    <TextBlock Text="Threshold:" VerticalAlignment="Center" Foreground="#e2e8f0"/>
+                    <ComboBox ItemsSource="{Binding AvailableSeverities}" SelectedItem="{Binding AutonomousDriftSeverityThreshold}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <CheckBox Content="Require signed alerts (skip unsigned drift alerts when no signing key is set)" IsChecked="{Binding RequireSignedAlerts}" IsVisible="{Binding AutonomousDriftResponse}" Foreground="#e2e8f0"/>
+
+            <StackPanel Orientation="Vertical" Spacing="4">
+                <CheckBox Content="Allow human-approved remediation" IsChecked="{Binding AllowAutoRemediate}" Foreground="#e2e8f0"/>
+                <StackPanel Orientation="Vertical" Spacing="4" IsVisible="{Binding AllowAutoRemediate}" Margin="16,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <CheckBox Content="Permit service restarts" IsChecked="{Binding AllowRemediationRestart}" Foreground="#e2e8f0"/>
+                        <CheckBox Content="Permit package install/remove" IsChecked="{Binding AllowRemediationPackages}" Foreground="#e2e8f0"/>
+                    </StackPanel>
+                    <TextBlock Text="Limit to rule prefixes (comma-separated, optional):" Foreground="#94a3b8" FontSize="12"/>
+                    <TextBox Text="{Binding RemediationPrefixes}" Watermark="e.g. FW, KERN, PKG"/>
+                    <TextBlock Text="Available prefixes: FW, KERN, PKG, SSH, USER, FILE, LOG, CRON, CONTAINER, K8S, PROCESS" Foreground="#64748b" FontSize="11"/>
+                </StackPanel>
             </StackPanel>
 
             <TextBlock x:Name="ValidationError" Text="" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,8,0,0"/>

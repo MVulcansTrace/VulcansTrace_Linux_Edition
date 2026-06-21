@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Memory;
 
@@ -36,11 +37,9 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <returns>A configured <see cref="JsonFileAgentMemoryStore"/>.</returns>
-    public static JsonFileAgentMemoryStore CreateDefault()
+    public static JsonFileAgentMemoryStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileAgentMemoryStore(Path.Combine(dir, "agent-memory.json"));
     }

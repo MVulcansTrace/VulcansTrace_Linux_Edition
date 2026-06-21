@@ -20,6 +20,7 @@
             <Button Content="Install Cron" Command="{Binding InstallCronCommand}" MinWidth="80"/>
             <Button Content="Uninstall Cron" Command="{Binding UninstallCronCommand}" MinWidth="90"/>
             <Button Content="Open Output" Command="{Binding OpenOutputCommand}" MinWidth="80"/>
+            <Button Content="Remediate" Command="{Binding RemediateCommand}" MinWidth="80"/>
         </StackPanel>
 
         <!-- Status -->
@@ -47,6 +48,9 @@
                 <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="65" />
                 <DataGridCheckBoxColumn Header="Notify" Binding="{Binding NotifyOnCritical}" Width="55" />
                 <DataGridTextColumn Header="Channel" Binding="{Binding NotificationChannel}" Width="70" />
+                <DataGridCheckBoxColumn Header="Drift" Binding="{Binding AutonomousDriftResponse}" Width="50" />
+                <DataGridTextColumn Header="Threshold" Binding="{Binding AutonomousDriftSeverityThreshold}" Width="70" />
+                <DataGridCheckBoxColumn Header="Rmdt" Binding="{Binding AllowAutoRemediate}" Width="50" />
                 <DataGridCheckBoxColumn Header="Cron?" Binding="{Binding IsInstalledInCron}" Width="50" />
                 <DataGridTextColumn Header="Last Run" Binding="{Binding LastRunUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="120" />
                 <DataGridTextColumn Header="Output Dir" Binding="{Binding OutputDirectory}" Width="*" />

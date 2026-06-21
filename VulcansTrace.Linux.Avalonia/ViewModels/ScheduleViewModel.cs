@@ -9,12 +9,16 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Autonomous;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.Views;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Core.Security;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -53,6 +57,7 @@ public sealed class ScheduleViewModel : ViewModelBase
                 InstallCronCommand.RaiseCanExecuteChanged();
                 UninstallCronCommand.RaiseCanExecuteChanged();
                 OpenOutputCommand.RaiseCanExecuteChanged();
+                RemediateCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -92,6 +97,9 @@ public sealed class ScheduleViewModel : ViewModelBase
 
     /// <summary>Gets the command to open the selected schedule's output directory.</summary>
     public AsyncRelayCommand OpenOutputCommand { get; }
+
+    /// <summary>Gets the command to review and execute remediation for the selected schedule.</summary>
+    public AsyncRelayCommand RemediateCommand { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScheduleViewModel"/> class.
@@ -147,6 +155,11 @@ public sealed class ScheduleViewModel : ViewModelBase
             async _ => await OpenOutputAsync(),
             _ => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.Schedule.OutputDirectory),
             ex => StatusMessage = $"Open output failed: {ex.Message}");
+
+        RemediateCommand = new AsyncRelayCommand(
+            async _ => await RemediateAsync(),
+            _ => SelectedRow != null && SelectedRow.Schedule.Enabled && SelectedRow.Schedule.AllowAutoRemediate,
+            ex => StatusMessage = $"Remediate failed: {ex.Message}");
 
         Refresh();
     }
@@ -260,8 +273,8 @@ public sealed class ScheduleViewModel : ViewModelBase
         await Task.Run(async () =>
         {
             using var cts = new CancellationTokenSource();
-            var agent = AgentFactory.Create(schedule.MachineRole).Agent;
-            var result = await agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
+            using var services = AgentFactory.Create(schedule.MachineRole);
+            var result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
             var criticalCount = result.AgentFindings.Count(f => f.Severity == Severity.Critical);
 
             _store.Save(schedule with { LastRunUtc = DateTime.UtcNow });
@@ -307,7 +320,39 @@ public sealed class ScheduleViewModel : ViewModelBase
             if (schedule.NotifyOnCritical && criticalCount > 0)
             {
                 var notifier = CreateNotificationService(schedule.NotificationChannel);
-                await notifier.NotifyCriticalFindingsAsync(schedule.Name, criticalCount, cts.Token);
+                try
+                {
+                    await notifier.NotifyCriticalFindingsAsync(schedule.Name, criticalCount, cts.Token);
+                }
+                finally
+                {
+                    (notifier as IDisposable)?.Dispose();
+                }
+            }
+
+            if (schedule.AutonomousDriftResponse)
+            {
+                // Best-effort: drift response reuses the already-completed audit (`result`) so no
+                // redundant second audit runs, and must never fail the run or alter its outcome.
+                var driftNotifier = CreateNotificationService(schedule.NotificationChannel);
+                try
+                {
+                    var responder = new AutonomousDriftResponder(
+                        services.Agent,
+                        services.BaselineStore,
+                        driftNotifier,
+                        ResolveAlertSigningKey,
+                        services.RemediationPlanBuilder);
+                    await responder.RespondToDriftAsync(schedule, msg => Dispatcher.UIThread.Post(() => StatusMessage = msg), result, cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.UIThread.Post(() => StatusMessage = $"Drift response failed: {ex.Message}");
+                }
+                finally
+                {
+                    (driftNotifier as IDisposable)?.Dispose();
+                }
             }
 
             Dispatcher.UIThread.Post(() =>
@@ -316,6 +361,141 @@ public sealed class ScheduleViewModel : ViewModelBase
             });
         });
     }
+
+    private async Task RemediateAsync()
+    {
+        if (SelectedRow == null)
+            return;
+
+        var schedule = SelectedRow.Schedule;
+        if (!schedule.Enabled)
+        {
+            StatusMessage = $"Schedule '{schedule.Name}' is disabled.";
+            return;
+        }
+
+        if (!schedule.AllowAutoRemediate)
+        {
+            StatusMessage = $"Remediation is not enabled for schedule '{schedule.Name}'.";
+            return;
+        }
+
+        var owner = GetOwnerWindow();
+        if (owner == null)
+        {
+            StatusMessage = "Remediation preview unavailable: no parent window.";
+            return;
+        }
+
+        StatusMessage = $"Building remediation preview for '{schedule.Name}'...";
+
+        using var services = AgentFactory.Create(schedule.MachineRole);
+        var policy = BuildScheduleRemediationPolicy(schedule);
+
+        // Build the remediation plan off the UI thread, applying the schedule's rule-prefix scope.
+        RemediationPlan plan;
+        try
+        {
+            plan = await Task.Run(async () =>
+            {
+                using var cts = new CancellationTokenSource();
+                var result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
+                var scopedFindings = RemediationScopeFilter.Apply(result.AgentFindings, schedule.AllowedRemediationRulePrefixes);
+                return services.RemediationPlanBuilder.Build(scopedFindings);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = $"Remediation preview for '{schedule.Name}' was cancelled.";
+            return;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Preview failed: audit for '{schedule.Name}' could not complete: {ex.Message}";
+            return;
+        }
+
+        var previewViewModel = new RemediationPreviewViewModel(
+            plan,
+            policy,
+            () => Task.Run(() => ExecuteScheduleRemediationAsync(services, plan, policy)));
+
+        Dispatcher.UIThread.Post(() => StatusMessage = $"Remediation preview ready for '{schedule.Name}'.");
+
+        var window = new RemediationPreviewWindow(previewViewModel);
+        // We are on the UI thread here (RemediateAsync resumed after the plan-building Task.Run).
+        // The dialog stays open across execution so the operator can review the result; it returns
+        // here only when they click Close.
+        await window.ShowDialog(owner);
+
+        var executionResult = previewViewModel.ExecutionResult;
+        StatusMessage = executionResult == null
+            ? $"Remediation cancelled for '{schedule.Name}'."
+            : executionResult.AllSucceeded && executionResult.TotalCommandsExecuted > 0
+                ? $"Remediation completed for '{schedule.Name}'."
+                : executionResult.AllSucceeded
+                    ? $"No remediation commands executed for '{schedule.Name}'."
+                    : $"Remediation completed with failures for '{schedule.Name}'.";
+    }
+
+    private async Task<RemediationExecutionResult> ExecuteScheduleRemediationAsync(
+        AgentServices services,
+        RemediationPlan plan,
+        AutoFixPolicy policy)
+    {
+        using var cts = new CancellationTokenSource();
+        var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, cts.Token);
+
+        // Record remediation attempts via memory store (best-effort).
+        try
+        {
+            var snapshot = services.MemoryStore.Load();
+            if (snapshot != null && snapshot.RuleHistory.Count > 0)
+            {
+                var attemptedRuleIds = executionResult.Sections
+                    .Where(s => s.ApplyResults.Any(r => !r.Skipped))
+                    .Select(s => s.RuleId)
+                    .Where(r => !string.IsNullOrWhiteSpace(r) && snapshot.RuleHistory.ContainsKey(r))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (attemptedRuleIds.Count > 0)
+                {
+                    var timestamp = executionResult.CompletedAtUtc == default
+                        ? DateTime.UtcNow
+                        : executionResult.CompletedAtUtc;
+                    var updatedHistory = new RuleMemoryRecorder().MarkRemediationAttempt(
+                        attemptedRuleIds,
+                        timestamp,
+                        snapshot.RuleHistory);
+
+                    await services.MemoryStore.SaveAsync(snapshot with
+                    {
+                        UtcTimestamp = DateTime.UtcNow,
+                        RuleHistory = updatedHistory
+                    }).ConfigureAwait(false);
+                }
+            }
+        }
+        catch
+        {
+            // Best-effort memory update.
+        }
+
+        return executionResult;
+    }
+
+    private static AutoFixPolicy BuildScheduleRemediationPolicy(AuditSchedule schedule) => new()
+    {
+        AllowReadOnly = true,
+        AllowConfigChange = true,
+        AllowServiceRestart = schedule.AllowRemediationRestart,
+        AllowPackageInstall = schedule.AllowRemediationPackages,
+        AllowDestructive = false,
+        AllowUnknown = false,
+        RequireValidation = true,
+        RequireRollbackGuidance = true
+    };
 
     private async Task InstallCronAsync()
     {
@@ -364,6 +544,23 @@ public sealed class ScheduleViewModel : ViewModelBase
         }
 
         return Task.CompletedTask;
+    }
+
+    private static byte[]? ResolveAlertSigningKey(string scheduleId)
+    {
+        var keyHex = Environment.GetEnvironmentVariable("VT_ALERT_SIGNING_KEY");
+        if (!string.IsNullOrWhiteSpace(keyHex))
+        {
+            try
+            {
+                return Convert.FromHexString(keyHex.Trim());
+            }
+            catch
+            {
+                // Fall back to deterministic key if env var is invalid.
+            }
+        }
+        return null;
     }
 
     private INotificationService CreateNotificationService(NotificationChannel channel)

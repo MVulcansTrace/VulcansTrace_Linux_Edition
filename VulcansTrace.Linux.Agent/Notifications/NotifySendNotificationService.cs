@@ -24,10 +24,28 @@ public sealed class NotifySendNotificationService : INotificationService
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
+    public Task NotifySignedAlertAsync(SignedAlertMessage alert, CancellationToken ct = default)
+    {
+        var title = alert.Title;
+        var body = alert.Body;
+        const int maxProse = 220;
+        if (body.Length > maxProse)
+        {
+            body = body[..(maxProse - 3)].TrimEnd() + "...";
+        }
+        // Append the full signature (not a truncation) so the toast is independently verifiable.
+        body += $" [sig:{alert.Signature}]";
+        TryNotifySend(title, body, urgency: "critical");
+        return Task.CompletedTask;
+    }
+
     private static void TryNotifySend(string title, string message, string urgency = "normal")
     {
         try
         {
+            // ArgumentList passes title/message as separate argv entries (no shell), so message
+            // content cannot inject additional notify-send arguments.
             var startInfo = new ProcessStartInfo
             {
                 FileName = "notify-send",

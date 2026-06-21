@@ -197,21 +197,25 @@ public class RemediationExecutorTests
     [Fact]
     public async Task ExecuteAsync_PropagatesCancellation_DuringExecution()
     {
-        var runner = new FakeProcessRunner(delayMs: 200);
+        using var cts = new CancellationTokenSource();
+        // Cancel deterministically once the first command starts, so the run is interrupted
+        // mid-execution without depending on wall-clock timing (which flakes when the thread pool
+        // is saturated and CancelAfter timers fire late).
+        var runner = new FakeProcessRunner(onCommandStarted: cmd =>
+        {
+            if (cmd == "cmd1")
+                cts.Cancel();
+        });
         var executor = new RemediationExecutor(runner);
         var plan = CreateSimplePlan(
             CreateSection("FW-001", Cmd("cmd1", CommandSafety.ReadOnly)),
             CreateSection("FW-002", Cmd("cmd2", CommandSafety.ReadOnly)));
         var policy = AutoFixPolicy.Standard() with { RequireValidation = false };
-        using var cts = new CancellationTokenSource();
-
-        // Cancel after the first command starts but before it completes.
-        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
         await Assert.ThrowsAsync<OperationCanceledException>(
             () => executor.ExecuteAsync(plan, policy, dryRun: false, cts.Token));
 
-        // The first command should have been started before cancellation fired.
+        // The first command should have been started before cancellation fired; the second never runs.
         Assert.Single(runner.ExecutedCommands);
     }
 
@@ -494,11 +498,13 @@ public class RemediationExecutorTests
     {
         private readonly Queue<ProcessResult> _results = new();
         private readonly int _delayMs;
+        private readonly Action<string>? _onCommandStarted;
         public List<string> ExecutedCommands { get; } = new();
 
-        public FakeProcessRunner(int delayMs = 0)
+        public FakeProcessRunner(int delayMs = 0, Action<string>? onCommandStarted = null)
         {
             _delayMs = delayMs;
+            _onCommandStarted = onCommandStarted;
         }
 
         public void QueueResult(ProcessResult result) => _results.Enqueue(result);
@@ -506,6 +512,7 @@ public class RemediationExecutorTests
         public async Task<ProcessResult> RunAsync(string command, TimeSpan timeout, CancellationToken ct = default)
         {
             ExecutedCommands.Add(command);
+            _onCommandStarted?.Invoke(command);
 
             if (_delayMs > 0)
             {

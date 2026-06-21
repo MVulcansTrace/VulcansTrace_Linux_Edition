@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Autonomous;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
@@ -18,6 +19,7 @@ using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Core.Security;
 using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -46,6 +48,13 @@ public static class Program
         }
 
         var command = args[0].ToLowerInvariant();
+
+        // Global flag: override the config directory for every file-backed store. Parsed here (not
+        // position-sensitive) so it can appear anywhere after the command, e.g.
+        // `vulcanstrace schedule list --config-dir /tmp/vt`.
+        var configDir = ParseArg(args, "--config-dir", null);
+        if (!string.IsNullOrWhiteSpace(configDir))
+            VulcansTraceConfig.OverrideDirectory = configDir;
 
         try
         {
@@ -93,7 +102,7 @@ public static class Program
 
         Console.WriteLine($"Running audit: {agentIntent} (role: {machineRole})...");
 
-        var services = AgentFactory.Create(machineRole);
+        using var services = AgentFactory.Create(machineRole);
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) =>
         {
@@ -249,9 +258,20 @@ public static class Program
     private static async Task<int> RunDemoRunAsync(string[] args)
     {
         var scenarioKeyword = ParseArg(args, "--scenario", null);
-        var durationSeconds = int.TryParse(ParseArg(args, "--duration", "150")!, out var d) ? d : 150;
+        var durationSeconds = 150;
+        if (TryParseArg(args, "--duration", out var durationStr) && durationStr is not null)
+        {
+            if (!int.TryParse(durationStr, out durationSeconds))
+                return PrintError($"--duration must be an integer, got '{durationStr}'.");
+        }
         var intensityArg = ParseArg(args, "--intensity", "High")!;
-        var seed = int.TryParse(ParseArg(args, "--seed", null) ?? string.Empty, out var s) ? (int?)s : null;
+        int? seed = null;
+        if (TryParseArg(args, "--seed", out var seedStr) && seedStr is not null)
+        {
+            if (!int.TryParse(seedStr, out var seedValue))
+                return PrintError($"--seed must be an integer, got '{seedStr}'.");
+            seed = seedValue;
+        }
         var outputEvidence = ParseArg(args, "--output-evidence", null);
         var outputJson = ParseArg(args, "--output-json", null);
         var outputHtml = ParseArg(args, "--output-html", null);
@@ -846,10 +866,13 @@ public static class Program
             case "run":
                 return await RunScheduledAuditAsync(args);
 
+            case "remediate":
+                return await RunScheduleRemediateAsync(args);
+
             case "install-cron":
             {
-                var store = AgentFactory.Create().ScheduleStore;
-                return InstallCron(args, store);
+                using var cronServices = AgentFactory.Create();
+                return InstallCron(args, cronServices.ScheduleStore);
             }
 
             case "uninstall-cron":
@@ -857,7 +880,7 @@ public static class Program
 
             default:
             {
-                var services = AgentFactory.Create();
+                using var services = AgentFactory.Create();
                 return sub switch
                 {
                     "list" => ListSchedules(services.ScheduleStore),
@@ -883,13 +906,16 @@ public static class Program
 
         var installed = CrontabManager.GetInstalledScheduleIds().ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Console.WriteLine($"{"Id",-36} {"Name",-16} {"Intent",-16} {"Role",-11} {"Cron",-14} {"Ch",-6} {"En",-4} {"Cr",-4} {"Last Run"}");
-        Console.WriteLine(new string('-', 135));
+        Console.WriteLine($"{"Id",-36} {"Name",-16} {"Intent",-16} {"Role",-11} {"Cron",-14} {"Ch",-6} {"En",-4} {"Dr",-4} {"Thr",-8} {"Rm",-4} {"Cr",-4} {"Last Run"}");
+        Console.WriteLine(new string('-', 163));
         foreach (var s in schedules)
         {
             var lastRun = s.LastRunUtc.HasValue ? $"{s.LastRunUtc.Value:u} UTC" : "never";
             var inCron = installed.Contains(s.Id) ? "yes" : "no";
-            Console.WriteLine($"{s.Id,-36} {s.Name,-16} {s.Intent,-16} {s.MachineRole,-11} {s.CronExpression,-14} {s.NotificationChannel,-6} {s.Enabled,-4} {inCron,-4} {lastRun}");
+            var drift = s.AutonomousDriftResponse ? "yes" : "no";
+            var threshold = s.AutonomousDriftResponse ? s.AutonomousDriftSeverityThreshold.ToString() : "-";
+            var remediate = s.AllowAutoRemediate ? "yes" : "no";
+            Console.WriteLine($"{s.Id,-36} {s.Name,-16} {s.Intent,-16} {s.MachineRole,-11} {s.CronExpression,-14} {s.NotificationChannel,-6} {s.Enabled,-4} {drift,-4} {threshold,-8} {remediate,-4} {inCron,-4} {lastRun}");
         }
         return 0;
     }
@@ -903,6 +929,17 @@ public static class Program
         var outputDir = ParseArg(args, "--output-dir", null);
         var notifyOnCritical = HasFlag(args, "--notify-on-critical");
         var channelStr = ParseArg(args, "--channel", "Desktop");
+        var autonomousDriftResponse = HasFlag(args, "--autonomous-drift-response");
+        var driftThresholdStr = ParseArg(args, "--autonomous-drift-threshold", "High");
+        var allowRemediate = HasFlag(args, "--allow-remediate");
+        var allowRemediationRestart = HasFlag(args, "--allow-remediation-restart");
+        var allowRemediationPackages = HasFlag(args, "--allow-remediation-packages");
+        var remediationPrefixesStr = ParseArg(args, "--remediation-prefixes", null);
+        var requireSignedAlerts = HasFlag(args, "--require-signed-alerts");
+
+        var missingValue = MissingFlagValueError(args, "--role", "--channel", "--autonomous-drift-threshold", "--output-dir", "--remediation-prefixes");
+        if (missingValue != null)
+            return PrintError(missingValue);
 
         if (string.IsNullOrWhiteSpace(name))
             return PrintError("--name is required");
@@ -918,6 +955,11 @@ public static class Program
             return PrintError($"Unknown role: {roleStr}");
         if (!Enum.TryParse<NotificationChannel>(channelStr, true, out var channel))
             return PrintError($"Unknown channel: {channelStr}");
+        if (!Enum.TryParse<Severity>(driftThresholdStr, true, out var driftThreshold))
+            return PrintError($"Unknown severity threshold: {driftThresholdStr}. Use Critical, High, Medium, Low, or Info.");
+        if ((allowRemediationRestart || allowRemediationPackages) && !allowRemediate)
+            return PrintError("--allow-remediation-restart and --allow-remediation-packages require --allow-remediate.");
+        var remediationPrefixes = ParseRemediationPrefixes(remediationPrefixesStr);
         if (store.GetAll().Any(s => s.Name.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase)))
             return PrintError($"A schedule named '{name.Trim()}' already exists.");
 
@@ -930,6 +972,13 @@ public static class Program
             MachineRole = role,
             NotifyOnCritical = notifyOnCritical,
             NotificationChannel = channel,
+            AutonomousDriftResponse = autonomousDriftResponse,
+            AutonomousDriftSeverityThreshold = driftThreshold,
+            RequireSignedAlerts = requireSignedAlerts,
+            AllowAutoRemediate = allowRemediate,
+            AllowRemediationRestart = allowRemediationRestart,
+            AllowRemediationPackages = allowRemediationPackages,
+            AllowedRemediationRulePrefixes = remediationPrefixes,
             OutputDirectory = outputDir
         };
 
@@ -941,6 +990,14 @@ public static class Program
         Console.WriteLine($"  Cron: {schedule.CronExpression}");
         Console.WriteLine($"  Channel: {schedule.NotificationChannel}");
         Console.WriteLine($"  Notify on critical: {schedule.NotifyOnCritical}");
+        Console.WriteLine($"  Autonomous drift response: {schedule.AutonomousDriftResponse}");
+        Console.WriteLine($"  Autonomous drift threshold: {schedule.AutonomousDriftSeverityThreshold}");
+        Console.WriteLine($"  Require signed alerts: {schedule.RequireSignedAlerts}");
+        Console.WriteLine($"  Allow remediation: {schedule.AllowAutoRemediate}");
+        Console.WriteLine($"  Allow remediation restart: {schedule.AllowRemediationRestart}");
+        Console.WriteLine($"  Allow remediation packages: {schedule.AllowRemediationPackages}");
+        if (schedule.AllowedRemediationRulePrefixes.Count > 0)
+            Console.WriteLine($"  Remediation rule prefixes: {string.Join(", ", schedule.AllowedRemediationRulePrefixes)}");
         if (!string.IsNullOrWhiteSpace(schedule.OutputDirectory))
             Console.WriteLine($"  Output directory: {schedule.OutputDirectory}");
         return 0;
@@ -955,6 +1012,10 @@ public static class Program
         var schedule = store.GetById(id);
         if (schedule == null)
             return PrintError($"Schedule not found: {id}");
+
+        var missingValue = MissingFlagValueError(args, "--name", "--intent", "--cron", "--role", "--channel", "--output-dir", "--autonomous-drift-threshold", "--remediation-prefixes");
+        if (missingValue != null)
+            return PrintError(missingValue);
 
         var updated = schedule;
 
@@ -1002,10 +1063,48 @@ public static class Program
         if (HasFlag(args, "--no-notify-on-critical"))
             updated = updated with { NotifyOnCritical = false };
 
+        if (HasFlag(args, "--autonomous-drift-response"))
+            updated = updated with { AutonomousDriftResponse = true };
+        if (HasFlag(args, "--no-autonomous-drift-response"))
+            updated = updated with { AutonomousDriftResponse = false };
+
+        if (TryParseArg(args, "--autonomous-drift-threshold", out var driftThresholdStr))
+        {
+            if (!Enum.TryParse<Severity>(driftThresholdStr, true, out var driftThreshold))
+                return PrintError($"Unknown severity threshold: {driftThresholdStr}. Use Critical, High, Medium, Low, or Info.");
+            updated = updated with { AutonomousDriftSeverityThreshold = driftThreshold };
+        }
+
+        if (HasFlag(args, "--require-signed-alerts"))
+            updated = updated with { RequireSignedAlerts = true };
+        if (HasFlag(args, "--no-require-signed-alerts"))
+            updated = updated with { RequireSignedAlerts = false };
+
+        if (HasFlag(args, "--allow-remediate"))
+            updated = updated with { AllowAutoRemediate = true };
+        if (HasFlag(args, "--no-allow-remediate"))
+            updated = updated with { AllowAutoRemediate = false };
+
+        if (HasFlag(args, "--allow-remediation-restart"))
+            updated = updated with { AllowRemediationRestart = true };
+        if (HasFlag(args, "--no-allow-remediation-restart"))
+            updated = updated with { AllowRemediationRestart = false };
+
+        if (HasFlag(args, "--allow-remediation-packages"))
+            updated = updated with { AllowRemediationPackages = true };
+        if (HasFlag(args, "--no-allow-remediation-packages"))
+            updated = updated with { AllowRemediationPackages = false };
+
+        if (TryParseArg(args, "--remediation-prefixes", out var remediationPrefixesStr))
+            updated = updated with { AllowedRemediationRulePrefixes = ParseRemediationPrefixes(remediationPrefixesStr) };
+
         if (HasFlag(args, "--enabled"))
             updated = updated with { Enabled = true };
         if (HasFlag(args, "--disabled"))
             updated = updated with { Enabled = false };
+
+        if ((updated.AllowRemediationRestart || updated.AllowRemediationPackages) && !updated.AllowAutoRemediate)
+            return PrintError("--allow-remediation-restart and --allow-remediation-packages require --allow-remediate.");
 
         store.Save(updated);
         Console.WriteLine($"Schedule updated: {updated.Id}");
@@ -1072,13 +1171,13 @@ public static class Program
         return 0;
     }
 
-    private static async Task<int> RunScheduledAuditAsync(string[] args)
+    private static async Task<int> RunScheduledAuditAsync(string[] args, string? configDirectory = null)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
             return PrintError("--id is required for schedule run");
 
-        var schedule = JsonFileScheduleStore.CreateDefault().GetById(id);
+        var schedule = JsonFileScheduleStore.CreateDefault(configDirectory).GetById(id);
         if (schedule == null)
             return PrintError($"Schedule not found: {id}");
 
@@ -1097,7 +1196,7 @@ public static class Program
             cts.Cancel();
         };
 
-        var services = AgentFactory.Create(schedule.MachineRole);
+        using var services = AgentFactory.Create(schedule.MachineRole, configDirectory);
         var previous = services.AuditHistoryStore.GetAll()
             .FirstOrDefault(e => e.Intent == schedule.Intent);
 
@@ -1140,15 +1239,19 @@ public static class Program
 
             if (newCriticalCount > 0)
             {
+                var notifier = CreateNotificationService(schedule.NotificationChannel);
                 try
                 {
-                    var notifier = CreateNotificationService(schedule.NotificationChannel);
                     await notifier.NotifyCriticalFindingsAsync(schedule.Name, newCriticalCount, cts.Token);
                     Console.WriteLine($"  Notification sent via {schedule.NotificationChannel}: {newCriticalCount} new critical finding(s).");
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"  Notification failed via {schedule.NotificationChannel}: {ex.Message}");
+                }
+                finally
+                {
+                    (notifier as IDisposable)?.Dispose();
                 }
             }
             else if (criticalCount > 0 && previousCriticalFingerprints.Count == 0 && previous != null)
@@ -1164,9 +1267,204 @@ public static class Program
         }
 
         var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
+
+        if (schedule.AutonomousDriftResponse)
+        {
+            // Best-effort: drift response must never fail the cron run or alter the audit outcome.
+            // The already-completed `result` is reused for alert enrichment so we don't run a
+            // redundant third full-audit pass.
+            var driftNotifier = CreateNotificationService(schedule.NotificationChannel);
+            try
+            {
+                var responder = new AutonomousDriftResponder(
+                    services.Agent,
+                    services.BaselineStore,
+                    driftNotifier,
+                    ResolveAlertSigningKey,
+                    services.RemediationPlanBuilder);
+                await responder.RespondToDriftAsync(schedule, msg => Console.WriteLine($"  {msg}"), result, cts.Token);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  Autonomous drift response failed: {ex.Message}");
+            }
+            finally
+            {
+                (driftNotifier as IDisposable)?.Dispose();
+            }
+        }
+
         var auditExitCode = criticalCount > 0 ? 2 : 0;
         return Math.Max(auditExitCode, autoFixExitCode);
     }
+
+    private static byte[]? ResolveAlertSigningKey(string scheduleId)
+    {
+        var keyHex = Environment.GetEnvironmentVariable("VT_ALERT_SIGNING_KEY");
+        if (!string.IsNullOrWhiteSpace(keyHex))
+        {
+            try
+            {
+                return Convert.FromHexString(keyHex.Trim());
+            }
+            catch
+            {
+                Console.Error.WriteLine("[VulcansTrace] VT_ALERT_SIGNING_KEY is not valid hex; drift alerts will be sent UNSIGNED.");
+            }
+        }
+        return null;
+    }
+
+    internal static async Task<int> RunScheduleRemediateAsync(string[] args, string? configDirectory = null)
+    {
+        var id = ParseArg(args, "--id", null);
+        if (string.IsNullOrWhiteSpace(id))
+            return PrintError("--id is required for schedule remediate");
+
+        var schedule = JsonFileScheduleStore.CreateDefault(configDirectory).GetById(id);
+        if (schedule == null)
+            return PrintError($"Schedule not found: {id}");
+
+        if (!schedule.AllowAutoRemediate)
+            return PrintError($"Schedule '{schedule.Name}' does not have remediation enabled. Enable it with 'vulcanstrace schedule edit --id {id} --allow-remediate'.");
+
+        var dryRun = HasFlag(args, "--dry-run");
+        var yes = HasFlag(args, "--yes");
+
+        Console.WriteLine($"Running remediation for schedule: {schedule.Name} ({schedule.Intent}, role: {schedule.MachineRole})...");
+
+        using var cts = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancelHandler = (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+        Console.CancelKeyPress += cancelHandler;
+
+        try
+        {
+            using var services = AgentFactory.Create(schedule.MachineRole, configDirectory);
+            AgentResult result;
+            try
+            {
+                result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Console.Error.WriteLine("Remediation audit cancelled.");
+                return 130; // Standard exit code for Ctrl-C cancellation.
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: remediation audit failed: {ex.Message}");
+                return 1;
+            }
+
+            // Enforce the schedule's rule-prefix scope on what is actually remediated — not just on
+            // the alert preview — so a schedule scoped to e.g. "FW" cannot remediate other rules.
+            var scopedFindings = RemediationScopeFilter.Apply(result.AgentFindings, schedule.AllowedRemediationRulePrefixes);
+            var plan = services.RemediationPlanBuilder.Build(scopedFindings);
+            var policy = BuildScheduleRemediationPolicy(schedule);
+            var validation = RemediationPlanValidator.Validate(plan);
+
+            if (plan.TotalSections == 0)
+            {
+                Console.WriteLine("No remediable findings in scope. Nothing to do.");
+                return 0;
+            }
+
+            var permittedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => policy.IsPermitted(c.Safety)));
+            var blockedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => !policy.IsPermitted(c.Safety)));
+
+            Console.WriteLine();
+            Console.WriteLine($"Findings in scope: {plan.TotalSections}");
+            Console.WriteLine($"Commands permitted by policy: {permittedCount}");
+            Console.WriteLine($"Commands blocked by policy: {blockedCount}");
+            Console.WriteLine($"Policy: {policy.Describe()}");
+
+            if (!validation.IsValid)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Validation warnings:");
+                foreach (var err in validation.Errors)
+                {
+                    Console.WriteLine($"  • {err}");
+                }
+            }
+
+            if (permittedCount == 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("No commands are permitted under the current policy. Nothing to do.");
+                Console.WriteLine("Use --allow-remediate with --allow-remediation-restart or --allow-remediation-packages to expand the policy.");
+                return 0;
+            }
+
+            var preview = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+            Console.WriteLine(preview);
+
+            if (dryRun)
+            {
+                return 0;
+            }
+
+            if (!yes)
+            {
+                Console.Write("Type 'yes' to execute the remediation plan, or anything else to cancel: ");
+                var response = Console.ReadLine()?.Trim();
+                if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("Remediation cancelled by user.");
+                    return 0;
+                }
+            }
+            else
+            {
+                Console.WriteLine("--yes flag set. Proceeding without interactive confirmation.");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Executing remediation plan...");
+
+            var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, cts.Token);
+            await RecordAutoFixRemediationAttemptsAsync(executionResult, services);
+
+            var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
+            Console.WriteLine(output);
+
+            if (!executionResult.AllSucceeded)
+            {
+                Console.WriteLine("⚠️  Some remediation commands failed. Review the output above.");
+                return 3;
+            }
+
+            if (executionResult.TotalCommandsExecuted == 0)
+            {
+                Console.WriteLine("ℹ️  No remediation commands were executed (all skipped by policy or validation).");
+                return 0;
+            }
+
+            Console.WriteLine("✅ All permitted remediation commands completed successfully.");
+            return 0;
+        }
+        finally
+        {
+            // Detach so repeated in-process invocation (notably unit tests) does not accumulate handlers.
+            Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
+    private static AutoFixPolicy BuildScheduleRemediationPolicy(AuditSchedule schedule) => new()
+    {
+        AllowReadOnly = true,
+        AllowConfigChange = true,
+        AllowServiceRestart = schedule.AllowRemediationRestart,
+        AllowPackageInstall = schedule.AllowRemediationPackages,
+        AllowDestructive = false,
+        AllowUnknown = false,
+        RequireValidation = true,
+        RequireRollbackGuidance = true
+    };
 
     private static async Task<int> RunSessionAsync(string[] args)
     {
@@ -1254,7 +1552,8 @@ public static class Program
 
     private static INotificationService CreateEmailService()
     {
-        var host = Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_HOST") ?? "localhost";
+        var hostEnv = Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_HOST");
+        var host = hostEnv ?? "localhost";
         var port = int.TryParse(Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_PORT"), out var p) ? p : 587;
         var fromAddr = Environment.GetEnvironmentVariable("VT_EMAIL_FROM") ?? "vulcanstrace@localhost";
         var toAddr = Environment.GetEnvironmentVariable("VT_EMAIL_TO") ?? "admin@localhost";
@@ -1265,23 +1564,39 @@ public static class Program
             || noSsl?.Equals("true", StringComparison.OrdinalIgnoreCase) == true
             || noSsl?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
         var enableSsl = !disableSsl;
+
+        if (string.IsNullOrWhiteSpace(hostEnv))
+            Console.Error.WriteLine("[VulcansTrace] Warning: VT_EMAIL_SMTP_HOST is not set; defaulting to localhost. Email alerts will not be delivered until SMTP is configured.");
+        if (!enableSsl && !string.IsNullOrEmpty(user))
+            Console.Error.WriteLine("[VulcansTrace] Warning: VT_EMAIL_NO_SSL is set while SMTP credentials are configured — credentials will be sent in plaintext.");
+
         return new EmailNotificationService(host, port, fromAddr, toAddr, user, pass, enableSsl);
     }
 
     private static INotificationService CreateWebhookService()
     {
-        var url = Environment.GetEnvironmentVariable("VT_WEBHOOK_URL") ?? "http://localhost:8080/webhook";
+        var urlEnv = Environment.GetEnvironmentVariable("VT_WEBHOOK_URL");
+        var url = urlEnv ?? "http://localhost:8080/webhook";
+        if (string.IsNullOrWhiteSpace(urlEnv))
+            Console.Error.WriteLine("[VulcansTrace] Warning: VT_WEBHOOK_URL is not set; defaulting to localhost. Webhook alerts will not be delivered until it is configured.");
         return new WebhookNotificationService(url);
     }
 
     private static string? ParseArg(string[] args, string key, string? defaultValue)
     {
-        for (var i = 0; i < args.Length - 1; i++)
+        var attachedPrefix = key + "=";
+        for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].Equals(key, StringComparison.OrdinalIgnoreCase))
+            // Space-separated: --key value
+            if (args[i].Equals(key, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 var val = args[i + 1];
                 return val.StartsWith("--", StringComparison.Ordinal) ? defaultValue : val;
+            }
+            // Attached form: --key=value (lets values that begin with '--' be supplied unambiguously)
+            if (args[i].StartsWith(attachedPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return args[i][attachedPrefix.Length..];
             }
         }
         return defaultValue;
@@ -1289,9 +1604,10 @@ public static class Program
 
     private static bool TryParseArg(string[] args, string key, out string? value)
     {
-        for (var i = 0; i < args.Length - 1; i++)
+        var attachedPrefix = key + "=";
+        for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].Equals(key, StringComparison.OrdinalIgnoreCase))
+            if (args[i].Equals(key, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 var val = args[i + 1];
                 if (!val.StartsWith("--", StringComparison.Ordinal))
@@ -1299,6 +1615,11 @@ public static class Program
                     value = val;
                     return true;
                 }
+            }
+            if (args[i].StartsWith(attachedPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                value = args[i][attachedPrefix.Length..];
+                return true;
             }
         }
         value = null;
@@ -1309,6 +1630,47 @@ public static class Program
     {
         return args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>True if <paramref name="key"/> appears as a bare <c>--key</c> or attached <c>--key=...</c> token.</summary>
+    private static bool IsFlagPresent(string[] args, string key)
+    {
+        var attached = key + "=";
+        return args.Any(a => a.Equals(key, StringComparison.OrdinalIgnoreCase)
+                             || a.StartsWith(attached, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>True if <paramref name="key"/> has a consumable value (a non-flag token after it, or an attached <c>--key=...</c>).</summary>
+    private static bool HasConsumableValue(string[] args, string key)
+    {
+        var attached = key + "=";
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i].Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= args.Length)
+                    return false;
+                var next = args[i + 1];
+                return !next.StartsWith("--", StringComparison.Ordinal);
+            }
+            if (args[i].StartsWith(attached, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Returns an error if any of the given value-bearing flags is present without a consumable value; otherwise null.</summary>
+    private static string? MissingFlagValueError(string[] args, params string[] valueFlags)
+    {
+        foreach (var key in valueFlags)
+        {
+            if (IsFlagPresent(args, key) && !HasConsumableValue(args, key))
+                return $"{key} requires a value.";
+        }
+        return null;
+    }
+
+    private static IReadOnlyList<string> ParseRemediationPrefixes(string? value)
+        => RemediationScopeFilter.ParsePrefixes(value);
 
     private static int PrintError(string message)
     {
@@ -1455,6 +1817,7 @@ public static class Program
         Console.WriteLine("VulcansTrace Linux Edition - CLI");
         Console.WriteLine();
         Console.WriteLine("Usage:");
+        Console.WriteLine("  Any command also accepts the global flag --config-dir <dir> to override the config directory.");
         Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>] [--auto-fix [--dry-run] [--yes] [--allow-restart] [--allow-packages]]");
         Console.WriteLine("  vulcanstrace demo list");
         Console.WriteLine("  vulcanstrace demo run --scenario <name> [--duration <seconds>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>]");
@@ -1462,14 +1825,23 @@ public static class Program
         Console.WriteLine("  vulcanstrace doctor [--output-json <file>]");
         Console.WriteLine("  vulcanstrace verify-finding <rule-id> [--role <role>]");
         Console.WriteLine("  vulcanstrace schedule list");
-        Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr> [--role <role>] [--channel Desktop|Email|Webhook] [--notify-on-critical] [--output-dir <dir>]");
-        Console.WriteLine("  vulcanstrace schedule edit --id <id> [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>] [--notify-on-critical|--no-notify-on-critical] [--enabled|--disabled]");
+        Console.WriteLine("  vulcanstrace schedule add --name <name> --intent <intent> --cron <expr>");
+        Console.WriteLine("    [--role <role>] [--channel Desktop|Email|Webhook] [--output-dir <dir>]");
+        Console.WriteLine("    [--notify-on-critical] [--autonomous-drift-response] [--autonomous-drift-threshold <severity>] [--require-signed-alerts]");
+        Console.WriteLine("    [--allow-remediate] [--allow-remediation-restart] [--allow-remediation-packages] [--remediation-prefixes <prefix1,prefix2>]");
+        Console.WriteLine("  vulcanstrace schedule edit --id <id>");
+        Console.WriteLine("    [--name <name>] [--intent <intent>] [--cron <expr>] [--role <role>] [--channel <ch>] [--output-dir <dir>]");
+        Console.WriteLine("    [--notify-on-critical|--no-notify-on-critical] [--autonomous-drift-response|--no-autonomous-drift-response] [--autonomous-drift-threshold <severity>]");
+        Console.WriteLine("    [--require-signed-alerts|--no-require-signed-alerts] [--allow-remediate|--no-allow-remediate]");
+        Console.WriteLine("    [--allow-remediation-restart|--no-allow-remediation-restart] [--allow-remediation-packages|--no-allow-remediation-packages] [--remediation-prefixes <prefix1,prefix2>]");
+        Console.WriteLine("    [--enabled|--disabled]");
         Console.WriteLine("  vulcanstrace schedule delete --id <id>");
         Console.WriteLine("  vulcanstrace schedule enable --id <id>");
         Console.WriteLine("  vulcanstrace schedule disable --id <id>");
         Console.WriteLine("  vulcanstrace schedule install-cron --id <id> [--exe-path <path>]");
         Console.WriteLine("  vulcanstrace schedule uninstall-cron --id <id>");
         Console.WriteLine("  vulcanstrace schedule run --id <id>");
+        Console.WriteLine("  vulcanstrace schedule remediate --id <id> [--dry-run] [--yes]");
         Console.WriteLine("  vulcanstrace session list");
         Console.WriteLine("  vulcanstrace session show --id <id>");
         Console.WriteLine("  vulcanstrace session delete --id <id>");
@@ -1478,6 +1850,7 @@ public static class Program
         Console.WriteLine("  vulcanstrace threat-intel clear [--yes]");
         Console.WriteLine();
         Console.WriteLine("Options:");
+        Console.WriteLine("  --config-dir <dir>         [global] Base config directory for all stores (overrides XDG_CONFIG_HOME)");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");
         Console.WriteLine("  --scenario <name>          Demo scenario: random-mix, c2-beaconing, ssh-bruteforce, privilege-escalation");
         Console.WriteLine("  --duration <seconds>       Demo run duration in seconds (default: 150)");
@@ -1495,6 +1868,18 @@ public static class Program
         Console.WriteLine("  --role <role>              Machine role: Workstation, Server, LabBox, Router, DevMachine");
         Console.WriteLine("  --channel <ch>             Notification channel: Desktop, Email, Webhook");
         Console.WriteLine("  --output-dir <dir>         Directory to write scheduled audit JSON results");
+        Console.WriteLine("  --autonomous-drift-response    Enable autonomous drift-response alerts");
+        Console.WriteLine("  --no-autonomous-drift-response Disable autonomous drift-response alerts (edit only)");
+        Console.WriteLine("  --autonomous-drift-threshold   Severity threshold for drift alerts: Critical, High, Medium, Low, Info (default: High)");
+        Console.WriteLine("  --require-signed-alerts        Fail closed: never send unsigned drift alerts for this schedule (needs VT_ALERT_SIGNING_KEY)");
+        Console.WriteLine("  --no-require-signed-alerts     Allow unsigned drift alerts for this schedule (edit only)");
+        Console.WriteLine("  --allow-remediate              Enable human-approved remediation from schedule alerts");
+        Console.WriteLine("  --no-allow-remediate           Disable schedule remediation (edit only)");
+        Console.WriteLine("  --allow-remediation-restart    Permit remediation commands that restart services");
+        Console.WriteLine("  --no-allow-remediation-restart Block service-restart remediation commands (edit only)");
+        Console.WriteLine("  --allow-remediation-packages   Permit remediation commands that install/remove packages");
+        Console.WriteLine("  --no-allow-remediation-packages Block package remediation commands (edit only)");
+        Console.WriteLine("  --remediation-prefixes         Comma-separated rule-id prefixes remediation may target (e.g. FW,KERN)");
         Console.WriteLine("  --enabled / --disabled     Toggle schedule state (edit only)");
         Console.WriteLine("  --exe-path <path>          Path to vulcanstrace binary for cron entries");
         Console.WriteLine("  --auto-fix                 Enable automatic remediation of findings after audit");
@@ -1507,11 +1892,14 @@ public static class Program
         Console.WriteLine("  VT_EMAIL_SMTP_HOST, VT_EMAIL_SMTP_PORT, VT_EMAIL_FROM, VT_EMAIL_TO, VT_EMAIL_USER, VT_EMAIL_PASS, VT_EMAIL_NO_SSL");
         Console.WriteLine("Environment variables for Webhook channel:");
         Console.WriteLine("  VT_WEBHOOK_URL");
+        Console.WriteLine("Environment variables for autonomous drift-response signing:");
+        Console.WriteLine("  VT_ALERT_SIGNING_KEY       Hex-encoded HMAC-SHA256 key for signing drift alerts (if unset, alerts are sent UNSIGNED)");
+        Console.WriteLine("  VT_REQUIRE_SIGNED_ALERTS   When 1/true/yes, unsigned drift alerts are never sent across all schedules (fail closed)");
         Console.WriteLine();
         Console.WriteLine("Exit codes:");
         Console.WriteLine("  0  Success (no critical findings / no diff detected)");
         Console.WriteLine("  1  Error");
         Console.WriteLine("  2  Success with critical findings / diff detected");
-        Console.WriteLine("  3  Auto-fix executed but some commands failed");
+        Console.WriteLine("  3  Auto-fix or 'schedule remediate' executed but some commands failed");
     }
 }

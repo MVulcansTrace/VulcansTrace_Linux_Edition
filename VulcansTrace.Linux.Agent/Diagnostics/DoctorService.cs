@@ -20,6 +20,9 @@ public sealed class DoctorService
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
     }
 
+    /// <summary>Scanner instances wired into this diagnostic service.</summary>
+    internal IReadOnlyList<IScanner> Scanners => _scanners;
+
     /// <summary>
     /// Runs a lightweight probe across all scanners and returns capability visibility.
     /// </summary>

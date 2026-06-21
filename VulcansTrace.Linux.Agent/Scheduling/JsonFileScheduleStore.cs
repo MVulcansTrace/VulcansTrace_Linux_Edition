@@ -1,4 +1,5 @@
 using System.Text.Json;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Scheduling;
 
@@ -23,14 +24,13 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
     }
 
     /// <summary>
-    /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
+    /// Creates a store in the VulcansTrace config directory (XDG_CONFIG_HOME or ~/.config by default).
     /// </summary>
+    /// <param name="configDirectory">Optional explicit base config directory (e.g. a per-test temp dir).</param>
     /// <returns>A configured <see cref="JsonFileScheduleStore"/>.</returns>
-    public static JsonFileScheduleStore CreateDefault()
+    public static JsonFileScheduleStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileScheduleStore(Path.Combine(dir, "schedules.json"));
     }

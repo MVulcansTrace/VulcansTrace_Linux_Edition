@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Core.ThreatIntel;
 
 namespace VulcansTrace.Linux.Agent.ThreatIntel;
@@ -28,11 +29,9 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <returns>A configured <see cref="JsonFileThreatIntelStore"/>.</returns>
-    public static JsonFileThreatIntelStore CreateDefault()
+    public static JsonFileThreatIntelStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonFileThreatIntelStore(Path.Combine(dir, "threat-intel.json"));
     }

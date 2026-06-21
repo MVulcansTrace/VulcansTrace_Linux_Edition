@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Rules;
 
@@ -34,11 +35,9 @@ public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
     /// <returns>A configured <see cref="JsonRulePolicyStore"/>.</returns>
-    public static JsonRulePolicyStore CreateDefault()
+    public static JsonRulePolicyStore CreateDefault(string? configDirectory = null)
     {
-        var configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        var dir = Path.Combine(configDir, "VulcansTrace");
+        var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
         return new JsonRulePolicyStore(Path.Combine(dir, "policy.json"));
     }

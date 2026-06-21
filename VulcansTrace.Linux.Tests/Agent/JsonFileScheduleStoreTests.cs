@@ -4,7 +4,6 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Agent;
 
-[Collection("EnvironmentVariableTests")]
 public class JsonFileScheduleStoreTests : IDisposable
 {
     private readonly string _tempFile;
@@ -103,10 +102,9 @@ public class JsonFileScheduleStoreTests : IDisposable
     public void CreateDefault_CreatesDirectoryAndFile()
     {
         var customConfigDir = Path.Combine(Path.GetTempPath(), $"vt-test-config-{Guid.NewGuid()}");
-        Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", customConfigDir);
         try
         {
-            var store = JsonFileScheduleStore.CreateDefault();
+            var store = JsonFileScheduleStore.CreateDefault(customConfigDir);
             store.Save(CreateSchedule("sched-001", AgentIntent.FullAudit, "Daily", "0 6 * * *"));
 
             Assert.True(Directory.Exists(Path.Combine(customConfigDir, "VulcansTrace")));
@@ -114,7 +112,6 @@ public class JsonFileScheduleStoreTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", null);
             try
             {
                 if (Directory.Exists(customConfigDir))
