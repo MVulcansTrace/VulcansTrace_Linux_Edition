@@ -12,6 +12,13 @@ public sealed record RemediationSession
     public required IReadOnlyList<Finding> SourceFindings { get; init; }
     public required RemediationPlan RemediationPlan { get; init; }
     public required IReadOnlyDictionary<string, RemediationStepState> StepStates { get; init; }
+
+    /// <summary>
+    /// Per-rule raw failure reason captured when the user reports a step failure.
+    /// Keys match <see cref="StepStates"/>.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> StepFailureReasons { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     public AuditSnapshot? BeforeSnapshot { get; init; }
     public AuditSnapshot? AfterSnapshot { get; init; }
     public SessionVerificationResult? VerificationResult { get; init; }

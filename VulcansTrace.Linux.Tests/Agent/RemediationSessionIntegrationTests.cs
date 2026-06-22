@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -298,6 +299,149 @@ public class RemediationSessionIntegrationTests
         {
             File.Delete(tempPath);
         }
+    }
+
+    [Fact]
+    public async Task ReportStepResult_Success_MarksStepCompletedAndSuggestsVerification()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        var service = CreateService(state, store);
+        var createResult = await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = createResult.RemediationSession!.SessionId;
+
+        var reportResult = await service.HandleReportStepResultAsync(
+            new AgentQuery(AgentIntent.ReportStepResult, sessionId, RawQuery: "step 1 done"),
+            CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ReportStepResult, reportResult.Intent);
+        Assert.NotNull(reportResult.RemediationSession);
+        Assert.Equal(RemediationStepState.Completed, reportResult.RemediationSession.StepStates["FW-001"]);
+        Assert.Contains("verify remediation", reportResult.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReportStepResult_Failure_ClassifiesAndReturnsAdaptiveGuidance()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+
+        var service = CreateService(state, store);
+        var createResult = await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = createResult.RemediationSession!.SessionId;
+
+        var reportResult = await service.HandleReportStepResultAsync(
+            new AgentQuery(AgentIntent.ReportStepResult, sessionId, RawQuery: "step 1 failed — iptables isn't installed"),
+            CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ReportStepResult, reportResult.Intent);
+        Assert.Equal(RemediationStepState.Failed, reportResult.RemediationSession!.StepStates["FW-001"]);
+        Assert.Contains("iptables", reportResult.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("MissingDependency", reportResult.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.True(reportResult.RemediationSession.StepFailureReasons.ContainsKey("FW-001"));
+    }
+
+    [Fact]
+    public async Task ReportStepResult_ImplicitCurrentStep_MarksFirstPendingStepCompleted()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan
+            {
+                Sections = new[]
+                {
+                    new RemediationSection
+                    {
+                        RuleId = "FW-001",
+                        FindingSummary = "[High] Default policy ACCEPT",
+                        RiskNote = "Risk",
+                        ApplyCommands = new[] { new RemediationCommand { Command = "sudo iptables -P INPUT DROP" } }
+                    },
+                    new RemediationSection
+                    {
+                        RuleId = "FW-002",
+                        FindingSummary = "[High] SSH open",
+                        RiskNote = "Risk",
+                        ApplyCommands = new[] { new RemediationCommand { Command = "sudo iptables -A INPUT -p tcp --dport 22 -s 0.0.0.0/0 -j DROP" } }
+                    }
+                }
+            },
+            StepStates = new Dictionary<string, RemediationStepState>
+            {
+                ["FW-001"] = RemediationStepState.Pending,
+                ["FW-002"] = RemediationStepState.Pending
+            }
+        };
+        store.Save(session);
+
+        var service = CreateService(state, store);
+        var reportResult = await service.HandleReportStepResultAsync(
+            new AgentQuery(AgentIntent.ReportStepResult, "abc12345", RawQuery: "it worked"),
+            CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ReportStepResult, reportResult.Intent);
+        Assert.Equal(RemediationStepState.Completed, reportResult.RemediationSession!.StepStates["FW-001"]);
+        Assert.Contains("FW-002", reportResult.Summary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReportStepResult_MultiSegmentRuleId_UpdatesNamedStep()
+    {
+        var state = new AgentAuditState();
+        var store = new InMemorySessionStore();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = Array.Empty<Finding>(),
+            RemediationPlan = new RemediationPlan
+            {
+                Sections = new[]
+                {
+                    new RemediationSection
+                    {
+                        RuleId = "FW-001",
+                        FindingSummary = "[High] Default policy ACCEPT",
+                        RiskNote = "Risk",
+                        ApplyCommands = new[] { new RemediationCommand { Command = "sudo iptables -P INPUT DROP" } }
+                    },
+                    new RemediationSection
+                    {
+                        RuleId = "K8S-001",
+                        FindingSummary = "[Critical] Privileged pod",
+                        RiskNote = "Risk",
+                        ApplyCommands = new[] { new RemediationCommand { Command = "kubectl patch pod web" } }
+                    }
+                }
+            },
+            StepStates = new Dictionary<string, RemediationStepState>
+            {
+                ["FW-001"] = RemediationStepState.Pending,
+                ["K8S-001"] = RemediationStepState.Pending
+            }
+        };
+        store.Save(session);
+
+        var service = CreateService(state, store);
+        var reportResult = await service.HandleReportStepResultAsync(
+            new AgentQuery(AgentIntent.ReportStepResult, "abc12345", RawQuery: "k8s-001 failed with permission denied"),
+            CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ReportStepResult, reportResult.Intent);
+        Assert.Equal(RemediationStepState.Pending, reportResult.RemediationSession!.StepStates["FW-001"]);
+        Assert.Equal(RemediationStepState.Failed, reportResult.RemediationSession.StepStates["K8S-001"]);
+        Assert.Contains("K8S-001", reportResult.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.True(reportResult.RemediationSession.StepFailureReasons.ContainsKey("K8S-001"));
     }
 
     private static GuidedRemediationService CreateService(

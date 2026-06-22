@@ -9,7 +9,7 @@ namespace VulcansTrace.Linux.Agent.Query;
 /// </summary>
 public sealed class EntityExtractor : IEntityExtractor
 {
-    private static readonly Regex RuleIdPattern = new(@"[A-Za-z]{2,}-\d{3,}", RegexOptions.Compiled);
+    private static readonly Regex RuleIdPattern = new(@"\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-\d+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SessionIdPattern = new(@"\b[0-9a-fA-F]{8}\b", RegexOptions.Compiled);
     private static readonly Regex OrdinalPattern = new(@"\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|1st|2nd|3rd|4th|5th|6th|7th|8th|9th|10th)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex DaysAgoPattern = new(@"last\s+(\d+)\s+days?", RegexOptions.Compiled | RegexOptions.IgnoreCase);

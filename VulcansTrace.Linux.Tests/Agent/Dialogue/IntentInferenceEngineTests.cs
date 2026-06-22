@@ -286,6 +286,91 @@ public class IntentInferenceEngineTests
         Assert.NotEqual(AgentIntent.VerifyRemediation, inferred.Intent);
     }
 
+    [Fact]
+    public void Infer_AwaitingDiagnosticAnswer_AnyQueryBecomesAnswerDiagnosticQuestion()
+    {
+        var context = new DialogueContext();
+        context.Entities.LastTopic = ConversationTopic.Explanation;
+        context.Entities.DiagnosticState = DialogueState.AwaitingDiagnosticAnswer;
+        context.Entities.PendingDiagnosticRuleId = "FW-004";
+
+        var parsed = _parser.Parse("I'm using Ansible");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.AnswerDiagnosticQuestion, inferred.Intent);
+        Assert.Equal("FW-004", inferred.TargetReference);
+    }
+
+    [Fact]
+    public void Infer_AfterExplanation_RecurrenceKeywordsBecomeInvestigateRecurrence()
+    {
+        var context = new DialogueContext();
+        var finding = CreateFinding("FW-004", "Firewall");
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.ExplainFinding,
+            AgentFindings = new[] { finding }
+        });
+        context.FocusFinding(finding, finding.RuleId);
+
+        var parsed = _parser.Parse("it came back again");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, _) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.Equal(AgentIntent.InvestigateRecurrence, inferred.Intent);
+        Assert.Equal("FW-004", inferred.TargetReference);
+    }
+
+    [Fact]
+    public void Infer_AfterRemediation_RecurrenceKeywordsBecomeInvestigateRecurrence()
+    {
+        var context = new DialogueContext();
+        var session = new RemediationSession
+        {
+            SessionId = "abc12345",
+            SourceFindings = new[] { CreateFinding("FW-004", "Firewall") },
+            RemediationPlan = new RemediationPlan(),
+            StepStates = new Dictionary<string, RemediationStepState>()
+        };
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.StartRemediation,
+            RemediationSession = session,
+            AgentFindings = Array.Empty<Finding>()
+        });
+
+        var parsed = _parser.Parse("FW-004 keeps returning");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, _) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.Equal(AgentIntent.InvestigateRecurrence, inferred.Intent);
+        Assert.Equal("FW-004", inferred.TargetReference);
+    }
+
+    [Fact]
+    public void Infer_AfterExplanation_AmbiguousRecurrenceQuery_InfersInvestigateRecurrence()
+    {
+        var context = new DialogueContext();
+        var finding = CreateFinding("FW-004", "Firewall");
+        context.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.ExplainFinding,
+            AgentFindings = new[] { finding }
+        });
+        context.FocusFinding(finding, finding.RuleId);
+
+        // "it returned" is not a standalone keyword, so the parser is low-confidence.
+        var parsed = _parser.Parse("it returned");
+        var resolution = _resolver.Resolve(parsed.RawQuery!, context.SnapshotEntities());
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.InvestigateRecurrence, inferred.Intent);
+        Assert.Equal("FW-004", inferred.TargetReference);
+    }
+
     private static Finding CreateFinding(string ruleId, string category)
     {
         var now = DateTime.UtcNow;

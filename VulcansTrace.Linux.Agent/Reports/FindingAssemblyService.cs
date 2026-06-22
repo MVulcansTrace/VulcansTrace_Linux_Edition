@@ -98,7 +98,8 @@ internal sealed class FindingAssemblyService
             RuleId = result.RuleId,
             CisMappings = result.CisMappings,
             MitreTechniques = result.MitreTechniques,
-            EvidenceSignals = signals
+            EvidenceSignals = signals,
+            Variables = result.Variables
         };
     }
 }

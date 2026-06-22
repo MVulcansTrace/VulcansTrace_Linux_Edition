@@ -7,6 +7,32 @@ reference and a technical verification checklist.
 
 Last updated: 2026-06-21
 
+### Security Agent — Adaptive Remediation, Diagnostic Dialogue, and CLI Audit Skip
+
+- **Adaptive step-outcome reporting** — users can report the result of a manual remediation step in natural language (`step 1 worked`, `step 2 failed with permission denied`, `it didn't work`, `that worked`). `StepOutcomeParser` deterministically classifies success/failure, step ordinal, rule ID, and failure reason; `GuidedRemediationService` resolves the target rule by ordinal, rule ID, current active session, or explicit session ID; updates the session timeline; and returns adaptive guidance from `FailureResponseTable`. Failures are categorized as `PermissionIssue`, `MissingDependency`, `ServiceMissing`, `MalformedCommand`, `AlreadyConfigured`, or `UnknownFailure`, and responses cite the actual command that was reported on. The cleaned failure reason falls back to the original raw query for classification when the cleaned text loses trigger words such as "failed to start".
+  - Code: `VulcansTrace.Linux.Agent/Remediation/StepOutcomeParser.cs`, `StepOutcome.cs`, `FailureClassifier.cs`, `FailureCategory.cs`, `FailureResponseTable.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Remediation/StepOutcomeParserTests.cs`, `FailureClassifierTests.cs`, `FailureResponseTableTests.cs`, `GuidedRemediationServiceTests.cs`, `RemediationSessionIntegrationTests.cs`
+
+- **Diagnostic dialogue & recurrence root-cause matching** — `DiagnosticDialogueService` drives a structured, deterministic investigation when a rule keeps recurring. It asks category-specific diagnostic questions, maps free-text answers to root-cause buckets (`ConfigManagement`, `NonPersistent`, `Uncertain`, or `Unknown`) via `RootCauseMatcher`, and produces targeted guidance (for example, fix the Ansible playbook or cloud-init user-data instead of the live system). State is tracked in `DialogueState` and persisted through `AgentMemorySnapshot`.
+  - Code: `VulcansTrace.Linux.Agent/Dialogue/DiagnosticDialogueService.cs`, `DiagnosticQuestionBank.cs`, `DialogueState.cs`, `RootCauseMatcher.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Dialogue/DiagnosticDialogueServiceTests.cs`, `DiagnosticQuestionBankTests.cs`, `RootCauseMatcherTests.cs`
+
+- **CLI audit skip** — `vulcanstrace ask` no longer runs a redundant pre-audit for queries that are conversational, remediation-related, or already imply their own audit. `IAgent.ResolveQuery` and `IAgent.LastResult` expose the resolved intent and prior audit context; `AgentIntentExtensions.IsAuditIntent` and `ShouldRunAuditBeforeAsk` decide when a pre-audit is actually needed. Explicit audit queries (`firewall check`, `full audit`) are executed by `AskAsync` itself, so no duplicate scan runs.
+  - Code: `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Query/AgentIntentExtensions.cs`, `VulcansTrace.Linux.Cli/Program.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Cli/AskCommandTests.cs`
+
+- **Cross-scanner validator exclusions** — container rules (`CTR-001`–`CTR-005`) and Kubernetes rules (`K8S-001`–`K8S-004`) are no longer registered in `CrossScannerValidator` because they draw from the same `docker`/`crictl`/`kubectl` scanner data a validator would read. Validating them would be tautological, so they are excluded on the same grounds as `FW-001`, `FW-004`, and `NET-003`. The registry was also expanded with validators for `SRV-002`, `SRV-004`, and additional SSH rules (`SSH-001`, `SSH-004`, `SSH-005`, `SSH-006`).
+  - Code: `VulcansTrace.Linux.Agent/Analysis/CrossScannerValidator.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Analysis/CrossScannerValidatorTests.cs`
+
+- **Query-parser hardening** — `QueryParser.StepOutcomePattern` now requires an explicit subject (`step N` or `it`/`that`) so bare outcome words like "failed" or "completed" in ordinary audit queries no longer misroute to `ReportStepResult`. Bare `"again"` was removed from the recurrence matcher so phrases like "explain FW-001 again" and "run the firewall audit again" no longer misroute to `InvestigateRecurrence`. `StepOutcomeParser` now treats negated error phrases (`no error`, `error-free`, `zero errors`) as success reports.
+  - Code: `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/Dialogue/IntentInferenceEngine.cs`, `VulcansTrace.Linux.Agent/Remediation/StepOutcomeParser.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `IntentInferenceEngineTests.cs`, `StepOutcomeParserTests.cs`
+
+- **Guided-remediation fixes** — `ResolveRuleIdByStepOrdinal` now maps an out-of-section ordinal to the Nth apply-command of a single-section plan, matching the step-by-step command list the user sees. The failure response displays the command the user actually reported on. `Verified` status is now sticky on redundant completed/skipped marks but still reopens to `Active` on failure.
+  - Code: `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/GuidedRemediationServiceTests.cs`
+
 ### Security Agent — Provenance On Demand and Audit History Slimming
 
 - Added `ShowEvidence` intent and `EvidenceProvenanceService` so users can ask for a deterministic evidence chain for any cached finding (e.g. `prove FW-002`, `show evidence for it`, `what triggered FW-002?`). The response assembles scanner source/commands, raw evidence signals, cross-scanner validation, rule evaluation, CIS/MITRE context, attack-chain membership, and per-rule history without calling an LLM; if a known rule ID is not cached, the single-rule fallback can collect fresh scanner data.

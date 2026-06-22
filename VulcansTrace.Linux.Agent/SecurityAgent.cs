@@ -49,6 +49,7 @@ public sealed class SecurityAgent : IAgent
     private readonly RemediationWisdomAnalyzer _remediationWisdomAnalyzer;
     private readonly CrossScannerValidator _crossScannerValidator;
     private readonly EvidenceProvenanceService _evidenceProvenanceService;
+    private readonly DiagnosticDialogueService _diagnosticDialogueService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -68,6 +69,7 @@ public sealed class SecurityAgent : IAgent
     /// <param name="sessionStore">Optional store for remediation sessions.</param>
     /// <param name="suggestionProvider">Optional provider for contextual follow-up suggestions.</param>
     /// <param name="memoryStore">Optional store for cross-session conversation memory.</param>
+    /// <param name="diagnosticDialogueService">Optional service for recurring-finding diagnostic dialogue.</param>
     public SecurityAgent(
         IEnumerable<IScanner> scanners,
         IEnumerable<IRule> rules,
@@ -83,7 +85,8 @@ public sealed class SecurityAgent : IAgent
         IRiskScorecardBuilder? riskScorecardBuilder = null,
         ISessionStore? sessionStore = null,
         IAgentSuggestionProvider? suggestionProvider = null,
-        IAgentMemoryStore? memoryStore = null)
+        IAgentMemoryStore? memoryStore = null,
+        DiagnosticDialogueService? diagnosticDialogueService = null)
     {
         _scannerCoordinator = new ScannerCoordinator(scanners);
         _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
@@ -139,6 +142,7 @@ public sealed class SecurityAgent : IAgent
             _auditState,
             _ruleEvaluationService,
             _singleRuleExplanationService);
+        _diagnosticDialogueService = diagnosticDialogueService ?? new DiagnosticDialogueService();
 
         RestoreMemorySnapshot();
     }
@@ -180,6 +184,19 @@ public sealed class SecurityAgent : IAgent
         {
             result = await _evidenceProvenanceService.BuildProvenanceAsync(agentQuery, ct);
         }
+        else if (agentQuery.Intent == AgentIntent.InvestigateRecurrence)
+        {
+            result = await _diagnosticDialogueService.BeginInvestigationAsync(
+                _auditState, agentQuery.TargetReference ?? string.Empty, ct);
+        }
+        else if (agentQuery.Intent == AgentIntent.AnswerDiagnosticQuestion)
+        {
+            result = await _diagnosticDialogueService.ContinueInvestigationAsync(
+                _auditState,
+                agentQuery.TargetReference ?? _auditState.Entities.PendingDiagnosticRuleId ?? string.Empty,
+                query,
+                ct);
+        }
         else if (IsBaselineIntent(agentQuery.Intent))
         {
             result = agentQuery.Intent switch
@@ -193,6 +210,10 @@ public sealed class SecurityAgent : IAgent
         else if (agentQuery.Intent == AgentIntent.StartRemediation)
         {
             result = await _guidedRemediationService.CreateSessionAsync(agentQuery.TargetReference ?? "", ct);
+        }
+        else if (agentQuery.Intent == AgentIntent.ReportStepResult)
+        {
+            result = await _guidedRemediationService.HandleReportStepResultAsync(agentQuery, ct);
         }
         else if (agentQuery.Intent == AgentIntent.VerifyRemediation)
         {
@@ -255,10 +276,26 @@ public sealed class SecurityAgent : IAgent
                 }
                 break;
 
+            case AgentIntent.InvestigateRecurrence:
+                _auditState.Entities.LastIntent = AgentIntent.InvestigateRecurrence;
+                _auditState.Entities.LastTopic = ConversationTopic.Explanation;
+                if (!string.IsNullOrWhiteSpace(agentQuery.TargetReference))
+                {
+                    _auditState.Entities.LastRuleId = agentQuery.TargetReference;
+                    _auditState.Entities.LastCategory = null;
+                }
+                break;
+
+            case AgentIntent.AnswerDiagnosticQuestion:
+                _auditState.Entities.LastIntent = AgentIntent.AnswerDiagnosticQuestion;
+                _auditState.Entities.LastTopic = ConversationTopic.Explanation;
+                break;
+
             case AgentIntent.FilterCategory when !string.IsNullOrWhiteSpace(agentQuery.TargetReference):
                 _auditState.Entities.LastIntent = AgentIntent.FilterCategory;
                 _auditState.Entities.LastTopic = ConversationTopic.Audit;
                 _auditState.FocusCategory(agentQuery.TargetReference);
+                _diagnosticDialogueService.ResetDiagnosticState(_auditState.Entities);
                 break;
 
             case AgentIntent.RiskScore:
@@ -271,11 +308,13 @@ public sealed class SecurityAgent : IAgent
                 {
                     _auditState.FocusCategory(topCategory);
                 }
+                _diagnosticDialogueService.ResetDiagnosticState(_auditState.Entities);
                 break;
 
             case AgentIntent.StartRemediation:
             case AgentIntent.VerifyRemediation:
             case AgentIntent.ResumeRemediation:
+            case AgentIntent.ReportStepResult:
                 _auditState.Entities.LastIntent = agentQuery.Intent;
                 _auditState.Entities.LastTopic = ConversationTopic.Remediation;
                 if (result.RemediationSession != null)
@@ -321,6 +360,7 @@ public sealed class SecurityAgent : IAgent
             case AgentIntent.ShowBaseline:
                 _auditState.Entities.LastIntent = agentQuery.Intent;
                 _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
+                _diagnosticDialogueService.ResetDiagnosticState(_auditState.Entities);
                 break;
 
             default:
@@ -333,6 +373,10 @@ public sealed class SecurityAgent : IAgent
                     _auditState.Entities.LastIntent = agentQuery.Intent;
                     _auditState.Entities.LastTopic = DialogueContext.TopicForIntent(agentQuery.Intent);
                 }
+                else
+                {
+                    _diagnosticDialogueService.ResetDiagnosticState(_auditState.Entities);
+                }
                 break;
         }
     }
@@ -341,6 +385,13 @@ public sealed class SecurityAgent : IAgent
     /// Gets the most recent audit result held by the agent, if any.
     /// </summary>
     public AgentResult? LastResult => _auditState.LastResult;
+
+    /// <inheritdoc />
+    public AgentQuery ResolveQuery(string query)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(query);
+        return _dialogueManager.Resolve(query, _auditState);
+    }
 
     /// <inheritdoc />
     public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
@@ -930,7 +981,10 @@ public sealed class SecurityAgent : IAgent
             ActiveSessionId = snapshot.ActiveSessionId,
             RankedFindings = lastResult?.AgentFindings ?? Array.Empty<Finding>(),
             RuleHistory = snapshot.RuleHistory ?? new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase),
-            CheckedCategories = snapshot.CheckedCategories ?? Array.Empty<CategoryAuditEntry>()
+            CheckedCategories = snapshot.CheckedCategories ?? Array.Empty<CategoryAuditEntry>(),
+            DiagnosticState = snapshot.DiagnosticState,
+            PendingDiagnosticRuleId = snapshot.PendingDiagnosticRuleId,
+            PendingDiagnosticQuestion = snapshot.PendingDiagnosticQuestion
         };
 
         if (!string.IsNullOrWhiteSpace(snapshot.FocusedRuleId) && lastResult != null)
@@ -974,7 +1028,10 @@ public sealed class SecurityAgent : IAgent
                 LatestAuditSnapshotId = GetLatestAuditSnapshotId(),
                 RecentTurns = _auditState.History.TakeLast(DialogueContext.MaxHistoryTurns).ToList(),
                 RuleHistory = _auditState.Entities.RuleHistory,
-                CheckedCategories = _auditState.Entities.CheckedCategories
+                CheckedCategories = _auditState.Entities.CheckedCategories,
+                DiagnosticState = _auditState.Entities.DiagnosticState,
+                PendingDiagnosticRuleId = _auditState.Entities.PendingDiagnosticRuleId,
+                PendingDiagnosticQuestion = _auditState.Entities.PendingDiagnosticQuestion
             };
 
             await _memoryStore.SaveAsync(snapshot).ConfigureAwait(false);

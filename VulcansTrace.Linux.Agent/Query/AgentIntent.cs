@@ -80,6 +80,9 @@ public enum AgentIntent
     /// <summary>Interactively guide remediation for a specific finding.</summary>
     FixFinding,
 
+    /// <summary>Report the outcome of a remediation step (success or failure with optional error text).</summary>
+    ReportStepResult,
+
     /// <summary>List suppressed findings from the last result.</summary>
     ListSuppressed,
 
@@ -114,5 +117,11 @@ public enum AgentIntent
     AddStepNote,
 
     /// <summary>Request help on available capabilities.</summary>
-    Help
+    Help,
+
+    /// <summary>Start a diagnostic investigation into a recurring finding.</summary>
+    InvestigateRecurrence,
+
+    /// <summary>Answer a diagnostic question asked during a recurrence investigation.</summary>
+    AnswerDiagnosticQuestion
 }

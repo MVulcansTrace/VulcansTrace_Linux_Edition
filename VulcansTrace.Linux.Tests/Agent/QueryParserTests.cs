@@ -113,6 +113,10 @@ public class QueryParserTests
     [InlineData("memory injection", AgentIntent.ProcessRuntimeCheck)]
     [InlineData("ld preload check", AgentIntent.ProcessRuntimeCheck)]
     [InlineData("deleted binary", AgentIntent.ProcessRuntimeCheck)]
+    [InlineData("FW-004 came back again", AgentIntent.InvestigateRecurrence)]
+    [InlineData("why does FW-004 keep returning", AgentIntent.InvestigateRecurrence)]
+    [InlineData("this keeps reverting", AgentIntent.InvestigateRecurrence)]
+    [InlineData("recurring SSH-002 issue", AgentIntent.InvestigateRecurrence)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);
@@ -152,6 +156,8 @@ public class QueryParserTests
     [InlineData("explain FW-001", "FW-001")]
     [InlineData("what does PORT-002 mean", "PORT-002")]
     [InlineData("explain fw-001", "fw-001")]
+    [InlineData("explain K8S-001", "K8S-001")]
+    [InlineData("explain PKG-VULN-001", "PKG-VULN-001")]
     [InlineData("explain the ssh rule", "ssh")]
     [InlineData("why is firewall flagged", "firewall")]
     [InlineData("explain finding FW-003", "FW-003")]
@@ -159,6 +165,18 @@ public class QueryParserTests
     {
         var result = _parser.Parse(query);
         Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.Equal(expectedReference, result.TargetReference);
+    }
+
+    [Theory]
+    [InlineData("FW-004 came back again", "FW-004")]
+    [InlineData("why does SSH-002 keep returning", "SSH-002")]
+    [InlineData("recurring KERN-001 issue", "KERN-001")]
+    [InlineData("K8S-001 came back again", "K8S-001")]
+    public void Parse_InvestigateRecurrence_WithReference_ReturnsTargetReference(string query, string expectedReference)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.InvestigateRecurrence, result.Intent);
         Assert.Equal(expectedReference, result.TargetReference);
     }
 
@@ -184,6 +202,7 @@ public class QueryParserTests
     [Theory]
     [InlineData("remediate port-002", "port-002")]
     [InlineData("guided fix FW-001", "FW-001")]
+    [InlineData("remediate PKG-VULN-001", "PKG-VULN-001")]
     public void Parse_StartRemediation_WithReference_ReturnsTargetReference(string query, string expectedReference)
     {
         var result = _parser.Parse(query);
@@ -494,5 +513,37 @@ public class QueryParserTests
 
         Assert.Equal(AgentIntent.ShowEvidence, parsed.Intent);
         Assert.True(string.IsNullOrEmpty(parsed.TargetReference));
+    }
+
+    [Theory]
+    [InlineData("step 2 failed")]
+    [InlineData("step 2 done")]
+    [InlineData("step 2 worked")]
+    [InlineData("step 2 completed")]
+    [InlineData("step 2 succeeded")]
+    [InlineData("step 2 didn't work")]
+    [InlineData("step 2 does not work")]
+    [InlineData("step 2 did not work")]
+    [InlineData("it worked")]
+    [InlineData("it failed")]
+    [InlineData("that worked")]
+    [InlineData("that didn't work")]
+    [InlineData("it does not work")]
+    [InlineData("it did not work")]
+    public void Parse_StepOutcomePhrases_RouteToReportStepResult(string query)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(AgentIntent.ReportStepResult, result.Intent);
+    }
+
+    [Theory]
+    [InlineData("the firewall audit failed")]
+    [InlineData("show completed scans")]
+    [InlineData("failed scans")]
+    [InlineData("worked fine")]
+    public void Parse_BareOutcomeWords_DoNotRouteToReportStepResult(string query)
+    {
+        var result = _parser.Parse(query);
+        Assert.NotEqual(AgentIntent.ReportStepResult, result.Intent);
     }
 }

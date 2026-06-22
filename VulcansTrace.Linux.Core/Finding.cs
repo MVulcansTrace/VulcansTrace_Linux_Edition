@@ -70,12 +70,23 @@ public sealed record Finding
     public DetectionConfidence Confidence { get; init; } = DetectionConfidence.Unknown;
 
     private IReadOnlyList<EvidenceSignal> _evidenceSignals = Array.Empty<EvidenceSignal>();
+    private IReadOnlyDictionary<string, string> _variables = new Dictionary<string, string>();
 
     /// <summary>Evidence signals that contributed to the finding's confidence score.</summary>
     public IReadOnlyList<EvidenceSignal> EvidenceSignals
     {
         get => _evidenceSignals;
         init => _evidenceSignals = value ?? throw new ArgumentNullException(nameof(EvidenceSignals));
+    }
+
+    /// <summary>
+    /// Structured variables from the rule evaluation that produced this finding.
+    /// Used by cross-scanner validators and evidence formatters to avoid parsing target strings.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Variables
+    {
+        get => _variables;
+        init => _variables = value ?? new Dictionary<string, string>();
     }
 
     /// <summary>Source host IP address.</summary>

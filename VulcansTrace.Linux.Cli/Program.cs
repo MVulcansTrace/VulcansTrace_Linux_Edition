@@ -60,6 +60,7 @@ public static class Program
         {
             return command switch
             {
+                "ask" => await RunAskAsync(args),
                 "audit" => await RunAuditAsync(args),
                 "demo" => await RunDemoAsync(args),
                 "diff" => await RunDiffAsync(args),
@@ -223,6 +224,98 @@ public static class Program
             && f.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
 
         return stillFailing ? 2 : 0;
+    }
+
+    internal static async Task<int> RunAskAsync(string[] args, IAgent? agent = null)
+    {
+        if (args.Length < 2 || args[1].StartsWith("--", StringComparison.Ordinal))
+        {
+            return PrintError("Query required. Usage: vulcanstrace ask <query> [--audit-intent <intent>] [--role <role>] [--log-file <path>]");
+        }
+
+        var query = ExtractAskQuery(args);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return PrintError("Query required. Usage: vulcanstrace ask <query> [--audit-intent <intent>] [--role <role>] [--log-file <path>]");
+        }
+
+        var intentStr = ParseArg(args, "--audit-intent", "FullAudit")!;
+        var roleStr = ParseArg(args, "--role", "Workstation")!;
+        var logFile = ParseArg(args, "--log-file", null);
+
+        if (!Enum.TryParse<AgentIntent>(intentStr, true, out var intent))
+        {
+            return PrintError($"Unknown audit intent: {intentStr}");
+        }
+
+        if (!Enum.TryParse<MachineRole>(roleStr, true, out var role))
+        {
+            return PrintError($"Unknown role: {roleStr}");
+        }
+
+        string? rawLog = null;
+        if (!string.IsNullOrWhiteSpace(logFile))
+        {
+            if (!File.Exists(logFile))
+            {
+                return PrintError($"Log file not found: {logFile}");
+            }
+
+            rawLog = await File.ReadAllTextAsync(logFile);
+        }
+
+        using var services = agent is null ? AgentFactory.Create(role) : null;
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var actualAgent = agent ?? services!.Agent;
+
+        var resolved = actualAgent.ResolveQuery(query);
+        // Audit-intent queries (e.g. "check firewall") are executed as audits by AskAsync
+        // itself, so a pre-audit here would only duplicate that work. Only pre-audit for
+        // context-dependent follow-ups that need a prior result to answer against.
+        if (!resolved.Intent.IsAuditIntent()
+            && resolved.Intent.ShouldRunAuditBeforeAsk(actualAgent.LastResult != null))
+        {
+            await actualAgent.RunAuditAsync(intent, rawLog, cts.Token);
+        }
+
+        var result = await actualAgent.AskAsync(query, rawLog, cts.Token);
+
+        Console.WriteLine(StripMarkdown(result.Summary));
+
+        if (result.Narrative is { FullText.Length: > 0 })
+        {
+            Console.WriteLine();
+            Console.WriteLine(StripMarkdown(result.Narrative.FullText));
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"Attached findings: {result.AgentFindings.Count}");
+        foreach (var finding in result.AgentFindings)
+        {
+            Console.WriteLine($"  [{finding.Severity}] {finding.RuleId}  {finding.ShortDescription}");
+        }
+
+        return result.AgentFindings.Any(f => f.Severity == Severity.Critical) ? 2 : 0;
+    }
+
+    private static string ExtractAskQuery(string[] args)
+    {
+        var queryParts = new List<string>();
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i].StartsWith("--", StringComparison.Ordinal))
+                break;
+
+            queryParts.Add(args[i]);
+        }
+
+        return string.Join(' ', queryParts).Trim();
     }
 
     private static async Task<int> RunDemoAsync(string[] args)
@@ -1818,6 +1911,7 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Usage:");
         Console.WriteLine("  Any command also accepts the global flag --config-dir <dir> to override the config directory.");
+        Console.WriteLine("  vulcanstrace ask <query> [--audit-intent <intent>] [--role <role>] [--log-file <path>]");
         Console.WriteLine("  vulcanstrace audit --intent <intent> [--output-json <file>] [--notify-on-critical] [--role <role>] [--auto-fix [--dry-run] [--yes] [--allow-restart] [--allow-packages]]");
         Console.WriteLine("  vulcanstrace demo list");
         Console.WriteLine("  vulcanstrace demo run --scenario <name> [--duration <seconds>] [--intensity <level>] [--seed <int>] [--output-evidence <zip>] [--output-json <file>] [--output-html <file>] [--output-mitre <file>]");
@@ -1851,7 +1945,9 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --config-dir <dir>         [global] Base config directory for all stores (overrides XDG_CONFIG_HOME)");
+        Console.WriteLine("  --audit-intent <name>      Audit intent to run before asking (FullAudit, FirewallCheck, PortCheck, etc.; default: FullAudit)");
         Console.WriteLine("  --intent <name>            Audit intent (FullAudit, FirewallCheck, PortCheck, etc.)");
+        Console.WriteLine("  --log-file <path>          Firewall/log text to include in the analysis");
         Console.WriteLine("  --scenario <name>          Demo scenario: random-mix, c2-beaconing, ssh-bruteforce, privilege-escalation");
         Console.WriteLine("  --duration <seconds>       Demo run duration in seconds (default: 150)");
         Console.WriteLine("  --seed <int>               Random seed for reproducible demo output");
@@ -1899,7 +1995,7 @@ public static class Program
         Console.WriteLine("Exit codes:");
         Console.WriteLine("  0  Success (no critical findings / no diff detected)");
         Console.WriteLine("  1  Error");
-        Console.WriteLine("  2  Success with critical findings / diff detected");
+        Console.WriteLine("  2  Success with critical findings / diff detected / ask returned critical findings");
         Console.WriteLine("  3  Auto-fix or 'schedule remediate' executed but some commands failed");
     }
 }

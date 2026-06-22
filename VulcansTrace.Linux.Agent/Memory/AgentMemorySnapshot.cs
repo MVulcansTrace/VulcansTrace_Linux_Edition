@@ -52,4 +52,13 @@ public sealed record AgentMemorySnapshot
     /// Used to surface long-horizon coverage blind spots.
     /// </summary>
     public IReadOnlyList<CategoryAuditEntry> CheckedCategories { get; init; } = Array.Empty<CategoryAuditEntry>();
+
+    /// <summary>Current state of the diagnostic dialogue state machine.</summary>
+    public DialogueState DiagnosticState { get; init; } = DialogueState.Idle;
+
+    /// <summary>Rule ID under active diagnostic investigation, if any.</summary>
+    public string? PendingDiagnosticRuleId { get; init; }
+
+    /// <summary>The most recent diagnostic question asked by the agent, if any.</summary>
+    public string? PendingDiagnosticQuestion { get; init; }
 }

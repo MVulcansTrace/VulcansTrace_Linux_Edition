@@ -12,6 +12,8 @@ public class EntityExtractorTests
     [InlineData("explain FW-001", "FW-001")]
     [InlineData("fix fw-001 and SSH-002", "FW-001")]
     [InlineData("what about PORT-003?", "PORT-003")]
+    [InlineData("what about K8S-001?", "K8S-001")]
+    [InlineData("fix pkg-vuln-001", "PKG-VULN-001")]
     public void Extract_RuleId_FindsFirstRuleId(string query, string expected)
     {
         var frame = _extractor.Extract(query);

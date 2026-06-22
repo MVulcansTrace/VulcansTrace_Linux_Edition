@@ -32,6 +32,19 @@ public sealed class IntentInferenceEngine
         var priorTopic = entities.LastTopic;
         var raw = RawText(parsed, rawQuery);
 
+        // Diagnostic dialogue: if the agent is waiting for an answer to a diagnostic
+        // question, treat the user's next message as the answer regardless of what
+        // the keyword parser would otherwise produce.
+        if (entities.DiagnosticState == DialogueState.AwaitingDiagnosticAnswer
+            && !string.IsNullOrWhiteSpace(entities.PendingDiagnosticRuleId))
+        {
+            return (new AgentQuery(
+                AgentIntent.AnswerDiagnosticQuestion,
+                entities.PendingDiagnosticRuleId,
+                1.0,
+                RawQuery: raw), true);
+        }
+
         // If the parser was ambiguous, give deterministic category precedence a
         // chance before trusting the raw score. Truly mixed audit requests still
         // fall through as ambiguous and ask for clarification.
@@ -73,6 +86,14 @@ public sealed class IntentInferenceEngine
             return (new AgentQuery(AgentIntent.ShowEvidence, target, 1.0, RawQuery: raw), true);
         }
 
+        // Explanation/Remediation → recurrence investigation flow.
+        if ((priorTopic == ConversationTopic.Explanation || priorTopic == ConversationTopic.Remediation)
+            && LooksLikeRecurrenceRequest(parsed, raw))
+        {
+            var target = BuildTarget(parsed, resolution, entities);
+            return (new AgentQuery(AgentIntent.InvestigateRecurrence, target, 1.0, RawQuery: raw), true);
+        }
+
         // Audit/Explanation → filter category.
         if ((priorTopic == ConversationTopic.Audit || priorTopic == ConversationTopic.Explanation)
             && (LooksLikeFilterRequest(parsed, raw) || (resolution.HasAnaphora && !string.IsNullOrEmpty(resolution.Category))))
@@ -103,6 +124,9 @@ public sealed class IntentInferenceEngine
     private static AgentQuery? InferRemediationIntent(AgentQuery parsed, ReferenceResolution resolution, EntityFrame entities, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery);
+
+        if (LooksLikeStepOutcomeReport(parsed, raw))
+            return new AgentQuery(AgentIntent.ReportStepResult, resolution.SessionId ?? entities.ActiveSessionId, 1.0, RawQuery: raw);
 
         if (LooksLikeVerifyRequest(parsed, raw))
             return new AgentQuery(AgentIntent.VerifyRemediation, resolution.SessionId ?? entities.ActiveSessionId, 1.0, RawQuery: raw);
@@ -289,6 +313,20 @@ public sealed class IntentInferenceEngine
                 || ContainsWholeWord(raw, "high"));
     }
 
+    private static bool LooksLikeRecurrenceRequest(AgentQuery parsed, string? rawQuery)
+    {
+        var raw = RawText(parsed, rawQuery).ToLowerInvariant();
+        return parsed.Intent == AgentIntent.InvestigateRecurrence
+            || ContainsWholeWord(raw, "came back")
+            || ContainsWholeWord(raw, "returned")
+            || raw.Contains("keeps returning", StringComparison.OrdinalIgnoreCase)
+            || raw.Contains("keep returning", StringComparison.OrdinalIgnoreCase)
+            || raw.Contains("why does this keep happening", StringComparison.OrdinalIgnoreCase)
+            || raw.Contains("keeps reverting", StringComparison.OrdinalIgnoreCase)
+            || raw.Contains("keeps coming back", StringComparison.OrdinalIgnoreCase)
+            || ContainsWholeWord(raw, "recurring");
+    }
+
     private static bool LooksLikeVerifyRequest(AgentQuery parsed, string? rawQuery)
     {
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
@@ -320,6 +358,21 @@ public sealed class IntentInferenceEngine
         var raw = RawText(parsed, rawQuery).ToLowerInvariant();
         return ContainsWholeWord(raw, "note")
             || ContainsWholeWord(raw, "comment");
+    }
+
+    private static bool LooksLikeStepOutcomeReport(AgentQuery parsed, string? rawQuery)
+    {
+        var raw = RawText(parsed, rawQuery).ToLowerInvariant();
+        if (parsed.Intent == AgentIntent.ReportStepResult)
+            return true;
+
+        return ContainsWholeWord(raw, "step")
+            && (ContainsWholeWord(raw, "failed")
+                || ContainsWholeWord(raw, "done")
+                || ContainsWholeWord(raw, "worked")
+                || ContainsWholeWord(raw, "completed")
+                || ContainsWholeWord(raw, "succeeded")
+                || ContainsWholeWord(raw, "error"));
     }
 
     private static bool IsAuditIntent(AgentIntent intent) => intent switch

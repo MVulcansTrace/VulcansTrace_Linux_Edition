@@ -20,6 +20,19 @@ public interface IAgent
     Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct);
 
     /// <summary>
+    /// Resolves the intent and target reference for a raw query without executing it,
+    /// using the agent's current conversation context.
+    /// </summary>
+    /// <param name="query">The user's natural language query.</param>
+    /// <returns>The resolved, context-aware agent query.</returns>
+    AgentQuery ResolveQuery(string query) => throw new NotSupportedException("This agent does not support intent preview.");
+
+    /// <summary>
+    /// The most recent audit result held by the agent, if any.
+    /// </summary>
+    AgentResult? LastResult => null;
+
+    /// <summary>
     /// Runs a targeted audit for the specified intent.
     /// </summary>
     /// <param name="intent">The structured intent to execute.</param>

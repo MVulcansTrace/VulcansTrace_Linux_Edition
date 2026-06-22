@@ -44,6 +44,15 @@ public sealed class EntityFrame
     /// <summary>The last remediation session object, when loaded or created.</summary>
     public RemediationSession? LastRemediationSession { get; set; }
 
+    /// <summary>Current state of the diagnostic dialogue state machine.</summary>
+    public DialogueState DiagnosticState { get; set; } = DialogueState.Idle;
+
+    /// <summary>Rule ID under active diagnostic investigation, if any.</summary>
+    public string? PendingDiagnosticRuleId { get; set; }
+
+    /// <summary>The most recent diagnostic question asked by the agent, if any.</summary>
+    public string? PendingDiagnosticQuestion { get; set; }
+
     /// <summary>
     /// Per-rule audit history restored from persistent memory.
     /// Used by NLG and suggestion providers to add continuity.
@@ -73,7 +82,10 @@ public sealed class EntityFrame
             LastAuditIntent = LastAuditIntent,
             LastRemediationSession = LastRemediationSession,
             RuleHistory = RuleHistory,
-            CheckedCategories = CheckedCategories
+            CheckedCategories = CheckedCategories,
+            DiagnosticState = DiagnosticState,
+            PendingDiagnosticRuleId = PendingDiagnosticRuleId,
+            PendingDiagnosticQuestion = PendingDiagnosticQuestion
         };
     }
 
@@ -92,5 +104,8 @@ public sealed class EntityFrame
         LastAuditIntent = AgentIntent.FullAudit;
         RuleHistory = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase);
         CheckedCategories = Array.Empty<CategoryAuditEntry>();
+        DiagnosticState = DialogueState.Idle;
+        PendingDiagnosticRuleId = null;
+        PendingDiagnosticQuestion = null;
     }
 }

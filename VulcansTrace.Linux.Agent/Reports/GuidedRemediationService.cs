@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Core;
 
@@ -12,17 +14,23 @@ internal sealed class GuidedRemediationService
     private readonly RemediationPlanBuilder _planBuilder;
     private readonly ISessionStore? _sessionStore;
     private readonly Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? _runAudit;
+    private readonly StepOutcomeParser _outcomeParser;
+    private readonly FailureResponseTable _failureResponseTable;
 
     public GuidedRemediationService(
         AgentAuditState auditState,
         RemediationPlanBuilder planBuilder,
         ISessionStore? sessionStore = null,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null)
+        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null,
+        StepOutcomeParser? outcomeParser = null,
+        FailureResponseTable? failureResponseTable = null)
     {
         _auditState = auditState ?? throw new ArgumentNullException(nameof(auditState));
         _planBuilder = planBuilder ?? throw new ArgumentNullException(nameof(planBuilder));
         _sessionStore = sessionStore;
         _runAudit = runAudit;
+        _outcomeParser = outcomeParser ?? new StepOutcomeParser();
+        _failureResponseTable = failureResponseTable ?? new FailureResponseTable();
     }
 
     public Task<AgentResult> HandlePrioritizeRemediationAsync(CancellationToken ct)
@@ -301,7 +309,7 @@ internal sealed class GuidedRemediationService
         return Task.FromResult(BuildSessionResult(session));
     }
 
-    public AgentResult UpdateStepState(string sessionId, string ruleId, RemediationStepState state)
+    public AgentResult UpdateStepState(string sessionId, string ruleId, RemediationStepState state, string? failureReason = null)
     {
         if (_sessionStore == null)
         {
@@ -354,6 +362,16 @@ internal sealed class GuidedRemediationService
             [ruleId] = state
         };
 
+        var updatedFailureReasons = new Dictionary<string, string>(session.StepFailureReasons, StringComparer.OrdinalIgnoreCase);
+        if (state == RemediationStepState.Failed && !string.IsNullOrWhiteSpace(failureReason))
+        {
+            updatedFailureReasons[ruleId] = failureReason.Trim();
+        }
+        else if (state != RemediationStepState.Failed && updatedFailureReasons.ContainsKey(ruleId))
+        {
+            updatedFailureReasons.Remove(ruleId);
+        }
+
         var eventType = state switch
         {
             RemediationStepState.Pending => RemediationSessionEventType.StepMarkedPending,
@@ -365,18 +383,102 @@ internal sealed class GuidedRemediationService
             _ => RemediationSessionEventType.StepMarkedPending
         };
 
-        var updatedSession = AppendEvent(session, eventType, $"{ruleId} marked {state.ToString().ToLowerInvariant()}", ruleId);
+        var eventTitle = state == RemediationStepState.Failed && !string.IsNullOrWhiteSpace(failureReason)
+            ? $"{ruleId} marked failed: {failureReason.Trim()}"
+            : $"{ruleId} marked {state.ToString().ToLowerInvariant()}";
+
+        var updatedSession = AppendEvent(session, eventType, eventTitle, ruleId, failureReason);
 
         var allCompleted = updatedSteps.Values.All(s => s is RemediationStepState.Completed or RemediationStepState.Skipped);
+        var newStatus = updatedSession.Status switch
+        {
+            // A failed or otherwise non-terminal step reopens a finished session.
+            RemediationSessionStatus.Completed or RemediationSessionStatus.Verified when !allCompleted
+                => RemediationSessionStatus.Active,
+            // A verified session stays verified when steps are re-marked completed/skipped;
+            // it must not regress to merely "completed" from a no-op update.
+            RemediationSessionStatus.Verified
+                => RemediationSessionStatus.Verified,
+            _ => allCompleted ? RemediationSessionStatus.Completed : updatedSession.Status
+        };
+
         updatedSession = updatedSession with
         {
             StepStates = updatedSteps,
-            Status = allCompleted ? RemediationSessionStatus.Completed : updatedSession.Status
+            StepFailureReasons = updatedFailureReasons,
+            Status = newStatus
         };
 
         _sessionStore.Save(updatedSession);
 
         return BuildSessionResult(updatedSession);
+    }
+
+    public Task<AgentResult> HandleReportStepResultAsync(AgentQuery query, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (_sessionStore == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ReportStepResult,
+                Summary = "Session persistence is not available.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var sessionId = ResolveSessionId(query);
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ReportStepResult,
+                Summary = "Please specify which remediation session you're updating (e.g., **FW-001 failed in session abc12345** or **step 1 failed**).",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var session = _sessionStore.Load(sessionId);
+        if (session == null)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ReportStepResult,
+                Summary = $"Session **{sessionId}** not found. Use **list sessions** to see available sessions.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        var report = _outcomeParser.Parse(query.RawQuery);
+        var ruleId = ResolveTargetRuleId(session, report);
+
+        if (string.IsNullOrWhiteSpace(ruleId))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.ReportStepResult,
+                Summary = "I couldn't tell which step you're reporting on. Try **FW-001 failed**, **FW-001 done**, or **step 1 failed** (use the rule ID or the step number shown in your plan).",
+                AgentFindings = session.SourceFindings,
+                RemediationSession = session,
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        if (report.Kind == StepOutcomeKind.Success)
+        {
+            var updateResult = UpdateStepState(sessionId, ruleId, RemediationStepState.Completed);
+            var updatedSession = updateResult.RemediationSession ?? session;
+            return Task.FromResult(BuildStepOutcomeResult(updatedSession, ruleId, success: true, report: report));
+        }
+
+        var failureReason = report.FailureReason ?? "Unknown failure";
+        var failureResult = UpdateStepState(sessionId, ruleId, RemediationStepState.Failed, failureReason);
+        var failedSession = failureResult.RemediationSession ?? session;
+        return Task.FromResult(BuildStepOutcomeResult(failedSession, ruleId, success: false, failureReason, query.RawQuery, report));
     }
 
     public async Task<AgentResult> RunVerificationAsync(string sessionId, CancellationToken ct)
@@ -854,6 +956,158 @@ internal sealed class GuidedRemediationService
         TotalFindings = snapshot.Findings.Count,
         SnapshotFindings = snapshot.Findings.ToList()
     };
+
+    private string? ResolveSessionId(AgentQuery query)
+    {
+        var target = query.TargetReference;
+        if (!string.IsNullOrWhiteSpace(target) && IsSessionId(target))
+            return target;
+
+        target = query.Entities?.SessionId;
+        if (!string.IsNullOrWhiteSpace(target) && IsSessionId(target))
+            return target;
+
+        if (!string.IsNullOrWhiteSpace(_auditState.Entities.ActiveSessionId) && IsSessionId(_auditState.Entities.ActiveSessionId))
+            return _auditState.Entities.ActiveSessionId;
+
+        if (!string.IsNullOrWhiteSpace(_auditState.Entities.LastRemediationSessionId) && IsSessionId(_auditState.Entities.LastRemediationSessionId))
+            return _auditState.Entities.LastRemediationSessionId;
+
+        return null;
+    }
+
+    private static bool IsSessionId(string value) =>
+        !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value.Trim(), @"^[0-9a-fA-F]{8}$");
+
+    private static string? ResolveTargetRuleId(RemediationSession session, StepOutcomeReport report)
+    {
+        if (!string.IsNullOrWhiteSpace(report.RuleId))
+            return report.RuleId;
+
+        if (report.StepOrdinal.HasValue)
+        {
+            return ResolveRuleIdByStepOrdinal(session, report.StepOrdinal.Value);
+        }
+
+        // Implicit current step: first non-terminal step in plan order.
+        return session.RemediationPlan.Sections
+            .Select(s => s.RuleId)
+            .FirstOrDefault(ruleId =>
+            {
+                var state = session.StepStates.GetValueOrDefault(ruleId);
+                return state is RemediationStepState.Pending or RemediationStepState.InProgress;
+            });
+    }
+
+    private static string? ResolveRuleIdByStepOrdinal(RemediationSession session, int ordinal)
+    {
+        if (ordinal <= 0)
+            return null;
+
+        // Multi-section plans number steps by section (one finding per section).
+        if (ordinal <= session.RemediationPlan.Sections.Count)
+            return session.RemediationPlan.Sections[ordinal - 1].RuleId;
+
+        // A remediation session is built from a single finding, so it has one section.
+        // The user is guided through that section's apply commands ("Apply (N command(s)):
+        // Step-by-step fix commands"), which means "step N" refers to the Nth apply command.
+        if (session.RemediationPlan.Sections.Count == 1)
+        {
+            var section = session.RemediationPlan.Sections[0];
+            if (ordinal <= section.ApplyCommands.Count)
+                return section.RuleId;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveAttemptedCommand(RemediationSession session, string? ruleId, StepOutcomeReport report)
+    {
+        var section = session.RemediationPlan.Sections.FirstOrDefault(s => s.RuleId == ruleId);
+        if (section == null || section.ApplyCommands.Count == 0)
+            return null;
+
+        // For a single-section session, "step N" points at the Nth apply command.
+        if (report.StepOrdinal.HasValue && session.RemediationPlan.Sections.Count == 1)
+        {
+            var index = report.StepOrdinal.Value - 1;
+            if (index >= 0 && index < section.ApplyCommands.Count)
+                return section.ApplyCommands[index].Command;
+        }
+
+        return section.ApplyCommands[0].Command;
+    }
+
+    private AgentResult BuildStepOutcomeResult(RemediationSession session, string ruleId, bool success, string? failureReason = null, string? originalErrorText = null, StepOutcomeReport? report = null)
+    {
+        var section = session.RemediationPlan.Sections.FirstOrDefault(s => s.RuleId == ruleId);
+        var parts = new List<string>
+        {
+            $"**Step Outcome — Session {session.SessionId}**",
+            ""
+        };
+
+        if (success)
+        {
+            parts.Add($"✓ **{ruleId}** marked completed.");
+
+            var nextStep = session.RemediationPlan.Sections
+                .Where(s =>
+                {
+                    var state = session.StepStates.GetValueOrDefault(s.RuleId);
+                    return state is RemediationStepState.Pending or RemediationStepState.InProgress;
+                })
+                .FirstOrDefault();
+
+            if (nextStep != null)
+            {
+                parts.Add("");
+                parts.Add($"**Next step: {nextStep.RuleId}**");
+                parts.Add($"{nextStep.FindingSummary}");
+                if (nextStep.ApplyCommands.Count > 0)
+                {
+                    parts.Add($"Command: `{nextStep.ApplyCommands[0].Command}`");
+                }
+            }
+            else
+            {
+                parts.Add("");
+                parts.Add("All steps are complete. Run **verify remediation** to confirm the finding is fixed.");
+            }
+        }
+        else
+        {
+            var attemptedCommand = report != null
+                ? ResolveAttemptedCommand(session, ruleId, report)
+                : section?.ApplyCommands.FirstOrDefault()?.Command;
+            var guidance = _failureResponseTable.BuildResponse(ruleId, failureReason, attemptedCommand, originalErrorText);
+            parts.Add(guidance);
+
+            if (section != null)
+            {
+                parts.Add("");
+                parts.Add($"Original step: **{section.RuleId}** — {section.FindingSummary}");
+                // Show the command the user actually reported on (ordinal-aware) when available.
+                var displayCommand = !string.IsNullOrWhiteSpace(attemptedCommand)
+                    ? attemptedCommand
+                    : section.ApplyCommands.FirstOrDefault()?.Command;
+                if (!string.IsNullOrWhiteSpace(displayCommand))
+                {
+                    parts.Add($"Command: `{displayCommand}`");
+                }
+            }
+        }
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.ReportStepResult,
+            Summary = string.Join("\n", parts),
+            AgentFindings = session.SourceFindings,
+            RemediationPlan = session.RemediationPlan,
+            RemediationSession = session,
+            Warnings = Array.Empty<string>()
+        };
+    }
 
     private static AgentResult BuildSessionResult(RemediationSession session, AgentIntent intent = AgentIntent.StartRemediation)
     {

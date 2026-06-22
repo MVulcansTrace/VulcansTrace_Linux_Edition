@@ -55,10 +55,13 @@ public sealed class QueryParser : IQueryParser
         // phrases like "show me the evidence" without relying on tuple order. New intents above
         // weight 4 should be reviewed against this routing.
         (new[] { "prove", "evidence", "provenance", "what triggered", "why was this flagged", "show sources" }, AgentIntent.ShowEvidence, 4),
+        (new[] { "came back", "keeps returning", "keep returning", "why does this keep happening", "keeps reverting", "keeps coming back", "recurring", "keeps happening" }, AgentIntent.InvestigateRecurrence, 4),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
         (new[] { "fix ", "resolve" }, AgentIntent.FixFinding, 3),
         (new[] { "remediation session", "start remediation", "guided fix", "walk me through", "remediate" }, AgentIntent.StartRemediation, 4),
         (new[] { "verify remediation", "verify session", "check remediation", "did the fix work" }, AgentIntent.VerifyRemediation, 4),
+        // ReportStepResult is handled by the explicit StepOutcomePattern pre-check above,
+        // so it does not need a keyword-scoring entry here.
         (new[] { "list sessions", "show sessions", "session history", "my sessions", "remediation sessions" }, AgentIntent.ListRemediationSessions, 4),
         (new[] { "resume session", "continue session", "open session", "load session" }, AgentIntent.ResumeRemediation, 4),
         (new[] { "add note", "session note", "write note" }, AgentIntent.AddSessionNote, 4),
@@ -71,8 +74,17 @@ public sealed class QueryParser : IQueryParser
         (new[] { "help", "what can you do", "capabilities", "commands" }, AgentIntent.Help, 2),
     };
 
-    private static readonly Regex RuleIdPattern = new(@"[A-Za-z]{2,}-\d{3,}", RegexOptions.Compiled);
+    private static readonly Regex RuleIdPattern = new(@"\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-\d+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SessionIdPattern = new(@"\b[0-9a-fA-F]{8}\b", RegexOptions.Compiled);
+    // Step-outcome reports must reference an explicit subject — either "step N" or a
+    // pronoun (it/that) — so that ordinary queries containing "failed", "completed",
+    // "worked", or "done" (e.g. "the firewall audit failed", "show completed scans")
+    // are not misrouted to ReportStepResult. Bare outcome words are intentionally
+    // excluded; the topic-gated IntentInferenceEngine still catches remediation-context
+    // phrases like "the step failed".
+    private static readonly Regex StepOutcomePattern = new(
+        @"\bstep\s+\d+\s+(failed|done|worked|completed|succeeded|error|didn'?t\s+work|doesn'?t\s+work|did not work|does not work)|\b(?:it|that)\s+(?:worked|didn'?t\s+work|doesn'?t\s+work|did not work|does not work|failed|done|completed|succeeded)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     internal static readonly string[] CategoryKeywords =
     {
@@ -86,6 +98,18 @@ public sealed class QueryParser : IQueryParser
             return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query);
 
         var normalized = query.ToLowerInvariant().Trim();
+
+        // Strong, explicit step-outcome reports bypass keyword scoring so phrases like
+        // "step 2 failed" or "it worked" are not misrouted to audit intents.
+        if (StepOutcomePattern.IsMatch(normalized))
+        {
+            var stepTargetReference = ExtractTargetReference(query, AgentIntent.ReportStepResult);
+            return new AgentQuery(AgentIntent.ReportStepResult, stepTargetReference, 1.0, RawQuery: query)
+            {
+                Entities = _entityExtractor.Extract(query)
+            };
+        }
+
         var bestIntent = AgentIntent.Help;
         var bestScore = 0;
         var scoredIntents = new Dictionary<AgentIntent, int>();
@@ -163,11 +187,12 @@ public sealed class QueryParser : IQueryParser
         if (intent != AgentIntent.ExplainFinding && intent != AgentIntent.ShowEvidence && intent != AgentIntent.FilterCategory
             && intent != AgentIntent.FixFinding && intent != AgentIntent.StartRemediation
             && intent != AgentIntent.VerifyRemediation && intent != AgentIntent.ResumeRemediation
-            && intent != AgentIntent.AddSessionNote && intent != AgentIntent.AddStepNote)
+            && intent != AgentIntent.AddSessionNote && intent != AgentIntent.AddStepNote
+            && intent != AgentIntent.InvestigateRecurrence && intent != AgentIntent.ReportStepResult)
             return null;
 
-        if (intent == AgentIntent.VerifyRemediation || intent == AgentIntent.ResumeRemediation
-            || intent == AgentIntent.AddSessionNote || intent == AgentIntent.AddStepNote)
+        if (intent is AgentIntent.VerifyRemediation or AgentIntent.ResumeRemediation
+            or AgentIntent.AddSessionNote or AgentIntent.AddStepNote or AgentIntent.ReportStepResult)
         {
             var sessionMatch = SessionIdPattern.Match(rawQuery);
             if (sessionMatch.Success)

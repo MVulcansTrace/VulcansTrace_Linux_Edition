@@ -126,6 +126,16 @@ Agent chat findings can be filtered by severity and category without changing th
 
 **Guided Remediation Sessions** — When you type `remediate FW-001`, the agent creates a persisted manual session with a short session ID, a before snapshot, step state, an immutable event timeline, and a Verify Remediation button. The timeline records session creation, step state changes, blocked steps, verification lifecycle events, failed verification attempts, successful report exports, and session/step notes. After you complete the manual steps, click **Verify Remediation** or type `verify remediation <session-id>` to re-run the original audit intent and produce a before/after diff. Blocked sessions remain visible with their safety reasons and timeline but cannot be verified as completed remediation. Use **Export Session** to save a markdown report that includes the timeline and any notes for review or audit handoff; the export event is recorded only after the report is written successfully.
 
+**Step-Outcome Reporting** — While a remediation session is active, you can report what happened after each manual step instead of jumping straight to verification. The agent recognizes explicit outcome language and updates the session timeline automatically. Examples:
+
+- `step 1 worked` / `step 1 done` / `step 1 completed`
+- `step 2 failed` / `step 2 didn't work` / `step 2 did not work`
+- `it worked` / `that worked` / `it failed` / `that didn't work`
+- `step 2 failed with permission denied`
+- `step 1 failed because service auditd is not installed`
+
+You can reference the step by ordinal (`step 2`), rule ID (`FW-001 failed`), or session ID (`step 1 worked in session abc12345`). On success, the agent marks the step complete and either prompts for the next step or suggests verification. On failure, it classifies the failure category (permission issue, missing dependency, missing service, malformed command, already configured/conflicting setting, or unknown) and returns adaptive, rule-aware guidance — for example, retrying with `sudo`, installing a prerequisite package, enabling a missing service, or reviewing a conflicting setting. These responses are deterministic; no external model is consulted.
+
 **Session Notes** — During an existing remediation session, you can append free-text notes for audit traceability:
 - `add note to session abc12345 <text>` — adds a session-level note.
 - `note for step FW-001 in session abc12345 <text>` — adds a step-level note tied to a specific rule.

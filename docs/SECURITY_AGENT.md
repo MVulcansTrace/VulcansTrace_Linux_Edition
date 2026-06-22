@@ -175,16 +175,19 @@ Correlations are deduplicated by `(PatternId, RuleIdA, RuleIdB)` within a result
 
 ### Cross-Scanner Confidence Validation
 
-The agent can adjust the confidence of Critical, High, and Medium findings when independent scanner data sources support or contradict them. This is a deterministic, read-only pass over already-collected `ScanData` — not a new sub-agent or external validation step.
+The agent can adjust the confidence of Critical and High findings when independent scanner data sources support or contradict them. This is a deterministic, read-only pass over already-collected `ScanData` — not a new sub-agent or external validation step. Medium findings are intentionally deferred from this validation phase.
 
 | Rule | Validating sources | Meaning |
 | --- | --- | --- |
 | `FW-002` (High branch only) | `PortScanner` + `NetworkScanner` | Supports exposure when port 22 is listening and a non-loopback interface is up. Contradicts exposure when an available port scanner finds no public SSH listener or an available network scanner finds no up non-loopback interface. The Medium branch ("no explicit SSH rule") is neutral. |
-| `PORT-002` | `FirewallScanner` | Supports exposure when the firewall scanner reports no active firewall or an explicit ACCEPT rule for that port. Contradicts reachability when an active firewall has a DROP/REJECT rule for that port. Recognizes both iptables and nftables dport syntax. |
 | `PORT-003` | `FirewallScanner` | Supports database exposure when the firewall scanner reports no active firewall or an explicit ACCEPT rule for that port; contradicts reachability when an active firewall has a DROP/REJECT rule for that port. (PORT-003 already fires from the port scanner's `OpenPorts`, so the firewall is the independent source — reading `OpenPorts` again would be self-referential.) |
-| `SSH-002` | `ServiceScanner` + `PortScanner` | Supports reachable password-auth exposure when SSH is running and port 22 is listening. Contradicts the reachable-exposure claim when an available service or port scanner does not find that reachable SSH path. |
 | `SRV-001` | `PortScanner` | Supports Telnet exposure when port 23 is listening; contradicts the reachable-service claim when an available port scanner does not find a public Telnet listener. |
+| `SRV-002` | `PortScanner` | Supports FTP exposure when port 20 or 21 is listening; contradicts the reachable-service claim when no listener is found. |
+| `SRV-004` | `PortScanner` | Supports legacy r-services exposure when ports 512, 513, or 514 are listening; contradicts the reachable-service claim when no listener is found. |
+| `SSH-001`, `SSH-002`, `SSH-004`, `SSH-005`, `SSH-006` | `ServiceScanner` + `PortScanner` | Supports reachable SSH config exposure when SSH is running and port 22 is listening. Contradicts the reachable-exposure claim when an available service or port scanner does not find that reachable SSH path. |
 | `USER-001` | `ServiceScanner` + `PortScanner` | Supports remote exploitation context only when SSH is running and port 22 is listening. Lack of SSH reachability is neutral because it does not disprove the additional UID-0 account. |
+
+Some rules are intentionally excluded from cross-scanner validation because no independent second source exists: `FW-001` and `FW-004` (only the firewall scanner can report default policy/firewall-active state), `NET-003` (only the interface scanner can report interface state), all container rules (`CTR-001`–`CTR-005`) and Kubernetes rules (`K8S-001`–`K8S-004`) (they draw from the same `docker`/`crictl`/`kubectl` data a validator would read, so validation would be tautological). These exclusions are documented in the code registry and in `docs/COVERAGE_TABLE.md`.
 
 Support raises confidence one level, capped at `High`. Contradiction lowers confidence one level, down to `Unknown`. A neutral result leaves confidence unchanged. A source is only trusted when its `DataSourceCapability` status is `Available`; `PermissionLimited` or `Unavailable` sources are skipped rather than interpreted as support or contradiction. Every adjusted finding carries an `EvidenceSignal` with source `CrossScannerValidation`; signal names start with `Supports:` or `Contradicts:` so the reason is visible in explanations and evidence exports.
 

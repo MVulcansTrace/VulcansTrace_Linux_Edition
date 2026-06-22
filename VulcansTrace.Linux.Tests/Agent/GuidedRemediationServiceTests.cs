@@ -448,6 +448,29 @@ public class GuidedRemediationServiceTests
     }
 
     [Fact]
+    public async Task UpdateStepState_FailureAfterCompletion_RevertsStatusToActive()
+    {
+        var state = new AgentAuditState();
+        var finding = CreateRemediableFinding("FW-001");
+        var audit = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = new[] { finding } };
+        state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
+        var store = new InMemorySessionStore();
+        var service = CreateService(state, new ExplanationProvider(), sessionStore: store);
+
+        await service.CreateSessionAsync("FW-001", CancellationToken.None);
+        var sessionId = store.List()[0].SessionId;
+
+        service.UpdateStepState(sessionId, "FW-001", RemediationStepState.Completed);
+        Assert.Equal(RemediationSessionStatus.Completed, store.Load(sessionId)!.Status);
+
+        service.UpdateStepState(sessionId, "FW-001", RemediationStepState.Failed, "permission denied");
+
+        var updated = store.Load(sessionId);
+        Assert.Equal(RemediationStepState.Failed, updated!.StepStates["FW-001"]);
+        Assert.Equal(RemediationSessionStatus.Active, updated.Status);
+    }
+
+    [Fact]
     public async Task RunVerification_RunsAuditAndProducesDiff()
     {
         var state = new AgentAuditState();

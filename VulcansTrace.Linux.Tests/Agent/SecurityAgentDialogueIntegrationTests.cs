@@ -1,5 +1,7 @@
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
@@ -147,6 +149,25 @@ public class SecurityAgentDialogueIntegrationTests
         Assert.Equal("TEST-SSH-001", result.AgentFindings[0].RuleId);
     }
 
+    [Fact]
+    public async Task AskAsync_RecurringFinding_DiagnosticDialogueFlow()
+    {
+        var agent = CreateAgentWithRecurringMemory("TEST-001");
+
+        var audit = await agent.AskAsync("audit everything", null, CancellationToken.None);
+        Assert.Single(audit.AgentFindings);
+        Assert.Equal("TEST-001", audit.AgentFindings[0].RuleId);
+
+        var investigate = await agent.AskAsync("TEST-001 came back again", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.InvestigateRecurrence, investigate.Intent);
+        Assert.NotNull(investigate.Narrative);
+        Assert.Contains("config-management", investigate.Narrative!.KeyFindingsParagraph);
+
+        var answer = await agent.AskAsync("I'm using Ansible", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.AnswerDiagnosticQuestion, answer.Intent);
+        Assert.Contains("config-management tool", answer.Narrative!.KeyFindingsParagraph);
+    }
+
     private static SecurityAgent CreateAgent()
     {
         return new SecurityAgent(
@@ -154,6 +175,59 @@ public class SecurityAgentDialogueIntegrationTests
             new IRule[] { new AlwaysFailRule() },
             new ExplanationProvider(),
             sessionStore: new InMemorySessionStore());
+    }
+
+    private static SecurityAgent CreateAgentWithRecurringMemory(string ruleId)
+    {
+        var now = DateTime.UtcNow;
+        var history = new Dictionary<string, RuleMemoryEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ruleId] = new RuleMemoryEntry
+            {
+                RuleId = ruleId,
+                Category = "Firewall",
+                Trend = RuleStatusTrend.Stable,
+                FirstSeenUtc = now.AddDays(-14),
+                LastSeenUtc = now.AddDays(-1),
+                SeverityHistory = new[]
+                {
+                    new RuleSeveritySnapshot { UtcTimestamp = now.AddDays(-14), Severity = Severity.High, Target = "target" },
+                    new RuleSeveritySnapshot { UtcTimestamp = now.AddDays(-7), Severity = Severity.High, Target = "target" },
+                    new RuleSeveritySnapshot { UtcTimestamp = now.AddDays(-1), Severity = Severity.High, Target = "target" }
+                },
+                RemediationCycles = new[]
+                {
+                    new RemediationCycle
+                    {
+                        CycleNumber = 1,
+                        AttemptedUtc = now.AddDays(-10),
+                        VerifiedFixedUtc = now.AddDays(-9),
+                        ReturnedUtc = now.AddDays(-8)
+                    },
+                    new RemediationCycle
+                    {
+                        CycleNumber = 2,
+                        AttemptedUtc = now.AddDays(-5),
+                        VerifiedFixedUtc = now.AddDays(-4),
+                        ReturnedUtc = now.AddDays(-2)
+                    }
+                }
+            }
+        };
+
+        var memoryStore = new InMemoryAgentMemoryStore();
+        memoryStore.SaveAsync(new AgentMemorySnapshot
+        {
+            UtcTimestamp = now,
+            RuleHistory = history
+        }).Wait();
+
+        return new SecurityAgent(
+            new IScanner[] { new NoopScanner() },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider(),
+            sessionStore: new InMemorySessionStore(),
+            memoryStore: memoryStore);
     }
 
     private static SecurityAgent CreateMultiFindingAgent()

@@ -39,7 +39,10 @@ internal sealed class CrossScannerValidator
 
         foreach (var finding in findings)
         {
-            if (finding.Severity is not Severity.Critical and not Severity.High and not Severity.Medium)
+            // Phase 1 covers Critical and High severity rules only.
+            // Medium rules are deferred to Phase 2 to keep the validation surface
+            // bounded and grounded in strong independent signals.
+            if (finding.Severity is not Severity.Critical and not Severity.High)
             {
                 validated.Add(finding);
                 continue;
@@ -122,230 +125,344 @@ internal sealed class CrossScannerValidator
     {
         return new Dictionary<string, Func<Finding, ScanData, CrossScannerValidationSignal?>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["FW-002"] = ValidateFw002,
-            ["PORT-002"] = ValidatePort002,
-            ["PORT-003"] = ValidatePort003,
-            ["SSH-002"] = ValidateSsh002,
-            ["SRV-001"] = ValidateSrv001,
-            ["USER-001"] = ValidateUser001
+            // Firewall
+            // FW-001 has no independent cross-check: only the firewall scanner can know the
+            // default INPUT policy. FW-004 is the firewall-active rule itself, so it is also
+            // intentionally excluded.
+            ["FW-002"] = FirewallValidators.ValidateFw002,
+
+            // Ports (PORT-002 is Medium; deferred to Phase 2)
+            ["PORT-003"] = PortValidators.ValidatePort003,
+
+            // Services
+            ["SRV-001"] = ServiceValidators.ValidateSrv001,
+            ["SRV-002"] = ServiceValidators.ValidateSrv002,
+            ["SRV-004"] = ServiceValidators.ValidateSrv004,
+
+            // SSH
+            ["SSH-001"] = SshValidators.ValidateSsh,
+            ["SSH-002"] = SshValidators.ValidateSsh,
+            ["SSH-004"] = SshValidators.ValidateSsh,
+            ["SSH-005"] = SshValidators.ValidateSsh,
+            ["SSH-006"] = SshValidators.ValidateSsh,
+
+            // Network
+            // NET-003 has no independent cross-check: only the interface scanner can report
+            // whether an interface is up. NET-002 is limited to confirming that active
+            // connections are observable, not the specific suspicious connection.
+            ["NET-002"] = NetworkValidators.ValidateNet002,
+
+            // Containers and Kubernetes are intentionally NOT registered. The CTR-*/K8S-*
+            // rules draw their findings from the same Containers/KubernetesPods scan data
+            // that a validator would read, so there is no independent second source to
+            // confirm or contradict them. Validating here would only re-state the rule's
+            // own data — tautological "support" and an unreachable "contradicts" branch —
+            // inflating confidence without independent evidence. These are excluded on the
+            // same grounds as FW-001/FW-004/NET-003 until genuinely independent sources exist.
+
+            // User accounts
+            ["USER-001"] = OtherValidators.ValidateUser001
         };
     }
 
     // =====================================================================
-    // FW-002: SSH exposed to any source in firewall rules.
-    // Validate with live socket state and a public network interface.
+    // Port validators: port exposure vs firewall rules
     // =====================================================================
-    private static CrossScannerValidationSignal? ValidateFw002(Finding finding, ScanData scanData)
+    internal static class PortValidators
     {
-        // FW-002 has a Medium branch ("no explicit SSH rule") and a High branch ("open to any source").
-        // Only the High branch claims exposure to any source, so only that branch is validated here.
-        if (finding.Severity != Severity.High)
-            return null;
+        public static CrossScannerValidationSignal? ValidatePort003(Finding finding, ScanData scanData)
+            => ValidatePortAgainstFirewall(finding, scanData, "database", "database port");
 
-        var portSourceAvailable = IsPortSourceAvailable(scanData);
-        var interfaceSourceAvailable = IsSourceAvailable(scanData, "ip addr");
-        var portConfirmed = portSourceAvailable && HasPublicListener(scanData, 22);
-        var interfaceConfirmed = interfaceSourceAvailable && HasNonLoopbackUpInterface(scanData);
-
-        if (portConfirmed && interfaceConfirmed)
+        private static CrossScannerValidationSignal? ValidatePortAgainstFirewall(
+            Finding finding,
+            ScanData scanData,
+            string assetKind,
+            string assetDescription)
         {
+            if (!IsFirewallSourceAvailable(scanData))
+                return null;
+
+            if (!TryGetPort(finding, out var port))
+                return null;
+
+            if (scanData.FirewallActive)
+            {
+                var hasAccept = scanData.FirewallRules.Any(r =>
+                    IsAcceptRule(r) && MatchesDestinationPort(r, port));
+
+                if (hasAccept)
+                {
+                    return new CrossScannerValidationSignal
+                    {
+                        RuleId = finding.RuleId!,
+                        Verdict = CrossScannerValidationVerdict.Supports,
+                        Name = $"Supports: Firewall ACCEPT confirms exposed {assetKind}",
+                        Explanation = $"{finding.RuleId} reports {assetDescription} {port}; the firewall scanner independently confirms an ACCEPT rule for that port."
+                    };
+                }
+
+                var hasBlock = scanData.FirewallRules.Any(r =>
+                    IsBlockRule(r) && MatchesDestinationPort(r, port));
+
+                if (hasBlock)
+                {
+                    return new CrossScannerValidationSignal
+                    {
+                        RuleId = finding.RuleId!,
+                        Verdict = CrossScannerValidationVerdict.Contradicts,
+                        Name = $"Contradicts: Firewall block contradicts exposed {assetKind}",
+                        Explanation = $"{finding.RuleId} reports {assetDescription} {port}, but the firewall scanner independently reports a DROP/REJECT rule for that port."
+                    };
+                }
+
+                return null;
+            }
+
             return new CrossScannerValidationSignal
             {
                 RuleId = finding.RuleId!,
                 Verdict = CrossScannerValidationVerdict.Supports,
-                Name = "SSH listener confirmed on public interface",
-                Explanation = "FW-002 reports SSH is open to any source; the port scanner independently confirms port 22 is listening, and a non-loopback network interface is up."
+                Name = $"Supports: No active firewall protecting exposed {assetKind}",
+                Explanation = $"{finding.RuleId} reports {assetDescription} {port}; the firewall scanner independently reports no active firewall."
             };
         }
-
-        if (portSourceAvailable && !portConfirmed)
-        {
-            return new CrossScannerValidationSignal
-            {
-                RuleId = finding.RuleId!,
-                Verdict = CrossScannerValidationVerdict.Contradicts,
-                Name = "No public SSH listener found",
-                Explanation = "FW-002 reports SSH is open to any source, but the port scanner did not find port 22 listening on a public address."
-            };
-        }
-
-        if (interfaceSourceAvailable && !interfaceConfirmed)
-        {
-            return new CrossScannerValidationSignal
-            {
-                RuleId = finding.RuleId!,
-                Verdict = CrossScannerValidationVerdict.Contradicts,
-                Name = "No non-loopback network interface is up",
-                Explanation = "FW-002 reports SSH is open to any source, but the network scanner did not find an up non-loopback interface."
-            };
-        }
-
-        return null;
     }
 
     // =====================================================================
-    // PORT-002: Service listening on all interfaces.
-    // PORT-003: Database port exposed to all interfaces.
-    // Validate with the firewall scanner. No active firewall or an explicit ACCEPT
-    // supports reachability; an explicit DROP/REJECT weakens the exposure claim.
+    // Service validators: prohibited service vs live listener
     // =====================================================================
-    private static CrossScannerValidationSignal? ValidatePort002(Finding finding, ScanData scanData)
-        => ValidatePortAgainstFirewall(finding, scanData, "service", "a service listening on all interfaces on port");
-
-    private static CrossScannerValidationSignal? ValidatePort003(Finding finding, ScanData scanData)
-        => ValidatePortAgainstFirewall(finding, scanData, "database", "database port");
-
-    private static CrossScannerValidationSignal? ValidatePortAgainstFirewall(
-        Finding finding,
-        ScanData scanData,
-        string assetKind,
-        string assetDescription)
+    internal static class ServiceValidators
     {
-        if (!IsFirewallSourceAvailable(scanData))
-            return null;
+        public static CrossScannerValidationSignal? ValidateSrv001(Finding finding, ScanData scanData)
+            => ValidateServiceByPort(finding, scanData, 23, "telnet");
 
-        if (!TryGetVariable(finding, "port", out var portText) || !int.TryParse(portText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var port))
-            return null;
+        public static CrossScannerValidationSignal? ValidateSrv002(Finding finding, ScanData scanData)
+            => ValidateAnyPort(finding, scanData, new[] { 20, 21 }, "FTP");
 
-        if (scanData.FirewallActive)
+        public static CrossScannerValidationSignal? ValidateSrv004(Finding finding, ScanData scanData)
+            => ValidateAnyPort(finding, scanData, new[] { 512, 513, 514 }, "r-services");
+
+        private static CrossScannerValidationSignal? ValidateServiceByPort(
+            Finding finding,
+            ScanData scanData,
+            int port,
+            string serviceName)
         {
-            var hasAccept = scanData.FirewallRules.Any(r =>
-                IsAcceptRule(r) &&
-                MatchesDestinationPort(r, port));
+            if (!IsPortSourceAvailable(scanData))
+                return null;
 
-            if (hasAccept)
+            if (HasPublicListener(scanData, port))
             {
                 return new CrossScannerValidationSignal
                 {
                     RuleId = finding.RuleId!,
                     Verdict = CrossScannerValidationVerdict.Supports,
-                    Name = $"Firewall ACCEPT supports exposed {assetKind}",
-                    Explanation = $"{finding.RuleId} reports {assetDescription} {port}; the firewall scanner independently confirms an ACCEPT rule for that port."
+                    Name = $"Supports: {serviceName} listener confirmed",
+                    Explanation = $"{finding.RuleId} reports the {serviceName} service is running; the port scanner independently confirms port {port} is listening."
                 };
             }
 
-            var hasBlock = scanData.FirewallRules.Any(r =>
-                IsBlockRule(r) &&
-                MatchesDestinationPort(r, port));
+            return new CrossScannerValidationSignal
+            {
+                RuleId = finding.RuleId!,
+                Verdict = CrossScannerValidationVerdict.Contradicts,
+                Name = $"Contradicts: No public {serviceName} listener found",
+                Explanation = $"{finding.RuleId} reports the {serviceName} service is running, but the port scanner did not find port {port} listening on a public address."
+            };
+        }
 
-            if (hasBlock)
+        private static CrossScannerValidationSignal? ValidateAnyPort(
+            Finding finding,
+            ScanData scanData,
+            int[] ports,
+            string serviceName)
+        {
+            if (!IsPortSourceAvailable(scanData))
+                return null;
+
+            var confirmedPort = ports.FirstOrDefault(p => HasPublicListener(scanData, p));
+
+            if (confirmedPort != 0)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Supports,
+                    Name = $"Supports: {serviceName} listener confirmed",
+                    Explanation = $"{finding.RuleId} reports the {serviceName} service is running; the port scanner independently confirms port {confirmedPort} is listening."
+                };
+            }
+
+            return new CrossScannerValidationSignal
+            {
+                RuleId = finding.RuleId!,
+                Verdict = CrossScannerValidationVerdict.Contradicts,
+                Name = $"Contradicts: No public {serviceName} listener found",
+                Explanation = $"{finding.RuleId} reports the {serviceName} service is running, but the port scanner did not find any of ports {string.Join(", ", ports)} listening on a public address."
+            };
+        }
+    }
+
+    // =====================================================================
+    // SSH validators: config rule vs reachable SSH service
+    // =====================================================================
+    internal static class SshValidators
+    {
+        public static CrossScannerValidationSignal? ValidateSsh(Finding finding, ScanData scanData)
+        {
+            var serviceSourceAvailable = IsSourceAvailable(scanData, "systemctl");
+            var portSourceAvailable = IsPortSourceAvailable(scanData);
+            var serviceConfirmed = serviceSourceAvailable && HasSshService(scanData);
+            var portConfirmed = portSourceAvailable && HasPublicListener(scanData, 22);
+
+            if (serviceConfirmed && portConfirmed)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Supports,
+                    Name = "Supports: SSH service and listener independently confirmed",
+                    Explanation = $"{finding.RuleId} reports an SSH configuration issue; the service scanner independently confirms an SSH service is running and the port scanner confirms port 22 is listening, so the configuration is reachable."
+                };
+            }
+
+            if (portSourceAvailable && !portConfirmed)
             {
                 return new CrossScannerValidationSignal
                 {
                     RuleId = finding.RuleId!,
                     Verdict = CrossScannerValidationVerdict.Contradicts,
-                    Name = $"Firewall block contradicts exposed {assetKind}",
-                    Explanation = $"{finding.RuleId} reports {assetDescription} {port}, but the firewall scanner independently reports a DROP/REJECT rule for that port."
+                    Name = "Contradicts: No public SSH listener found",
+                    Explanation = $"{finding.RuleId} reports an SSH configuration issue, but the port scanner did not find port 22 listening on a public address, weakening the reachable-exposure claim."
+                };
+            }
+
+            if (serviceSourceAvailable && !serviceConfirmed)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Contradicts,
+                    Name = "Contradicts: No running SSH service found",
+                    Explanation = $"{finding.RuleId} reports an SSH configuration issue, but the service scanner did not find a running SSH service, weakening the reachable-exposure claim."
+                };
+            }
+
+            return null;
+        }
+    }
+
+    // =====================================================================
+    // Firewall validators
+    // =====================================================================
+    internal static class FirewallValidators
+    {
+        public static CrossScannerValidationSignal? ValidateFw002(Finding finding, ScanData scanData)
+        {
+            // FW-002 has a Medium branch ("no explicit SSH rule") and a High branch ("open to any source").
+            // Only the High branch claims exposure to any source, so only that branch is validated here.
+            if (finding.Severity != Severity.High)
+                return null;
+
+            var portSourceAvailable = IsPortSourceAvailable(scanData);
+            var interfaceSourceAvailable = IsSourceAvailable(scanData, "ip addr");
+            var portConfirmed = portSourceAvailable && HasPublicListener(scanData, 22);
+            var interfaceConfirmed = interfaceSourceAvailable && HasNonLoopbackUpInterface(scanData);
+
+            if (portConfirmed && interfaceConfirmed)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Supports,
+                    Name = "Supports: SSH listener confirmed on public interface",
+                    Explanation = "FW-002 reports SSH is open to any source; the port scanner independently confirms port 22 is listening, and a non-loopback network interface is up."
+                };
+            }
+
+            if (portSourceAvailable && !portConfirmed)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Contradicts,
+                    Name = "Contradicts: No public SSH listener found",
+                    Explanation = "FW-002 reports SSH is open to any source, but the port scanner did not find port 22 listening on a public address."
+                };
+            }
+
+            if (interfaceSourceAvailable && !interfaceConfirmed)
+            {
+                return new CrossScannerValidationSignal
+                {
+                    RuleId = finding.RuleId!,
+                    Verdict = CrossScannerValidationVerdict.Contradicts,
+                    Name = "Contradicts: No non-loopback network interface is up",
+                    Explanation = "FW-002 reports SSH is open to any source, but the network scanner did not find an up non-loopback interface."
                 };
             }
 
             return null;
         }
 
-        return new CrossScannerValidationSignal
+        public static CrossScannerValidationSignal? ValidateFw004(Finding finding, ScanData scanData)
         {
-            RuleId = finding.RuleId!,
-            Verdict = CrossScannerValidationVerdict.Supports,
-            Name = $"No active firewall protecting exposed {assetKind}",
-            Explanation = $"{finding.RuleId} reports {assetDescription} {port}; the firewall scanner independently reports no active firewall."
-        };
+            // FW-004 claims a firewall should be active. The only independent signal we have is
+            // whether the firewall capability is available; the firewall scanner itself produces
+            // the finding. Treat this as no independent cross-check and return neutral.
+            return null;
+        }
     }
 
     // =====================================================================
-    // SSH-002: Password authentication enabled.
-    // Validate with running SSH service and live listener.
+    // Network validators
     // =====================================================================
-    private static CrossScannerValidationSignal? ValidateSsh002(Finding finding, ScanData scanData)
+    internal static class NetworkValidators
     {
-        var serviceSourceAvailable = IsSourceAvailable(scanData, "systemctl");
-        var portSourceAvailable = IsPortSourceAvailable(scanData);
-        var serviceConfirmed = serviceSourceAvailable && HasSshService(scanData);
-        var portConfirmed = portSourceAvailable && HasPublicListener(scanData, 22);
-
-        if (serviceConfirmed && portConfirmed)
+        public static CrossScannerValidationSignal? ValidateNet002(Finding finding, ScanData scanData)
         {
+            if (!IsSourceAvailable(scanData, "ss connections"))
+                return null;
+
+            if (scanData.ActiveConnections.Count == 0)
+                return null;
+
+            // If active connections exist, the network scanner confirms outbound connectivity is
+            // observable. This is a weak support signal; it does not confirm the specific
+            // suspicious connection reported by NET-002.
             return new CrossScannerValidationSignal
             {
                 RuleId = finding.RuleId!,
                 Verdict = CrossScannerValidationVerdict.Supports,
-                Name = "SSH service and listener independently confirmed",
-                Explanation = "SSH-002 reports password authentication is enabled; the service scanner independently confirms an SSH service is running and the port scanner confirms port 22 is listening."
+                Name = "Supports: Active network connections observable",
+                Explanation = "NET-002 reports suspicious outbound connections; the network scanner confirms active connections are observable on the host."
             };
         }
-
-        if (portSourceAvailable && !portConfirmed)
-        {
-            return new CrossScannerValidationSignal
-            {
-                RuleId = finding.RuleId!,
-                Verdict = CrossScannerValidationVerdict.Contradicts,
-                Name = "No public SSH listener found",
-                Explanation = "SSH-002 reports password authentication is enabled, but the port scanner did not find port 22 listening on a public address, weakening the reachable-exposure claim."
-            };
-        }
-
-        if (serviceSourceAvailable && !serviceConfirmed)
-        {
-            return new CrossScannerValidationSignal
-            {
-                RuleId = finding.RuleId!,
-                Verdict = CrossScannerValidationVerdict.Contradicts,
-                Name = "No running SSH service found",
-                Explanation = "SSH-002 reports password authentication is enabled, but the service scanner did not find a running SSH service, weakening the reachable-exposure claim."
-            };
-        }
-
-        return null;
     }
 
     // =====================================================================
-    // SRV-001: Telnet service running.
-    // Validate with live telnet listener.
+    // Other validators (single-rule or specialized patterns)
     // =====================================================================
-    private static CrossScannerValidationSignal? ValidateSrv001(Finding finding, ScanData scanData)
+    internal static class OtherValidators
     {
-        if (!IsPortSourceAvailable(scanData))
-            return null;
-
-        if (HasPublicListener(scanData, 23))
+        // USER-001: Multiple UID-0 accounts.
+        // Support with a remote admin path that could exploit the privilege.
+        public static CrossScannerValidationSignal? ValidateUser001(Finding finding, ScanData scanData)
         {
+            var sshServiceConfirmed = IsSourceAvailable(scanData, "systemctl") && HasSshService(scanData);
+            var sshPortConfirmed = IsPortSourceAvailable(scanData) && HasPublicListener(scanData, 22);
+
+            if (!sshServiceConfirmed || !sshPortConfirmed)
+                return null;
+
             return new CrossScannerValidationSignal
             {
                 RuleId = finding.RuleId!,
                 Verdict = CrossScannerValidationVerdict.Supports,
-                Name = "Telnet listener confirmed",
-                Explanation = "SRV-001 reports the telnet service is running; the port scanner independently confirms port 23 is listening."
+                Name = "Supports: Remote SSH path confirms UID-0 exposure",
+                Explanation = "USER-001 reports an additional UID-0 account; the service scanner confirms SSH is running and the port scanner confirms port 22 is listening, creating a reachable privilege-escalation path."
             };
         }
-
-        return new CrossScannerValidationSignal
-        {
-            RuleId = finding.RuleId!,
-            Verdict = CrossScannerValidationVerdict.Contradicts,
-            Name = "No public Telnet listener found",
-            Explanation = "SRV-001 reports the telnet service is running, but the port scanner did not find port 23 listening on a public address."
-        };
-    }
-
-    // =====================================================================
-    // USER-001: Multiple UID-0 accounts.
-    // Support with a remote admin path that could exploit the privilege.
-    // =====================================================================
-    private static CrossScannerValidationSignal? ValidateUser001(Finding finding, ScanData scanData)
-    {
-        var sshServiceConfirmed = IsSourceAvailable(scanData, "systemctl") && HasSshService(scanData);
-        var sshPortConfirmed = IsPortSourceAvailable(scanData) && HasPublicListener(scanData, 22);
-
-        if (!sshServiceConfirmed || !sshPortConfirmed)
-            return null;
-
-        return new CrossScannerValidationSignal
-        {
-            RuleId = finding.RuleId!,
-            Verdict = CrossScannerValidationVerdict.Supports,
-            Name = "Remote SSH path confirms UID-0 exposure",
-            Explanation = "USER-001 reports an additional UID-0 account; the service scanner confirms SSH is running and the port scanner confirms port 22 is listening, creating a reachable privilege-escalation path."
-        };
     }
 
     // =====================================================================
@@ -373,8 +490,8 @@ internal sealed class CrossScannerValidator
     {
         return scanData.OpenPorts.Any(p =>
             p.LocalPort == port &&
-            p.LocalAddress is "0.0.0.0" or "::" &&
-            p.State is "LISTEN" or "LISTENING");
+            (p.LocalAddress is "0.0.0.0" or "::") &&
+            (p.State is "LISTEN" or "LISTENING"));
     }
 
     private static bool HasNonLoopbackUpInterface(ScanData scanData)
@@ -441,23 +558,24 @@ internal sealed class CrossScannerValidator
         return false;
     }
 
-    private static bool TryGetVariable(Finding finding, string key, out string value)
+    private static bool TryGetPort(Finding finding, out int port)
     {
-        value = string.Empty;
+        port = 0;
 
-        // Findings created by FindingAssemblyService do not currently preserve the
-        // original RuleResult.Variables dictionary, so we fall back to parsing the port
-        // out of the "{address}:{port}" target format used by PORT-002/PORT-003.
-        if (!key.Equals("port", StringComparison.OrdinalIgnoreCase))
-            return false;
+        if (finding.Variables != null &&
+            finding.Variables.TryGetValue("port", out var portText) &&
+            int.TryParse(portText, NumberStyles.Integer, CultureInfo.InvariantCulture, out port))
+        {
+            return true;
+        }
 
+        // Fallback for findings created before Variables propagation or by tests.
         if (!finding.Target.Contains(':', StringComparison.OrdinalIgnoreCase))
             return false;
 
         var lastColon = finding.Target.LastIndexOf(':');
-        if (lastColon > 0 && int.TryParse(finding.Target[(lastColon + 1)..], out _))
+        if (lastColon > 0 && int.TryParse(finding.Target[(lastColon + 1)..], out port))
         {
-            value = finding.Target[(lastColon + 1)..];
             return true;
         }
 
