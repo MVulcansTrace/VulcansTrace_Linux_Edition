@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 3029 passing](https://img.shields.io/badge/Tests-3029%20passing-2E7D32)
+![Tests: 3196 passing](https://img.shields.io/badge/Tests-3196%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
