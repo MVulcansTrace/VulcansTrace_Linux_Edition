@@ -152,9 +152,13 @@ public static class MispParser
                 {
                     results.Add((CreateEntry(TryParseIp(ip), ip, confidence, description), null));
                 }
-                if (!string.IsNullOrWhiteSpace(port) && int.TryParse(port, out _))
+                if (!string.IsNullOrWhiteSpace(port) && IocValueValidator.IsValidPort(port))
                 {
                     results.Add((CreateEntry(IocType.Port, port, confidence, description), null));
+                }
+                else if (!string.IsNullOrWhiteSpace(port))
+                {
+                    results.Add((null, $"Skipped invalid MISP port IOC: {port}"));
                 }
             }
             return results;
@@ -196,13 +200,22 @@ public static class MispParser
             "domain" or "domain|ip" or "hostname" => (IocType.Domain, value),
             "md5" or "sha1" or "sha256" or "filename|md5" or "filename|sha1" or "filename|sha256" => (IocType.FileHash, value.ToLowerInvariant()),
             "url" or "uri" => (IocType.URL, value),
-            "port" => (int.TryParse(value, out _) ? IocType.Port : (IocType?)null, value),
+            "port" => (IocValueValidator.IsValidPort(value) ? IocType.Port : (IocType?)null, value),
             _ => ((IocType?)null, value)
         };
 
         if (iocType == null)
         {
-            results.Add((null, $"Skipped unsupported MISP attribute type: {mispType}"));
+            var warning = lowerType == "port"
+                ? $"Skipped invalid MISP port IOC: {value}"
+                : $"Skipped unsupported MISP attribute type: {mispType}";
+            results.Add((null, warning));
+            return results;
+        }
+
+        if (iocType == IocType.FileHash && !IocValueValidator.IsValidHash(normalizedValue))
+        {
+            results.Add((null, $"Skipped invalid MISP file-hash IOC: {normalizedValue}"));
             return results;
         }
 

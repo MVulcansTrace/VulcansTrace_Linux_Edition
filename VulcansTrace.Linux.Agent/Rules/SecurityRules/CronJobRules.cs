@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using VulcansTrace.Linux.Agent.Extensions;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 
@@ -80,8 +81,7 @@ public sealed class SuspiciousCronEntryRule : IRule
         var target = $"{violations.Count} suspicious entr{(violations.Count == 1 ? "y" : "ies")}: " +
             string.Join("; ", violations.Select(v => $"{v.Entry.SourceFile}: {v.Entry.Command} ({v.Pattern})"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             target,
@@ -235,8 +235,7 @@ public sealed class WorldWritableCronScriptRule : IRule
             var target = $"{allViolations.Count} script{(allViolations.Count == 1 ? "" : "s")}: " +
                 string.Join("; ", allViolations.Select(s => $"{s.SourceFile} {s.ScriptPermissions}"));
 
-            if (target.Length > 500)
-                target = target[..500] + "...";
+            target = target.TruncateWithEllipsis(500);
 
             return RuleResult.Fail(Id, Category, Id, Description, severity,
                 target,
@@ -351,8 +350,7 @@ public sealed class RootCronForNonRootUserRule : IRule
         var target = $"{violations.Count} root job{(violations.Count == 1 ? "" : "s")} reference user paths: " +
             string.Join("; ", violations.Select(v => $"{v.SourceFile}: {v.Command}"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity,
             target,

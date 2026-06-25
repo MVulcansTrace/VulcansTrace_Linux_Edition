@@ -1,6 +1,10 @@
 using System.Text.Json;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Baselines;
 
@@ -9,7 +13,8 @@ namespace VulcansTrace.Linux.Agent.Baselines;
 /// </summary>
 public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
 {
-    private readonly string _filePath;
+    private readonly JsonFilePersistence<List<BaselineEntry>> _persistence;
+    private readonly IValidator<BaselineEntry> _validator = new BaselineEntryValidator();
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly List<BaselineEntry> _entries = new();
     private string? _persistenceWarning;
@@ -18,21 +23,25 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
     /// Initializes a new instance of the <see cref="JsonFileBaselineStore"/> class.
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
-    public JsonFileBaselineStore(string filePath)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileBaselineStore(string filePath, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<List<BaselineEntry>>(filePath, logSink: logSink);
         LoadFromDisk();
     }
 
     /// <summary>
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
+    /// <param name="configDirectory">Optional explicit config directory.</param>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileBaselineStore"/>.</returns>
-    public static JsonFileBaselineStore CreateDefault(string? configDirectory = null)
+    public static JsonFileBaselineStore CreateDefault(string? configDirectory = null, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileBaselineStore(Path.Combine(dir, "baselines.json"));
+        return new JsonFileBaselineStore(Path.Combine(dir, "baselines.json"), logSink);
     }
 
     /// <inheritdoc />
@@ -73,16 +82,18 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            var index = _entries.FindIndex(e => e.BaselineId == entry.BaselineId);
+            var candidate = _entries.ToList();
+            var index = candidate.FindIndex(e => e.BaselineId == entry.BaselineId);
             if (index >= 0)
             {
-                _entries[index] = entry;
+                candidate[index] = entry;
             }
             else
             {
-                _entries.Add(entry);
+                candidate.Add(entry);
             }
-            SaveToDisk();
+
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -96,8 +107,9 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries.RemoveAll(e => e.BaselineId == baselineId);
-            SaveToDisk();
+            var candidate = _entries.ToList();
+            candidate.RemoveAll(e => e.BaselineId == baselineId);
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -115,21 +127,22 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
             if (target == null)
                 return;
 
-            for (var i = 0; i < _entries.Count; i++)
+            var candidate = _entries.ToList();
+            for (var i = 0; i < candidate.Count; i++)
             {
-                if (_entries[i].Intent == target.Intent)
+                if (candidate[i].Intent == target.Intent)
                 {
-                    _entries[i] = _entries[i] with { IsActive = false };
+                    candidate[i] = candidate[i] with { IsActive = false };
                 }
             }
 
-            var targetIndex = _entries.FindIndex(e => e.BaselineId == baselineId);
+            var targetIndex = candidate.FindIndex(e => e.BaselineId == baselineId);
             if (targetIndex >= 0)
             {
-                _entries[targetIndex] = _entries[targetIndex] with { IsActive = true };
+                candidate[targetIndex] = candidate[targetIndex] with { IsActive = true };
             }
 
-            SaveToDisk();
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -141,44 +154,49 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
+            var result = JsonStoreRecovery.LoadAndRepair(
+                _persistence,
+                _validator,
+                "baseline",
+                b => b.BaselineId);
 
-            var json = File.ReadAllText(_filePath);
-            var entries = JsonSerializer.Deserialize<List<BaselineEntry>>(json);
-            if (entries != null)
-            {
-                _entries.Clear();
-                _entries.AddRange(entries);
-            }
+            _entries.Clear();
+            _entries.AddRange(result.Valid);
+            _persistenceWarning = result.Warning;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ValidationException)
         {
-            _persistenceWarning = "Could not load saved baselines. Previous baselines may be unavailable.";
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved baselines; the file has been quarantined. {ex.Message}";
+            _entries.Clear();
+        }
+        catch (Exception ex)
+        {
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved baselines (will retry next start): {ex.Message}";
             _entries.Clear();
         }
     }
 
-    private void SaveToDisk()
+    private void CommitCandidate(List<BaselineEntry> candidate)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            _validator.ValidateAllAndThrow(candidate);
+            _entries.Clear();
+            _entries.AddRange(candidate);
 
-            var json = JsonSerializer.Serialize(_entries, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(_filePath, json);
+            committed = true;
+            _persistence.Save(candidate);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not save baselines to disk: {ex.Message}. Baselines will last only for this session.";
+            _persistenceWarning = committed
+                ? $"Could not save baselines to disk: {ex.Message}. Baselines will last only for this session."
+                : $"Could not save baselines to disk: {ex.Message}. Invalid baselines were not saved.";
         }
     }
 

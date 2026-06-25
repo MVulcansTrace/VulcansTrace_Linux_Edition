@@ -72,6 +72,24 @@ public class MispParserTests
     }
 
     [Fact]
+    public void Parse_EventWithInvalidHashAttribute_SkipsWithWarning()
+    {
+        var json = @"{
+            ""Event"": {
+                ""Attribute"": [
+                    { ""type"": ""md5"", ""value"": ""not-hex!"" }
+                ]
+            }
+        }";
+
+        var result = MispParser.Parse(json);
+
+        Assert.Equal(0, result.ImportedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Contains(result.Warnings, warning => warning.Contains("invalid MISP file-hash", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Parse_EventWithCompositeValue_ExtractsSecondPart()
     {
         var json = @"{

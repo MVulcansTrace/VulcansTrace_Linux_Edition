@@ -1,5 +1,9 @@
 using System.Text.Json;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Reports;
 
@@ -8,7 +12,8 @@ namespace VulcansTrace.Linux.Agent.Reports;
 /// </summary>
 public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
 {
-    private readonly string _filePath;
+    private readonly JsonFilePersistence<List<AuditHistoryEntry>> _persistence;
+    private readonly IValidator<AuditHistoryEntry> _validator = new AuditHistoryEntryValidator();
     private readonly int _maxEntries;
     private readonly int _fullDetailCount;
     private readonly ReaderWriterLockSlim _lock = new();
@@ -21,9 +26,11 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     /// <param name="filePath">The full path to the JSON file.</param>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
     /// <param name="fullDetailCount">Number of newest entries to keep fully detailed; older retained entries are slimmed. Default is 5.</param>
-    public JsonFileAuditHistoryStore(string filePath, int maxEntries = 50, int fullDetailCount = 5)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileAuditHistoryStore(string filePath, int maxEntries = 50, int fullDetailCount = 5, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<List<AuditHistoryEntry>>(filePath, logSink: logSink);
         _maxEntries = maxEntries > 0 ? maxEntries : throw new ArgumentOutOfRangeException(nameof(maxEntries), "Must be greater than zero.");
         _fullDetailCount = fullDetailCount >= 0 ? fullDetailCount : throw new ArgumentOutOfRangeException(nameof(fullDetailCount), "Must be greater than or equal to zero.");
         LoadFromDisk();
@@ -34,12 +41,13 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     /// </summary>
     /// <param name="maxEntries">Maximum number of entries to retain. Default is 50.</param>
     /// <param name="fullDetailCount">Number of newest entries to keep fully detailed; older retained entries are slimmed. Default is 5.</param>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileAuditHistoryStore"/>.</returns>
-    public static JsonFileAuditHistoryStore CreateDefault(string? configDirectory = null, int maxEntries = 50, int fullDetailCount = 5)
+    public static JsonFileAuditHistoryStore CreateDefault(string? configDirectory = null, int maxEntries = 50, int fullDetailCount = 5, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileAuditHistoryStore(Path.Combine(dir, "audit-history.json"), maxEntries, fullDetailCount);
+        return new JsonFileAuditHistoryStore(Path.Combine(dir, "audit-history.json"), maxEntries, fullDetailCount, logSink);
     }
 
     /// <inheritdoc />
@@ -66,9 +74,10 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries.Add(entry);
-            Normalize();
-            SaveToDisk();
+            var candidate = _entries.ToList();
+            candidate.Add(entry);
+            Normalize(candidate);
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -82,8 +91,7 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries.Clear();
-            SaveToDisk();
+            CommitCandidate(new List<AuditHistoryEntry>());
         }
         finally
         {
@@ -101,9 +109,10 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
             var index = _entries.FindIndex(e => e.SnapshotId == entry.SnapshotId);
             if (index >= 0)
             {
-                _entries[index] = entry;
-                Normalize();
-                SaveToDisk();
+                var candidate = _entries.ToList();
+                candidate[index] = entry;
+                Normalize(candidate);
+                CommitCandidate(candidate);
             }
         }
         finally
@@ -112,25 +121,27 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
         }
     }
 
-    private void Normalize()
+    private void Normalize() => Normalize(_entries);
+
+    private void Normalize(List<AuditHistoryEntry> entries)
     {
-        _entries.Sort((a, b) => b.TimestampUtc.CompareTo(a.TimestampUtc));
+        entries.Sort((a, b) => b.TimestampUtc.CompareTo(a.TimestampUtc));
 
         // Slim older retained entries so the on-disk file stays bounded even when individual
         // audits carry large metadata (attack chains, capabilities, rule results, etc.). The
         // newest entries remain fully detailed because they are the most likely to be rehydrated
         // for follow-up intents such as ShowEvidence.
-        for (var i = _fullDetailCount; i < _entries.Count; i++)
+        for (var i = _fullDetailCount; i < entries.Count; i++)
         {
-            if (!_entries[i].IsSlimSummary)
+            if (!entries[i].IsSlimSummary)
             {
-                _entries[i] = _entries[i].ToSlimSummary();
+                entries[i] = entries[i].ToSlimSummary();
             }
         }
 
-        while (_entries.Count > _maxEntries)
+        while (entries.Count > _maxEntries)
         {
-            _entries.RemoveAt(_entries.Count - 1);
+            entries.RemoveAt(entries.Count - 1);
         }
     }
 
@@ -138,45 +149,50 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
+            var result = JsonStoreRecovery.LoadAndRepair(
+                _persistence,
+                _validator,
+                "audit",
+                a => a.SnapshotId);
 
-            var json = File.ReadAllText(_filePath);
-            var entries = JsonSerializer.Deserialize<List<AuditHistoryEntry>>(json);
-            if (entries != null)
-            {
-                _entries.Clear();
-                _entries.AddRange(entries);
-                Normalize();
-            }
+            _entries.Clear();
+            _entries.AddRange(result.Valid);
+            Normalize();
+            _persistenceWarning = result.Warning;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ValidationException)
         {
-            _persistenceWarning = "Could not load saved audit history. Previous audit summaries may be unavailable.";
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved audit history; the file has been quarantined. {ex.Message}";
+            _entries.Clear();
+        }
+        catch (Exception ex)
+        {
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved audit history (will retry next start): {ex.Message}";
             _entries.Clear();
         }
     }
 
-    private void SaveToDisk()
+    private void CommitCandidate(List<AuditHistoryEntry> candidate)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            _validator.ValidateAllAndThrow(candidate);
+            _entries.Clear();
+            _entries.AddRange(candidate);
 
-            var json = JsonSerializer.Serialize(_entries, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(_filePath, json);
+            committed = true;
+            _persistence.Save(candidate);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not save audit history to disk: {ex.Message}. History will last only for this session.";
+            _persistenceWarning = committed
+                ? $"Could not save audit history to disk: {ex.Message}. History will last only for this session."
+                : $"Could not save audit history to disk: {ex.Message}. Invalid history entries were not saved.";
         }
     }
 

@@ -7,6 +7,25 @@ reference and a technical verification checklist.
 
 Last updated: 2026-06-25
 
+### Persistence and Validation Hardening
+
+- **Centralized JSON persistence** — file-backed stores no longer duplicate load/save/locking/serialization logic. `JsonFilePersistence<T>` handles all mechanical file I/O, `JsonOptionsProvider` supplies reusable `JsonSerializerOptions` defaults, and `JsonStoreRecovery.LoadAndRepair<T>` centralizes the load-time repair path for list-based stores.
+  - Code: `VulcansTrace.Linux.Agent/Persistence/JsonFilePersistence.cs`, `JsonOptionsProvider.cs`, `JsonStoreRecovery.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Validation/JsonFilePersistenceQuarantineTests.cs`, `JsonFileStoreQuarantineTests.cs`
+
+- **FluentValidation integration** — persisted records are validated at store boundaries using validators in `VulcansTrace.Linux.Agent.Validation`. Coverage includes suppression entries, audit schedules, baselines, IOCs, agent-memory snapshots, audit-history entries, remediation sessions, and rule policies. Save/import paths validate candidate snapshots before mutating in-memory state, so invalid records do not block later valid saves.
+  - Code: `VulcansTrace.Linux.Agent/Validation/*.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Validation/SuppressionEntryValidatorTests.cs`, `AuditScheduleValidatorTests.cs`, `IocEntryValidatorTests.cs`, `JsonFileStoreTransactionalValidationTests.cs`
+
+- **Corrupt-file quarantine** — JSON files that fail deserialization or whole-file validation are moved aside to `<filename>.corrupt.<timestamp>.json` instead of being silently reset. List-based stores drop only invalid individual entries and rewrite the live file with survivors. Transient I/O errors leave the file in place so the next start can retry.
+  - Code: `VulcansTrace.Linux.Agent/Persistence/JsonFilePersistence.cs`, `VulcansTrace.Linux.Agent/Validation/ValidatorExtensions.cs`, all `JsonFile*Store.cs`
+
+- **Threat-intel import hardening** — `StixParser` and `MispParser` now reject invalid port and file-hash IOCs at parse time, so CLI import counts only include accepted candidates. `IocEntryValidator` shares the same IOC value checks and accepts algorithm-prefixed hashes (`MD5:...`, `SHA-256:...`) in addition to pure hex hashes.
+  - Code: `VulcansTrace.Linux.Agent/ThreatIntel/StixParser.cs`, `MispParser.cs`, `IocValueValidator.cs`, `VulcansTrace.Linux.Agent/Validation/IocEntryValidator.cs`
+
+- **Shared string truncation** — duplicated 500-character truncation blocks in process-runtime and cron-job rules were replaced with `StringExtensions.TruncateWithEllipsis`.
+  - Code: `VulcansTrace.Linux.Agent/Extensions/StringExtensions.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ProcessRuntimeRules.cs`, `CronJobRules.cs`
+
 ### Security Agent — Targeted Audit Data Dependencies, Warning Interpretation, and UI Redesign
 
 - **Scanner selection derived from rule data dependencies** — targeted agent audits now run only the scanners that feed the rules for that intent, derived automatically from each rule's category and declared `IRule.RequiredDataFields`. This fixes silent false-negatives where a rule evaluated against a `ScanData` snapshot missing fields it needed (for example, `/threatintel` now runs `FileHash`, `Port`, and `Network`; `/network` runs `Network` and `Port`). `ScannerDataSources` provides the authoritative field→scanner and category→scanner mappings; `RuleEvaluationService.GetRequiredScannerNames(intent)` derives the set; and `ScannerCoordinator.RunAsync` accepts an optional scanner-name subset. Full audits still run every scanner.

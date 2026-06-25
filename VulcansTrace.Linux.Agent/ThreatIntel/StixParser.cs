@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using VulcansTrace.Linux.Agent.Extensions;
 using VulcansTrace.Linux.Core.ThreatIntel;
 
 namespace VulcansTrace.Linux.Agent.ThreatIntel;
@@ -85,7 +86,10 @@ public static class StixParser
                         break;
 
                     case "file":
-                        ExtractFileHashes(obj, entries, confidence);
+                        var parsedHashes = ExtractFileHashes(obj, confidence);
+                        entries.AddRange(parsedHashes.Entries);
+                        warnings.AddRange(parsedHashes.Warnings);
+                        skipped += parsedHashes.Skipped;
                         break;
 
                     case "indicator":
@@ -158,10 +162,14 @@ public static class StixParser
         return 50;
     }
 
-    private static void ExtractFileHashes(JsonElement fileObj, List<IocEntry> entries, int confidence)
+    private static (List<IocEntry> Entries, List<string> Warnings, int Skipped) ExtractFileHashes(JsonElement fileObj, int confidence)
     {
+        var entries = new List<IocEntry>();
+        var warnings = new List<string>();
+        var skipped = 0;
+
         if (!fileObj.TryGetProperty("hashes", out var hashesProp) || hashesProp.ValueKind != JsonValueKind.Object)
-            return;
+            return (entries, warnings, skipped);
 
         foreach (var hashProp in hashesProp.EnumerateObject())
         {
@@ -171,10 +179,21 @@ public static class StixParser
                 var hashValue = hashProp.Value.GetString();
                 if (!string.IsNullOrWhiteSpace(hashValue))
                 {
-                    entries.Add(CreateEntry(IocType.FileHash, hashValue.ToLowerInvariant(), confidence, fileObj));
+                    var normalized = hashValue.ToLowerInvariant();
+                    if (IocValueValidator.IsValidHash(normalized))
+                    {
+                        entries.Add(CreateEntry(IocType.FileHash, normalized, confidence, fileObj));
+                    }
+                    else
+                    {
+                        skipped++;
+                        warnings.Add($"Skipped invalid STIX file-hash IOC: {normalized}");
+                    }
                 }
             }
         }
+
+        return (entries, warnings, skipped);
     }
 
     private static (List<IocEntry> Entries, List<string> Warnings, int Skipped) ParsePattern(string pattern, int confidence, JsonElement obj)
@@ -187,7 +206,7 @@ public static class StixParser
         if (matches.Count == 0)
         {
             skipped++;
-            warnings.Add($"Skipped unparseable STIX indicator pattern: {pattern.Truncate(200)}");
+            warnings.Add($"Skipped unparseable STIX indicator pattern: {pattern.TruncateWithEllipsis(200)}");
             return (entries, warnings, skipped);
         }
 
@@ -203,9 +222,9 @@ public static class StixParser
                 ("ipv6-addr", "value") => CreateEntry(IocType.IPv6, value, confidence, obj),
                 ("domain-name", "value") => CreateEntry(IocType.Domain, value, confidence, obj),
                 ("url", "value") => CreateEntry(IocType.URL, value, confidence, obj),
-                ("network-traffic", "dst_port") when int.TryParse(value, out _) => CreateEntry(IocType.Port, value, confidence, obj),
-                ("network-traffic", "src_port") when int.TryParse(value, out _) => CreateEntry(IocType.Port, value, confidence, obj),
-                ("file", var p) when p.Contains("SHA-256") || p.Contains("SHA256") => CreateEntry(IocType.FileHash, value.ToLowerInvariant(), confidence, obj),
+                ("network-traffic", "dst_port") when IocValueValidator.IsValidPort(value) => CreateEntry(IocType.Port, value, confidence, obj),
+                ("network-traffic", "src_port") when IocValueValidator.IsValidPort(value) => CreateEntry(IocType.Port, value, confidence, obj),
+                ("file", var p) when (p.Contains("SHA-256") || p.Contains("SHA256")) && IocValueValidator.IsValidHash(value) => CreateEntry(IocType.FileHash, value.ToLowerInvariant(), confidence, obj),
                 _ => null
             };
 
@@ -216,16 +235,17 @@ public static class StixParser
             else
             {
                 skipped++;
+                if (objType == "network-traffic" && (property == "dst_port" || property == "src_port"))
+                {
+                    warnings.Add($"Skipped invalid STIX port IOC: {value}");
+                }
+                else if (objType == "file" && (property.Contains("SHA-256") || property.Contains("SHA256")))
+                {
+                    warnings.Add($"Skipped invalid STIX file-hash IOC: {value}");
+                }
             }
         }
 
         return (entries, warnings, skipped);
-    }
-
-    private static string Truncate(this string value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
-            return value ?? string.Empty;
-        return value[..maxLength] + "...";
     }
 }

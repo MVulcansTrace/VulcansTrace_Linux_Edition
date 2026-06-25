@@ -1,6 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 using VulcansTrace.Linux.Core.ThreatIntel;
 
 namespace VulcansTrace.Linux.Agent.ThreatIntel;
@@ -10,7 +14,15 @@ namespace VulcansTrace.Linux.Agent.ThreatIntel;
 /// </summary>
 public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
 {
-    private readonly string _filePath;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private readonly JsonFilePersistence<List<IocEntry>> _persistence;
+    private readonly IValidator<IocEntry> _validator = new IocEntryValidator();
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly Dictionary<string, IocEntry> _entries = new(StringComparer.Ordinal);
     private string? _persistenceWarning;
@@ -19,21 +31,24 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
     /// Initializes a new instance of the <see cref="JsonFileThreatIntelStore"/> class.
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
-    public JsonFileThreatIntelStore(string filePath)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileThreatIntelStore(string filePath, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<List<IocEntry>>(filePath, JsonOptions, logSink: logSink);
         LoadFromDisk();
     }
 
     /// <summary>
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileThreatIntelStore"/>.</returns>
-    public static JsonFileThreatIntelStore CreateDefault(string? configDirectory = null)
+    public static JsonFileThreatIntelStore CreateDefault(string? configDirectory = null, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileThreatIntelStore(Path.Combine(dir, "threat-intel.json"));
+        return new JsonFileThreatIntelStore(Path.Combine(dir, "threat-intel.json"), logSink);
     }
 
     /// <inheritdoc />
@@ -54,14 +69,25 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
     public void Import(IEnumerable<IocEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
+        var incoming = entries.ToList();
+
         _lock.EnterWriteLock();
         try
         {
-            foreach (var entry in entries)
+            var valid = _validator.PartitionValid(incoming, out var rejected);
+            if (valid.Count == 0 && rejected.Count > 0)
             {
-                _entries[entry.StorageKey] = entry;
+                _persistenceWarning = BuildImportWarning(0, rejected.Count);
+                return;
             }
-            SaveToDisk();
+
+            var candidate = new Dictionary<string, IocEntry>(_entries, StringComparer.Ordinal);
+            foreach (var entry in valid)
+            {
+                candidate[entry.StorageKey] = entry;
+            }
+
+            CommitCandidate(candidate, valid.Count, rejected.Count);
         }
         finally
         {
@@ -76,7 +102,7 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
         try
         {
             _entries.Clear();
-            SaveToDisk();
+            PersistCurrentState();
         }
         finally
         {
@@ -132,51 +158,85 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
+            var result = JsonStoreRecovery.LoadAndRepair(
+                _persistence,
+                _validator,
+                "IOC",
+                i => $"{i.Type}:{i.Value}");
 
-            var json = File.ReadAllText(_filePath);
-            var entries = JsonSerializer.Deserialize<List<IocEntry>>(json, new JsonSerializerOptions
+            _entries.Clear();
+            foreach (var entry in result.Valid)
             {
-                PropertyNameCaseInsensitive = true
-            });
-            if (entries != null)
-            {
-                foreach (var entry in entries)
-                {
-                    _entries[entry.StorageKey] = entry;
-                }
+                _entries[entry.StorageKey] = entry;
             }
+
+            _persistenceWarning = result.Warning;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ValidationException)
         {
-            _persistenceWarning = "Could not load saved threat intel. IOCs will continue in memory, but previous imports may be unavailable.";
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved threat intel; the file has been quarantined. {ex.Message}";
+            _entries.Clear();
+        }
+        catch (Exception ex)
+        {
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved threat intel (will retry next start): {ex.Message}";
             _entries.Clear();
         }
     }
 
-    private void SaveToDisk()
+    private void CommitCandidate(Dictionary<string, IocEntry> candidate, int acceptedCount, int rejectedCount)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
+            var snapshot = candidate.Values.ToList();
+            _validator.ValidateAllAndThrow(snapshot);
+
+            _entries.Clear();
+            foreach (var entry in snapshot)
             {
-                Directory.CreateDirectory(directory);
+                _entries[entry.StorageKey] = entry;
             }
 
-            var json = JsonSerializer.Serialize(_entries.Values.ToList(), new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            });
-            File.WriteAllText(_filePath, json);
+            committed = true;
+            _persistence.Save(snapshot);
+            _persistenceWarning = rejectedCount > 0 ? BuildImportWarning(acceptedCount, rejectedCount) : null;
+        }
+        catch (Exception ex)
+        {
+            _persistenceWarning = committed
+                ? $"Could not save threat intel to disk: {ex.Message}. IOCs will last only for this session."
+                : $"Could not save threat intel to disk: {ex.Message}. Invalid IOCs were not imported.";
+        }
+    }
+
+    private void PersistCurrentState()
+    {
+        var committed = false;
+        try
+        {
+            var snapshot = _entries.Values.ToList();
+            _validator.ValidateAllAndThrow(snapshot);
+            committed = true;
+            _persistence.Save(snapshot);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not save threat intel to disk: {ex.Message}. IOCs will last only for this session.";
+            _persistenceWarning = committed
+                ? $"Could not save threat intel to disk: {ex.Message}. IOCs will last only for this session."
+                : $"Could not save threat intel to disk: {ex.Message}. Invalid IOCs were not imported.";
         }
+    }
+
+    private static string BuildImportWarning(int acceptedCount, int rejectedCount)
+    {
+        var acceptedPhrase = acceptedCount == 1 ? "1 IOC" : $"{acceptedCount} IOCs";
+        var rejectedPhrase = rejectedCount == 1 ? "1 invalid IOC was skipped" : $"{rejectedCount} invalid IOCs were skipped";
+        return $"Imported {acceptedPhrase}; {rejectedPhrase}.";
     }
 
     /// <inheritdoc />

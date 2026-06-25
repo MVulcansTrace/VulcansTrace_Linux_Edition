@@ -1,5 +1,9 @@
 using System.Text.Json;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Scheduling;
 
@@ -8,7 +12,8 @@ namespace VulcansTrace.Linux.Agent.Scheduling;
 /// </summary>
 public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
 {
-    private readonly string _filePath;
+    private readonly JsonFilePersistence<List<AuditSchedule>> _persistence;
+    private readonly IValidator<AuditSchedule> _validator = new AuditScheduleValidator();
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly List<AuditSchedule> _entries = new();
     private string? _persistenceWarning;
@@ -17,9 +22,11 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
     /// Initializes a new instance of the <see cref="JsonFileScheduleStore"/> class.
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
-    public JsonFileScheduleStore(string filePath)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileScheduleStore(string filePath, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<List<AuditSchedule>>(filePath, useAtomicWrite: true, logSink: logSink);
         LoadFromDisk();
     }
 
@@ -27,12 +34,13 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
     /// Creates a store in the VulcansTrace config directory (XDG_CONFIG_HOME or ~/.config by default).
     /// </summary>
     /// <param name="configDirectory">Optional explicit base config directory (e.g. a per-test temp dir).</param>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileScheduleStore"/>.</returns>
-    public static JsonFileScheduleStore CreateDefault(string? configDirectory = null)
+    public static JsonFileScheduleStore CreateDefault(string? configDirectory = null, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileScheduleStore(Path.Combine(dir, "schedules.json"));
+        return new JsonFileScheduleStore(Path.Combine(dir, "schedules.json"), logSink);
     }
 
     /// <inheritdoc />
@@ -74,16 +82,18 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            var index = _entries.FindIndex(e => e.Id.Equals(schedule.Id, StringComparison.OrdinalIgnoreCase));
+            var candidate = _entries.ToList();
+            var index = candidate.FindIndex(e => e.Id.Equals(schedule.Id, StringComparison.OrdinalIgnoreCase));
             if (index >= 0)
             {
-                _entries[index] = schedule;
+                candidate[index] = schedule;
             }
             else
             {
-                _entries.Add(schedule);
+                candidate.Add(schedule);
             }
-            SaveToDisk();
+
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -98,8 +108,9 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries.RemoveAll(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
-            SaveToDisk();
+            var candidate = _entries.ToList();
+            candidate.RemoveAll(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -111,48 +122,49 @@ public sealed class JsonFileScheduleStore : IScheduleStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
+            var result = JsonStoreRecovery.LoadAndRepair(
+                _persistence,
+                _validator,
+                "schedule",
+                s => s.Id);
 
-            var json = File.ReadAllText(_filePath);
-            var entries = JsonSerializer.Deserialize<List<AuditSchedule>>(json);
-            if (entries != null)
-            {
-                _entries.Clear();
-                _entries.AddRange(entries);
-            }
+            _entries.Clear();
+            _entries.AddRange(result.Valid);
+            _persistenceWarning = result.Warning;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ValidationException)
         {
-            _persistenceWarning = "Could not load saved schedules. Previous schedules may be unavailable.";
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved schedules; the file has been quarantined. {ex.Message}";
+            _entries.Clear();
+        }
+        catch (Exception ex)
+        {
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved schedules (will retry next start): {ex.Message}";
             _entries.Clear();
         }
     }
 
-    private void SaveToDisk()
+    private void CommitCandidate(List<AuditSchedule> candidate)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            _validator.ValidateAllAndThrow(candidate);
+            _entries.Clear();
+            _entries.AddRange(candidate);
 
-            var json = JsonSerializer.Serialize(_entries, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            // Atomic write: write to temp file in same directory, then move into place
-            var tempPath = _filePath + ".tmp";
-            File.WriteAllText(tempPath, json);
-            File.Move(tempPath, _filePath, overwrite: true);
+            committed = true;
+            _persistence.Save(candidate);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not save schedules to disk: {ex.Message}. Schedules will last only for this session.";
+            _persistenceWarning = committed
+                ? $"Could not save schedules to disk: {ex.Message}. Schedules will last only for this session."
+                : $"Could not save schedules to disk: {ex.Message}. Invalid schedules were not saved.";
         }
     }
 

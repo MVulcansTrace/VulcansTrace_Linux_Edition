@@ -120,6 +120,28 @@ public class StixParserTests
     }
 
     [Fact]
+    public void Parse_BundleWithInvalidFileHash_SkipsWithWarning()
+    {
+        var json = @"{
+            ""type"": ""bundle"",
+            ""objects"": [
+                {
+                    ""type"": ""file"",
+                    ""hashes"": {
+                        ""SHA-256"": ""not-hex!""
+                    }
+                }
+            ]
+        }";
+
+        var result = StixParser.Parse(json);
+
+        Assert.Equal(0, result.ImportedCount);
+        Assert.Equal(1, result.SkippedCount);
+        Assert.Contains(result.Warnings, warning => warning.Contains("invalid STIX file-hash", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Parse_UnparseablePattern_SkipsWithWarning()
     {
         var json = @"{

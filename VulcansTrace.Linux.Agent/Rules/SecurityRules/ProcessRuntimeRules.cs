@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using VulcansTrace.Linux.Agent.Extensions;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 
@@ -150,12 +151,10 @@ public sealed class RwxMemoryRegionRule : IRule
         var target = $"{violations.Count} process{(violations.Count == 1 ? "" : "es")}: " +
             string.Join("; ", violations.Select(v => $"{v.Name}[{v.Pid}]"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         var failMeta = new Dictionary<string, string>
         {
@@ -243,12 +242,10 @@ public sealed class LdPreloadInjectionRule : IRule
         var target = $"{violations.Count} process{(violations.Count == 1 ? "" : "es")}: " +
             string.Join("; ", violations.Select(v => $"{v.Proc.Name}[{v.Proc.Pid}] ({v.Var})"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Proc.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         var failMeta = new Dictionary<string, string>
         {
@@ -356,12 +353,10 @@ public sealed class DeletedBinaryExecutionRule : IRule
         var target = $"{violations.Count} process{(violations.Count == 1 ? "" : "es")}: " +
             string.Join("; ", violations.Select(v => $"{v.Name}[{v.Pid}] -> {v.ExePath}"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         var failMeta = new Dictionary<string, string>
         {
@@ -422,12 +417,10 @@ public sealed class OrphanedAnomalousProcessRule : IRule
         var target = $"{violations.Count} process{(violations.Count == 1 ? "" : "es")}: " +
             string.Join("; ", violations.Select(v => $"{v.Name}[{v.Pid}]"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,
             new Dictionary<string, string>
@@ -523,12 +516,10 @@ public sealed class SuspiciousParentChildRule : IRule
         var target = $"{violations.Count} suspicious relationship{(violations.Count == 1 ? "" : "s")}: " +
             string.Join("; ", violations.Select(v => $"{v.ParentName}[{v.Child.Ppid}] -> {v.Child.Name}[{v.Child.Pid}]"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Child.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,
             new Dictionary<string, string>
@@ -639,12 +630,10 @@ public sealed class InterpreterRwxMemoryRule : IRule
         var target = $"{violations.Length} interpreter process{(violations.Length == 1 ? "" : "es")}: " +
             string.Join("; ", violations.Select(v => $"{v.Name}[{v.Pid}]"));
 
-        if (target.Length > 500)
-            target = target[..500] + "...";
+        target = target.TruncateWithEllipsis(500);
 
         var allPids = string.Join(",", violations.Select(v => v.Pid));
-        if (allPids.Length > 500)
-            allPids = allPids[..497] + "...";
+        allPids = allPids.TruncateWithEllipsis(500);
 
         var firstRwxMap = first.MemoryMaps.FirstOrDefault(ProcessRuntimeRuleHelpers.IsRwxMap);
         var failMeta = new Dictionary<string, string>

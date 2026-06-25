@@ -50,7 +50,7 @@ public static class AgentFactory
         IThreatIntelStore threatIntelStore;
         try
         {
-            threatIntelStore = JsonFileThreatIntelStore.CreateDefault(configDirectory);
+            threatIntelStore = JsonFileThreatIntelStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {
@@ -245,7 +245,7 @@ public static class AgentFactory
         ISuppressionStore suppressionStore;
         try
         {
-            suppressionStore = JsonFileSuppressionStore.CreateDefault(configDirectory);
+            suppressionStore = JsonFileSuppressionStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {
@@ -255,7 +255,7 @@ public static class AgentFactory
         IRulePolicyProvider? policyProvider;
         try
         {
-            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault(configDirectory);
+            var jsonPolicyStore = JsonRulePolicyStore.CreateDefault(configDirectory, logSink);
             policyProvider = new DefaultRulePolicyProvider(jsonPolicyStore);
         }
         catch
@@ -266,7 +266,7 @@ public static class AgentFactory
         IAuditHistoryStore auditHistoryStore;
         try
         {
-            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault(configDirectory);
+            auditHistoryStore = JsonFileAuditHistoryStore.CreateDefault(configDirectory, logSink: logSink);
         }
         catch
         {
@@ -276,7 +276,7 @@ public static class AgentFactory
         IBaselineStore baselineStore;
         try
         {
-            baselineStore = JsonFileBaselineStore.CreateDefault(configDirectory);
+            baselineStore = JsonFileBaselineStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {
@@ -286,7 +286,7 @@ public static class AgentFactory
         IScheduleStore scheduleStore;
         try
         {
-            scheduleStore = JsonFileScheduleStore.CreateDefault(configDirectory);
+            scheduleStore = JsonFileScheduleStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {
@@ -296,7 +296,7 @@ public static class AgentFactory
         ISessionStore sessionStore;
         try
         {
-            sessionStore = JsonFileSessionStore.CreateDefault(configDirectory);
+            sessionStore = JsonFileSessionStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {
@@ -306,7 +306,7 @@ public static class AgentFactory
         IAgentMemoryStore memoryStore;
         try
         {
-            memoryStore = JsonFileAgentMemoryStore.CreateDefault(configDirectory);
+            memoryStore = JsonFileAgentMemoryStore.CreateDefault(configDirectory, logSink);
         }
         catch
         {

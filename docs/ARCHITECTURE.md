@@ -274,6 +274,17 @@ The Scheduling layer provides recurring audit automation:
 7. `IAuditHistoryStore` persists lightweight audit snapshots (`JsonFileAuditHistoryStore` → `~/.config/VulcansTrace/audithistory.json`) for diff comparison and compliance trend calculation.
 8. `VulcansTraceConfig` centralizes config-directory resolution so all file-backed stores respect an explicit directory, a process-wide override (set by `--config-dir`), or the default `XDG_CONFIG_HOME` / `~/.config` fallback.
 
+## Persistence Layer
+
+File-backed stores share a small set of persistence primitives instead of duplicating load/save logic:
+
+- `JsonFilePersistence<T>` — owns the mechanical file I/O used by every JSON-backed store: directory creation, JSON serialization, atomic temp-file writes, and asynchronous saves. Each store keeps its own business logic, locking, and error handling but delegates file operations to this helper.
+- `JsonOptionsProvider` — supplies reusable `JsonSerializerOptions` defaults (indented PascalCase, camelCase with string enums, etc.) so stores do not repeat option declarations.
+- `JsonStoreRecovery.LoadAndRepair<T>` — centralizes the load-time repair path used by list-based stores. After deserializing a file, it validates each entry, keeps the valid rows, quarantines the original file, and rewrites the live file with the survivors. Invalid individual entries are reported in `PersistenceWarning` rather than discarding the whole file.
+- `ValidatorExtensions` / `FluentValidation` — runtime validators in `VulcansTrace.Linux.Agent.Validation` enforce data integrity for persisted records (required identifiers, UTC timestamps, valid cron expressions, IOC format checks, non-negative counts, etc.). Validation runs on both load and save boundaries. Save/import paths validate a candidate snapshot before mutating live store state, so invalid records are rejected without poisoning later persistence attempts.
+- **Quarantine** — when a file cannot be deserialized or fails whole-file validation, it is moved aside to `<filename>.corrupt.<timestamp>.json` so the agent does not retry a known-bad file on the next start. Transient I/O errors leave the file in place and retry next start.
+- **Logging** — `JsonFilePersistence<T>` accepts an optional `ILogSink` (wired from `AgentFactory`) so quarantine failures and persistence diagnostics flow through the same logging pipeline as the rest of the agent instead of writing directly to `stderr`.
+
 Notification services are pluggable:
 
 - `INotificationService` abstraction with `NotifyCriticalFindingsAsync` and `NotifySignedAlertAsync`.

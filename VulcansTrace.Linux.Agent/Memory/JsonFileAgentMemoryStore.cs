@@ -1,6 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Memory;
 
@@ -9,15 +13,17 @@ namespace VulcansTrace.Linux.Agent.Memory;
 /// </summary>
 public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
 {
-    private readonly string _filePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly JsonSerializerOptions _jsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() }
     };
+
+    private readonly JsonFilePersistence<AgentMemorySnapshot> _persistence;
+    private readonly IValidator<AgentMemorySnapshot> _validator = new AgentMemorySnapshotValidator();
+    private readonly SemaphoreSlim _lock = new(1, 1);
 
     private AgentMemorySnapshot? _snapshot;
     private string? _persistenceWarning;
@@ -27,21 +33,24 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
     /// Initializes a new instance of the <see cref="JsonFileAgentMemoryStore"/> class.
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
-    public JsonFileAgentMemoryStore(string filePath)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileAgentMemoryStore(string filePath, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<AgentMemorySnapshot>(filePath, JsonOptions, useAtomicWrite: true, logSink: logSink);
         LoadFromDisk();
     }
 
     /// <summary>
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileAgentMemoryStore"/>.</returns>
-    public static JsonFileAgentMemoryStore CreateDefault(string? configDirectory = null)
+    public static JsonFileAgentMemoryStore CreateDefault(string? configDirectory = null, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileAgentMemoryStore(Path.Combine(dir, "agent-memory.json"));
+        return new JsonFileAgentMemoryStore(Path.Combine(dir, "agent-memory.json"), logSink);
     }
 
     /// <inheritdoc />
@@ -69,8 +78,7 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            _snapshot = snapshot;
-            await SaveToDiskAsync().ConfigureAwait(false);
+            await SaveToDiskAsync(snapshot).ConfigureAwait(false);
         }
         finally
         {
@@ -82,13 +90,11 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
-
-            var json = File.ReadAllText(_filePath);
-            var snapshot = JsonSerializer.Deserialize<AgentMemorySnapshot>(json, _jsonOptions);
+            var snapshot = _persistence.Load();
             if (snapshot != null)
             {
+                _validator.ValidateAndThrow(snapshot);
+
                 // System.Text.Json does not preserve the dictionary comparer. Rebuild with
                 // OrdinalIgnoreCase and normalized uppercase keys so rule lookups remain
                 // case-insensitive after a restart.
@@ -107,32 +113,37 @@ public sealed class JsonFileAgentMemoryStore : IAgentMemoryStore, IDisposable
                 _snapshot = snapshot;
             }
         }
+        catch (Exception ex) when (ex is JsonException or ValidationException)
+        {
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved agent memory; the file has been quarantined. {ex.Message}";
+            _snapshot = null;
+        }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not load saved agent memory: {ex.Message}";
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved agent memory (will retry next start): {ex.Message}";
             _snapshot = null;
         }
     }
 
-    private async Task SaveToDiskAsync()
+    private async Task SaveToDiskAsync(AgentMemorySnapshot snapshot)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            var json = JsonSerializer.Serialize(_snapshot, _jsonOptions);
-            var tempPath = _filePath + ".tmp";
-            await File.WriteAllTextAsync(tempPath, json).ConfigureAwait(false);
-            File.Move(tempPath, _filePath, overwrite: true);
+            _validator.ValidateAndThrow(snapshot);
+            _snapshot = snapshot;
+            committed = true;
+            await _persistence.SaveAsync(snapshot).ConfigureAwait(false);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = $"Could not save agent memory: {ex.Message}";
+            _persistenceWarning = committed
+                ? $"Could not save agent memory: {ex.Message}"
+                : $"Could not save agent memory: {ex.Message}. Invalid memory snapshot was not saved.";
         }
     }
 

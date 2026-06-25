@@ -1,5 +1,9 @@
 using System.Text.Json;
+using FluentValidation;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Validation;
+using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Rules;
 
@@ -8,7 +12,8 @@ namespace VulcansTrace.Linux.Agent.Rules;
 /// </summary>
 public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
 {
-    private readonly string _filePath;
+    private readonly JsonFilePersistence<List<SuppressionEntry>> _persistence;
+    private readonly IValidator<SuppressionEntry> _validator = new SuppressionEntryValidator();
     private readonly ReaderWriterLockSlim _lock = new();
     private readonly Dictionary<string, SuppressionEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
     private string? _persistenceWarning;
@@ -17,21 +22,24 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
     /// Initializes a new instance of the <see cref="JsonFileSuppressionStore"/> class.
     /// </summary>
     /// <param name="filePath">The full path to the JSON file.</param>
-    public JsonFileSuppressionStore(string filePath)
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
+    public JsonFileSuppressionStore(string filePath, ILogSink? logSink = null)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        _persistence = new JsonFilePersistence<List<SuppressionEntry>>(filePath, logSink: logSink);
         LoadFromDisk();
     }
 
     /// <summary>
     /// Creates a store in the user's config directory (XDG_CONFIG_HOME or ~/.config).
     /// </summary>
+    /// <param name="logSink">Optional log sink for persistence diagnostics.</param>
     /// <returns>A configured <see cref="JsonFileSuppressionStore"/>.</returns>
-    public static JsonFileSuppressionStore CreateDefault(string? configDirectory = null)
+    public static JsonFileSuppressionStore CreateDefault(string? configDirectory = null, ILogSink? logSink = null)
     {
         var dir = VulcansTraceConfig.GetDirectory(configDirectory);
         Directory.CreateDirectory(dir);
-        return new JsonFileSuppressionStore(Path.Combine(dir, "suppressions.json"));
+        return new JsonFileSuppressionStore(Path.Combine(dir, "suppressions.json"), logSink);
     }
 
     /// <inheritdoc />
@@ -44,8 +52,11 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries[entry.StorageKey] = entry;
-            SaveToDisk();
+            var candidate = new Dictionary<string, SuppressionEntry>(_entries, StringComparer.OrdinalIgnoreCase)
+            {
+                [entry.StorageKey] = entry
+            };
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -59,17 +70,18 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
         _lock.EnterWriteLock();
         try
         {
-            _entries.Remove($"{ruleId}|{target}");
-            var keysToRemove = _entries
+            var candidate = new Dictionary<string, SuppressionEntry>(_entries, StringComparer.OrdinalIgnoreCase);
+            candidate.Remove($"{ruleId}|{target}");
+            var keysToRemove = candidate
                 .Where(kvp => kvp.Value.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase)
                            && kvp.Value.Target.Equals(target, StringComparison.OrdinalIgnoreCase))
                 .Select(kvp => kvp.Key)
                 .ToList();
             foreach (var key in keysToRemove)
             {
-                _entries.Remove(key);
+                candidate.Remove(key);
             }
-            SaveToDisk();
+            CommitCandidate(candidate);
         }
         finally
         {
@@ -186,7 +198,7 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
 
             if (expiredKeys.Count > 0)
             {
-                SaveToDisk();
+                PersistCurrentState();
             }
 
             return expiredKeys.Count;
@@ -201,52 +213,68 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
     {
         try
         {
-            if (!File.Exists(_filePath))
-                return;
+            var result = JsonStoreRecovery.LoadAndRepair(
+                _persistence,
+                _validator,
+                "suppression",
+                s => s.StorageKey);
 
-            var json = File.ReadAllText(_filePath);
-            var entries = JsonSerializer.Deserialize<List<SuppressionEntry>>(json);
-            if (entries != null)
+            _entries.Clear();
+            foreach (var entry in result.Valid)
             {
-                foreach (var entry in entries)
-                {
-                    _entries[entry.StorageKey] = entry;
-                }
+                _entries[entry.StorageKey] = entry;
             }
+
+            _persistenceWarning = result.Warning;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ValidationException)
         {
-            // If loading fails, start with an empty store
-            _persistenceWarning = "Could not load saved suppressions. Accepted risks will continue in memory, but previous suppressions may be unavailable.";
+            // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            _persistence.Quarantine();
+            _persistenceWarning = $"Could not load saved suppressions; the file has been quarantined. {ex.Message}";
+            _entries.Clear();
+        }
+        catch (Exception ex)
+        {
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            _persistenceWarning = $"Could not load saved suppressions (will retry next start): {ex.Message}";
             _entries.Clear();
         }
     }
 
-    private void SaveToDisk()
+    private void CommitCandidate(Dictionary<string, SuppressionEntry> candidate)
     {
+        var committed = false;
         try
         {
-            var directory = Path.GetDirectoryName(_filePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            var json = JsonSerializer.Serialize(_entries.Values
+            var snapshot = candidate.Values
                 .GroupBy(entry => entry.StorageKey, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
-                .ToList(), new JsonSerializerOptions
+                .ToList();
+            _validator.ValidateAllAndThrow(snapshot);
+
+            _entries.Clear();
+            foreach (var entry in snapshot)
             {
-                WriteIndented = true
-            });
-            File.WriteAllText(_filePath, json);
+                _entries[entry.StorageKey] = entry;
+            }
+
+            committed = true;
+            _persistence.Save(snapshot);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
             // If saving fails, the in-memory store still works
-            _persistenceWarning = $"Could not save suppressions to disk: {ex.Message}. Accepted risks will last only for this session.";
+            _persistenceWarning = committed
+                ? $"Could not save suppressions to disk: {ex.Message}. Accepted risks will last only for this session."
+                : $"Could not save suppressions to disk: {ex.Message}. Invalid suppressions were not saved.";
         }
+    }
+
+    private void PersistCurrentState()
+    {
+        CommitCandidate(new Dictionary<string, SuppressionEntry>(_entries, StringComparer.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
