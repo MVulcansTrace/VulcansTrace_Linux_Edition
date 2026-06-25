@@ -21,9 +21,9 @@
    - **Doctor tab** — self-diagnostic view that probes every local Security Agent scanner and lists which data sources are available, unavailable, permission-limited, or not checked. Shows a summary status banner and a warnings banner when scanners encounter command failures or permission limits.
 7. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
 
-### Security Agent Panel
+### Security Agent View
 
-The Avalonia UI also includes a collapsible **Security Agent** panel. It can answer local posture questions such as:
+The Avalonia UI includes a first-class **Security Agent** view in the main navigation sidebar. It can answer local posture questions such as:
 
 - `Is my system secure?`
 - `Check my firewall`
@@ -52,6 +52,14 @@ The Avalonia UI also includes a collapsible **Security Agent** panel. It can ans
 - `Resume session abc12345`
 - `Add note to session abc12345 <text>` — append a free-text note to a remediation session
 - `Note for step FW-001 in session abc12345 <text>` — append a note to a specific step within a session
+
+The view also provides faster paths for common actions:
+
+- **Slash commands** — type `/` in the query box to open a palette of quick intents. Examples: `/firewall`, `/network`, `/ports`, `/services`, `/ssh`, `/filesystem`, `/kernel`, `/users`, `/logging`, `/cron`, `/packages`, `/containers`, `/kubernetes`, `/threatintel`, `/yara`, `/processes`, `/full`, `/fullaudit`, `/baseline`, `/drift`, `/baseline show`, `/show baseline`, `/sessions`, `/risk`, `/help`, `/clear`. Selecting a command immediately runs the corresponding audit or follow-up.
+- **Quick-action chips** — clickable chips above the query box for common audits (`Full audit`, `Firewall`, `Ports`, `Services`, `Network`, `Containers`, `Kubernetes`, `YARA`, `Processes`) and follow-ups (`Set baseline`, `Check drift`, `Show baseline`, `Export audit`).
+- **Markdown rendering** — `**bold**` and `*italic*` markup in agent messages is rendered as styled inlines.
+- **User-friendly warnings** — scanner warnings are classified and surfaced in plain language (missing tool, permission denied, configuration missing, scanner error) instead of raw strings.
+- **Copyable command rows** — verification, backup, apply, rollback, and verification commands render in rows with one-click copy and safety/structure badges.
 
 The agent composes narrative responses from findings, posture correlations, per-rule memory, system trajectory, proactive alerts, relationship-backed attack chains, and remediation wisdom:
 
@@ -142,9 +150,9 @@ You can reference the step by ordinal (`step 2`), rule ID (`FW-001 failed`), or 
 
 Notes support lightweight evidence syntax: wrap references in brackets (`[ticket-SEC-123]`) or backticks (`` `screenshot-2026-06-02` ``) and they are automatically extracted into traceable evidence links and stripped from the displayed text. Notes are append-only, recorded as `SessionNoteAdded` or `StepNoteAdded` timeline events, and included in exported session markdown under a dedicated **Notes** section.
 
-**Remediation Session History Browser** — The Avalonia UI includes a **Remediation Sessions** expander below the audit history. It lists all persisted sessions with their ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel, or click **Delete** to remove it from the store. You can also type `list my sessions` or `show sessions` in chat to list sessions, and `resume session <id>` to load a specific session.
+**Remediation Session Management** — The Agent view includes a persisted-session browser with refresh, resume, and delete actions. Chat commands `list my sessions` / `show sessions` list persisted sessions with their ID, status, rule ID, and creation time, and `resume session <id>` reloads a session into the chat panel.
 
-**Automated Incident Response Playbooks** — When `TraceMapCorrelator` detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same host), the Security Agent panel surfaces an active countermeasure card:
+**Automated Incident Response Playbooks** — When `TraceMapCorrelator` detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same host), the Security Agent view surfaces an active countermeasure card:
 
 1. A chat message appears describing the critical chain with the attacker's C2 IP, compromised host, and a **Deploy Countermeasures** button.
 2. Click **Deploy Countermeasures** to start the workflow:
@@ -398,7 +406,7 @@ vulcanstrace threat-intel clear
 
 ### Avalonia UI Import
 
-The Security Agent panel includes an **Import Threat Intel** button. Click it to open a file picker, select a STIX or MISP JSON file, and confirm the format. Imported IOCs are immediately available for correlation in the next audit or live stream session.
+The Security Agent view includes an **Import Threat Intel** button. Click it to open a file picker, select a STIX or MISP JSON file, and confirm the format. Imported IOCs are immediately available for correlation in the next audit or live stream session.
 
 ### How Threat Intel Correlation Works
 

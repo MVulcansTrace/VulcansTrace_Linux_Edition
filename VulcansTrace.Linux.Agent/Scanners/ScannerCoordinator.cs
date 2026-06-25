@@ -12,14 +12,21 @@ internal sealed class ScannerCoordinator
         _scanners = scanners?.ToList() ?? throw new ArgumentNullException(nameof(scanners));
     }
 
-    public async Task<ScannerRunResult> RunAsync(CancellationToken ct)
+    /// <summary>
+    /// Runs scanners in parallel. Pass <paramref name="relevantScannerNames"/> to run only that
+    /// subset (matched by <see cref="IScanner.Name"/>); pass null to run every scanner.
+    /// </summary>
+    public async Task<ScannerRunResult> RunAsync(CancellationToken ct, IReadOnlyCollection<string>? relevantScannerNames = null)
     {
         ct.ThrowIfCancellationRequested();
 
         var builder = new ScanDataBuilder();
         var warnings = new List<string>();
 
-        var scanTasks = _scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
+        var scanners = relevantScannerNames is null
+            ? _scanners
+            : _scanners.Where(s => relevantScannerNames.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+        var scanTasks = scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
         await Task.WhenAll(scanTasks);
 
         foreach (var task in scanTasks)

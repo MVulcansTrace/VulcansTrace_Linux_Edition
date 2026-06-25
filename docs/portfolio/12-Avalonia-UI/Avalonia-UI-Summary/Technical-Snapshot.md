@@ -18,7 +18,7 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 | Detectors wired in composition root | 13 (6 baseline + 5 Linux + 2 advanced) |
 | Agent stores wired in composition root | Suppressions, audit history, rule policy, and remediation session JSON stores with in-memory fallbacks |
 | Timeline severity colors | 5 (Critical=#ef4444, High=#f97316, Medium=#eab308, Low=#22c55e, Unknown=#64748b) |
-| Remediation session UI | Remediation Sessions expander with ListBox selection, Resume, and Delete actions; chat commands `list my sessions`, `show sessions`, `resume session <id>` |
+| Remediation session UI | Chat commands `list my sessions`, `show sessions`, `resume session <id>` manage persisted sessions through natural language |
 
 ---
 
@@ -32,7 +32,9 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - **Compliance tab surfaces formal CIS scorecard** — overall pass/warn/fail badge, per-family DataGrid, and trend bar chart make manager-readable compliance posture visible without leaving the app
 - **Incident Story Mode turns correlations into analyst-ready narratives** — time-ordered beats, likely chain summary, and recommended responses reduce cognitive load during incident triage
 - **Log Diff Window enables forensic timeline comparison** — analysts can compare two log files side-by-side with color-coded state badges (`Unchanged`, `Added`, `Removed`, `Changed`) for both connection patterns and findings, without leaving the desktop app
-- **Remediation Sessions expander preserves workflow state** — analysts can resume or delete persisted guided remediation sessions without losing context between app restarts
+- **Security Agent view** — first-class navigation view with chat-style questions, `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows, and user-friendly scanner warnings
+- **Design-token theme system** — centralized `VtDesignTokens.axaml` resource dictionary keeps colors, typography, radii, and reusable `ControlTheme`s consistent across the app
+- **Remediation session chat commands** — analysts can resume persisted guided remediation sessions via natural language (`list my sessions`, `resume session <id>`) without losing context between app restarts
 - **Impact Preview simulation surfaces pre-flight risk metrics** — remediation cards show risk before/after, command count, rollback availability, and conditional RESTART/LOCKOUT/ROLLBACK badges before the operator reaches copyable apply commands
 
 ---
@@ -49,7 +51,8 @@ The Avalonia UI subsystem is the desktop interface for VulcansTrace. It is a sin
 - [ComplianceScorecardViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization
 - [LogDiffViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/LogDiffViewModel.cs) — log diff result binding
 - [LogDiffWindow.axaml](../../../../VulcansTrace.Linux.Avalonia/Views/LogDiffWindow.axaml) — diff results window with Events and Findings DataGrids
-- [AgentView.axaml](../../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI including Remediation Sessions expander
+- [Views/AgentView.axaml](../../../../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick-action chips, markdown message bubbles, and copyable command rows
+- [Themes/VtDesignTokens.axaml](../../../../VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml) — centralized design tokens and control themes
 - [AgentViewModel.cs](../../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — Security Agent command/state coordinator with session list/resume/delete
 - [AvaloniaDialogService.cs](../../../../VulcansTrace.Linux.Avalonia/Services/AvaloniaDialogService.cs) — native dialog adapter with UI-thread dispatch
 - [IDialogService.cs](../../../../VulcansTrace.Linux.Avalonia/Services/IDialogService.cs) — platform-agnostic dialog interface

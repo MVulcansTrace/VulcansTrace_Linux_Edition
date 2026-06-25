@@ -6,6 +6,7 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class MarkdownInlinesConverterTests
 {
     private readonly MarkdownInlinesConverter _converter = new();

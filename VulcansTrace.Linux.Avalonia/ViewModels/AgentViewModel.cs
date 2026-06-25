@@ -43,14 +43,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _userQuery = "";
     private string _logText = "";
     private bool _isBusy;
+    private bool _isSlashPaletteOpen;
     private bool _hasPrivilegeWarning;
     private string _privilegeWarningText = "";
     private SeverityFilterOption? _selectedChatSeverityFilter;
     private string? _selectedChatCategoryFilter;
     private RemediationSession? _selectedSession;
+    private readonly List<SlashCommandItem> _allSlashCommands = new();
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
+
+    /// <summary>Gets the collection of quick-check action chips.</summary>
+    public ObservableCollection<AgentQuickAction> QuickActions { get; } = new();
+
+    /// <summary>Gets the filtered slash-command palette items.</summary>
+    public ObservableCollection<SlashCommandItem> FilteredSlashCommands { get; } = new();
 
     /// <summary>Gets the collection of recent audit history entries.</summary>
     public ObservableCollection<AuditHistoryEntry> History { get; } = new();
@@ -152,6 +160,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _userQuery, value))
             {
                 SendQueryCommand.RaiseCanExecuteChanged();
+                UpdateSlashPalette();
             }
         }
     }
@@ -172,6 +181,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _isBusy, value))
             {
                 SendQueryCommand.RaiseCanExecuteChanged();
+                ExecuteSlashCommandCommand.RaiseCanExecuteChanged();
                 CancelQueryCommand.RaiseCanExecuteChanged();
                 FullAuditCommand.RaiseCanExecuteChanged();
                 FirewallCommand.RaiseCanExecuteChanged();
@@ -194,6 +204,24 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanCompareAudits));
             }
         }
+    }
+
+    /// <summary>Gets whether the slash-command palette is open.</summary>
+    public bool IsSlashPaletteOpen
+    {
+        get => _isSlashPaletteOpen;
+        private set => SetField(ref _isSlashPaletteOpen, value);
+    }
+
+    /// <summary>
+    /// Dismisses the slash-command palette without clearing the typed query, so an Esc or click-away
+    /// doesn't discard what the user entered; editing the query reopens the palette through
+    /// <see cref="UpdateSlashPalette"/>. Wired to the Esc key and TextBox blur in the view.
+    /// </summary>
+    public void CloseSlashPalette()
+    {
+        IsSlashPaletteOpen = false;
+        FilteredSlashCommands.Clear();
     }
 
     /// <summary>Gets the last agent result.</summary>
@@ -239,6 +267,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to cancel the current agent operation.</summary>
     public RelayCommand CancelQueryCommand { get; }
+
+    /// <summary>Gets the command to execute a slash-command palette item.</summary>
+    public AsyncRelayCommand ExecuteSlashCommandCommand { get; }
 
     /// <summary>Gets the command to run a full audit.</summary>
     public AsyncRelayCommand FullAuditCommand { get; }
@@ -421,6 +452,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => CancelQuery(),
             _ => CanCancel());
 
+        ExecuteSlashCommandCommand = new AsyncRelayCommand(
+            async param =>
+            {
+                if (param is SlashCommandItem cmd && !_isBusy)
+                {
+                    IsSlashPaletteOpen = false;
+                    UserQuery = string.Empty;
+                    if (cmd.Handler is not null)
+                    {
+                        await cmd.Handler();
+                    }
+                }
+            },
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true));
+
         FullAuditCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.FullAudit, "Run a full audit"),
             _ => !_isBusy,
@@ -557,6 +604,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         _historyCoordinator.LoadExisting();
 
+        InitializeQuickActions();
+        InitializeSlashCommands();
+
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
         _historyCoordinator.ShowPersistenceWarningIfAny();
@@ -565,6 +615,119 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
+
+    private void InitializeQuickActions()
+    {
+        QuickActions.Add(new AgentQuickAction { Label = "Full audit", Icon = "🔍", Command = FullAuditCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Firewall", Icon = "🧱", Command = FirewallCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Ports", Icon = "🔌", Command = PortsCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Services", Icon = "⚙️", Command = ServicesCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Network", Icon = "🌐", Command = NetworkCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Containers", Icon = "📦", Command = ContainerCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Kubernetes", Icon = "☸️", Command = KubernetesCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "YARA", Icon = "🦠", Command = YaraCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Processes", Icon = "PROC", Command = ProcessRuntimeCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Set baseline", Icon = "BASE", Command = SetBaselineCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Check drift", Icon = "DIFF", Command = CheckDriftCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Show baseline", Icon = "SHOW", Command = ShowBaselineCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Export audit", Icon = "SAVE", Command = ExportAuditCommand });
+    }
+
+    private void InitializeSlashCommands()
+    {
+        AddAuditSlashCommand("/firewall", "Firewall", "Check firewall configuration", AgentIntent.FirewallCheck, "Check my firewall");
+        AddAuditSlashCommand("/ports", "Ports", "List open ports", AgentIntent.PortCheck, "What ports are open?");
+        AddAuditSlashCommand("/services", "Services", "List running services", AgentIntent.ServiceCheck, "What services are running?");
+        AddAuditSlashCommand("/network", "Network", "Check network configuration", AgentIntent.NetworkCheck, "Check my network");
+        AddAuditSlashCommand("/ssh", "SSH", "Check SSH daemon hardening", AgentIntent.SshCheck, "Check ssh config");
+        AddAuditSlashCommand("/filesystem", "Filesystem", "Check filesystem audit findings", AgentIntent.FilesystemAuditCheck, "Check filesystem security");
+        AddAuditSlashCommand("/kernel", "Kernel", "Check kernel hardening", AgentIntent.KernelCheck, "Check kernel hardening");
+        AddAuditSlashCommand("/users", "Users", "Check local users and account policy", AgentIntent.UserAccountCheck, "Check user accounts");
+        AddAuditSlashCommand("/logging", "Logging", "Check logging and audit coverage", AgentIntent.LoggingAuditCheck, "Check logging audit");
+        AddAuditSlashCommand("/cron", "Cron", "Check cron jobs and script permissions", AgentIntent.CronJobCheck, "Check cron jobs");
+        AddAuditSlashCommand("/packages", "Packages", "Check package vulnerabilities", AgentIntent.PackageVulnerabilityCheck, "Check package vulnerabilities");
+        AddAuditSlashCommand("/threatintel", "Threat intel", "Correlate host state with imported IOCs", AgentIntent.ThreatIntelCheck, "Check threat intel");
+        AddAuditSlashCommand("/fullaudit", "Full audit", "Run a comprehensive audit", AgentIntent.FullAudit, "Run a full audit");
+        AddAuditSlashCommand("/full", "Full audit", "Run a comprehensive audit", AgentIntent.FullAudit, "Run a full audit");
+        AddAuditSlashCommand("/containers", "Containers", "Check container security", AgentIntent.ContainerCheck, "Check my containers");
+        AddAuditSlashCommand("/kubernetes", "Kubernetes", "Check Kubernetes posture", AgentIntent.KubernetesCheck, "Check my kubernetes");
+        AddAuditSlashCommand("/yara", "YARA", "Run YARA malware scan", AgentIntent.YaraCheck, "Run a YARA scan");
+        AddAuditSlashCommand("/processes", "Processes", "Check running processes", AgentIntent.ProcessRuntimeCheck, "Check running processes");
+        AddSlashCommand("/baseline", "Set baseline", "Save last audit as baseline", () => SetBaselineAsync());
+        AddSlashCommand("/drift", "Check drift", "Compare against baseline", () => CheckDriftAsync());
+        AddSlashCommand("/baseline show", "Show baseline", "Display saved baseline", () => ShowBaselineAsync());
+        AddSlashCommand("/show baseline", "Show baseline", "Display saved baseline", () => ShowBaselineAsync());
+        AddSlashCommand("/sessions", "Sessions", "List remediation sessions", () => ListSessionsAsync());
+        AddSlashCommand("/risk", "Risk score", "Show the current risk score", () => RunQueryShortcutAsync("risk score"));
+        AddSlashCommand("/clear", "Clear chat", "Clear the visible agent conversation", ClearChatAsync);
+        AddSlashCommand("/help", "Help", "Show available commands", ShowSlashHelpAsync);
+    }
+
+    private void AddAuditSlashCommand(string commandText, string title, string description, AgentIntent intent, string query)
+        => AddSlashCommand(commandText, title, description, () => RunQuickAuditAsync(intent, query));
+
+    private void AddSlashCommand(string commandText, string title, string description, Func<Task> handler)
+    {
+        _allSlashCommands.Add(new SlashCommandItem
+        {
+            CommandText = commandText,
+            Title = title,
+            Description = description,
+            Command = ExecuteSlashCommandCommand,
+            Handler = handler
+        });
+    }
+
+    private Task RunQueryShortcutAsync(string query)
+    {
+        UserQuery = query;
+        return SendQueryAsync();
+    }
+
+    private Task ClearChatAsync()
+    {
+        Messages.Clear();
+        SelectedChatSeverityFilter = ChatSeverityFilters[0];
+        SelectedChatCategoryFilter = null;
+        AddAgentMessage("Chat cleared.", true);
+        return Task.CompletedTask;
+    }
+
+    private Task ShowSlashHelpAsync()
+    {
+        AddAgentMessage(
+            "Available commands: /firewall, /ports, /services, /network, /ssh, /filesystem, /kernel, /users, /logging, /cron, /packages, /threatintel, /full, /fullaudit, /containers, /kubernetes, /yara, /processes, /baseline, /drift, /baseline show, /show baseline, /sessions, /risk, /clear, /help",
+            false);
+        return Task.CompletedTask;
+    }
+
+    private void UpdateSlashPalette()
+    {
+        var query = _userQuery.Trim();
+        if (query.StartsWith("/"))
+        {
+            // Filter by command-text prefix so the palette shows exactly the commands Enter will
+            // dispatch (SendQueryAsync matches by the same prefix, exact-first). Title/Description
+            // substring matching was intentionally removed: it surfaced commands that typing+Enter
+            // could never invoke, so the palette offered items and Enter then silently ran a
+            // different command — or none.
+            var filtered = _allSlashCommands.Where(c =>
+                c.CommandText.StartsWith(query, StringComparison.OrdinalIgnoreCase));
+
+            FilteredSlashCommands.Clear();
+            foreach (var item in filtered)
+            {
+                FilteredSlashCommands.Add(item);
+            }
+
+            IsSlashPaletteOpen = FilteredSlashCommands.Count > 0;
+        }
+        else
+        {
+            IsSlashPaletteOpen = false;
+            FilteredSlashCommands.Clear();
+        }
+    }
 
     private async Task ExecuteSuggestionAsync(SuggestedFollowUp suggestion)
     {
@@ -624,6 +787,24 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         var query = _userQuery.Trim();
         if (string.IsNullOrWhiteSpace(query))
             return;
+
+        // Slash-command dispatch: prefer an exact command-text match, then a prefix match — the
+        // same predicate the palette filters by — so Enter always runs a command the palette
+        // actually showed, never a hidden or different one.
+        if (query.StartsWith("/", StringComparison.Ordinal))
+        {
+            var match = _allSlashCommands.FirstOrDefault(c =>
+                c.CommandText.Equals(query, StringComparison.OrdinalIgnoreCase))
+                ?? _allSlashCommands.FirstOrDefault(c =>
+                c.CommandText.StartsWith(query, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                IsSlashPaletteOpen = false;
+                UserQuery = string.Empty;
+                await match.Handler!();
+                return;
+            }
+        }
 
         AddUserMessage(query);
         UserQuery = string.Empty;
@@ -686,7 +867,17 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     }
 
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
-        => _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
+    {
+        // Reset chat filters when a new audit result arrives so findings from the current
+        // intent aren't hidden by a stale category or severity selection.
+        if (AgentResultStateCoordinator.IsAuditIntent(result.Intent))
+        {
+            SelectedChatSeverityFilter = ChatSeverityFilters[0];
+            SelectedChatCategoryFilter = null;
+        }
+
+        _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
+    }
 
     private void AddUserMessage(string text) => _presenter.AddUserMessage(text);
     private void AddAgentMessage(string text, bool isInfo) => _presenter.AddAgentMessage(text, isInfo);

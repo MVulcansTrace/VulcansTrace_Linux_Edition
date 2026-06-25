@@ -145,6 +145,8 @@ public sealed class LoopbackExposureRule : IRule
     public string Description => "Loopback-only services should not listen on all interfaces";
     public string WhatItChecks => "Checks whether loopback-only services are exposed on external interfaces";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "netstat -tulnp" };
+    // Reads OpenPorts (produced by the Port scanner); declare it so Port runs for /network audits.
+    public IReadOnlyCollection<string> RequiredDataFields => new[] { "OpenPorts" };
     public Severity Severity => Severity.Medium;
 
     public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]

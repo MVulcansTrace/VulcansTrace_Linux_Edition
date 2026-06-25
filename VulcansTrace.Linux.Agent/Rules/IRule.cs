@@ -23,6 +23,16 @@ public interface IRule
     /// <summary>Data sources / commands this rule relies on.</summary>
     IReadOnlyList<string> SupportedDataSources { get; }
 
+    /// <summary>
+    /// ScanData field names this rule reads BEYOND its own category's primary data source
+    /// (e.g. a Network rule that also reads <c>OpenPorts</c>). Declared here so the scanner
+    /// that produces each field is guaranteed to run during a targeted audit, keeping scanner
+    /// selection derived from rule data dependencies instead of a hand-maintained map — which
+    /// prevents the rule from being silently data-starved. Defaults to none (the rule only
+    /// needs its category's primary scanner).
+    /// </summary>
+    IReadOnlyCollection<string> RequiredDataFields => Array.Empty<string>();
+
     /// <summary>Maximum severity this rule can produce when it fails.</summary>
     Severity Severity { get; }
 

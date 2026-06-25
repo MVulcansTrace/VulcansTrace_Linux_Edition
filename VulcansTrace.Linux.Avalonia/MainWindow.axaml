@@ -13,18 +13,18 @@
         Height="900"
         MinWidth="1000"
         MinHeight="700"
-        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        FontSize="{StaticResource VtFontSizeSm}">
 
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
 
 
-    <Grid Margin="16" Background="{DynamicResource BackgroundPrimary}">
+    <Grid Margin="16" Background="{StaticResource VtBackground900Brush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*"/>
@@ -35,66 +35,98 @@
         <!-- Summary and warnings -->
         <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Left">
-                <Border Classes="kpi-card" Padding="8,4" Margin="0,0,8,0">
+                <Border Theme="{StaticResource VtKpiCard}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
-                        <Run Text="Findings: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <Run Text="Findings: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding Findings.FindingsCount, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtKpiFindingsBrush}"/>
                     </TextBlock>
                 </Border>
-                <Border Classes="kpi-card" Background="{DynamicResource SeverityCriticalBg}" BorderBrush="{DynamicResource SeverityCritical}" Padding="8,4" Margin="0,0,8,0">
+                <Border Theme="{StaticResource VtKpiCard}" Background="{StaticResource VtSeverityCriticalBgBrush}" BorderBrush="{StaticResource VtSeverityCriticalBrush}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
-                        <Run Text="High/Critical: " Foreground="{DynamicResource SeverityCritical}"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityCritical}"/>
+                        <Run Text="High/Critical: " Foreground="{StaticResource VtSeverityCriticalBrush}"/><Run Text="{Binding Findings.HighCriticalCount, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtSeverityCriticalBrush}"/>
                     </TextBlock>
                 </Border>
-                <Border Classes="kpi-card" Background="{DynamicResource SeverityMediumBg}" BorderBrush="{DynamicResource SeverityMedium}" Padding="8,4" Margin="0,0,8,0">
+                <Border Theme="{StaticResource VtKpiCard}" Background="{StaticResource VtSeverityMediumBgBrush}" BorderBrush="{StaticResource VtSeverityMediumBrush}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
-                        <Run Text="Warnings: " Foreground="{DynamicResource SeverityMedium}"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityMedium}"/>
+                        <Run Text="Warnings: " Foreground="{StaticResource VtSeverityMediumBrush}"/><Run Text="{Binding Findings.WarningCount, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtSeverityMediumBrush}"/>
                     </TextBlock>
                 </Border>
-                <Border Classes="kpi-card" Background="{DynamicResource SeverityHighBg}" BorderBrush="{DynamicResource SeverityHigh}" Padding="8,4" Margin="0,0,8,0">
+                <Border Theme="{StaticResource VtKpiCard}" Background="{StaticResource VtSeverityHighBgBrush}" BorderBrush="{StaticResource VtSeverityHighBrush}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
-                        <Run Text="Parse Errors: " Foreground="{DynamicResource SeverityHigh}"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource SeverityHigh}"/>
+                        <Run Text="Parse Errors: " Foreground="{StaticResource VtSeverityHighBrush}"/><Run Text="{Binding Findings.ParseErrorCount, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtSeverityHighBrush}"/>
                     </TextBlock>
                 </Border>
-                <Border Classes="kpi-card" Padding="8,4">
+                <Border Theme="{StaticResource VtKpiCard}" Padding="8,4">
                     <TextBlock>
-                        <Run Text="Skipped Lines: " Foreground="{DynamicResource TextSecondary}"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <Run Text="Skipped Lines: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding Findings.SkippedLineCount, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtKpiSkippedBrush}"/>
                     </TextBlock>
                 </Border>
             </StackPanel>
-            <Border Background="{DynamicResource SeverityMediumBg}"
-                    BorderBrush="{DynamicResource SeverityMedium}"
+            <Border Background="{StaticResource VtSeverityMediumBgBrush}"
+                    BorderBrush="{StaticResource VtSeverityMediumBrush}"
                     BorderThickness="1"
                     Padding="8"
-                    CornerRadius="6"
+                    CornerRadius="{StaticResource VtRadiusLg}"
                     IsVisible="{Binding Findings.HasWarnings}">
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="{DynamicResource SeverityMedium}" />
-                    <ItemsControl ItemsSource="{Binding Findings.Warnings}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock>
-                                    <Run Text="* " Foreground="{DynamicResource SeverityMedium}"/>
-                                    <Run Text="{Binding}" Foreground="{DynamicResource TextPrimary}"/>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <StackPanel Spacing="4">
+                    <StackPanel.Styles>
+                        <Style Selector="ToggleButton:checked Path#WarningChevron">
+                            <Setter Property="RenderTransform">
+                                <RotateTransform Angle="180"/>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Styles>
+                    <ToggleButton x:Name="WarningToggle"
+                                  IsChecked="False"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  Padding="0"
+                                  HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Findings.WarningCount, StringFormat='({0})'}" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Path Grid.Column="1"
+                                  Name="WarningChevron"
+                                  Data="M 0 0 L 8 8 L 16 0"
+                                  Stroke="{StaticResource VtSeverityMediumBrush}"
+                                  StrokeThickness="2"
+                                  VerticalAlignment="Center"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform Angle="0"/>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Grid>
+                    </ToggleButton>
+                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsChecked, ElementName=WarningToggle, FallbackValue=False}">
+                        <ItemsControl ItemsSource="{Binding Findings.Warnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock TextWrapping="Wrap">
+                                        <Run Text="* " Foreground="{StaticResource VtSeverityMediumBrush}"/>
+                                        <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
-            <Border Background="{DynamicResource SeverityCriticalBg}"
-                    BorderBrush="{DynamicResource SeverityCritical}"
+            <Border Background="{StaticResource VtSeverityCriticalBgBrush}"
+                    BorderBrush="{StaticResource VtSeverityCriticalBrush}"
                     BorderThickness="1"
                     Padding="8"
-                    CornerRadius="6"
+                    CornerRadius="{StaticResource VtRadiusLg}"
                     IsVisible="{Binding Findings.HasParseErrors}">
                 <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="{DynamicResource SeverityCritical}" />
+                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="{StaticResource VtSeverityCriticalBrush}" />
                     <ItemsControl ItemsSource="{Binding Findings.ParseErrors}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock TextWrapping="Wrap">
-                                    <Run Text="* " Foreground="{DynamicResource SeverityCritical}"/>
-                                    <Run Text="{Binding}" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Run Text="* " Foreground="{StaticResource VtSeverityCriticalBrush}"/>
+                                    <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                                 </TextBlock>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -117,7 +149,7 @@
                            TextWrapping="Wrap"
                            VerticalAlignment="Center"
                            Width="260"
-                           Foreground="{DynamicResource TextSecondary}"/>
+                           Foreground="{StaticResource VtTextSecondaryBrush}"/>
             </StackPanel>
             <Grid Margin="12,0,0,12" IsVisible="{Binding HasAdvisorMessage}">
                 <Grid.RowDefinitions>
@@ -127,10 +159,10 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Background="{DynamicResource BackgroundSecondary}"
-                        BorderBrush="{DynamicResource Border}"
+                <Border Background="{StaticResource VtBackground800Brush}"
+                        BorderBrush="{StaticResource VtBorderDefaultBrush}"
                         BorderThickness="1"
-                        CornerRadius="10"
+                        CornerRadius="{StaticResource VtRadiusXl}"
                         Padding="8"
                         Width="280"
                         HorizontalAlignment="Left">
@@ -139,103 +171,105 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="{DynamicResource Accent}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="{StaticResource VtPrimaryBrush}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                     </Grid>
                 </Border>
 
                 <Polygon Points="0,0 0,12 12,6"
-                         Fill="{DynamicResource BackgroundSecondary}"
-                         Stroke="{DynamicResource Border}"
+                         Fill="{StaticResource VtBackground800Brush}"
+                         Stroke="{StaticResource VtBorderDefaultBrush}"
                          StrokeThickness="1"
                          HorizontalAlignment="Left"
                          VerticalAlignment="Top"
                          Margin="12,60,0,0"/>
             </Grid>
 
-            <TextBlock Text="Scan intensity:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="Scan intensity:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
             <ComboBox ItemsSource="{Binding Intensities}"
                       SelectedItem="{Binding SelectedIntensity}"
                       AutomationProperties.AutomationId="IntensityComboBox"
+                      Theme="{StaticResource VtComboBox}"
                       Margin="0,4,0,4"/>
             <TextBlock Text="Low shows only High/Critical findings. Medium shows Medium+. High shows all severities."
-                       Foreground="{DynamicResource TextSecondary}"
-                       FontSize="11"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
                        TextWrapping="Wrap"
                        Margin="0,0,0,8"/>
 
-            <TextBlock Text="Machine role:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="Machine role:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
             <ComboBox ItemsSource="{Binding MachineRoles}"
                       SelectedItem="{Binding SelectedMachineRole}"
                       AutomationProperties.AutomationId="MachineRoleComboBox"
+                      Theme="{StaticResource VtComboBox}"
                       Margin="0,4,0,8"/>
 
-            <Expander Header="Advanced" Margin="0,0,0,12">
+            <Expander Header="Advanced" Margin="0,0,0,12" Theme="{StaticResource VtExpander}">
                 <ScrollViewer MaxHeight="260">
                     <StackPanel>
-                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,2" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}"/>
+                            <TextBlock Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min distinct ports:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}"/>
-                        </StackPanel>
-
-                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
-                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min events:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Window (seconds):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}"/>
+                            <TextBlock Text="Min distinct ports:" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min spike attempts:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}"/>
+                            <TextBlock Text="Min events:" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Spike window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}"/>
-                        </StackPanel>
-
-                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
-                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Min group size:" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Interval tolerance (seconds):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}"/>
+                            <TextBlock Text="Window (seconds):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Large threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}"/>
+                            <TextBlock Text="Min spike attempts:" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Small threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}"/>
+                            <TextBlock Text="Spike window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                         <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
-                            <TextBlock Text="Window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{DynamicResource TextSecondary}"/>
-                            <NumericUpDown Width="80" VerticalAlignment="Center" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}"/>
+                            <TextBlock Text="Min group size:" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Interval tolerance (seconds):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Large threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Small threshold (bytes):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,8,0,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="8,2,0,2">
+                            <TextBlock Text="Window (minutes):" VerticalAlignment="Center" Width="240" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <NumericUpDown Width="80" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}"/>
                         </StackPanel>
 
                         <TextBlock Text="Leave any field at 0 to use the profile default for the selected intensity."
-                                   FontSize="10" Foreground="{DynamicResource TextMuted}" Margin="0,8,0,4" TextWrapping="Wrap"/>
+                                   FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" Margin="0,8,0,4" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ScrollViewer>
             </Expander>
 
-            <TextBlock Text="Paste Linux firewall log:" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="Paste Linux firewall log:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
             <Grid Margin="0,4,0,8">
                 <TextBox Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
                          Watermark="Paste or type firewall log lines here..."
@@ -243,8 +277,9 @@
                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
                          Height="260"
-                         FontFamily="Consolas,Monospace"
+                         FontFamily="{StaticResource VtFontFamilyMono}"
                          FontSize="14"
+                         Theme="{StaticResource VtInput}"
                          AutomationProperties.AutomationId="LogTextBox"
                          AutomationProperties.Name="Firewall Log Input"/>
 
@@ -254,30 +289,35 @@
                 <Button Content="Analyze"
                         Width="100"
                         Margin="0,0,8,0"
+                        Theme="{StaticResource VtPrimaryButton}"
                         AutomationProperties.AutomationId="AnalyzeButton"
                         Command="{Binding AnalyzeCommand}"/>
 
                 <Button Content="Cancel"
                         Width="100"
                         Margin="0,0,8,0"
+                        Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="CancelButton"
                         Command="{Binding CancelCommand}"/>
 
                 <Button Content="Export Evidence"
                         Width="130"
                         Margin="0,0,8,0"
+                        Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="ExportEvidenceButton"
                         Command="{Binding Evidence.ExportEvidenceCommand}"/>
 
                 <Button Content="Cancel Export"
                         Width="110"
                         IsVisible="{Binding Evidence.IsBusy}"
+                        Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="CancelExportButton"
                         Command="{Binding Evidence.CancelExportCommand}"/>
 
                 <Button Content="Compare Logs"
                         Width="120"
                         Margin="0,0,8,0"
+                        Theme="{StaticResource VtSecondaryButton}"
                         ToolTip.Tip="Compare two log files for differences"
                         AutomationProperties.AutomationId="CompareLogsButton"
                         Command="{Binding CompareLogsCommand}"/>
@@ -286,13 +326,14 @@
                 <Button Content="Accept Risk"
                         Width="110"
                         Margin="0,0,8,0"
+                        Theme="{StaticResource VtSecondaryButton}"
                         ToolTip.Tip="Mark selected finding as accepted/expected"
                         Command="{Binding AcceptRiskCommand}"/>
                 <TextBlock Text="{Binding Suppressions.StatusMessage}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextSecondary}"
-                           FontSize="11"/>
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"/>
             </StackPanel>
             <Expander Header="Active Suppressions"
                       Margin="0,0,0,12"
@@ -309,26 +350,27 @@
                                 <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding RuleId}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="11"
+                                               Foreground="{StaticResource VtTextPrimaryBrush}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Target}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="11"
+                                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
                                                Margin="8,0,8,0"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Reason}"
-                                               Foreground="{DynamicResource TextMuted}"
-                                               FontSize="10"
+                                               Foreground="{StaticResource VtTextMutedBrush}"
+                                               FontSize="{StaticResource VtFontSizeXs}"
                                                TextTrimming="CharacterEllipsis"
                                                MaxWidth="120"
                                                VerticalAlignment="Center"/>
                                     <Button Grid.Column="3"
                                             Content="Remove"
-                                            FontSize="10"
+                                            FontSize="{StaticResource VtFontSizeXs}"
                                             Padding="4,2"
+                                            Theme="{StaticResource VtGhostButton}"
                                             Command="{Binding $parent[ItemsControl].DataContext.Suppressions.RemoveSuppressionCommand}"
                                             CommandParameter="{Binding}"/>
                                 </Grid>
@@ -343,21 +385,21 @@
                              Width="140"
                              IsIndeterminate="True"
                              VerticalAlignment="Center"/>
-                <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             </StackPanel>
 
             <StackPanel Orientation="Vertical" Margin="0,0,0,8">
-                <TextBlock Text="Session HMAC Key (masked; copy to view):" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
+                <TextBlock Text="Session HMAC Key (masked; copy to view):" FontWeight="Bold" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}"/>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="10" Foreground="{DynamicResource TextMuted}" Margin="0,0,8,0"/>
-                    <Button Content="Copy signing key" Command="{Binding Evidence.CopySigningKeyCommand}" FontSize="10" Padding="6,2" ToolTip.Tip="Copies full signing key to clipboard"/>
+                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" Margin="0,0,8,0"/>
+                    <Button Content="Copy signing key" Command="{Binding Evidence.CopySigningKeyCommand}" Theme="{StaticResource VtGhostButton}" FontSize="{StaticResource VtFontSizeXs}" Padding="6,2" ToolTip.Tip="Copies full signing key to clipboard"/>
                 </StackPanel>
             </StackPanel>
 
             <TextBlock Text="{Binding SummaryText}"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"
-                       Foreground="{DynamicResource TextSecondary}"/>
+                       Foreground="{StaticResource VtTextSecondaryBrush}"/>
         </StackPanel>
         </ScrollViewer>
 
@@ -366,29 +408,12 @@
 
         <!-- Main content area -->
         <Border Grid.Row="1" Grid.Column="2"
-                Background="{DynamicResource BackgroundPrimary}"
-                BorderBrush="{DynamicResource Border}"
-                BorderThickness="1"
-                CornerRadius="{DynamicResource CardRadius}"
+                Theme="{StaticResource VtCard}"
                 Padding="12"
-                Margin="0,0,0,0"
-                BoxShadow="0 4 16 0 #00000033">
+                Margin="0,0,0,0">
             <ContentControl x:Name="MainContent"
                             Content="{Binding SelectedContent}" />
         </Border>
 
-        <!-- Bottom: Agent chat panel -->
-        <Expander Grid.Row="2" Grid.ColumnSpan="3"
-                  Header="Security Agent"
-                  Margin="0,8,0,0"
-                  IsExpanded="False"
-                  Background="{DynamicResource BackgroundSecondary}"
-                  BorderBrush="{DynamicResource Border}"
-                  BorderThickness="1"
-                  CornerRadius="{DynamicResource CardRadius}">
-            <Grid Height="240">
-                <local:AgentView DataContext="{Binding Agent}" />
-            </Grid>
-        </Expander>
     </Grid>
 </Window>

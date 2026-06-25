@@ -11,29 +11,29 @@
         CanResize="True">
 
     <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
-        <TextBlock Grid.Row="0" Text="Review remediation plan before executing" FontWeight="Bold" FontSize="16" Foreground="#e2e8f0" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="0" Text="Review remediation plan before executing" FontWeight="Bold" FontSize="{StaticResource VtFontSize2xl}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,8"/>
 
-        <Border Grid.Row="1" Background="#1e293b" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+        <Border Grid.Row="1" Theme="{StaticResource VtCard}" Padding="12" Margin="0,0,0,12">
             <StackPanel Spacing="4">
-                <TextBlock Text="{Binding Summary}" Foreground="#e2e8f0" TextWrapping="Wrap" FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"/>
-                <TextBlock Text="This will change system configuration. Review carefully before confirming." Foreground="#f87171" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <TextBlock Text="{Binding Summary}" Foreground="{StaticResource VtTextPrimaryBrush}" TextWrapping="Wrap" FontFamily="{StaticResource VtFontFamily}"/>
+                <TextBlock Text="This will change system configuration. Review carefully before confirming." Foreground="{StaticResource VtDangerBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
             </StackPanel>
         </Border>
 
-        <ScrollViewer Grid.Row="2" Background="#0f172a" CornerRadius="6" Padding="12">
-            <TextBlock Text="{Binding PreviewText}" Foreground="#cbd5e1" FontFamily="Consolas, Monospace" TextWrapping="Wrap"/>
+        <ScrollViewer Grid.Row="2" Background="{StaticResource VtBackground900Brush}" CornerRadius="{StaticResource VtRadiusLg}" Padding="12">
+            <TextBlock Text="{Binding PreviewText}" Foreground="{StaticResource VtTextSecondaryBrush}" FontFamily="{StaticResource VtFontFamilyMono}" TextWrapping="Wrap"/>
         </ScrollViewer>
 
         <!-- Execution result, shown only after the plan has run (dialog stays open so it's visible). -->
-        <Border Grid.Row="3" Background="#0f172a" CornerRadius="6" Padding="12" Margin="0,8,0,0" IsVisible="{Binding HasResult}">
-            <TextBlock Text="{Binding ExecutionResult.Summary}" Foreground="#cbd5e1" FontFamily="Consolas, Monospace" TextWrapping="Wrap"/>
+        <Border Grid.Row="3" Background="{StaticResource VtBackground900Brush}" CornerRadius="{StaticResource VtRadiusLg}" Padding="12" Margin="0,8,0,0" IsVisible="{Binding HasResult}">
+            <TextBlock Text="{Binding ExecutionResult.Summary}" Foreground="{StaticResource VtTextSecondaryBrush}" FontFamily="{StaticResource VtFontFamilyMono}" TextWrapping="Wrap"/>
         </Border>
 
-        <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Foreground="#fbbf24" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Foreground="{StaticResource VtWarningBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="ExecuteButton" Content="Execute" MinWidth="100" Command="{Binding ExecuteCommand}"/>
-            <Button x:Name="CloseButton" Content="Close" MinWidth="100" Click="CloseButton_Click" IsEnabled="{Binding !IsExecuting}"/>
+            <Button x:Name="ExecuteButton" Content="Execute" MinWidth="100" Theme="{StaticResource VtPrimaryButton}" Command="{Binding ExecuteCommand}"/>
+            <Button x:Name="CloseButton" Content="Close" MinWidth="100" Theme="{StaticResource VtSecondaryButton}" Click="CloseButton_Click" IsEnabled="{Binding !IsExecuting}"/>
         </StackPanel>
     </Grid>
 </Window>

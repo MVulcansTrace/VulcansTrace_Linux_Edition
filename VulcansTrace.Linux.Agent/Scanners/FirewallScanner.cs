@@ -8,15 +8,38 @@ public sealed class FirewallScanner : IScanner
     /// <inheritdoc />
     public string Name => "Firewall";
 
+    private static readonly TimeSpan FirewallProbeTimeout = TimeSpan.FromSeconds(10);
+
+    // How iptables/nftables are probed. Defaults to the real ScannerCommandRunner; an internal ctor
+    // lets tests inject canned results so the iptables→nftables control flow can be exercised without
+    // spawning processes or mutating the process-global PATH.
+    private readonly FirewallCommandFunc _runCommand;
+
+    /// <summary>Creates a scanner that probes the real iptables/nftables backends.</summary>
+    public FirewallScanner() : this(RunViaRunner) { }
+
+    /// <summary>
+    /// Creates a scanner that probes backends via <paramref name="runCommand"/>. Intended for tests
+    /// that need to drive the iptables/nftables selection logic deterministically.
+    /// </summary>
+    internal FirewallScanner(FirewallCommandFunc runCommand)
+    {
+        _runCommand = runCommand ?? throw new ArgumentNullException(nameof(runCommand));
+    }
+
     /// <inheritdoc />
     public async Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
-        // Try iptables first, then nftables
+        // Probe iptables first and only fall back to nftables when iptables is missing or returns
+        // no usable data. This avoids spawning a privileged nft probe on the common iptables-based
+        // host; each probe is bounded by FirewallProbeTimeout so a hanging backend can't stall the
+        // scan (worst case: the iptables timeout, then nft).
         var (iptablesOutput, iptablesError, iptablesOk) =
-            await RunCommandAsync("iptables", new[] { "-L", "-n", "-v" }, cancellationToken);
+            await _runCommand("iptables", new[] { "-L", "-n", "-v" }, cancellationToken, FirewallProbeTimeout);
 
         var iptablesStatus = DataSourceCapability.FromCommandResult(iptablesOk, iptablesOutput, iptablesError);
         builder.AddCapability(new DataSourceCapability { SourceName = "iptables", Status = iptablesStatus, Detail = iptablesError, Command = "iptables -L -n -v" });
+
         if (iptablesStatus == CapabilityStatus.Available && !string.IsNullOrWhiteSpace(iptablesOutput))
         {
             builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = CapabilityStatus.Unknown, Detail = "Not checked because iptables returned usable data.", Command = "nft list ruleset" });
@@ -27,7 +50,7 @@ public sealed class FirewallScanner : IScanner
         }
 
         var (nftOutput, nftError, nftOk) =
-            await RunCommandAsync("nft", new[] { "list", "ruleset" }, cancellationToken);
+            await _runCommand("nft", new[] { "list", "ruleset" }, cancellationToken, FirewallProbeTimeout);
 
         var nftStatus = DataSourceCapability.FromCommandResult(nftOk, nftOutput, nftError);
         builder.AddCapability(new DataSourceCapability { SourceName = "nftables", Status = nftStatus, Detail = nftError, Command = "nft list ruleset" });
@@ -245,9 +268,15 @@ public sealed class FirewallScanner : IScanner
         return null;
     }
 
-    private static async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(
-        string fileName, string[] args, CancellationToken ct)
-    {
-        return await ScannerCommandRunner.RunAsync(fileName, args, ct);
-    }
+    private static Task<(string? Stdout, string? Stderr, bool Success)> RunViaRunner(
+        string fileName, IReadOnlyList<string> args, CancellationToken ct, TimeSpan? timeout)
+        => ScannerCommandRunner.RunAsync(fileName, args, ct, timeout);
 }
+
+/// <summary>
+/// Runs a firewall-backend probe command, returning its captured (stdout, stderr, exit-success).
+/// Mirrors <see cref="ScannerCommandRunner.RunAsync"/>; defaulted there in production and injected
+/// from tests.
+/// </summary>
+internal delegate Task<(string? Stdout, string? Stderr, bool Success)> FirewallCommandFunc(
+    string fileName, IReadOnlyList<string> args, CancellationToken cancellationToken, TimeSpan? timeout);

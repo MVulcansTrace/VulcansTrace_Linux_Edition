@@ -8,38 +8,6 @@ using VulcansTrace.Linux.Avalonia.ViewModels;
 namespace VulcansTrace.Linux.Avalonia.Converters;
 
 /// <summary>
-/// Converts a boolean to a column index (0 for agent, 1 for user).
-/// </summary>
-public sealed class BoolToColumnConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return value is true ? 1 : 0;
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotSupportedException();
-    }
-}
-
-/// <summary>
-/// Converts a boolean to a column span (1 for user, 2 for agent).
-/// </summary>
-public sealed class BoolToSpanConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return value is true ? 1 : 2;
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotSupportedException();
-    }
-}
-
-/// <summary>
 /// Converts a boolean to a horizontal alignment (Right for user, Left for agent).
 /// </summary>
 public sealed class BoolToAlignmentConverter : IValueConverter

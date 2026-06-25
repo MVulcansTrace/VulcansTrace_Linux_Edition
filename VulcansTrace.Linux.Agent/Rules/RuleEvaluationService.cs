@@ -49,6 +49,35 @@ internal sealed class RuleEvaluationService
         return new RuleEvaluationBatchResult(ruleResults, warnings);
     }
 
+    /// <summary>
+    /// Returns the scanner names required to feed every rule that runs for <paramref name="intent"/>,
+    /// derived from each rule's category (its primary scanner) plus any declared
+    /// <see cref="IRule.RequiredDataFields"/>. Returns null for non-targeted intents (full audit or
+    /// non-audit), meaning "run every scanner". Deriving the set from rule data dependencies keeps
+    /// scanner selection in sync with the rules so a targeted audit can't be silently data-starved
+    /// by a stale hand-maintained intent map.
+    /// </summary>
+    public IReadOnlyCollection<string>? GetRequiredScannerNames(AgentIntent intent)
+    {
+        if (!IntentCategoryMap.IsTargetedAudit(intent))
+            return null;
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in FilterRulesByIntent(intent))
+        {
+            if (ScannerDataSources.CategoryToPrimaryScanner.TryGetValue(rule.Category, out var primary))
+                names.Add(primary);
+
+            foreach (var field in rule.RequiredDataFields)
+            {
+                if (ScannerDataSources.ScannerForField(field) is { } scanner)
+                    names.Add(scanner);
+            }
+        }
+
+        return names;
+    }
+
     public SingleRuleEvaluationResult EvaluateRule(
         IRule rule,
         ScanData scanData,

@@ -5,7 +5,7 @@
 ![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 3196 passing](https://img.shields.io/badge/Tests-3196%20passing-2E7D32)
+![Tests: 3247 passing](https://img.shields.io/badge/Tests-3247%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -86,6 +86,8 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Log Diff Mode** — compare two firewall log files (baseline vs incident) to detect new, removed, or changed connection patterns and findings. Events are matched by a traffic pattern key (source IP, destination IP, destination port, protocol; source port wildcarded) with count deltas and dominant action shifts. Findings are matched by stable fingerprint. Produces a narrative summary, per-pattern diff state (`Unchanged`, `Added`, `Removed`, `Changed`), and color-coded DataGrid visualization in the Avalonia UI. CLI diff results can be exported as JSON/HTML or included in signed evidence bundles with Markdown and HTML reports.
 - **Live Stream / Real-Time Kernel Telemetry** — captures live network events from the kernel via `AF_PACKET` with classic BPF socket filtering or `AF_NETLINK` NFLOG, buffers them in a rolling window, and runs the detector pipeline in real time using a dedicated `SentryAnalyzer` instance. Completed analysis results are published through a bounded `DropOldest` channel so the UI never stalls on stale updates. Includes a synthetic demo source for zero-privilege testing. Desktop UI shows live metrics and delta findings as they are detected; findings are wired into the shared findings grid.
 - **Doctor — Data-Source Self-Diagnostic** — quickly probe every local Security Agent scanner and report which data sources are available, unavailable, permission-limited, or not checked. Works from both the CLI (`vulcanstrace doctor`) and a dedicated **Doctor** tab in the Avalonia UI. Results include the same deterministic capability report used during audits, plus a warnings banner for scanner permission or command failures.
+- **Targeted Audit Scanner Selection** — agent audits derive the required scanner set from each rule's actual data dependencies (`IRule.RequiredDataFields`), so targeted checks like `/threatintel` or `/network` cannot be silently data-starved. Full audits still run every scanner.
+- **Redesigned Agent UI** — the Security Agent is now a first-class Avalonia view with a `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows, and a centralized `VtDesignTokens.axaml` design system.
 
 The desktop app is implemented with Avalonia and targets .NET 9.0.
 

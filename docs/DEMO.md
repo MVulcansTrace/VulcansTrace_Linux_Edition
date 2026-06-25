@@ -126,7 +126,7 @@ For logs that trigger other detectors, use the integration test fixtures or craf
 
 The Security Agent audits kernel and system hardening parameters without pasting a log:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my kernel hardening`
 3. The agent runs `KernelHardeningScanner` and evaluates rules for:
    - ASLR (`kernel.randomize_va_space`)
@@ -136,28 +136,28 @@ The Security Agent audits kernel and system hardening parameters without pasting
    - Kernel module loading restrictions (`kernel.modules_disabled`)
    - Secure Boot status
    - Kernel pointer exposure (`kernel.kptr_restrict`, `kernel.dmesg_restrict`)
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain KERN-001`.
 
 ## Security Agent — File Permission Audit
 
 The Security Agent can audit sensitive file and directory permissions without pasting a log:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check file permissions`
 3. The agent runs `FilePermissionScanner` and evaluates rules for:
    - `/etc/shadow`, `/etc/passwd`
    - SSH host private keys (`/etc/ssh/ssh_host_*_key`)
    - Root and user SSH directories (`~/.ssh`, `~/.ssh/authorized_keys`)
    - Cron directories and `/etc/crontab`
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain FILE-001`.
 
 ## Security Agent — Filesystem Audit
 
 The Security Agent can audit the broader filesystem for dangerous permission patterns without pasting a log:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my filesystem`
 3. The agent runs `FilesystemAuditScanner` and evaluates rules for:
    - World-writable files outside `/tmp`, `/var/tmp`, `/dev/shm`, and other expected paths (`FSYS-001`)
@@ -165,14 +165,14 @@ The Security Agent can audit the broader filesystem for dangerous permission pat
    - Unowned files (no valid user or group) (`FSYS-003`)
    - World-writable directories without the sticky bit (`FSYS-004`)
    - `/tmp` mounted as a separate partition with `noexec`, `nosuid`, and `nodev` (`FSYS-005`)
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain FSYS-002`.
 
 ## Security Agent — User Account Audit
 
 The Security Agent audits local user accounts, password aging, and PAM configuration without pasting a log:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my user accounts`
 3. The agent runs `UserAccountScanner` and evaluates rules for:
    - UID 0 accounts beyond root
@@ -182,27 +182,27 @@ The Security Agent audits local user accounts, password aging, and PAM configura
    - Inactive or locked interactive accounts
    - Duplicate UIDs
    - Missing home directories for regular users
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain USER-001`.
 
 ## Security Agent — Cron Job Audit
 
 The Security Agent audits scheduled cron jobs for suspicious entries, dangerous script permissions, and privilege misuse without pasting a log:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my cron jobs`
 3. The agent runs `CronJobScanner` and evaluates rules for:
    - Suspicious cron commands (reverse shells, network downloaders, temp paths, encoded payloads) (`CRON-001`)
    - World-writable or setuid/setgid cron scripts (`CRON-002`)
    - Root cron jobs that reference non-root user directories (`CRON-003`)
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain CRON-001`.
 
 ## Security Agent — Container Security Audit
 
 The Security Agent audits local container runtime state without making network calls:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my containers`
 3. The agent runs `ContainerScanner` and evaluates rules for:
    - Privileged containers running on the host (`CTR-001`)
@@ -210,35 +210,31 @@ The Security Agent audits local container runtime state without making network c
    - Docker socket exposed on the host or mounted into running containers (`CTR-003`)
    - Containerd using only the default namespace without explicit isolation (`CTR-004`)
    - Known risky base-image hints such as end-of-life distro bases (`CTR-005`)
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain CTR-001`.
 
 ## Security Agent — Kubernetes Security Audit
 
 The Security Agent audits Kubernetes pod security posture via `kubectl` when a kubeconfig is present. `kubectl` uses the configured cluster context, so this may contact that cluster API:
 
-1. Open the **Security Agent** panel in the UI.
+1. Open the **Security Agent** view in the UI.
 2. Type: `Check my kubernetes` or `Check my pods`
 3. The agent runs `KubernetesScanner` and evaluates rules for:
    - Pods running privileged containers (`K8S-001`)
    - Pods sharing hostNetwork, hostPID, or hostIPC namespaces (`K8S-002`)
    - Containers that may run as root (`K8S-003`)
    - Missing security context hardening (privilege escalation disabled, readOnlyRootFilesystem, dropped capabilities, confined seccomp) (`K8S-004`)
-4. Review findings in the chat panel and the main findings grid.
+4. Review findings in the chat view and the main findings grid.
 5. Ask follow-ups like `What should I fix first?` or `Explain K8S-001`.
 
-## Security Agent — Remediation Session History Browser
+## Security Agent — Remediation Session Management
 
-The agent persists all guided remediation sessions so you can review, resume, or delete them later:
+The agent persists all guided remediation sessions so you can review and resume them later:
 
-1. Open the **Security Agent** panel in the UI.
-2. Expand the **Remediation Sessions** section below the audit history.
-3. The list shows every persisted session with its ID, status, rule ID, and creation time.
-4. Select a session and click **Resume** to reload it into the chat panel for review or verification.
-5. Click **Delete** to remove a session from the store.
-6. Alternatively, type in chat:
-   - `List my sessions` or `Show sessions` — lists all sessions
-   - `Resume session abc12345` — loads a specific session
+1. Open the **Security Agent** view in the UI.
+2. Type in chat:
+   - `List my sessions` or `Show sessions` — lists every persisted session with its ID, status, rule ID, and creation time
+   - `Resume session abc12345` — reloads a specific session into the chat view for review or verification
 
 Sessions are persisted to `~/.config/VulcansTrace/remediation-sessions.json` when available, with an in-memory fallback.
 
@@ -262,10 +258,10 @@ After running any audit, you can ask the agent for either a single-finding remed
 
 ## Security Agent — Automated Incident Response Playbooks
 
-When the Trace Map detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same compromised host), the agent can deploy active countermeasures directly from the chat panel:
+When the Trace Map detects a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation on the same compromised host), the agent can deploy active countermeasures directly from the chat view:
 
 1. Paste or analyze a firewall log that triggers Beaconing, LateralMovement, and PrivilegeEscalation findings on the same source host (for example, `192.168.1.100` beaconing to `10.0.0.5:443`, then pivoting internally, then scanning admin ports).
-2. The Security Agent chat panel displays a critical chain message with:
+2. The Security Agent view displays a critical chain message with:
    - Compromised host (`192.168.1.100`)
    - Attacker C2 IP (`10.0.0.5`)
    - Attack stage narrative (`Beaconing → LateralMovement → PrivilegeEscalation`)
@@ -325,7 +321,7 @@ The Security Agent now composes analyst-style narrative responses and flags dang
 
 ### Narrative Response
 
-1. Open the **Security Agent** panel.
+1. Open the **Security Agent** view.
 2. Type: `Is my system secure?`
 3. The agent runs a full audit and returns a multi-paragraph narrative:
    - **Summary** — total findings and severity breakdown.

@@ -91,15 +91,25 @@ public class AgentOperationRunnerTests
         var messages = new ObservableCollection<(string Text, bool IsInfo)>();
         var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
 
+        // Wait until the operation has actually started before cancelling, so the test doesn't race
+        // on async-lambda setup timing (which made CanCancel flicker under concurrent load).
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var runTask = runner.RunAsync(async ct =>
         {
+            started.TrySetResult(true);
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
         });
 
+        await started.Task;
         Assert.True(runner.CanCancel);
+
         runner.Cancel();
         await runTask;
-        FlushDispatcher();
+
+        // The cancellation continuation posts "Query cancelled." to the dispatcher from a thread-pool
+        // thread, so pump the dispatcher until the message is drained rather than assuming a single
+        // pass suffices under load.
+        await WaitForAsync(() => messages.Any(m => m.Text == "Query cancelled." && m.IsInfo));
 
         Assert.False(runner.CanCancel);
         Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo);
@@ -182,6 +192,17 @@ public class AgentOperationRunnerTests
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+
+    /// <summary>Pumps the dispatcher until <paramref name="condition" /> holds, or the timeout lapses.</summary>
+    private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = Environment.TickCount64 + timeoutMs;
+        while (!condition() && Environment.TickCount64 < deadline)
+        {
+            FlushDispatcher();
+            await Task.Delay(10);
+        }
+    }
 
     private static AgentOperationRunner CreateRunner(
         Action<bool>? setBusy = null,

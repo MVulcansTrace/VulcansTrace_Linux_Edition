@@ -16,6 +16,9 @@ public sealed class ThreatIntelIpRule : IRule
     public string Description => "Active connection to a known malicious IP address";
     public string WhatItChecks => "Correlates active connections against imported threat intel IP IOCs";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tunap", "threat-intel" };
+    // Reads ActiveConnections (produced by the Network scanner); declare it so Network runs for
+    // /threatintel audits instead of silently passing with no connection data.
+    public IReadOnlyCollection<string> RequiredDataFields => new[] { "ActiveConnections" };
     public Severity Severity => Severity.High;
 
     public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();

@@ -16,6 +16,8 @@ public sealed class ThreatIntelPortRule : IRule
     public string Description => "Open port matches a known malicious port from threat intel";
     public string WhatItChecks => "Correlates open listening ports against imported threat intel port IOCs";
     public IReadOnlyList<string> SupportedDataSources => new[] { "ss -tulnp", "threat-intel" };
+    // Reads OpenPorts (produced by the Port scanner); declare it so Port runs for /threatintel audits.
+    public IReadOnlyCollection<string> RequiredDataFields => new[] { "OpenPorts" };
     public Severity Severity => Severity.High;
 
     public IReadOnlyList<CisBenchmarkMapping> CisMappings => Array.Empty<CisBenchmarkMapping>();

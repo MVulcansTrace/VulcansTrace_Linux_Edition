@@ -46,7 +46,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 | Countermeasure types | 2: IptablesDrop, AuditdMonitor |
 | Countermeasure validation | IP address validation, attacker-IP deduplication, `iptables -C` verification |
 | Countermeasure deployment | Dry-run preview → confirmation dialog → live execution with automatic rollback on failure |
-| UI integration | Collapsible Avalonia Security Agent chat panel with quick actions, grouped and filterable findings, rule coverage totals, selection-aware explanations, safety-labeled and structurally badged verification commands, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, interactive single-finding remediation cards with an impact preview panel showing risk before/after, command count, rollback availability, restart impact, and lockout risk, preconditions, backup/apply/rollback/verification commands and safety badges, and **Deploy Countermeasures** button for critical attack chains |
+| UI integration | First-class Avalonia Security Agent view with chat, `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows with safety/structure badges, grouped and filterable findings, rule coverage totals, selection-aware explanations, user-friendly scanner warnings, timed suppressions, persistent selectable audit history diff with narrative summaries, privilege warnings, audit export, guarded remediation export, interactive single-finding remediation cards with an impact preview panel showing risk before/after, command count, rollback availability, restart impact, and lockout risk, preconditions, backup/apply/rollback/verification commands and safety badges, and **Deploy Countermeasures** button for critical attack chains |
 | Test files | Agent, scanner parser, Avalonia ViewModel, and evidence formatter coverage |
 
 ---
@@ -67,7 +67,7 @@ The subsystem is deliberately deterministic and explainable. Each result can be 
 - **CIS Compliance Scorecard** — formal pass/fail/warn per control family, overall percentage score, and trend over time, readable in 10 seconds by managers and auditors; exported as HTML and Markdown in signed evidence bundles
 - **Risk Scorecard** — aggregate letter grade (A–F) and numeric score (0–100) weighted by severity and CIS control importance, with per-category breakdown; available in agent chat and exported as HTML and Markdown in signed evidence bundles
 - **Auto-Fix with Dry-Run** — batch remediation with `--auto-fix --dry-run` for safe preview before change, showing an impact preview per finding (expected impact, rollback path, verification command, risk before/after, command count, rollback availability, restart impact, lockout risk), policy-gated execution (Conservative/Standard/Aggressive), automatic rollback on failure, and clean exit codes that preserve critical-finding status
-- **Remediation Session History Browser** — persisted sessions can be listed, resumed, and deleted through both the Avalonia UI expander and natural-language chat commands, ensuring no remediation workflow is lost between app restarts
+- **Remediation Session Management** — persisted sessions can be listed, resumed, and deleted from the Agent view, or listed and resumed through natural-language chat commands (`list my sessions`, `show sessions`, `resume session <id>`), ensuring no remediation workflow is lost between app restarts
 
 ---
 

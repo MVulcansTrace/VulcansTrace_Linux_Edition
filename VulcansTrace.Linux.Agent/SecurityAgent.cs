@@ -405,8 +405,11 @@ public sealed class SecurityAgent : IAgent
     {
         ct.ThrowIfCancellationRequested();
 
-        // Phase 1: Run all scanners in parallel
-        var scannerResult = await _scannerCoordinator.RunAsync(ct);
+        // Phase 1: Run only the scanners that feed the rules for this intent, in parallel.
+        // The set is derived from rule data dependencies (RuleEvaluationService.GetRequiredScannerNames),
+        // not a hand-maintained intent map, so targeted audits can't be silently data-starved.
+        var requiredScanners = _ruleEvaluationService.GetRequiredScannerNames(intent);
+        var scannerResult = await _scannerCoordinator.RunAsync(ct, requiredScanners);
         var scanData = scannerResult.ScanData;
         var warnings = scannerResult.Warnings.ToList();
         var capabilityReport = _resultComposer.BuildCapabilityReport(scanData.Capabilities);

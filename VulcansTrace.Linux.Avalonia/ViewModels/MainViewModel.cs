@@ -424,7 +424,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         LiveStream.DemoCompleted += _demoCompletedHandler;
 
         // Initialize sidebar navigation
-        NavigationItems.Add(new NavigationItem { Label = "Findings", Icon = "mdi-magnify", Content = Findings, Group = "Analysis" });
+        NavigationItems.Add(new NavigationItem { Label = "Agent", Icon = "mdi-robot", Content = Agent, Group = "Analysis" });
+        NavigationItems.Add(new NavigationItem { Label = "Findings", Icon = "mdi-magnify", Content = Findings, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog, Group = "Management" });

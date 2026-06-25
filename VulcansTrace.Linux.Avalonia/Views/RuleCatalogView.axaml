@@ -15,26 +15,26 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <TextBox Text="{Binding SearchText}"
-                     Width="300"
+                     Width="320"
                      VerticalAlignment="Center"
+                     Theme="{StaticResource VtInput}"
                      AutomationProperties.AutomationId="RulesSearchTextBox"/>
-            <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{DynamicResource TextTertiary}"/>
-            <TextBlock Text="{Binding TotalRules}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"/>
+            <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextMutedBrush}"/>
+            <TextBlock Text="{Binding TotalRules}" VerticalAlignment="Center" Foreground="{StaticResource VtTextPrimaryBrush}" FontWeight="Bold"/>
         </StackPanel>
 
         <DataGrid Grid.Row="1"
                   ItemsSource="{Binding FilteredItems}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="RulesDataGrid"
                   AutomationProperties.Name="Rules Catalog Table">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" Width="100">
+                <DataGridTemplateColumn Header="Severity" Width="80" MinWidth="70">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
@@ -46,17 +46,17 @@
                                 <TextBlock Text="{Binding Severity}"
                                            Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                           FontSize="{StaticResource VtFontSizeSm}"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
-                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="220" />
-                <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="*" />
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
-                <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="280" />
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" MinWidth="80" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" MinWidth="110" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" MinWidth="180" />
+                <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="2*" MinWidth="180" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="130" MinWidth="130" />
+                <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="*" MinWidth="100" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

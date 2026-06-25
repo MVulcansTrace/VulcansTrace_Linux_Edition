@@ -7,18 +7,9 @@
 
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/DarkTheme.axaml" />
-            </ResourceDictionary.MergedDictionaries>
             <local:ViewLocator x:Key="ViewLocator" />
             <conv:SeverityToBrushConverter x:Key="SeverityToBrushConverter" />
             <conv:SeverityToForegroundBrushConverter x:Key="SeverityToForegroundBrushConverter" />
-            <conv:BoolToColumnConverter x:Key="BoolToColumnConverter" />
-            <conv:BoolToSpanConverter x:Key="BoolToSpanConverter" />
-            <conv:BoolToAlignmentConverter x:Key="BoolToAlignmentConverter" />
-            <conv:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
-            <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrushConverter" />
-            <conv:BoolToForegroundConverter x:Key="BoolToForegroundConverter" />
             <conv:ReviewFilterLabelConverter x:Key="ReviewFilterLabelConverter" />
             <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
         </ResourceDictionary>
@@ -31,6 +22,6 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
-        <StyleInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/ThemeStyles.axaml" />
+        <StyleInclude Source="avares://VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml" />
     </Application.Styles>
 </Application>

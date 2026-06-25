@@ -16,15 +16,16 @@
 
         <TextBlock Grid.Row="0"
                    Text="Warnings"
-                   Foreground="{DynamicResource Warning}"
+                   Foreground="{StaticResource VtWarningBrush}"
                    FontWeight="Bold"
-                   FontSize="14"
+                   FontSize="{StaticResource VtFontSizeXl}"
                    Margin="0,0,0,8"/>
 
         <ListBox Grid.Row="1"
                  ItemsSource="{Binding Warnings}"
                  BorderThickness="0"
-                 Foreground="{DynamicResource Warning}"
-                 FontFamily="Consolas,Monospace"/>
+                 Background="Transparent"
+                 Foreground="{StaticResource VtWarningBrush}"
+                 FontFamily="{StaticResource VtFontFamilyMono}"/>
     </Grid>
 </UserControl>

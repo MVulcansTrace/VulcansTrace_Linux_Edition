@@ -246,7 +246,7 @@ Agent replies are composed as multi-paragraph prose by `NarrativeComposer`:
 - **Memory paragraph** — highlights repeated, improving, or worsening issues using per-rule memory.
 - **Traceability invariant** — every non-generic paragraph cites source IDs (rule IDs, finding fingerprints, correlation keys, or attack-chain pattern IDs) in its rendered text. `Narrative.SourceIds` collects these IDs and is validated by automated tests.
 
-The composed `AgentResult.Narrative` is rendered in the Avalonia chat panel (with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`), stripped of markdown in the CLI, and included in evidence exports as `agent-narrative.md`. Posture correlations are exported as `posture-correlations.md` when present.
+The composed `AgentResult.Narrative` is rendered in the Avalonia chat view (with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`), stripped of markdown in the CLI, and included in evidence exports as `agent-narrative.md`. Posture correlations are exported as `posture-correlations.md` when present.
 
 ## Follow-Up Suggestions
 
@@ -635,11 +635,14 @@ Each explanation includes MITRE ATT&CK technique context when the triggering rul
 
 ## UI Integration
 
-The Avalonia application exposes the agent in a collapsible Security Agent panel. The panel supports:
+The Avalonia application exposes the agent as a first-class **Security Agent** view in the main navigation sidebar (replaced the previous collapsible bottom panel). The view supports:
 
-- Chat-style natural-language questions.
-- Quick-action buttons for full audit, firewall, ports, services, network, containers, Kubernetes, selected-finding explanation, and audit export.
-- Baseline quick-action buttons for **Set Baseline**, **Check Drift**, and **Show Baseline**.
+- Chat-style natural-language questions with **markdown rendering** — `**bold**` and `*italic*` markup in agent messages is rendered as styled inlines.
+- **Slash commands** — type `/` in the query box to open a palette of quick intents: `/firewall`, `/network`, `/ports`, `/services`, `/ssh`, `/filesystem`, `/kernel`, `/users`, `/logging`, `/cron`, `/packages`, `/containers`, `/kubernetes`, `/threatintel`, `/yara`, `/processes`, `/full`, `/fullaudit`, `/baseline`, `/drift`, `/baseline show`, `/show baseline`, `/sessions`, `/risk`, `/help`, `/clear`. Selecting a command runs the corresponding audit or follow-up.
+- **Quick-action chips** — clickable chips above the query box for common audits (`Full audit`, `Firewall`, `Ports`, `Services`, `Network`, `Containers`, `Kubernetes`, `YARA`, `Processes`) and follow-ups (`Set baseline`, `Check drift`, `Show baseline`, `Export audit`).
+- **Scanner selection by rule dependency** — targeted audits run only the scanners that feed the rules for that intent. Rule cross-category data dependencies (e.g., a network rule that also reads `OpenPorts`) are declared via `IRule.RequiredDataFields` and resolved automatically, so targeted audits cannot be silently data-starved.
+- **User-friendly warnings** — scanner warnings are classified as missing tools, permission limits, configuration gaps, or scanner errors and surfaced in plain language. Missing primary tools (e.g., `iptables` for a firewall check) produce a friendly lead sentence explaining which tool was absent and that results are partial.
+- **Copyable command rows** — verification, backup, apply, rollback, and verification commands render in reusable rows with safety badges (ReadOnly, ConfigChange, ServiceRestart, etc.) and structural badges (SUDO, CHAIN, PIPE, REDIR, DL-EXEC). Each row has a one-click copy button.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
 - Agent findings grouped by category with compact severity summaries. Similar repeated findings are also collapsed by the shared noise-budget pipeline, preserving `GroupedCount`, representative targets, and risk drivers in chat, the findings grid, history, drift, and exports.
@@ -652,7 +655,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - **Follow-up suggestion chips** — every agent message with suggestions shows a row of clickable chips (`What should I fix first?`, `Fix it`, `Check drift`, etc.). Clicking a chip runs the underlying query.
-- **Narrative rendering** — the composed `AgentResult.Narrative` is rendered in the chat panel with `**bold**` and `*italic*` styling via `MarkdownInlinesConverter`; intraword underscores are preserved so snake_case rule IDs stay readable.
+- **Narrative rendering** — the composed `AgentResult.Narrative` is rendered in the chat panel with `**bold**` and `*italic*` styling via the `Markdown.Text` attached property and `MarkdownInlinesConverter`; intraword underscores are preserved so snake_case rule IDs stay readable.
 - **Cross-session memory** — the agent restores the last conversation context (topic, focused finding, recent turns, rule history, and last result) when the Avalonia app restarts, using the lightweight `agent-memory.json` snapshot and the existing audit-history store.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Configuration baselines persisted to the user config directory (`~/.config/VulcansTrace/baselines.json`) when available, with in-memory fallback. Baselines are intent-scoped; each intent has one active baseline at a time. Drift detection re-runs the last completed audit intent and compares against the active baseline, surfacing new and worsened findings.
@@ -663,7 +666,7 @@ The Avalonia application exposes the agent in a collapsible Security Agent panel
 - **Interactive Remediation Preview** (`fix FW-001`) surfaces a single-section remediation card in the chat with preconditions, backup commands, apply commands, rollback commands, and verification commands — each labeled with safety and structural badges. The plan is validated before display; missing rollback guidance for risky commands blocks the card and surfaces the error in chat without exposing copyable commands.
 - **Guided Remediation Sessions** (`remediate FW-001`) persist a manual remediation workflow with a before snapshot, step state, session ID, verification action, immutable event timeline, and markdown session export. Blocked sessions remain visible for auditability but do not expose the command card or allow verification as completed remediation. Verification failures and successful report exports are recorded as terminal timeline events.
 - **Remediation Session Notes** — During an existing session, you can append free-text notes via chat: `add note to session abc12345 reviewed firewall policy with security team` or `note for step FW-001 in session abc12345 applied iptables rule, verified with ss -tulnp`. Notes support lightweight evidence syntax (`[reference]` and `` `reference` ``) that is extracted into traceable `EvidenceLinks` and stripped from the displayed text. Notes are rendered in exported session markdown under a `## Notes` section and recorded as `SessionNoteAdded`/`StepNoteAdded` timeline events.
-- **Remediation Session History Browser** — A **Remediation Sessions** expander in the Avalonia UI lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into the chat panel (records a `SessionResumed` timeline event), or click **Delete** to remove it from the store. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same functionality through natural language.
+- **Remediation Session Management** — The Agent view includes a persisted-session browser with refresh, resume, and delete actions. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same workflow through natural language, listing each session with ID, status, rule ID, and creation time and reloading the selected session into the chat panel (recording a `SessionResumed` timeline event).
 - **Batch Auto-Fix** (`--auto-fix` on the CLI) extends interactive remediation to headless batch mode. After an audit, the CLI can build a `RemediationPlan` for all findings, filter commands through a configurable `AutoFixPolicy`, execute backup/apply/verify phases sequentially, and automatically roll back a section if any apply command fails. `--dry-run` previews the plan without executing anything. The default policy permits `ReadOnly` verification and `ConfigChange` commands; `--allow-restart` and `--allow-packages` expand the policy; destructive and unclassified commands are never auto-executed.
 - Automatic sharing of the main log input with the agent so pasted firewall logs can be included in agent analysis.
 
@@ -883,6 +886,13 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [RuleCategoryResolver.cs](../VulcansTrace.Linux.Agent/Rules/RuleCategoryResolver.cs) — shared rule-prefix/category resolver
 - [NarrativeComposer.cs](../VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs) — composes traceable multi-paragraph agent replies
 - [MarkdownInlinesConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown in Avalonia chat
+- [Markdown.cs](../VulcansTrace.Linux.Avalonia/Converters/Markdown.cs) — `Markdown.Text` attached property for inline markdown in chat bubbles
+- [Views/AgentView.axaml](../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick actions, and message bubbles
+- [Views/CommandRow.axaml](../VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml) — copyable shell-command rows with safety/structure badges
+- [WarningInterpreter.cs](../VulcansTrace.Linux.Agent/Reports/WarningInterpreter.cs) — classifies raw scanner warnings into user-friendly messages
+- [IntentSummaryBuilder.cs](../VulcansTrace.Linux.Agent/Reports/IntentSummaryBuilder.cs) — builds friendly lead sentences when primary tools are missing
+- [ScannerDataSources.cs](../VulcansTrace.Linux.Agent/Scanners/ScannerDataSources.cs) — authoritative field→scanner and category→scanner mappings
+- [RuleEvaluationService.cs](../VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs) — derives required scanners from rule dependencies
 - [Program.cs](../VulcansTrace.Linux.Cli/Program.cs) — CLI entry point including markdown stripping and session management
 - [SecurityAgent.cs](../VulcansTrace.Linux.Agent/SecurityAgent.cs) — agent orchestration, including `VerifyFindingAsync`
 - [RuleMemoryRecorderTests.cs](../VulcansTrace.Linux.Tests/Agent/Memory/RuleMemoryRecorderTests.cs)

@@ -93,7 +93,7 @@ Agent audit results are also loaded into the shared findings grid. That makes th
 
 ## UI As A Thin Control Shell
 
-The Avalonia agent panel delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. `AgentViewModel` now coordinates commands, cancellation, selected state, and export handoff.
+The Avalonia Security Agent view delegates behavior to `AgentViewModel`, which delegates security work to `IAgent`. `AgentViewModel` coordinates commands, cancellation, slash-command palette, quick-action chips, selected state, and export handoff.
 
 `AgentResultPresenter` owns chat rendering, grouped findings, filtering, quick actions, privilege warnings, and remediation cards. `AgentHistoryCoordinator` owns audit-history refresh, exported-state marking, and persistence warnings. This keeps UI presentation and persistence concerns separate from the agent project, which owns security logic. For selected-finding explanations, the UI provides the currently selected `Finding` through a small provider function and calls `ExplainFindingAsync` directly.
 

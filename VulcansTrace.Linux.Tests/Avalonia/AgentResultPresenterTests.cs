@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
@@ -19,7 +20,7 @@ public class AgentResultPresenterTests
         var result = new AgentResult
         {
             Intent = AgentIntent.FullAudit,
-            Summary = "Audit complete",
+            Summary = "Full audit complete. 3 issue(s) found, 2 High/Critical. 2 check(s) passed.",
             CapabilityReport = "Data sources: ss available.",
             PassedCount = 2,
             AgentFindings = new[]
@@ -34,22 +35,24 @@ public class AgentResultPresenterTests
         harness.Presenter.PresentFindings(result);
 
         Assert.Contains(harness.Messages, m => m.Text == "Data sources: ss available." && m.IsInfo);
-        Assert.Contains(harness.Messages, m => m.Text == "Audit complete" && !m.IsInfo);
-        Assert.Contains(harness.Messages, m => m.Text == "✓ 2 check(s) passed" && m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Text == "Full audit complete. 3 issue(s) found, 2 High/Critical. 2 check(s) passed." && !m.IsInfo);
+        // The passed-count is already in the composer summary (the lead), so it isn't restated as a
+        // standalone "✓ N checks passed" line.
+        Assert.DoesNotContain(harness.Messages, m => m.Text.StartsWith("✓"));
         Assert.Contains(harness.Messages, m => m.Text == "Findings: 1 Critical, 1 High, 1 Medium (3 total)" && m.IsInfo);
 
         var firewallGroup = Assert.Single(harness.Messages, m => m.Category == "Firewall");
-        Assert.Equal("[Firewall] 2 finding(s) — 2 High/Critical", firewallGroup.Text);
+        Assert.Equal("[Firewall] 2 findings — 2 High/Critical", firewallGroup.Text);
         Assert.Equal(Severity.Critical, firewallGroup.Severity);
         Assert.Contains("[FW-002] [Critical] Firewall disabled", firewallGroup.Details);
         Assert.Contains("[FW-001] [High] SSH exposed", firewallGroup.Details);
 
         var sshGroup = Assert.Single(harness.Messages, m => m.Category == "SSH");
-        Assert.Equal("[SSH] 1 finding(s)", sshGroup.Text);
+        Assert.Equal("[SSH] 1 finding", sshGroup.Text);
         Assert.Equal(Severity.Medium, sshGroup.Severity);
 
         Assert.Equal(new[] { "All categories", "Firewall", "SSH" }, harness.CategoryFilters.ToArray());
-        Assert.Contains(harness.Messages, m => m.Text == "Warnings: permission denied reading process details" && m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Text.Contains("blocked by permissions", StringComparison.OrdinalIgnoreCase) && m.IsInfo);
         Assert.True(harness.HasPrivilegeWarning);
         Assert.Contains("elevated privileges", harness.PrivilegeWarningText);
     }
@@ -563,6 +566,32 @@ public class AgentResultPresenterTests
         Assert.True(summary.HasSuggestions);
         Assert.Single(summary.Suggestions);
         Assert.NotNull(summary.SuggestionCommand);
+    }
+
+    [Fact]
+    public void PresentFindings_AuditWithMissingTool_LeadsWithFriendlyMissingToolLine()
+    {
+        var harness = new PresenterHarness();
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.FirewallCheck,
+            Summary = "Firewall check complete. 0 issue(s).",
+            PassedCount = 2,
+            AgentFindings = new[] { CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed") },
+            Warnings = new[] { "iptables command not found" }
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        // The missing-tool lead (BuildMissingToolLead) opens with "I ran a firewall check. <message>",
+        // replacing the denser composer summary (result.Summary) for this case only.
+        var lead = Assert.Single(harness.Messages, m => m.Text.StartsWith("I ran a firewall check.", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("iptables", lead.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(harness.Messages, m => m.Text == "Firewall check complete. 0 issue(s).");
+        // The missing-tool lead already conveys the passed-checks count, so the standalone "✓ N checks passed" line is suppressed.
+        Assert.DoesNotContain(harness.Messages, m => m.Text.StartsWith("✓"));
+        // The missing-tool message body lives only in the lead — not duplicated as a standalone warning.
+        Assert.Single(harness.Messages, m => m.Text.Contains("couldn't inspect active firewall rules", StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class PresenterHarness

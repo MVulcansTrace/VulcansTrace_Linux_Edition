@@ -22,44 +22,44 @@
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="Audit Comparison"
-                   FontSize="18"
+                   FontSize="{StaticResource VtFontSize2xl}"
                    FontWeight="Bold"
-                   Foreground="#e2e8f0"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    Margin="0,0,0,8"/>
 
         <!-- Narrative -->
         <TextBlock Grid.Row="1"
                    Text="{Binding Narrative}"
-                   FontSize="13"
-                   Foreground="#e2e8f0"
+                   FontSize="{StaticResource VtFontSizeMd}"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,12"/>
 
         <!-- Summary badges -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="New: " Foreground="#94a3b8"/><Run Text="{Binding NewCount}" FontWeight="Bold" Foreground="#22c55e"/>
+                    <Run Text="New: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding NewCount}" FontWeight="Bold" Foreground="{StaticResource VtSuccessBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Resolved: " Foreground="#94a3b8"/><Run Text="{Binding ResolvedCount}" FontWeight="Bold" Foreground="#64748b"/>
+                    <Run Text="Resolved: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding ResolvedCount}" FontWeight="Bold" Foreground="{StaticResource VtTextMutedBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Worsened: " Foreground="#94a3b8"/><Run Text="{Binding WorsenedCount}" FontWeight="Bold" Foreground="#ef4444"/>
+                    <Run Text="Worsened: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding WorsenedCount}" FontWeight="Bold" Foreground="{StaticResource VtDangerBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Improved: " Foreground="#94a3b8"/><Run Text="{Binding ImprovedCount}" FontWeight="Bold" Foreground="#3b82f6"/>
+                    <Run Text="Improved: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding ImprovedCount}" FontWeight="Bold" Foreground="{StaticResource VtPrimaryBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Confidence: " Foreground="#94a3b8"/><Run Text="{Binding ConfidenceChangedCount}" FontWeight="Bold" Foreground="#93c5fd"/>
+                    <Run Text="Confidence: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding ConfidenceChangedCount}" FontWeight="Bold" Foreground="{StaticResource VtInfoBrush}"/>
                 </TextBlock>
             </Border>
         </StackPanel>
@@ -68,19 +68,19 @@
         <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12">
                 <!-- New findings -->
-                <Border Background="#0f172a" BorderBrush="#166534" BorderThickness="1" CornerRadius="6" Padding="10"
+                <Border Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtSuccessBrush}" BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}" Padding="10"
                         IsVisible="{Binding NewCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="New Findings" FontWeight="Bold" Foreground="#22c55e" FontSize="13"/>
+                        <TextBlock Text="New Findings" FontWeight="Bold" Foreground="{StaticResource VtSuccessBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                         <ItemsControl ItemsSource="{Binding NewFindings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
-                                        <Run Text="+" Foreground="#22c55e" FontWeight="Bold"/>
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                        <Run Text="+" Foreground="{StaticResource VtSuccessBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding Confidence}" Foreground="#93c5fd"/>
+                                        <Run Text="{Binding Confidence}" Foreground="{StaticResource VtInfoBrush}"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -91,19 +91,19 @@
                 </Border>
 
                 <!-- Resolved findings -->
-                <Border Background="#0f172a" BorderBrush="#64748b" BorderThickness="1" CornerRadius="6" Padding="10"
+                <Border Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtTextMutedBrush}" BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}" Padding="10"
                         IsVisible="{Binding ResolvedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Resolved Findings" FontWeight="Bold" Foreground="#94a3b8" FontSize="13"/>
+                        <TextBlock Text="Resolved Findings" FontWeight="Bold" Foreground="{StaticResource VtTextSecondaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                         <ItemsControl ItemsSource="{Binding ResolvedFindings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
-                                        <Run Text="✓" Foreground="#94a3b8"/>
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                        <Run Text="✓" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding Confidence}" Foreground="#93c5fd"/>
+                                        <Run Text="{Binding Confidence}" Foreground="{StaticResource VtInfoBrush}"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -114,23 +114,23 @@
                 </Border>
 
                 <!-- Worsened findings -->
-                <Border Background="#0f172a" BorderBrush="#991b1b" BorderThickness="1" CornerRadius="6" Padding="10"
+                <Border Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtDangerHoverBrush}" BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}" Padding="10"
                         IsVisible="{Binding WorsenedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Worsened Severity" FontWeight="Bold" Foreground="#ef4444" FontSize="13"/>
+                        <TextBlock Text="Worsened Severity" FontWeight="Bold" Foreground="{StaticResource VtDangerBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                         <ItemsControl ItemsSource="{Binding WorsenedFindings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
-                                        <Run Text="↑" Foreground="#ef4444" FontWeight="Bold"/>
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                        <Run Text="↑" Foreground="{StaticResource VtDangerBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
+                                        <Run Text="{Binding OldSeverity}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                                         <Run Text=" → "/>
-                                        <Run Text="{Binding NewSeverity}" Foreground="#ef4444" FontWeight="Bold"/>
+                                        <Run Text="{Binding NewSeverity}" Foreground="{StaticResource VtDangerBrush}" FontWeight="Bold"/>
                                         <Run Text=" confidence "/>
-                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd"/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="{StaticResource VtInfoBrush}"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -141,23 +141,23 @@
                 </Border>
 
                 <!-- Improved findings -->
-                <Border Background="#0f172a" BorderBrush="#1e40af" BorderThickness="1" CornerRadius="6" Padding="10"
+                <Border Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtPrimaryGlowBrush}" BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}" Padding="10"
                         IsVisible="{Binding ImprovedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Improved Severity" FontWeight="Bold" Foreground="#3b82f6" FontSize="13"/>
+                        <TextBlock Text="Improved Severity" FontWeight="Bold" Foreground="{StaticResource VtPrimaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                         <ItemsControl ItemsSource="{Binding ImprovedFindings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
-                                        <Run Text="↓" Foreground="#3b82f6" FontWeight="Bold"/>
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                        <Run Text="↓" Foreground="{StaticResource VtPrimaryBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding OldSeverity}" Foreground="#94a3b8"/>
+                                        <Run Text="{Binding OldSeverity}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                                         <Run Text=" → "/>
-                                        <Run Text="{Binding NewSeverity}" Foreground="#3b82f6" FontWeight="Bold"/>
+                                        <Run Text="{Binding NewSeverity}" Foreground="{StaticResource VtPrimaryBrush}" FontWeight="Bold"/>
                                         <Run Text=" confidence "/>
-                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd"/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="{StaticResource VtInfoBrush}"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>
@@ -168,21 +168,21 @@
                 </Border>
 
                 <!-- Confidence changes -->
-                <Border Background="#0f172a" BorderBrush="#1d4ed8" BorderThickness="1" CornerRadius="6" Padding="10"
+                <Border Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtPrimaryHoverBrush}" BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}" Padding="10"
                         IsVisible="{Binding ConfidenceChangedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Changed Confidence" FontWeight="Bold" Foreground="#93c5fd" FontSize="13"/>
+                        <TextBlock Text="Changed Confidence" FontWeight="Bold" Foreground="{StaticResource VtInfoBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                         <ItemsControl ItemsSource="{Binding ConfidenceChangedFindings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="11" Foreground="#e2e8f0" Margin="0,2">
-                                        <Run Text="~" Foreground="#93c5fd" FontWeight="Bold"/>
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                        <Run Text="~" Foreground="{StaticResource VtInfoBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding OldConfidence}" Foreground="#94a3b8"/>
+                                        <Run Text="{Binding OldConfidence}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                                         <Run Text=" → "/>
-                                        <Run Text="{Binding NewConfidence}" Foreground="#93c5fd" FontWeight="Bold"/>
+                                        <Run Text="{Binding NewConfidence}" Foreground="{StaticResource VtInfoBrush}" FontWeight="Bold"/>
                                         <Run Text=" — "/>
                                         <Run Text="{Binding ShortDescription}"/>
                                     </TextBlock>

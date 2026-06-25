@@ -160,13 +160,14 @@ User query
 
 | UI piece | Behavior |
 | --- | --- |
-| Security Agent expander | Collapsible chat panel in the main window |
+| Security Agent view | First-class navigation view in the main window (replaced the previous collapsible panel) |
 | Query textbox | Accepts plain-English questions |
 | Send command | Runs `IAgent.AskAsync` with cancellation support |
 | Cancel command | Cancels the current agent operation |
 | Main log binding | Shares `MainViewModel.LogText` with `AgentViewModel.LogText` |
 | Findings selection | Tracks selected finding and uses it for `explain this finding` |
-| Quick actions | Runs full audit, firewall, ports, services, network, SSH, file permissions, filesystem audit, kernel hardening, user accounts, logging, cron jobs, package vulnerabilities, containers, kubernetes, threat intel, YARA scan, explain selected, export audit, export remediation, compare last two audits, compare selected audits, set baseline, check drift, and show baseline without typing |
+| Quick actions | Clickable chips for full audit, firewall, ports, services, network, containers, kubernetes, YARA, processes, set baseline, check drift, show baseline, and export audit |
+| Slash commands | Type `/` in the query box for quick intents such as `/firewall`, `/network`, `/ports`, `/services`, `/ssh`, `/filesystem`, `/kernel`, `/users`, `/logging`, `/cron`, `/packages`, `/containers`, `/kubernetes`, `/threatintel`, `/yara`, `/processes`, `/full`, `/fullaudit`, `/baseline`, `/drift`, `/baseline show`, `/show baseline`, `/sessions`, `/risk`, `/help`, `/clear` |
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
@@ -185,7 +186,7 @@ User query
 | Export Session | Writes a markdown guided remediation session report with session status, step state, blocked reasons, before snapshot, remediation plan, timeline, and verification diff when present. Records `Exported` only after the file write succeeds |
 | Interactive Remediation Preview | `fix FW-001` surfaces a chat card with an expanded impact preview (risk before/after, command count, rollback availability, restart impact, lockout risk), preconditions, backup, apply, rollback, and verification commands — each with safety and structural badges. Plans are validated before display; missing rollback guidance for risky commands blocks the card |
 | Guided Remediation Session | `remediate FW-001` creates a persisted session. Active sessions can be verified; blocked sessions show safety reasons without exposing command cards. Verification failure, verification completion, and successful export are terminal timeline events |
-| Remediation Session History Browser | **Remediation Sessions** expander lists all persisted sessions with ID, status, rule ID, and creation time. Select a session and click **Resume** to reload it into chat, or **Delete** to remove it. Chat commands `list my sessions`, `show sessions`, and `resume session <id>` provide the same functionality |
+| Remediation Session Management | The Agent view lists persisted sessions with refresh/resume/delete controls. Chat commands `list my sessions` / `show sessions` list all persisted sessions with ID, status, rule ID, and creation time. `resume session <id>` reloads the selected session into chat |
 | Auto-Fix (CLI) | `--auto-fix` applies safe remediation commands in batch. `--dry-run` previews changes without execution. Policy gates determine which `CommandSafety` levels are permitted. Automatically rolls back on apply failure. Exit codes: 0=success, 1=error, 2=unsafe skipped, 3=apply/rollback failure. |
 | Automated Incident Response Playbooks | When a critical attack chain (Beaconing → LateralMovement → PrivilegeEscalation) is detected, a **Deploy Countermeasures** button appears on the chain message. Workflow: dry-run preview → confirmation dialog → live execution. Generates `iptables`/`ip6tables` DROP rules and tagged `auditctl -a ... -S connect -k vulcanstrace_countermeasure_<ip>` telemetry. Validates attacker IPs, deduplicates by IP, and verifies firewall rules with exact-rule checks. Blocked if IP is invalid or safety policy rejects the commands. |
 

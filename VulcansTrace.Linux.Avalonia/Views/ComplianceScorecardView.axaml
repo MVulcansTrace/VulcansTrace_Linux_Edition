@@ -39,15 +39,15 @@
 
             <StackPanel Orientation="Vertical" VerticalAlignment="Center" Spacing="4">
                 <TextBlock Text="CIS Compliance Score"
-                           FontSize="18"
+                           FontSize="{StaticResource VtFontSize2xl}"
                            FontWeight="Bold"
-                           Foreground="#e2e8f0"/>
+                           Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 <TextBlock Text="Pass/fail per control family"
-                           FontSize="12"
-                           Foreground="#94a3b8"/>
+                           FontSize="{StaticResource VtFontSizeMd}"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <TextBlock Text="{Binding TrendDirection}"
-                           FontSize="12"
-                           Foreground="#94a3b8"
+                           FontSize="{StaticResource VtFontSizeMd}"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
                            IsVisible="{Binding HasData}"/>
             </StackPanel>
         </StackPanel>
@@ -56,8 +56,8 @@
         <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,16" IsVisible="{Binding HasData}">
             <TextBlock Text="Compliance Trend"
                        FontWeight="Bold"
-                       FontSize="12"
-                       Foreground="#94a3b8"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
                        Margin="0,0,0,6"
                        IsVisible="{Binding TrendPoints.Count}" />
             <ItemsControl ItemsSource="{Binding TrendPoints}" IsVisible="{Binding TrendPoints.Count}">
@@ -70,8 +70,8 @@
                     <DataTemplate>
                         <Border Width="12"
                                 Height="{Binding BarHeight}"
-                                Background="#60a5fa"
-                                CornerRadius="2"
+                                Background="{StaticResource VtPrimaryBrush}"
+                                CornerRadius="{StaticResource VtRadiusSm}"
                                 VerticalAlignment="Bottom"
                                 ToolTip.Tip="{Binding OverallScore, StringFormat={}{0:F1}%}">
                         </Border>
@@ -82,19 +82,22 @@
 
         <!-- Empty state -->
         <Border Grid.Row="2"
-                Classes="empty-state"
+                Theme="{StaticResource VtCard}"
                 Margin="0,4,0,8"
                 IsVisible="{Binding !HasData}">
             <TextBlock Text="Run an agent audit to generate a compliance scorecard."
-                       Classes="empty-state-text"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"/>
         </Border>
 
         <!-- Family scores -->
         <TextBlock Grid.Row="3"
                    Text="Control Families"
                    FontWeight="Bold"
-                   FontSize="14"
-                   Foreground="#e2e8f0"
+                   FontSize="{StaticResource VtFontSizeXl}"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    Margin="0,0,0,8"
                    IsVisible="{Binding HasData}"/>
 
@@ -102,8 +105,7 @@
                   ItemsSource="{Binding FamilyScores}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}">
             <DataGrid.Columns>
@@ -125,7 +127,7 @@
                                 <TextBlock Text="{Binding Status}"
                                            Foreground="{Binding Status, Converter={StaticResource ComplianceStatusToForegroundConverter}}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"
+                                           FontSize="{StaticResource VtFontSizeSm}"
                                            HorizontalAlignment="Center"/>
                             </Border>
                         </DataTemplate>

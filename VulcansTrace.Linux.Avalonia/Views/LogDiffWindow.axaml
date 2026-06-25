@@ -23,39 +23,39 @@
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="Log Comparison"
-                   FontSize="18"
+                   FontSize="{StaticResource VtFontSize2xl}"
                    FontWeight="Bold"
-                   Foreground="#e2e8f0"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    Margin="0,0,0,8"/>
 
         <!-- Narrative -->
         <TextBlock Grid.Row="1"
                    Text="{Binding Narrative}"
-                   FontSize="13"
-                   Foreground="#e2e8f0"
+                   FontSize="{StaticResource VtFontSizeMd}"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,12"/>
 
         <!-- Summary badges -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Added: " Foreground="#94a3b8"/><Run Text="{Binding AddedCount}" FontWeight="Bold" Foreground="#fecaca"/>
+                    <Run Text="Added: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding AddedCount}" FontWeight="Bold" Foreground="{StaticResource VtDangerBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Removed: " Foreground="#94a3b8"/><Run Text="{Binding RemovedCount}" FontWeight="Bold" Foreground="#bbf7d0"/>
+                    <Run Text="Removed: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding RemovedCount}" FontWeight="Bold" Foreground="{StaticResource VtSuccessBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Changed: " Foreground="#94a3b8"/><Run Text="{Binding ChangedCount}" FontWeight="Bold" Foreground="#fde047"/>
+                    <Run Text="Changed: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding ChangedCount}" FontWeight="Bold" Foreground="{StaticResource VtWarningBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="#1e293b" Padding="8,4" CornerRadius="6" BorderBrush="#334155" BorderThickness="1">
+            <Border Background="{StaticResource VtBackground800Brush}" Padding="8,4" CornerRadius="{StaticResource VtRadiusLg}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Unchanged: " Foreground="#94a3b8"/><Run Text="{Binding UnchangedCount}" FontWeight="Bold" Foreground="#94a3b8"/>
+                    <Run Text="Unchanged: " Foreground="{StaticResource VtTextSecondaryBrush}"/><Run Text="{Binding UnchangedCount}" FontWeight="Bold" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 </TextBlock>
             </Border>
         </StackPanel>
@@ -64,15 +64,14 @@
         <TextBlock Grid.Row="3"
                    Text="Connection Patterns"
                    FontWeight="Bold"
-                   Foreground="#cbd5e1"
+                   Foreground="{StaticResource VtTextSecondaryBrush}"
                    Margin="0,0,0,4"
                    IsVisible="{Binding Events.Count, Converter={StaticResource IntToBoolConverter}}"/>
         <DataGrid Grid.Row="3"
                   ItemsSource="{Binding Events}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   Margin="0,20,0,0">
             <DataGrid.Columns>
@@ -88,7 +87,7 @@
                                 <TextBlock Text="{Binding State}"
                                            Foreground="{Binding State, Converter={StaticResource LogDiffStateToForegroundBrushConverter}}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                           FontSize="{StaticResource VtFontSizeSm}"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -106,8 +105,8 @@
         <!-- Empty state for events -->
         <TextBlock Grid.Row="3"
                    Text="No connection patterns to display."
-                   Foreground="#64748b"
-                   FontSize="12"
+                   Foreground="{StaticResource VtTextMutedBrush}"
+                   FontSize="{StaticResource VtFontSizeMd}"
                    IsVisible="{Binding !Events.Count, Converter={StaticResource IntToBoolConverter}}"
                    VerticalAlignment="Center"
                    HorizontalAlignment="Center"/>
@@ -116,7 +115,7 @@
         <TextBlock Grid.Row="4"
                    Text="Findings"
                    FontWeight="Bold"
-                   Foreground="#cbd5e1"
+                   Foreground="{StaticResource VtTextSecondaryBrush}"
                    Margin="0,12,0,4"
                    IsVisible="{Binding Findings.Count, Converter={StaticResource IntToBoolConverter}}"/>
 
@@ -125,8 +124,7 @@
                   ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   IsVisible="{Binding Findings.Count, Converter={StaticResource IntToBoolConverter}}">
             <DataGrid.Columns>
@@ -142,7 +140,7 @@
                                 <TextBlock Text="{Binding State}"
                                            Foreground="{Binding State, Converter={StaticResource LogDiffStateToForegroundBrushConverter}}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                           FontSize="{StaticResource VtFontSizeSm}"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

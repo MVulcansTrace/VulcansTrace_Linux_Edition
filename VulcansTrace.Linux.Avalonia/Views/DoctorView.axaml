@@ -12,6 +12,7 @@
         <!-- Toolbar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button Content="Run Diagnostics"
+                    Theme="{StaticResource VtPrimaryButton}"
                     Command="{Binding RunDiagnosticsCommand}"
                     IsEnabled="{Binding !IsBusy}"
                     AutomationProperties.AutomationId="DoctorRunButton"/>
@@ -20,17 +21,20 @@
                         IsVisible="{Binding IsBusy}"
                         VerticalAlignment="Center">
                 <ProgressBar Height="6" Width="100" IsIndeterminate="True" VerticalAlignment="Center"/>
-                <TextBlock Text="Probing..." VerticalAlignment="Center" Foreground="#94a3b8" FontSize="11"/>
+                <TextBlock Text="Probing..." VerticalAlignment="Center" Foreground="{StaticResource VtTextMutedBrush}" FontSize="{StaticResource VtFontSizeSm}"/>
             </StackPanel>
         </StackPanel>
 
         <!-- Empty state (only before first probe) -->
         <Border Grid.Row="1"
-                Classes="empty-state"
+                Theme="{StaticResource VtCard}"
                 Margin="0,0,0,8"
                 IsVisible="{Binding !HasProbed}">
             <TextBlock Text="Click 'Run Diagnostics' to check data-source visibility."
-                       Classes="empty-state-text"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"/>
         </Border>
 
         <!-- Summary banner (shown after any probe) -->
@@ -38,28 +42,28 @@
                 Background="{Binding SummaryBackground}"
                 BorderBrush="{Binding SummaryColor}"
                 BorderThickness="1"
-                CornerRadius="6"
+                CornerRadius="{StaticResource VtRadiusLg}"
                 Padding="12,8"
                 Margin="0,0,0,12"
                 IsVisible="{Binding HasProbed}">
             <TextBlock Text="{Binding SummaryText}"
                        Foreground="{Binding SummaryColor}"
                        FontWeight="SemiBold"
-                       FontSize="13"
+                       FontSize="{StaticResource VtFontSizeMd}"
                        TextWrapping="Wrap"/>
         </Border>
 
         <!-- Warnings -->
         <Border Grid.Row="3"
-                Background="#3f2e14"
-                BorderBrush="#854d0e"
+                Background="{StaticResource VtWarningMutedBrush}"
+                BorderBrush="{StaticResource VtWarningHoverBrush}"
                 BorderThickness="1"
-                CornerRadius="6"
+                CornerRadius="{StaticResource VtRadiusLg}"
                 Padding="10,6"
                 Margin="0,0,0,12"
                 IsVisible="{Binding Warnings.Count}">
             <StackPanel Orientation="Vertical" Spacing="4">
-                <TextBlock Text="Warnings:" FontWeight="SemiBold" Foreground="#fcd34d" FontSize="12"/>
+                <TextBlock Text="Warnings:" FontWeight="SemiBold" Foreground="{StaticResource VtWarningBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
                 <ItemsControl ItemsSource="{Binding Warnings}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -69,8 +73,8 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding}"
-                                       Foreground="#fde68a"
-                                       FontSize="11"
+                                       Foreground="{StaticResource VtWarningHoverBrush}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
                                        TextWrapping="Wrap"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -102,21 +106,21 @@
                                        Text="{Binding StatusLabel}"
                                        Foreground="{Binding StatusColor}"
                                        FontWeight="SemiBold"
-                                       FontSize="11"
+                                       FontSize="{StaticResource VtFontSizeSm}"
                                        VerticalAlignment="Center"
                                        Margin="0,0,12,0"
                                        MinWidth="120"/>
                             <TextBlock Grid.Column="2"
                                        Text="{Binding SourceName}"
-                                       Foreground="#e2e8f0"
-                                       FontSize="12"
+                                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                                       FontSize="{StaticResource VtFontSizeMd}"
                                        VerticalAlignment="Center"
                                        Margin="0,0,12,0"
                                        MinWidth="180"/>
                             <TextBlock Grid.Column="3"
                                        Text="{Binding Detail}"
-                                       Foreground="#94a3b8"
-                                       FontSize="11"
+                                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
                                        TextWrapping="Wrap"
                                        VerticalAlignment="Center"
                                        IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>

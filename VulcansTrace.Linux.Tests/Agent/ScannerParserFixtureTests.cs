@@ -498,6 +498,59 @@ public class ScannerParserFixtureTests
         Assert.Contains(data.Capabilities, c => c.SourceName == "nftables");
     }
 
+    // FirewallScanner probes iptables first and only falls back to nftables when iptables is missing
+    // or returns nothing. We assert that control flow by injecting a canned command runner that
+    // records which backend was asked to run and returns a preset result — no shims, no PATH
+    // mutation, no real processes, so the outcome is deterministic and OS-independent.
+
+    private const string SuccessIptablesOutput =
+        "Chain INPUT (policy ACCEPT)\n" +
+        "pkts bytes target prot opt in out source destination\n" +
+        "0 0 ACCEPT tcp -- * * 0.0.0.0/0 0.0.0.0/0 tcp dpt:22\n";
+
+    [Fact]
+    public async Task FirewallScanner_ScanAsync_IptablesUsable_DoesNotProbeNftables()
+    {
+        var invoked = new List<string>();
+        var scanner = new FirewallScanner((file, args, ct, timeout) =>
+        {
+            invoked.Add(file);
+            return file == "iptables"
+                ? FakeResult(SuccessIptablesOutput, null, true)
+                : FakeResult(null, "not found", false);
+        });
+
+        await scanner.ScanAsync(new ScanDataBuilder(), CancellationToken.None);
+
+        Assert.Contains("iptables", invoked);
+        Assert.DoesNotContain("nft", invoked);
+    }
+
+    [Fact]
+    public async Task FirewallScanner_ScanAsync_IptablesUnavailable_FallsBackToNftables()
+    {
+        var invoked = new List<string>();
+        var scanner = new FirewallScanner((file, args, ct, timeout) =>
+        {
+            invoked.Add(file);
+            return file switch
+            {
+                "iptables" => FakeResult(null, null, false), // no output, fails -> Unavailable -> fall through
+                "nft" => FakeResult("table inet filter\nchain input {\n", null, true),
+                _ => FakeResult(null, null, false)
+            };
+        });
+
+        await scanner.ScanAsync(new ScanDataBuilder(), CancellationToken.None);
+
+        Assert.Contains("iptables", invoked);
+        Assert.Contains("nft", invoked);
+    }
+
+    /// <summary>Builds a completed command-result tuple matching <see cref="FirewallCommandFunc"/>'s return type.</summary>
+    private static Task<(string? Stdout, string? Stderr, bool Success)> FakeResult(string? stdout, string? stderr, bool success)
+        => Task.FromResult((stdout, stderr, success));
+
     [Fact]
     public async Task PortScanner_ScanAsync_PopulatesCapabilities()
     {

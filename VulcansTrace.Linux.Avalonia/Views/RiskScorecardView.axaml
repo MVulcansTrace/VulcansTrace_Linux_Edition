@@ -32,12 +32,12 @@
 
             <StackPanel Orientation="Vertical" VerticalAlignment="Center" Spacing="4">
                 <TextBlock Text="Risk Score"
-                           FontSize="18"
+                           FontSize="{StaticResource VtFontSize2xl}"
                            FontWeight="Bold"
-                           Foreground="#e2e8f0"/>
+                           Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 <TextBlock Text="Weighted by severity and CIS control importance"
-                           FontSize="12"
-                           Foreground="#94a3b8"/>
+                           FontSize="{StaticResource VtFontSizeMd}"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <TextBlock Text="{Binding SummaryStatus}"
                            FontSize="12"
                            Foreground="{Binding GradeColor}"
@@ -47,19 +47,22 @@
 
         <!-- Empty state -->
         <Border Grid.Row="1"
-                Classes="empty-state"
+                Theme="{StaticResource VtCard}"
                 Margin="0,4,0,8"
                 IsVisible="{Binding !HasData}">
             <TextBlock Text="Run an analysis to generate a risk scorecard."
-                       Classes="empty-state-text"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"/>
         </Border>
 
         <!-- Category breakdown -->
         <TextBlock Grid.Row="2"
                    Text="Risk by Category"
                    FontWeight="Bold"
-                   FontSize="14"
-                   Foreground="#e2e8f0"
+                   FontSize="{StaticResource VtFontSizeXl}"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
                    Margin="0,0,0,8"
                    IsVisible="{Binding HasData}"/>
 
@@ -67,8 +70,7 @@
                   ItemsSource="{Binding ByCategory}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}">
             <DataGrid.Columns>

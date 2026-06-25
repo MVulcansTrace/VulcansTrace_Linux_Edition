@@ -32,7 +32,9 @@ Documentation is organized for two audiences:
 - **Compliance tab** — CIS Compliance Scorecard with overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid, and mini bar-chart trend visualization
 - **Risk Score tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid
 - **Schedule management tab** — DataGrid of recurring audit schedules with Add/Edit/Delete/Run Now/Install Cron actions, cron status indicators, and selection preservation across refreshes
-- **Remediation Sessions expander** — lists all persisted guided remediation sessions with ID, status, rule ID, and creation time; supports resuming a session into the chat panel and deleting sessions from the store
+- **Security Agent view** — first-class navigation view for the local Security Agent with chat-style questions, `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows, and user-friendly scanner warnings (replaced the previous collapsible bottom panel)
+- **Design-token theme system** — centralized `VtDesignTokens.axaml` resource dictionary with colors, typography, radii, and reusable `ControlTheme`s, replacing the previous `DarkTheme.axaml`/`ThemeStyles.axaml` split
+- **Remediation session chat commands** — `list my sessions`, `show sessions`, and `resume session <id>` manage persisted guided remediation sessions through natural language
 - **Impact Preview simulation** — remediation cards display risk before/after, command count, rollback availability, and conditional RESTART (orange), LOCKOUT (red), and ROLLBACK (green) badges derived from command safety analysis
 - **Log Diff Mode** — `LogDiffWindow` with color-coded DataGrids for comparing baseline vs incident logs; shows per-connection-pattern event diffs and per-fingerprint finding diffs with `Unchanged`/`Added`/`Removed`/`Changed` state badges
 - **MITRE ATT&CK columns** — both Findings and Rules DataGrids display a **MITRE ATT&CK** column showing mapped technique IDs and names, with search support across technique data
@@ -48,7 +50,10 @@ Documentation is organized for two audiences:
 - [EvidenceViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/EvidenceViewModel.cs) — export flow, 32-byte key generation, save dialog, clipboard copy, StatusChanged event
 - [AgentViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs) — Security Agent command/state coordinator, export handoff, and remediation session list/resume/delete
 - [AgentResultPresenter.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs) — chat message presentation, finding grouping, filtering, warnings, and remediation cards
-- [AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/AgentView.axaml) — chat panel UI including Remediation Sessions expander
+- [Views/AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick-action chips, markdown message bubbles, and copyable command rows
+- [Views/CommandRow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml) — reusable copyable shell-command row with safety/structure badges
+- [Converters/Markdown.cs](../../../VulcansTrace.Linux.Avalonia/Converters/Markdown.cs) — `Markdown.Text` attached property for inline bold/italic rendering
+- [Themes/VtDesignTokens.axaml](../../../VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml) — centralized design tokens and control themes
 - [AgentHistoryCoordinator.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — audit history persistence, refresh, exported-state marking, and persistence warnings
 - [ScheduleViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs) — recurring schedule management, cron status, selection preservation, and on-demand execution
 - [ComplianceScorecardViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ComplianceScorecardViewModel.cs) — compliance tab binding and trend visualization

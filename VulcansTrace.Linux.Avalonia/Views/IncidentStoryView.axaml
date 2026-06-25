@@ -11,11 +11,14 @@
     <Grid RowDefinitions="Auto,*">
         <!-- Empty state -->
         <Border Grid.Row="0"
-                Classes="empty-state"
+                Theme="{StaticResource VtCard}"
                 Margin="0,0,0,8"
                 IsVisible="{Binding !HasStory}">
             <TextBlock Text="Run an analysis or agent audit to generate an incident story."
-                       Classes="empty-state-text"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"/>
         </Border>
 
         <!-- Story content -->
@@ -26,50 +29,48 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0"
                                Text="Incident Story"
-                               Foreground="#e2e8f0"
+                               Foreground="{StaticResource VtTextPrimaryBrush}"
                                FontWeight="Bold"
-                               FontSize="14"
+                               FontSize="{StaticResource VtFontSizeXl}"
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                         <Button Content="Copy Markdown"
                                 Padding="8,4"
-                                FontSize="12"
+                                FontSize="{StaticResource VtFontSizeSm}"
+                                Theme="{StaticResource VtSecondaryButton}"
                                 Command="{Binding CopyMarkdownCommand}"/>
                     </StackPanel>
                 </Grid>
                 <TextBlock Text="{Binding CopyStatus}"
-                           Foreground="#4ade80"
-                           FontSize="11"
+                           Foreground="{StaticResource VtSuccessBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
                            IsVisible="{Binding CopyStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                 <!-- Critical chain badge -->
-                <Border Background="#3f1515"
-                        BorderBrush="#991b1b"
+                <Border Background="{StaticResource VtDangerMutedBrush}"
+                        BorderBrush="{StaticResource VtDangerHoverBrush}"
                         BorderThickness="1"
-                        CornerRadius="6"
+                        CornerRadius="{StaticResource VtRadiusLg}"
                         Padding="10,6"
                         IsVisible="{Binding HasCriticalChain}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="⚠️" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock Text="⚠️" FontSize="{StaticResource VtFontSizeXl}" VerticalAlignment="Center" Foreground="{StaticResource VtDangerBrush}"/>
                         <TextBlock Text="Critical attack chain detected"
-                                   Foreground="#fecaca"
+                                   Foreground="{StaticResource VtDangerBrush}"
                                    FontWeight="Bold"
-                                   FontSize="13"
+                                   FontSize="{StaticResource VtFontSizeMd}"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Timeline beats -->
-                <Border Background="#1e293b"
-                        BorderBrush="#334155"
-                        BorderThickness="1"
-                        CornerRadius="6"
+                <Border Theme="{StaticResource VtCard}"
                         Padding="12">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Timeline"
-                                   Foreground="#e2e8f0"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
                                    FontWeight="Bold"
-                                   FontSize="14"
+                                   FontSize="{StaticResource VtFontSizeXl}"
                                    Margin="0,0,0,4"/>
                         <ItemsControl ItemsSource="{Binding Beats}">
                             <ItemsControl.ItemsPanel>
@@ -81,16 +82,16 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <TextBlock Text="•"
-                                                   Foreground="#60a5fa"
-                                                   FontSize="12"
+                                                   Foreground="{StaticResource VtPrimaryBrush}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
                                                    VerticalAlignment="Top"
                                                    Margin="0,1,0,0"/>
                                         <TextBlock TextWrapping="Wrap">
-                                            <Run Text="[" Foreground="#94a3b8"/>
-                                            <Run Text="{Binding TimestampLabel}" Foreground="#94a3b8" FontFamily="Consolas,Monospace"/>
-                                            <Run Text="]" Foreground="#94a3b8"/>
-                                            <Run Text=" " Foreground="#e2e8f0"/>
-                                            <Run Text="{Binding Narrative}" Foreground="#e2e8f0"/>
+                                            <Run Text="[" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                                            <Run Text="{Binding TimestampLabel}" Foreground="{StaticResource VtTextSecondaryBrush}" FontFamily="{StaticResource VtFontFamilyMono}"/>
+                                            <Run Text="]" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                                            <Run Text=" " Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                            <Run Text="{Binding Narrative}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                                         </TextBlock>
                                     </StackPanel>
                                 </DataTemplate>
@@ -100,35 +101,29 @@
                 </Border>
 
                 <!-- Likely chain -->
-                <Border Background="#1e293b"
-                        BorderBrush="#334155"
-                        BorderThickness="1"
-                        CornerRadius="6"
+                <Border Theme="{StaticResource VtCard}"
                         Padding="12">
                     <StackPanel Spacing="4">
                         <TextBlock Text="Likely Chain"
-                                   Foreground="#e2e8f0"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
                                    FontWeight="Bold"
-                                   FontSize="14"/>
+                                   FontSize="{StaticResource VtFontSizeXl}"/>
                         <TextBlock Text="{Binding LikelyChain}"
-                                   Foreground="#cbd5e1"
-                                   FontSize="13"
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeMd}"
                                    TextWrapping="Wrap"
                                    FontStyle="Italic"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Recommendations -->
-                <Border Background="#1e293b"
-                        BorderBrush="#334155"
-                        BorderThickness="1"
-                        CornerRadius="6"
+                <Border Theme="{StaticResource VtCard}"
                         Padding="12">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Recommended Response"
-                                   Foreground="#e2e8f0"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
                                    FontWeight="Bold"
-                                   FontSize="14"
+                                   FontSize="{StaticResource VtFontSizeXl}"
                                    Margin="0,0,0,4"/>
                         <ItemsControl ItemsSource="{Binding Recommendations}">
                             <ItemsControl.ItemsPanel>
@@ -140,13 +135,13 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <TextBlock Text="→"
-                                                   Foreground="#4ade80"
-                                                   FontSize="12"
+                                                   Foreground="{StaticResource VtSuccessBrush}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
                                                    VerticalAlignment="Top"
                                                    Margin="0,1,0,0"/>
                                         <TextBlock Text="{Binding}"
-                                                   Foreground="#cbd5e1"
-                                                   FontSize="13"
+                                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                                   FontSize="{StaticResource VtFontSizeMd}"
                                                    TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </DataTemplate>

@@ -142,6 +142,219 @@ public class AgentViewModelTests
     }
 
     [Fact]
+    public void SlashPalette_PrefixQuery_ShowsMatchingCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/firewall";
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/firewall");
+    }
+
+    [Fact]
+    public void SlashPalette_NonMatchingPrefix_StaysClosed()
+    {
+        // The palette filters by command-text prefix, so a genuinely non-matching prefix stays closed
+        // and Enter falls through to a normal query instead of silently doing nothing.
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/zzz";
+
+        Assert.False(vm.IsSlashPaletteOpen);
+        Assert.Empty(vm.FilteredSlashCommands);
+    }
+
+    [Fact]
+    public void SlashPalette_BaselinePrefix_ShowsBothBaselineCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/baseline";
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/baseline");
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/baseline show");
+    }
+
+    [Fact]
+    public void SlashPalette_ShowPrefix_ShowsShowBaselineAlias()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/show";
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/show baseline");
+    }
+
+    [Fact]
+    public void SlashPalette_RootQuery_ContainsDocumentedCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/";
+
+        var commands = vm.FilteredSlashCommands.Select(c => c.CommandText).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var expected in new[]
+        {
+            "/firewall", "/network", "/ports", "/services", "/ssh", "/filesystem", "/kernel",
+            "/users", "/logging", "/cron", "/packages", "/containers", "/kubernetes",
+            "/threatintel", "/yara", "/processes", "/full", "/fullaudit", "/baseline",
+            "/drift", "/show baseline", "/baseline show", "/sessions", "/risk", "/help", "/clear"
+        })
+        {
+            Assert.Contains(expected, commands);
+        }
+    }
+
+    [Fact]
+    public void QuickActions_ExposeCommonAuditsAndFollowUps()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        var labels = vm.QuickActions.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("Processes", labels);
+        Assert.Contains("Set baseline", labels);
+        Assert.Contains("Check drift", labels);
+        Assert.Contains("Show baseline", labels);
+        Assert.Contains("Export audit", labels);
+    }
+
+    [Fact]
+    public void SlashPalette_Close_DismissesWithoutClearingQuery()
+    {
+        // Esc / blur dismiss the palette via CloseSlashPalette but preserve the typed query, so a
+        // click-away doesn't discard what the user entered.
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/baseline";
+        Assert.True(vm.IsSlashPaletteOpen);
+
+        vm.CloseSlashPalette();
+
+        Assert.False(vm.IsSlashPaletteOpen);
+        Assert.Empty(vm.FilteredSlashCommands);
+        Assert.Equal("/baseline", vm.UserQuery);
+    }
+
+    [Fact]
+    public void SlashPalette_Close_ThenEditingReopens()
+    {
+        // After dismissing, editing the query re-derives the palette (UpdateSlashPalette runs again).
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/baseline";
+        vm.CloseSlashPalette();
+        Assert.False(vm.IsSlashPaletteOpen);
+
+        vm.UserQuery = "/firewall";
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/firewall");
+    }
+
+    [Fact]
+    public async Task SendQuery_SlashCommand_RunsThatCommand()
+    {
+        // The typed command must dispatch to its own handler (consistent with the palette shown).
+        var agent = new TrackingAgent(AgentIntent.FullAudit);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(AgentIntent.FirewallCheck, agent.LastRunAuditIntent);
+    }
+
+    [Theory]
+    [InlineData("/ssh", AgentIntent.SshCheck)]
+    [InlineData("/filesystem", AgentIntent.FilesystemAuditCheck)]
+    [InlineData("/kernel", AgentIntent.KernelCheck)]
+    [InlineData("/users", AgentIntent.UserAccountCheck)]
+    [InlineData("/logging", AgentIntent.LoggingAuditCheck)]
+    [InlineData("/cron", AgentIntent.CronJobCheck)]
+    [InlineData("/packages", AgentIntent.PackageVulnerabilityCheck)]
+    [InlineData("/threatintel", AgentIntent.ThreatIntelCheck)]
+    [InlineData("/full", AgentIntent.FullAudit)]
+    public async Task SendQuery_SlashAuditAlias_RunsExpectedAudit(string command, AgentIntent expectedIntent)
+    {
+        var agent = new TrackingAgent(AgentIntent.FullAudit);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = command
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(expectedIntent, agent.LastRunAuditIntent);
+    }
+
+    [Fact]
+    public async Task SendQuery_ClearSlashCommand_ClearsVisibleConversation()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/clear"
+        };
+        vm.Messages.Add(new AgentMessageViewModel { Text = "old" });
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.DoesNotContain(vm.Messages, m => m.Text == "old");
+        Assert.Contains(vm.Messages, m => m.Text == "Chat cleared.");
+    }
+
+    [Fact]
+    public void AgentViewXaml_ExposesFeatureParityControls()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        foreach (var automationId in new[]
+        {
+            "AgentSendButton",
+            "AgentCancelButton",
+            "AgentExplainSelectedButton",
+            "AgentThreatIntelButton",
+            "AgentExportAuditButton",
+            "AgentExportRemediationButton",
+            "AgentExportSessionButton",
+            "AgentCompareAuditsButton",
+            "AgentCompareSelectedButton",
+            "AgentChatSeverityFilter",
+            "AgentChatCategoryFilter",
+            "AgentClearChatFiltersButton",
+            "AgentDeployCountermeasuresButton",
+            "AgentVerifyRemediationButton"
+        })
+        {
+            Assert.Contains($"AutomationProperties.AutomationId=\"{automationId}\"", xaml);
+        }
+
+        Assert.Contains("Header=\"Audit History\"", xaml);
+        Assert.Contains("Header=\"Remediation Sessions\"", xaml);
+        Assert.Contains("HasImpactPreview", xaml);
+        Assert.Contains("ImpactPreviewRiskBefore", xaml);
+        Assert.Contains("ImpactPreviewRollbackAvailabilityLabel", xaml);
+        Assert.Contains("HasCountermeasureCommands", xaml);
+        Assert.Contains("CountermeasureCommands", xaml);
+        Assert.Contains("DeployCountermeasuresCommand", xaml);
+        Assert.Contains("HasActiveSession", xaml);
+        Assert.Contains("VerifySessionCommand", xaml);
+        Assert.Contains("HasSessionTimeline", xaml);
+        Assert.Contains("SessionTimeline", xaml);
+    }
+
+    [Fact]
     public async Task YaraCommand_RunsYaraAudit()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
@@ -512,6 +725,21 @@ public class AgentViewModelTests
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+
+    private static string ReadAgentViewXaml()
+    {
+        var currentDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "VulcansTrace.Linux.Avalonia", "Views", "AgentView.axaml");
+        if (File.Exists(currentDirectoryPath))
+            return File.ReadAllText(currentDirectoryPath);
+
+        var baseDirectoryPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..",
+            "VulcansTrace.Linux.Avalonia",
+            "Views",
+            "AgentView.axaml"));
+        return File.ReadAllText(baseDirectoryPath);
+    }
 
     private static Finding CreateFinding() => new()
     {

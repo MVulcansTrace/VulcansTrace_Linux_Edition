@@ -5,7 +5,25 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-21
+Last updated: 2026-06-25
+
+### Security Agent — Targeted Audit Data Dependencies, Warning Interpretation, and UI Redesign
+
+- **Scanner selection derived from rule data dependencies** — targeted agent audits now run only the scanners that feed the rules for that intent, derived automatically from each rule's category and declared `IRule.RequiredDataFields`. This fixes silent false-negatives where a rule evaluated against a `ScanData` snapshot missing fields it needed (for example, `/threatintel` now runs `FileHash`, `Port`, and `Network`; `/network` runs `Network` and `Port`). `ScannerDataSources` provides the authoritative field→scanner and category→scanner mappings; `RuleEvaluationService.GetRequiredScannerNames(intent)` derives the set; and `ScannerCoordinator.RunAsync` accepts an optional scanner-name subset. Full audits still run every scanner.
+  - Code: `VulcansTrace.Linux.Agent/Rules/IRule.cs`, `VulcansTrace.Linux.Agent/Rules/RuleEvaluationService.cs`, `VulcansTrace.Linux.Agent/Scanners/ScannerCoordinator.cs`, `VulcansTrace.Linux.Agent/Scanners/ScannerDataSources.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/NetworkRules.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ThreatIntel/ThreatIntelIpRule.cs`, `VulcansTrace.Linux.Agent/Rules/SecurityRules/ThreatIntel/ThreatIntelPortRule.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/RuleEvaluationServiceScannerSelectionTests.cs`
+
+- **Firewall scanner hardening** — `FirewallScanner` now probes `iptables` first and falls back to `nft` only when needed, enforces a 10-second probe timeout, and exposes an injectable command delegate for deterministic unit testing.
+  - Code: `VulcansTrace.Linux.Agent/Scanners/FirewallScanner.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs`
+
+- **User-friendly warning interpretation** — raw scanner warnings are classified into `MissingTool`, `PermissionDenied`, `ConfigurationMissing`, or `ScannerError`, collapsed, and surfaced in plain language. `IntentSummaryBuilder` produces friendly lead sentences when a primary tool is missing (e.g., "I ran a firewall check. `iptables` is missing, so only partial results were available.").
+  - Code: `VulcansTrace.Linux.Agent/Reports/WarningInterpreter.cs`, `VulcansTrace.Linux.Agent/Reports/UserFriendlyWarning.cs`, `VulcansTrace.Linux.Agent/Reports/IntentSummaryBuilder.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Agent/Reports/WarningInterpreterTests.cs`, `VulcansTrace.Linux.Tests/Agent/Reports/IntentSummaryBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentResultPresenterTests.cs`
+
+- **Avalonia agent UI redesign** — the agent moved from a collapsible bottom panel to a first-class navigation view with a header, message bubbles, quick-action chips, a `/` slash-command palette, markdown rendering, and copyable command rows with safety/structure badges. The ad-hoc dark theme was replaced by a centralized `VtDesignTokens.axaml` design system.
+  - Code: `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml.cs`, `VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml`, `VulcansTrace.Linux.Avalonia/Converters/Markdown.cs`, `VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentQuickAction.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/SlashCommandItem.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Avalonia/AgentViewModelTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/MarkdownTextAttachedPropertyTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentOperationRunnerTests.cs`
 
 ### Security Agent — Adaptive Remediation, Diagnostic Dialogue, and CLI Audit Skip
 
@@ -87,7 +105,7 @@ Last updated: 2026-06-21
 - **CLI**: `RemediationConsoleFormatter.FormatDryRun` and `Program.cs` live preview now render all six simulation fields.
 - **Markdown export**: `RemediationMarkdownFormatter` includes risk before/after, command count, rollback availability, restart impact, and lockout risk in the `## Impact Preview` block.
 - **Tests**: 25 simulator unit tests, 2 plan-builder integration tests, 3 ViewModel binding tests, 1 markdown formatter test, and 1 JSON round-trip test for impact preview field persistence.
-  - Code: `VulcansTrace.Linux.Agent/Reports/RemediationImpactSimulator.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationPlanBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs`, `VulcansTrace.Linux.Agent/Remediation/RemediationConsoleFormatter.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`
+  - Code: `VulcansTrace.Linux.Agent/Reports/RemediationImpactSimulator.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationPlanBuilder.cs`, `VulcansTrace.Linux.Agent/Reports/RemediationMarkdownFormatter.cs`, `VulcansTrace.Linux.Agent/Remediation/RemediationConsoleFormatter.cs`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`
   - Tests: `VulcansTrace.Linux.Tests/Agent/RemediationImpactSimulatorTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationPlanBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentMessageViewModelTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationMarkdownFormatterTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationSessionIntegrationTests.cs`
 
 ## 1) Changes Added (What Was Implemented)
@@ -106,7 +124,7 @@ Last updated: 2026-06-21
   - Verification uses `iptables -C` exact-rule checking (not `grep`)
   - Countermeasure commands populate `ApplyCommands` so `RemediationExecutor` actually executes them
 - **UI Integration**: Avalonia UI shows **Deploy Countermeasures** button on critical chain messages. Workflow: dry-run preview → confirmation dialog → live execution. Results posted to chat panel.
-  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `AgentView.axaml`
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`
 - **Tests**: 4 new tests covering critical chain generation, out-of-order timestamp handling, invalid IP rejection, and attacker-IP deduplication. 2 updated view-model tests verifying `FakeProcessRunner` invocation during live execution.
   - Code: `VulcansTrace.Linux.Tests/Engine/TraceMapCorrelatorTests.cs`, `VulcansTrace.Linux.Tests/Agent/RemediationPlanBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentViewModelTests.cs`
 
@@ -136,7 +154,7 @@ Last updated: 2026-06-21
 - Code: `VulcansTrace.Linux.Engine/Confidence/FindingConfidenceCalculator.cs`, `RiskEscalator.cs`
 - Code: `VulcansTrace.Linux.Agent/Reports/FindingAssemblyService.cs`
 - Code: `VulcansTrace.Linux.Evidence/Formatters/*.cs`
-- Code: `VulcansTrace.Linux.Avalonia/ViewModels/FindingItemViewModel.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`, `VulcansTrace.Linux.Avalonia/MainWindow.axaml`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`
+- Code: `VulcansTrace.Linux.Avalonia/ViewModels/FindingItemViewModel.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`, `VulcansTrace.Linux.Avalonia/MainWindow.axaml`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`
 - Tests: `FindingConfidenceCalculatorTests`, `FindingsViewModelTests`, evidence formatter tests, `AuditDiffCalculatorTests`, `AgentResultPresenterTests`, `AgentHistoryCoordinatorTests`
 
 ### Evidence and export formats
@@ -233,7 +251,7 @@ Last updated: 2026-06-21
 - `HandleFixFindingAsync` builds a single-section `RemediationPlan`, runs `RemediationPlanValidator` to block risky commands without rollback guidance, and returns an interactive remediation card.
 - UI renders preconditions, backup commands, apply commands, rollback commands, and verification commands with the same safety and structural badges used for verification commands.
 - Added 10 new tests covering intent parsing, target reference extraction, and all `HandleFixFindingAsync` code paths (no context, no reference, unknown reference, success, validation failure).
-- Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`
+- Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`, `VulcansTrace.Linux.Tests/Agent/QueryParserTests.cs`, `VulcansTrace.Linux.Tests/Agent/SecurityAgentTests.cs`
 
 ### Security Agent — Offline Threat Intel Correlation (STIX/MISP Import)
 - Added `IThreatIntelStore` abstraction with `InMemoryThreatIntelStore` and `JsonFileThreatIntelStore` (persists to `~/.config/VulcansTrace/threat-intel.json`).
@@ -474,7 +492,7 @@ Last updated: 2026-06-21
 - CLI adds `session list`, `session show`, and `session delete` subcommands for headless session management.
 - The session browser refreshes after session-producing operations so create, resume, verify, export, and delete actions stay visible without reopening the panel.
 - `BuildSessionResult` accepts an optional `intent` parameter so resumed sessions report `ResumeRemediation` instead of hardcoding `StartRemediation`.
-- Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/AgentView.axaml`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs`
+- Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs`
 
 ### Notifications
 - `NotifySendNotificationService` — Linux desktop notifications via `notify-send`.

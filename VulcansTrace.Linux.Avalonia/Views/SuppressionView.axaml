@@ -15,11 +15,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <ComboBox ItemsSource="{Binding ReviewFilters}"
                       SelectedItem="{Binding SelectedReviewFilter}"
                       Width="180"
                       VerticalAlignment="Center"
+                      Theme="{StaticResource VtComboBox}"
                       AutomationProperties.AutomationId="SuppressionsFilterComboBox">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
@@ -30,15 +31,14 @@
             <TextBlock Text="{Binding ReviewQueueCount, StringFormat='{}Items: {0}'}"
                        VerticalAlignment="Center"
                        Margin="12,0,0,0"
-                       Foreground="{DynamicResource TextTertiary}"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"/>
         </StackPanel>
 
         <DataGrid Grid.Row="1"
                   ItemsSource="{Binding ReviewQueueItems}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="SuppressionsDataGrid"
                   AutomationProperties.Name="Suppressions Review Queue">
@@ -71,24 +71,28 @@
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <Button Content="Renew"
-                                        FontSize="10"
+                                        FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
+                                        Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.RenewSuppressionCommand}"
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding CanRenew}"/>
                                 <Button Content="Convert"
-                                        FontSize="10"
+                                        FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
+                                        Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.ConvertDurationCommand}"
                                         CommandParameter="{Binding}"/>
                                 <Button Content="Edit"
-                                        FontSize="10"
+                                        FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
+                                        Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.EditReasonCommand}"
                                         CommandParameter="{Binding}"/>
                                 <Button Content="Remove"
-                                        FontSize="10"
+                                        FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
+                                        Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.RemoveSuppressionCommand}"
                                         CommandParameter="{Binding}"/>
                             </StackPanel>

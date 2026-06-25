@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+             xmlns:explanations="using:VulcansTrace.Linux.Agent.Explanations"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.CommandRow"
+             x:DataType="explanations:CopyableCommand">
+
+  <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+    <Border Grid.Column="0"
+            Background="{StaticResource VtBackground800Brush}"
+            BorderBrush="{StaticResource VtBorderDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="10,6"
+            VerticalAlignment="Center">
+      <TextBlock Text="{Binding DisplayText}"
+                 FontFamily="{StaticResource VtFontFamilyMono}"
+                 FontSize="{StaticResource VtFontSizeXs}"
+                 Foreground="{StaticResource VtTextPrimaryBrush}"
+                 TextWrapping="Wrap" />
+    </Border>
+
+    <Border Grid.Column="1"
+            Background="{Binding Safety, Converter={x:Static conv:CommandSafetyToBrushConverter.Instance}}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            VerticalAlignment="Center">
+      <TextBlock Text="{Binding Safety}"
+                 FontSize="{StaticResource VtFontSizeXs}"
+                 FontWeight="SemiBold"
+                 Foreground="{Binding Safety, Converter={x:Static conv:CommandSafetyToForegroundConverter.Instance}}" />
+    </Border>
+
+    <Border Grid.Column="2"
+            Background="{StaticResource VtBackground700Brush}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            IsVisible="{Binding Analysis.RequiresSudo}"
+            VerticalAlignment="Center">
+      <TextBlock Text="SUDO" FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource VtWarningBrush}" />
+    </Border>
+
+    <Border Grid.Column="3"
+            Background="{StaticResource VtBackground700Brush}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            IsVisible="{Binding Analysis.HasChain}"
+            VerticalAlignment="Center">
+      <TextBlock Text="CHAIN" FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource VtInfoBrush}" />
+    </Border>
+
+    <Border Grid.Column="4"
+            Background="{StaticResource VtBackground700Brush}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            IsVisible="{Binding Analysis.HasPipe}"
+            VerticalAlignment="Center">
+      <TextBlock Text="PIPE" FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource VtInfoBrush}" />
+    </Border>
+
+    <Border Grid.Column="5"
+            Background="{StaticResource VtBackground700Brush}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            IsVisible="{Binding Analysis.HasRedirect}"
+            VerticalAlignment="Center">
+      <TextBlock Text="REDIR" FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource VtWarningBrush}" />
+    </Border>
+
+    <Border Grid.Column="6"
+            Background="{StaticResource VtDangerMutedBrush}"
+            CornerRadius="{StaticResource VtRadiusMd}"
+            Padding="6,2"
+            IsVisible="{Binding Analysis.DownloadsAndExecutes}"
+            VerticalAlignment="Center">
+      <TextBlock Text="DL-EXEC" FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" Foreground="{StaticResource VtDangerBrush}" />
+    </Border>
+
+    <Button Grid.Column="7"
+            Content="Copy"
+            Theme="{StaticResource VtGhostButton}"
+            FontSize="{StaticResource VtFontSizeXs}"
+            Padding="8,4"
+            VerticalAlignment="Center"
+            Click="OnCopyClick" />
+  </Grid>
+</UserControl>

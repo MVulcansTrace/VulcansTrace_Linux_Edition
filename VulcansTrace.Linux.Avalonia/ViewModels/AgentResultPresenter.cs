@@ -26,6 +26,8 @@ internal sealed class AgentResultPresenter
     private readonly Action<bool> _setPrivilegeWarning;
     private readonly Action<string> _setPrivilegeWarningText;
     private readonly Func<SuggestedFollowUp, Task> _executeSuggestion;
+    private readonly WarningInterpreter _warningInterpreter;
+    private readonly IntentSummaryBuilder _intentSummaryBuilder;
 
     public AgentResultPresenter(
         ObservableCollection<AgentMessageViewModel> messages,
@@ -34,7 +36,9 @@ internal sealed class AgentResultPresenter
         Func<string?> getCategoryFilter,
         Action<bool> setPrivilegeWarning,
         Action<string> setPrivilegeWarningText,
-        Func<SuggestedFollowUp, Task> executeSuggestion)
+        Func<SuggestedFollowUp, Task> executeSuggestion,
+        WarningInterpreter? warningInterpreter = null,
+        IntentSummaryBuilder? intentSummaryBuilder = null)
     {
         _messages = messages ?? throw new ArgumentNullException(nameof(messages));
         _categoryFilters = categoryFilters ?? throw new ArgumentNullException(nameof(categoryFilters));
@@ -43,6 +47,8 @@ internal sealed class AgentResultPresenter
         _setPrivilegeWarning = setPrivilegeWarning ?? throw new ArgumentNullException(nameof(setPrivilegeWarning));
         _setPrivilegeWarningText = setPrivilegeWarningText ?? throw new ArgumentNullException(nameof(setPrivilegeWarningText));
         _executeSuggestion = executeSuggestion ?? throw new ArgumentNullException(nameof(executeSuggestion));
+        _warningInterpreter = warningInterpreter ?? new WarningInterpreter();
+        _intentSummaryBuilder = intentSummaryBuilder ?? new IntentSummaryBuilder();
     }
 
     public void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
@@ -51,6 +57,21 @@ internal sealed class AgentResultPresenter
 
         if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
             TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true));
+
+        // Interpret warnings once, up front. IntentSummaryBuilder.BuildMissingToolLead uses the
+        // MissingTool classification to lead with a friendly "I ran a … <tool> is missing" sentence,
+        // and the warning-display loop below reuses this same interpreted set (no double interpretation).
+        var interpreted = result.Warnings.Count > 0
+            ? _warningInterpreter.Interpret(result.Intent, result.Warnings, result.DataSourceCapabilities)
+            : Array.Empty<UserFriendlyWarning>();
+
+        // For an audit whose primary tool is missing, IntentSummaryBuilder produces a friendlier lead
+        // than the denser AgentResultComposer summary (result.Summary), which has no concept of
+        // interpreted warnings. In every other case result.Summary is richer (it carries suppressed /
+        // crashed / not-applicable counts), so it is kept. Scoped to audit intents so non-audit
+        // intents (ExplainFinding, SetBaseline, …) keep their own summary.
+        var missingToolWarning = interpreted.FirstOrDefault(w => w.Category == WarningCategory.MissingTool);
+        var useBuilderLead = missingToolWarning != null && AgentResultStateCoordinator.IsAuditIntent(result.Intent);
 
         if (result.Intent == AgentIntent.FixFinding
             && result.Warnings.Count == 0
@@ -81,16 +102,23 @@ internal sealed class AgentResultPresenter
         }
         else
         {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.AgentFindings.Count == 0));
+            var lead = useBuilderLead
+                ? _intentSummaryBuilder.BuildMissingToolLead(result.Intent, result.AgentFindings, result.PassedCount, missingToolWarning!)
+                : result.Summary;
+            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0));
 
             if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
             {
                 TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false));
             }
 
-            if (showPassedCount && result.PassedCount > 0)
+            // Every audit result's lead already states the passed-checks count — either the
+            // missing-tool lead above or the composer summary (result.Summary) — so only emit the
+            // standalone line for non-audit results, otherwise the count appears twice.
+            if (showPassedCount && result.PassedCount > 0 && !AgentResultStateCoordinator.IsAuditIntent(result.Intent))
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} check(s) passed", true));
+                var checkWord = result.PassedCount == 1 ? "check" : "checks";
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} {checkWord} passed", true));
             }
 
             if (result.AgentFindings.Count > 0)
@@ -119,7 +147,26 @@ internal sealed class AgentResultPresenter
 
         if (showWarnings && result.Warnings.Count > 0)
         {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"Warnings: {string.Join("; ", result.Warnings)}", true));
+            foreach (var warning in interpreted)
+            {
+                string text;
+                if (useBuilderLead && warning.Category == WarningCategory.MissingTool)
+                {
+                    // The message is already embedded in the missing-tool lead; keep only its actionable
+                    // suggestion (e.g. install guidance) so nothing is duplicated or dropped.
+                    if (string.IsNullOrEmpty(warning.Suggestion))
+                        continue;
+                    text = warning.Suggestion;
+                }
+                else
+                {
+                    text = warning.Suggestion != null
+                        ? $"{warning.Message} {warning.Suggestion}"
+                        : warning.Message;
+                }
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(text, true));
+            }
+
             DetectPrivilegeWarning(result.Warnings);
         }
 
@@ -208,9 +255,11 @@ internal sealed class AgentResultPresenter
         if (info > 0) parts.Add($"{info} Info");
 
         var rawTotal = findings.Sum(GetRawFindingCount);
+        var groupWord = findings.Count == 1 ? "representative group" : "representative groups";
+        var rawFindingWord = rawTotal == 1 ? "raw finding" : "raw findings";
         var totalLabel = rawTotal == findings.Count
             ? $"{findings.Count} total"
-            : $"{findings.Count} representative group(s), {rawTotal} raw findings";
+            : $"{findings.Count} {groupWord}, {rawTotal} {rawFindingWord}";
         var summary = $"Findings: {string.Join(", ", parts)} ({totalLabel})";
         _messages.Add(new AgentMessageViewModel
         {
@@ -225,9 +274,12 @@ internal sealed class AgentResultPresenter
     {
         var rawTotal = findings.Sum(GetRawFindingCount);
         var highCritical = findings.Where(f => f.Severity >= Severity.High).Sum(GetRawFindingCount);
+        var findingWord = findings.Count == 1 ? "finding" : "findings";
+        var groupWord = findings.Count == 1 ? "representative group" : "representative groups";
+        var rawFindingWord = rawTotal == 1 ? "raw finding" : "raw findings";
         var countLabel = rawTotal == findings.Count
-            ? $"{findings.Count} finding(s)"
-            : $"{findings.Count} representative group(s), {rawTotal} raw finding(s)";
+            ? $"{findings.Count} {findingWord}"
+            : $"{findings.Count} {groupWord}, {rawTotal} {rawFindingWord}";
         var header = highCritical > 0
             ? $"[{category}] {countLabel} — {highCritical} High/Critical"
             : $"[{category}] {countLabel}";
@@ -428,6 +480,11 @@ internal sealed class AgentResultPresenter
 
     private void DetectPrivilegeWarning(IReadOnlyList<string> warnings)
     {
+        // Scan the RAW warnings, not the interpreted/collapsed messages. The interpreter
+        // collapses many raw warnings into keyword-free summaries, so scanning interpreted
+        // text would miss privilege signals (e.g. "insufficient privileges") that don't match
+        // the exact "permission denied"/"operation not permitted" literals the interpreter
+        // keys on. Raw warnings always carry the original phrasing.
         var privilegeWarning = warnings.FirstOrDefault(w =>
             w.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
             w.Contains("privilege", StringComparison.OrdinalIgnoreCase) ||

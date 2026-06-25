@@ -15,16 +15,18 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <TextBox Text="{Binding SearchText}"
-                     Width="200"
+                     Width="220"
                      VerticalAlignment="Center"
+                     Theme="{StaticResource VtInput}"
                      AutomationProperties.AutomationId="SearchTextBox"/>
-            <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{DynamicResource TextSecondary}"/>
+            <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <ComboBox ItemsSource="{Binding SeverityFilters}"
                       SelectedItem="{Binding SelectedSeverityFilter}"
-                      Width="170"
+                      Width="180"
                       VerticalAlignment="Center"
+                      Theme="{StaticResource VtComboBox}"
                       AutomationProperties.AutomationId="SeverityFilterComboBox"/>
         </StackPanel>
 
@@ -33,13 +35,11 @@
                   SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" Width="100">
+                <DataGridTemplateColumn Header="Severity" Width="80" MinWidth="70">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
@@ -51,21 +51,21 @@
                                 <TextBlock Text="{Binding Severity}"
                                            Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                           FontSize="{StaticResource VtFontSizeSm}"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="80" />
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="110" />
-                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="240" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="250" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="180" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="200" />
-                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="140" />
-                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" />
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="100" MinWidth="100" />
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="120" MinWidth="120" />
+                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="360" MinWidth="240" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="160" MinWidth="160" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="200" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="220" />
+                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
+                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="150" />
+                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="340" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

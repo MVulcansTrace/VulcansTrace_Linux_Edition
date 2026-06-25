@@ -6,50 +6,53 @@
   <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
     <!-- Controls Row -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="8">
-      <TextBlock Text="Source:" VerticalAlignment="Center" />
+      <TextBlock Text="Source:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
       <ComboBox Width="320"
                 ItemsSource="{Binding AvailableSources}"
-                SelectedItem="{Binding SelectedSourceName}" />
+                SelectedItem="{Binding SelectedSourceName}"
+                Theme="{StaticResource VtComboBox}" />
       <Button Content="Start"
+              Theme="{StaticResource VtPrimaryButton}"
               Command="{Binding StartCommand}" />
       <Button Content="Stop"
+              Theme="{StaticResource VtSecondaryButton}"
               Command="{Binding StopCommand}" />
     </StackPanel>
 
     <!-- Scenario Controls Row -->
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="8,0,8,0"
                 IsVisible="{Binding IsScenarioSource}">
-      <TextBlock Text="Duration (s):" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding ScenarioDurationSeconds}" Minimum="10" Maximum="300" Width="100" />
+      <TextBlock Text="Duration (s):" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
+      <NumericUpDown Value="{Binding ScenarioDurationSeconds}" Minimum="10" Maximum="300" Width="100" Theme="{StaticResource VtNumericUpDown}" />
     </StackPanel>
 
     <!-- Status Row -->
-    <Border Grid.Row="2" Background="{DynamicResource BackgroundSecondary}" CornerRadius="4" Margin="8,0,8,8" Padding="12,8">
+    <Border Grid.Row="2" Theme="{StaticResource VtCard}" Padding="12,8" Margin="8,0,8,8">
       <StackPanel>
-        <TextBlock Text="{Binding StatusText}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+        <TextBlock Text="{Binding StatusText}" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" />
         <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
-          <TextBlock Foreground="{DynamicResource TextSecondary}">
+          <TextBlock Foreground="{StaticResource VtTextSecondaryBrush}">
             <TextBlock.Text>
               <MultiBinding StringFormat="Events/sec: {0:F1}">
                 <Binding Path="EventsPerSecond" />
               </MultiBinding>
             </TextBlock.Text>
           </TextBlock>
-          <TextBlock Foreground="{DynamicResource TextSecondary}">
+          <TextBlock Foreground="{StaticResource VtTextSecondaryBrush}">
             <TextBlock.Text>
               <MultiBinding StringFormat="Window: {0}">
                 <Binding Path="WindowEventCount" />
               </MultiBinding>
             </TextBlock.Text>
           </TextBlock>
-          <TextBlock Foreground="{DynamicResource TextSecondary}">
+          <TextBlock Foreground="{StaticResource VtTextSecondaryBrush}">
             <TextBlock.Text>
               <MultiBinding StringFormat="Runs: {0}">
                 <Binding Path="AnalysisRunCount" />
               </MultiBinding>
             </TextBlock.Text>
           </TextBlock>
-          <TextBlock Foreground="{DynamicResource TextSecondary}">
+          <TextBlock Foreground="{StaticResource VtTextSecondaryBrush}">
             <TextBlock.Text>
               <MultiBinding StringFormat="Delta Findings: {0}">
                 <Binding Path="TotalDeltaFindings" />
@@ -61,12 +64,11 @@
     </Border>
 
     <!-- Findings Grid Row -->
-    <Border Grid.Row="4" Background="{DynamicResource BackgroundPrimary}" CornerRadius="4" Margin="8,0,8,8">
+    <Border Grid.Row="4" Background="{StaticResource VtBackground900Brush}" CornerRadius="{StaticResource VtRadiusMd}" Margin="8,0,8,8">
       <DataGrid ItemsSource="{Binding LiveFindings}"
                 IsReadOnly="True"
                 AutoGenerateColumns="False"
-                GridLinesVisibility="Horizontal"
-                HorizontalGridLinesBrush="{DynamicResource Border}">
+                >
         <DataGrid.Columns>
           <DataGridTextColumn Header="Time"
                               Binding="{Binding TimeRangeStart, StringFormat='{}{0:HH:mm:ss.fff}'}"

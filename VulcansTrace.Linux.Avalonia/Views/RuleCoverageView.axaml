@@ -17,40 +17,43 @@
 
         <!-- Summary badges -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
-            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Border Theme="{StaticResource VtKpiCard}" Padding="8,4">
                 <TextBlock>
-                    <Run Text="Total: " Foreground="{DynamicResource TextTertiary}"/><Run Text="{Binding TotalRules, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                    <Run Text="Total: " Foreground="{StaticResource VtTextMutedBrush}"/><Run Text="{Binding TotalRules, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Border Theme="{StaticResource VtKpiCard}" Padding="8,4">
                 <TextBlock>
-                    <Run Text="Passed: " Foreground="{DynamicResource Success}"/><Run Text="{Binding TotalPassed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Success}"/>
+                    <Run Text="Passed: " Foreground="{StaticResource VtSuccessBrush}"/><Run Text="{Binding TotalPassed, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtSuccessBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="{DynamicResource Critical}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Critical}" BorderThickness="1">
+            <Border Theme="{StaticResource VtKpiCard}" Background="{StaticResource VtDangerMutedBrush}" Padding="8,4" BorderBrush="{StaticResource VtDangerBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Failed: " Foreground="{DynamicResource TextPrimary}"/><Run Text="{Binding TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Critical}"/>
+                    <Run Text="Failed: " Foreground="{StaticResource VtTextPrimaryBrush}"/><Run Text="{Binding TotalFailed, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtDangerBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="{DynamicResource BackgroundSecondary}" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Border Theme="{StaticResource VtKpiCard}" Padding="8,4">
                 <TextBlock>
-                    <Run Text="Suppressed: " Foreground="{DynamicResource TextTertiary}"/><Run Text="{Binding TotalSuppressed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                    <Run Text="Suppressed: " Foreground="{StaticResource VtTextMutedBrush}"/><Run Text="{Binding TotalSuppressed, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 </TextBlock>
             </Border>
-            <Border Background="{DynamicResource Warning}20" Padding="8,4" CornerRadius="6" BorderBrush="{DynamicResource Warning}" BorderThickness="1">
+            <Border Theme="{StaticResource VtKpiCard}" Background="{StaticResource VtWarningMutedBrush}" Padding="8,4" BorderBrush="{StaticResource VtWarningBrush}" BorderThickness="1">
                 <TextBlock>
-                    <Run Text="Crashed: " Foreground="{DynamicResource TextPrimary}"/><Run Text="{Binding TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource Warning}"/>
+                    <Run Text="Crashed: " Foreground="{StaticResource VtTextPrimaryBrush}"/><Run Text="{Binding TotalCrashed, Mode=OneWay}" FontWeight="Bold" Foreground="{StaticResource VtWarningBrush}"/>
                 </TextBlock>
             </Border>
         </StackPanel>
 
         <!-- Empty state -->
         <Border Grid.Row="1"
-                Classes="empty-state"
+                Theme="{StaticResource VtCard}"
                 Margin="0,4,0,8"
                 IsVisible="{Binding !HasData}">
             <TextBlock Text="Run an agent audit to see rule coverage."
-                       Classes="empty-state-text"/>
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeMd}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"/>
         </Border>
 
         <!-- Category breakdown grid -->
@@ -58,8 +61,7 @@
                   ItemsSource="{Binding Categories}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  BorderThickness="0"
-                  GridLinesVisibility="Horizontal"
+
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}"
                   AutomationProperties.AutomationId="CoverageDataGrid"

@@ -85,7 +85,7 @@ The **Log Diff** subsystem provides a parallel comparison path for forensic time
 The Security Agent provides a parallel local posture path:
 
 1. A natural-language query is parsed into an `AgentIntent` by `QueryParser`, then resolved through `DialogueManager` which applies anaphora resolution and topic-aware deterministic inference before `SecurityAgent` routes the final `AgentQuery`.
-2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, logging and audit configuration, cron job entries and script permissions, installed package inventory and pending security updates, unattended-upgrades configuration, interface, route, connection state, container runtime state, Kubernetes pod security posture, live process runtime state, YARA rule matches, and data-source capability status for local Linux commands.
+2. `ScannerCoordinator` runs agent scanners and builds a `ScanData` snapshot containing firewall, port, service, SSH daemon configuration, file permissions, filesystem audit findings, kernel and system hardening parameters, user accounts, shadow entries, password aging, PAM configuration, logging and audit configuration, cron job entries and script permissions, installed package inventory and pending security updates, unattended-upgrades configuration, interface, route, connection state, container runtime state, Kubernetes pod security posture, live process runtime state, YARA rule matches, and data-source capability status for local Linux commands. For targeted audit intents, `RuleEvaluationService.GetRequiredScannerNames(intent)` derives the minimal scanner set from each rule's category and declared `RequiredDataFields`; `ScannerCoordinator.RunAsync` then runs only that subset. Full audits still run every scanner.
 3. `RuleEvaluationService` filters rules by intent, resolves role-aware policy from built-in defaults and local JSON overrides, invokes contextual rules when supported, converts rule crashes into explicit results, and applies auto-pass or severity override policy.
 4. `FindingAssemblyService` converts failed rule results into `Finding` records with stable fingerprints, markdown-backed explanations, suppression status, and dual-layer CIS Benchmark mappings.
 5. `CrossScannerValidator` checks Critical and High findings against independent `ScanData` sources. Support adds a `CrossScannerValidation` evidence signal and raises confidence one level, capped at `High`; contradiction adds the same source signal and lowers confidence one level, down to `Unknown`. It never removes the original finding and only trusts data sources whose capability status is `Available`. Medium findings are intentionally deferred from this phase. Rules that draw from only one scanner (for example, `FW-001`, `FW-004`, `NET-003`, and all container/Kubernetes rules) are intentionally excluded because validation would be tautological.
@@ -100,6 +100,26 @@ The Security Agent provides a parallel local posture path:
 14. `NarrativeComposer` builds the multi-paragraph narrative from findings, correlations, attack chains, proactive alerts, trajectory, remediation wisdom, memory, and category coverage.
 15. `AgentSuggestionProvider` generates deterministic follow-up suggestions, including blind-spot chips after partial audits.
 16. `DialogueContext`/`AgentAuditState` remembers the fully enriched result so every follow-up intent sees the same attack chains, correlations, and metadata that were displayed to the user.
+
+### Scanner Selection by Rule Dependencies
+
+Targeted audits no longer rely on a hand-maintained intent→scanner map. Instead, scanner selection is derived from the actual data each rule needs:
+
+- `IRule.RequiredDataFields` — rules declare `ScanData` field names they read beyond their own category's primary scanner. For example, `LoopbackExposureRule` declares `OpenPorts`, and threat-intel rules declare `ActiveConnections` and `OpenPorts`.
+- `ScannerDataSources` — single source of truth mapping each `ScanData` field to the scanner that produces it (`OpenPorts` → `Port`, `ActiveConnections` → `Network`, etc.) and each rule category to its primary scanner.
+- `RuleEvaluationService.GetRequiredScannerNames(intent)` — for targeted audit intents, walks every rule that will run for that intent and collects the primary scanner for its category plus any scanners needed for its `RequiredDataFields`. Returns `null` for `FullAudit` and non-audit intents, meaning "run every scanner."
+- `ScannerCoordinator.RunAsync(relevantScannerNames)` — runs only the named scanner subset when one is supplied; otherwise runs all scanners in parallel.
+
+This prevents silent false-negatives where a rule was evaluated against a `ScanData` snapshot that never contained the fields it needed. It also keeps scanner selection in sync with the rules: adding a new cross-field dependency to a rule automatically ensures the producing scanner runs during the relevant targeted audit.
+
+### User-Facing Warning Interpretation
+
+Raw scanner warnings are interpreted before they reach the UI or narrative:
+
+- `WarningInterpreter` classifies each warning into `MissingTool`, `PermissionDenied`, `ConfigurationMissing`, or `ScannerError`, collapses duplicates, and extracts the missing tool or permission path when present.
+- `UserFriendlyWarning` carries the classification and a plain-language message.
+- `IntentSummaryBuilder` builds a friendly lead sentence for the audit intent when a primary tool is missing (e.g., "I ran a firewall check. `iptables` is missing, so only partial results were available.").
+- `AgentResultPresenter` integrates the interpreter and summary builder so chat messages surface missing tools, permission limits, and scanner errors in plain language instead of dumping raw warning strings.
 
 The `ShowEvidence` follow-up path is handled by `EvidenceProvenanceService`:
 
@@ -395,11 +415,14 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 
 ### ViewModel Boundaries
 
-- `AgentViewModel` — query dispatch, state, commands. Receives `RemediationPlanBuilder` via constructor for export (not created inline).
-- `AgentResultPresenter` — renders `AgentResult` to chat messages.
+- `AgentViewModel` — query dispatch, state, commands, slash-command palette, quick-action chips, and copyable command handling. Receives `RemediationPlanBuilder` via constructor for export (not created inline).
+- `AgentResultPresenter` — renders `AgentResult` to chat messages, integrates `WarningInterpreter` and `IntentSummaryBuilder`, and suppresses duplicate passed-count lines for audit intents.
 - `AgentMessageViewModel` — individual message rendering, remediation/session state, and copyable command behavior.
-- `MainViewModel` — receives `RemediationPlanBuilder` via constructor for evidence export (not created inline).
-- `AgentView.axaml` — exposes Verify Remediation on active session cards, Export Session for the latest session result, and a Remediation Sessions expander with List/Resume/Delete actions.
+- `MainViewModel` — receives `RemediationPlanBuilder` via constructor for evidence export (not created inline). Exposes the agent as a first-class navigation item instead of a bottom-panel expander.
+- `Views/AgentView.axaml` — full-screen chat UI with a header, message bubbles, markdown rendering, verification/remediation command rows, quick-action chips, and a `/` slash-command palette.
+- `Views/CommandRow.axaml` — reusable copyable shell-command row with safety/structure badges (SUDO, CHAIN, PIPE, etc.).
+- `Converters/Markdown.cs` — attached property that renders `**bold**` and `*italic*` markup into `TextBlock.Inlines`.
+- `Themes/VtDesignTokens.axaml` — centralized design-system resource dictionary replacing the previous `Themes/DarkTheme.axaml` and `Themes/ThemeStyles.axaml` files.
 
 ### Intent Routing
 

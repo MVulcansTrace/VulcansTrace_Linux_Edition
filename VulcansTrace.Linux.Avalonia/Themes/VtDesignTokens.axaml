@@ -1,0 +1,326 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:system="clr-namespace:System;assembly=netstandard">
+
+  <!--
+    VulcansTrace Design System
+    Dark, security-focused, high-contrast where it matters.
+  -->
+
+  <Styles.Resources>
+    <!-- === Colors === -->
+    <Color x:Key="VtBackground900">#030712</Color>
+    <Color x:Key="VtBackground800">#0B1221</Color>
+    <Color x:Key="VtBackground700">#111827</Color>
+    <Color x:Key="VtBackground600">#1E293B</Color>
+    <Color x:Key="VtBackground500">#334155</Color>
+
+    <Color x:Key="VtBorderDefault">#1E293B</Color>
+    <Color x:Key="VtBorderHover">#334155</Color>
+    <Color x:Key="VtBorderAccent">#3B82F6</Color>
+
+    <Color x:Key="VtTextPrimary">#F8FAFC</Color>
+    <Color x:Key="VtTextSecondary">#94A3B8</Color>
+    <Color x:Key="VtTextMuted">#64748B</Color>
+    <Color x:Key="VtTextInverse">#020617</Color>
+
+    <Color x:Key="VtPrimary">#3B82F6</Color>
+    <Color x:Key="VtPrimaryHover">#2563EB</Color>
+    <Color x:Key="VtPrimaryGlow">#1E3A8A</Color>
+
+    <Color x:Key="VtSuccess">#22C55E</Color>
+    <Color x:Key="VtSuccessMuted">#064E3B</Color>
+
+    <Color x:Key="VtWarning">#F59E0B</Color>
+    <Color x:Key="VtWarningHover">#D97706</Color>
+    <Color x:Key="VtWarningMuted">#451A03</Color>
+
+    <Color x:Key="VtDanger">#EF4444</Color>
+    <Color x:Key="VtDangerHover">#DC2626</Color>
+    <Color x:Key="VtDangerMuted">#450A0A</Color>
+
+    <Color x:Key="VtInfo">#06B6D4</Color>
+
+    <!-- === Severity colors === -->
+    <Color x:Key="VtSeverityCritical">#EF4444</Color>
+    <Color x:Key="VtSeverityHigh">#F97316</Color>
+    <Color x:Key="VtSeverityMedium">#F59E0B</Color>
+
+    <Color x:Key="VtSeverityCriticalBg">#450A0A</Color>
+    <Color x:Key="VtSeverityHighBg">#451A03</Color>
+    <Color x:Key="VtSeverityMediumBg">#451A03</Color>
+
+    <!-- === KPI colors === -->
+    <Color x:Key="VtKpiFindings">#3B82F6</Color>
+    <Color x:Key="VtKpiSkipped">#64748B</Color>
+
+    <!-- === Brushes === -->
+    <SolidColorBrush x:Key="VtBackground900Brush" Color="{StaticResource VtBackground900}" />
+    <SolidColorBrush x:Key="VtBackground800Brush" Color="{StaticResource VtBackground800}" />
+    <SolidColorBrush x:Key="VtBackground700Brush" Color="{StaticResource VtBackground700}" />
+    <SolidColorBrush x:Key="VtBackground600Brush" Color="{StaticResource VtBackground600}" />
+    <SolidColorBrush x:Key="VtBackground500Brush" Color="{StaticResource VtBackground500}" />
+
+    <SolidColorBrush x:Key="VtBorderDefaultBrush" Color="{StaticResource VtBorderDefault}" />
+    <SolidColorBrush x:Key="VtBorderHoverBrush" Color="{StaticResource VtBorderHover}" />
+    <SolidColorBrush x:Key="VtBorderAccentBrush" Color="{StaticResource VtBorderAccent}" />
+
+    <SolidColorBrush x:Key="VtTextPrimaryBrush" Color="{StaticResource VtTextPrimary}" />
+    <SolidColorBrush x:Key="VtTextSecondaryBrush" Color="{StaticResource VtTextSecondary}" />
+    <SolidColorBrush x:Key="VtTextMutedBrush" Color="{StaticResource VtTextMuted}" />
+    <SolidColorBrush x:Key="VtTextInverseBrush" Color="{StaticResource VtTextInverse}" />
+
+    <SolidColorBrush x:Key="VtPrimaryBrush" Color="{StaticResource VtPrimary}" />
+    <SolidColorBrush x:Key="VtPrimaryHoverBrush" Color="{StaticResource VtPrimaryHover}" />
+    <SolidColorBrush x:Key="VtPrimaryGlowBrush" Color="{StaticResource VtPrimaryGlow}" />
+
+    <SolidColorBrush x:Key="VtSuccessBrush" Color="{StaticResource VtSuccess}" />
+    <SolidColorBrush x:Key="VtSuccessMutedBrush" Color="{StaticResource VtSuccessMuted}" />
+
+    <SolidColorBrush x:Key="VtWarningBrush" Color="{StaticResource VtWarning}" />
+    <SolidColorBrush x:Key="VtWarningHoverBrush" Color="{StaticResource VtWarningHover}" />
+    <SolidColorBrush x:Key="VtWarningMutedBrush" Color="{StaticResource VtWarningMuted}" />
+
+    <SolidColorBrush x:Key="VtDangerBrush" Color="{StaticResource VtDanger}" />
+    <SolidColorBrush x:Key="VtDangerHoverBrush" Color="{StaticResource VtDangerHover}" />
+    <SolidColorBrush x:Key="VtDangerMutedBrush" Color="{StaticResource VtDangerMuted}" />
+
+    <SolidColorBrush x:Key="VtInfoBrush" Color="{StaticResource VtInfo}" />
+
+    <SolidColorBrush x:Key="VtSeverityCriticalBrush" Color="{StaticResource VtSeverityCritical}" />
+    <SolidColorBrush x:Key="VtSeverityHighBrush" Color="{StaticResource VtSeverityHigh}" />
+    <SolidColorBrush x:Key="VtSeverityMediumBrush" Color="{StaticResource VtSeverityMedium}" />
+
+    <SolidColorBrush x:Key="VtSeverityCriticalBgBrush" Color="{StaticResource VtSeverityCriticalBg}" />
+    <SolidColorBrush x:Key="VtSeverityHighBgBrush" Color="{StaticResource VtSeverityHighBg}" />
+    <SolidColorBrush x:Key="VtSeverityMediumBgBrush" Color="{StaticResource VtSeverityMediumBg}" />
+
+    <SolidColorBrush x:Key="VtKpiFindingsBrush" Color="{StaticResource VtKpiFindings}" />
+    <SolidColorBrush x:Key="VtKpiSkippedBrush" Color="{StaticResource VtKpiSkipped}" />
+
+    <!-- === Spacing / Corner radii === -->
+    <CornerRadius x:Key="VtRadiusSm">4</CornerRadius>
+    <CornerRadius x:Key="VtRadiusMd">8</CornerRadius>
+    <CornerRadius x:Key="VtRadiusLg">12</CornerRadius>
+    <CornerRadius x:Key="VtRadiusXl">16</CornerRadius>
+
+    <Thickness x:Key="VtPadLg">16</Thickness>
+
+    <!-- === Typography === -->
+    <system:Double x:Key="VtFontSizeXs">13</system:Double>
+    <system:Double x:Key="VtFontSizeSm">14</system:Double>
+    <system:Double x:Key="VtFontSizeMd">15</system:Double>
+    <system:Double x:Key="VtFontSizeXl">21</system:Double>
+    <system:Double x:Key="VtFontSize2xl">28</system:Double>
+
+    <FontFamily x:Key="VtFontFamily">Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif</FontFamily>
+    <FontFamily x:Key="VtFontFamilyMono">JetBrains Mono, Cascadia Code, Consolas, monospace</FontFamily>
+
+    <!-- === Control themes === -->
+    <ControlTheme x:Key="VtCard" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="{StaticResource VtPadLg}" />
+      <Setter Property="BoxShadow" Value="0 4 16 0 #14000000" />
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtPrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource VtPrimaryBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextInverseBrush}" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtPrimaryHoverBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtSecondaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground600Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtBackground500Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtGhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeSm}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusSm}" />
+      <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+        <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtBadge" TargetType="Border">
+      <Setter Property="Padding" Value="6,2" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusSm}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtInput" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="CaretBrush" Value="{StaticResource VtPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="16,12" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Setter Property="Watermark" Value="Ask the agent..." />
+      <Style Selector="^:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderAccentBrush}" />
+        <Setter Property="BorderThickness" Value="1.5" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtKpiCard" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="{StaticResource VtPadLg}" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+        </Transitions>
+      </Setter>
+      <Style Selector="^:pointerover">
+        <Setter Property="RenderTransform" Value="scale(1.02)" />
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtComboBox" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="8,6" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Style Selector="^:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderAccentBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground600Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Style Selector="^:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource VtTextInverseBrush}" />
+      </Style>
+      <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtBackground500Brush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtExpander" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtNumericUpDown" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="Padding" Value="8,6" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+    </ControlTheme>
+  </Styles.Resources>
+
+  <!-- === DataGrid === -->
+  <Style Selector="DataGrid">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="GridLinesVisibility" Value="Horizontal" />
+    <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+    <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+    <Setter Property="RowBackground" Value="Transparent" />
+  </Style>
+  <Style Selector="DataGrid DataGridColumnHeader">
+    <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+    <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="FontSize" Value="{StaticResource VtFontSizeSm}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="DataGrid DataGridColumnHeader:pointerover">
+    <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+    <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+  </Style>
+  <Style Selector="DataGrid DataGridRow">
+    <Setter Property="Height" Value="40" />
+  </Style>
+  <Style Selector="DataGrid DataGridRow:pointerover">
+    <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+  </Style>
+  <Style Selector="DataGrid DataGridRow:selected">
+    <Setter Property="Background" Value="{StaticResource VtPrimaryGlowBrush}" />
+  </Style>
+  <Style Selector="DataGrid DataGridRow:selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+  </Style>
+  <Style Selector="DataGrid DataGridCell">
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <!-- === ScrollViewer === -->
+  <Style Selector="ScrollViewer.VtScroll">
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+
+  <!-- === Chat ListBox === -->
+  <Style Selector="ListBox.VtChatList">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+  </Style>
+  <Style Selector="ListBox.VtChatList ListBoxItem">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0,0,0,16" />
+  </Style>
+  <Style Selector="ListBox.VtChatList ListBoxItem:pointerover">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.VtChatList ListBoxItem:selected">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+
+</Styles>

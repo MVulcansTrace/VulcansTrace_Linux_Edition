@@ -15,58 +15,58 @@
     </Design.DataContext>
 
     <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
-        <TextBlock Grid.Row="0" Text="Schedule Name:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
-        <TextBox Grid.Row="1" Text="{Binding Name}" Watermark="e.g. Daily Full Audit" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="0" Text="Schedule Name:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="1" Text="{Binding Name}" Watermark="e.g. Daily Full Audit" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
 
-        <TextBlock Grid.Row="2" Text="Intent:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
-        <ComboBox Grid.Row="3" ItemsSource="{Binding AvailableIntents}" SelectedItem="{Binding Intent}" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="2" Text="Intent:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
+        <ComboBox Grid.Row="3" ItemsSource="{Binding AvailableIntents}" SelectedItem="{Binding Intent}" Theme="{StaticResource VtComboBox}" Margin="0,0,0,12"/>
 
-        <TextBlock Grid.Row="4" Text="Cron Expression:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
-        <TextBox Grid.Row="5" Text="{Binding CronExpression}" Watermark="e.g. 0 6 * * *" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="4" Text="Cron Expression:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="5" Text="{Binding CronExpression}" Watermark="e.g. 0 6 * * *" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
 
-        <TextBlock Grid.Row="6" Text="Machine Role:" FontWeight="Bold" Foreground="#e2e8f0" Margin="0,0,0,4"/>
-        <ComboBox Grid.Row="7" ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding MachineRole}" Margin="0,0,0,12"/>
+        <TextBlock Grid.Row="6" Text="Machine Role:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
+        <ComboBox Grid.Row="7" ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding MachineRole}" Theme="{StaticResource VtComboBox}" Margin="0,0,0,12"/>
 
         <StackPanel Grid.Row="8" Orientation="Vertical" Spacing="8">
-            <TextBlock Text="Output Directory (optional):" FontWeight="Bold" Foreground="#e2e8f0"/>
-            <TextBox Text="{Binding OutputDirectory}" Watermark="/var/log/vulcanstrace"/>
+            <TextBlock Text="Output Directory (optional):" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+            <TextBox Text="{Binding OutputDirectory}" Watermark="/var/log/vulcanstrace" Theme="{StaticResource VtInput}"/>
 
-            <TextBlock Text="Notification Channel:" FontWeight="Bold" Foreground="#e2e8f0"/>
-            <ComboBox ItemsSource="{Binding AvailableChannels}" SelectedItem="{Binding NotificationChannel}"/>
+            <TextBlock Text="Notification Channel:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+            <ComboBox ItemsSource="{Binding AvailableChannels}" SelectedItem="{Binding NotificationChannel}" Theme="{StaticResource VtComboBox}"/>
 
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <CheckBox Content="Notify on critical findings" IsChecked="{Binding NotifyOnCritical}" Foreground="#e2e8f0"/>
-                <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="#e2e8f0"/>
+                <CheckBox Content="Notify on critical findings" IsChecked="{Binding NotifyOnCritical}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <CheckBox Content="Autonomous drift response" IsChecked="{Binding AutonomousDriftResponse}" Foreground="#e2e8f0"/>
+                <CheckBox Content="Autonomous drift response" IsChecked="{Binding AutonomousDriftResponse}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding AutonomousDriftResponse}">
-                    <TextBlock Text="Threshold:" VerticalAlignment="Center" Foreground="#e2e8f0"/>
-                    <ComboBox ItemsSource="{Binding AvailableSeverities}" SelectedItem="{Binding AutonomousDriftSeverityThreshold}"/>
+                    <TextBlock Text="Threshold:" VerticalAlignment="Center" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                    <ComboBox ItemsSource="{Binding AvailableSeverities}" SelectedItem="{Binding AutonomousDriftSeverityThreshold}" Theme="{StaticResource VtComboBox}"/>
                 </StackPanel>
             </StackPanel>
 
-            <CheckBox Content="Require signed alerts (skip unsigned drift alerts when no signing key is set)" IsChecked="{Binding RequireSignedAlerts}" IsVisible="{Binding AutonomousDriftResponse}" Foreground="#e2e8f0"/>
+            <CheckBox Content="Require signed alerts (skip unsigned drift alerts when no signing key is set)" IsChecked="{Binding RequireSignedAlerts}" IsVisible="{Binding AutonomousDriftResponse}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
 
             <StackPanel Orientation="Vertical" Spacing="4">
-                <CheckBox Content="Allow human-approved remediation" IsChecked="{Binding AllowAutoRemediate}" Foreground="#e2e8f0"/>
+                <CheckBox Content="Allow human-approved remediation" IsChecked="{Binding AllowAutoRemediate}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                 <StackPanel Orientation="Vertical" Spacing="4" IsVisible="{Binding AllowAutoRemediate}" Margin="16,0,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="16">
-                        <CheckBox Content="Permit service restarts" IsChecked="{Binding AllowRemediationRestart}" Foreground="#e2e8f0"/>
-                        <CheckBox Content="Permit package install/remove" IsChecked="{Binding AllowRemediationPackages}" Foreground="#e2e8f0"/>
+                        <CheckBox Content="Permit service restarts" IsChecked="{Binding AllowRemediationRestart}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                        <CheckBox Content="Permit package install/remove" IsChecked="{Binding AllowRemediationPackages}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                     </StackPanel>
-                    <TextBlock Text="Limit to rule prefixes (comma-separated, optional):" Foreground="#94a3b8" FontSize="12"/>
-                    <TextBox Text="{Binding RemediationPrefixes}" Watermark="e.g. FW, KERN, PKG"/>
-                    <TextBlock Text="Available prefixes: FW, KERN, PKG, SSH, USER, FILE, LOG, CRON, CONTAINER, K8S, PROCESS" Foreground="#64748b" FontSize="11"/>
+                    <TextBlock Text="Limit to rule prefixes (comma-separated, optional):" Foreground="{StaticResource VtTextSecondaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
+                    <TextBox Text="{Binding RemediationPrefixes}" Watermark="e.g. FW, KERN, PKG" Theme="{StaticResource VtInput}"/>
+                    <TextBlock Text="Available prefixes: FW, KERN, PKG, SSH, USER, FILE, LOG, CRON, CONTAINER, K8S, PROCESS" Foreground="{StaticResource VtTextMutedBrush}" FontSize="{StaticResource VtFontSizeSm}"/>
                 </StackPanel>
             </StackPanel>
 
-            <TextBlock x:Name="ValidationError" Text="" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            <TextBlock x:Name="ValidationError" Text="" Foreground="{StaticResource VtDangerBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-                <Button x:Name="OkButton" Content="Save" MinWidth="80" Click="OkButton_Click"/>
-                <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" Click="CancelButton_Click"/>
+                <Button x:Name="OkButton" Content="Save" MinWidth="80" Theme="{StaticResource VtPrimaryButton}" Click="OkButton_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" Theme="{StaticResource VtSecondaryButton}" Click="CancelButton_Click"/>
             </StackPanel>
         </StackPanel>
     </Grid>
