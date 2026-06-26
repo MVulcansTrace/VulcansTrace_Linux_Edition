@@ -27,13 +27,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="5*"/>
+            <ColumnDefinition Width="3*" MinWidth="320"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="2*" MinWidth="180" MaxWidth="300"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="5*" MinWidth="400"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Summary and warnings -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
+        <!-- Summary and warnings (spans all 5 columns: panel, splitter, sidebar, splitter, content) -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Vertical" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Left">
                 <Border Theme="{StaticResource VtKpiCard}" Padding="8,4" Margin="0,0,8,0">
                     <TextBlock>
@@ -138,19 +140,19 @@
         <!-- Left: bot + controls -->
         <ScrollViewer Grid.Row="1" Grid.Column="0" Margin="0,0,16,0">
             <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,12">
                 <!-- Bot avatar -->
-                <Ellipse Width="48" Height="48" Margin="0,0,12,0">
+                <Ellipse Width="48" Height="48" Margin="0,0,12,0" VerticalAlignment="Top">
                     <Ellipse.Fill>
                         <ImageBrush Source="/Assets/VulcansTraceAvatar.png"/>
                     </Ellipse.Fill>
                 </Ellipse>
-                <TextBlock Text="{Binding BotIntroText}"
+                <TextBlock Grid.Column="1"
+                           Text="{Binding BotIntroText}"
                            TextWrapping="Wrap"
                            VerticalAlignment="Center"
-                           Width="260"
                            Foreground="{StaticResource VtTextSecondaryBrush}"/>
-            </StackPanel>
+            </Grid>
             <Grid Margin="12,0,0,12" IsVisible="{Binding HasAdvisorMessage}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -164,8 +166,7 @@
                         BorderThickness="1"
                         CornerRadius="{StaticResource VtRadiusXl}"
                         Padding="8"
-                        Width="280"
-                        HorizontalAlignment="Left">
+                        HorizontalAlignment="Stretch">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -285,30 +286,31 @@
 
             </Grid>
 
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,8">
+            <WrapPanel Orientation="Horizontal" Margin="0,8,0,8">
                 <Button Content="Analyze"
                         Width="100"
-                        Margin="0,0,8,0"
+                        Margin="0,0,8,8"
                         Theme="{StaticResource VtPrimaryButton}"
                         AutomationProperties.AutomationId="AnalyzeButton"
                         Command="{Binding AnalyzeCommand}"/>
 
                 <Button Content="Cancel"
                         Width="100"
-                        Margin="0,0,8,0"
+                        Margin="0,0,8,8"
                         Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="CancelButton"
                         Command="{Binding CancelCommand}"/>
 
                 <Button Content="Export Evidence"
                         Width="130"
-                        Margin="0,0,8,0"
+                        Margin="0,0,8,8"
                         Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="ExportEvidenceButton"
                         Command="{Binding Evidence.ExportEvidenceCommand}"/>
 
                 <Button Content="Cancel Export"
                         Width="110"
+                        Margin="0,0,8,8"
                         IsVisible="{Binding Evidence.IsBusy}"
                         Theme="{StaticResource VtSecondaryButton}"
                         AutomationProperties.AutomationId="CancelExportButton"
@@ -316,25 +318,26 @@
 
                 <Button Content="Compare Logs"
                         Width="120"
-                        Margin="0,0,8,0"
+                        Margin="0,0,8,8"
                         Theme="{StaticResource VtSecondaryButton}"
                         ToolTip.Tip="Compare two log files for differences"
                         AutomationProperties.AutomationId="CompareLogsButton"
                         Command="{Binding CompareLogsCommand}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            </WrapPanel>
+            <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
                 <Button Content="Accept Risk"
                         Width="110"
-                        Margin="0,0,8,0"
+                        Margin="0,0,8,8"
                         Theme="{StaticResource VtSecondaryButton}"
                         ToolTip.Tip="Mark selected finding as accepted/expected"
                         Command="{Binding AcceptRiskCommand}"/>
                 <TextBlock Text="{Binding Suppressions.StatusMessage}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap"
+                           Margin="0,0,0,8"
                            Foreground="{StaticResource VtTextSecondaryBrush}"
                            FontSize="{StaticResource VtFontSizeSm}"/>
-            </StackPanel>
+            </WrapPanel>
             <Expander Header="Active Suppressions"
                       Margin="0,0,0,12"
                       IsExpanded="False">
@@ -403,11 +406,25 @@
         </StackPanel>
         </ScrollViewer>
 
+        <!-- Left splitter -->
+        <GridSplitter Grid.Row="1" Grid.Column="1"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Columns"
+                      Background="{StaticResource VtBorderDefaultBrush}"/>
+
         <!-- Sidebar navigation -->
-        <controls:NavigationSidebar Grid.Row="1" Grid.Column="1" />
+        <controls:NavigationSidebar Grid.Row="1" Grid.Column="2" />
+
+        <!-- Right splitter -->
+        <GridSplitter Grid.Row="1" Grid.Column="3"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Columns"
+                      Background="{StaticResource VtBorderDefaultBrush}"/>
 
         <!-- Main content area -->
-        <Border Grid.Row="1" Grid.Column="2"
+        <Border Grid.Row="1" Grid.Column="4"
                 Theme="{StaticResource VtCard}"
                 Padding="12"
                 Margin="0,0,0,0">

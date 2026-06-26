@@ -11,6 +11,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -30,7 +31,21 @@
                       AutomationProperties.AutomationId="SeverityFilterComboBox"/>
         </StackPanel>
 
-        <DataGrid Grid.Row="1"
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center" x:CompileBindings="False">
+            <Button Content="Accept Risk"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    Margin="0,0,8,6"
+                    ToolTip.Tip="Mark the selected finding as accepted/expected"
+                    Command="{Binding DataContext.AcceptRiskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    AutomationProperties.AutomationId="FindingsAcceptRiskButton"/>
+            <TextBlock Text="Select a finding to accept or remediate risk."
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       Margin="0,0,0,6"/>
+        </WrapPanel>
+
+        <DataGrid Grid.Row="2"
                   ItemsSource="{Binding FilteredItems}"
                   SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   AutoGenerateColumns="False"
@@ -56,16 +71,16 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="100" MinWidth="100" />
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="120" MinWidth="120" />
-                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="360" MinWidth="240" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="160" MinWidth="160" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="200" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="220" />
-                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
-                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="150" />
-                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="340" />
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="80" MinWidth="80" />
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="*" MinWidth="90" />
+                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="1.5*" MinWidth="180" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*" MinWidth="100" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="*" MinWidth="100" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="*" MinWidth="100" />
+                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="120" />
+                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="120" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="130" />
+                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="2*" MinWidth="180" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

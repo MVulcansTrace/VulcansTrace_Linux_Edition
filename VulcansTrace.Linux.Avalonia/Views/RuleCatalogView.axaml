@@ -55,7 +55,7 @@
                 <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" MinWidth="110" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" MinWidth="180" />
                 <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="2*" MinWidth="180" />
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="130" MinWidth="130" />
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="140" />
                 <DataGridTextColumn Header="Data Sources" Binding="{Binding DataSources}" Width="*" MinWidth="100" />
             </DataGrid.Columns>
         </DataGrid>

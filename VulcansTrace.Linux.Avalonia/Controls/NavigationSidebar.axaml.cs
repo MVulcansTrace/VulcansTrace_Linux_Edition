@@ -17,12 +17,4 @@ public partial class NavigationSidebar : UserControl
         InitializeComponent();
     }
 
-    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (NavListBox?.SelectedItem is not NavigationItem item)
-            return;
-
-        if (DataContext is MainViewModel vm)
-            vm.SelectedNavigationItem = item;
-    }
 }

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.DoctorView"
              x:DataType="vm:DoctorViewModel">
 
@@ -30,11 +31,27 @@
                 Theme="{StaticResource VtCard}"
                 Margin="0,0,0,8"
                 IsVisible="{Binding !HasProbed}">
-            <TextBlock Text="Click 'Run Diagnostics' to check data-source visibility."
-                       Foreground="{StaticResource VtTextMutedBrush}"
-                       FontSize="{StaticResource VtFontSizeMd}"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"/>
+            <StackPanel Orientation="Vertical"
+                        Spacing="12"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Margin="24">
+                <i:Icon Value="mdi-stethoscope"
+                        FontSize="48"
+                        Foreground="{StaticResource VtTextMutedBrush}"
+                        HorizontalAlignment="Center"/>
+                <TextBlock Text="No diagnostics run yet."
+                           FontSize="{StaticResource VtFontSizeLg}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                           TextAlignment="Center"/>
+                <TextBlock Text="Click 'Run Diagnostics' to check data-source visibility."
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeMd}"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           MaxWidth="480"/>
+            </StackPanel>
         </Border>
 
         <!-- Summary banner (shown after any probe) -->

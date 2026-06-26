@@ -93,3 +93,43 @@ public sealed class GroupModeToBoolConverter : IValueConverter
         return value is true ? TimelineGroupMode.Host : TimelineGroupMode.Category;
     }
 }
+
+/// <summary>
+/// Converts an agent status string to a background brush for the header badge.
+/// </summary>
+public sealed class AgentStatusToBackgroundBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value?.ToString()?.ToLowerInvariant() switch
+        {
+            "busy" => new SolidColorBrush(Color.Parse("#713f12")), // warning muted
+            _ => new SolidColorBrush(Color.Parse("#064e3b")) // success muted (Online)
+        };
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+/// <summary>
+/// Converts an agent status string to a foreground brush for the header badge.
+/// </summary>
+public sealed class AgentStatusToForegroundBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value?.ToString()?.ToLowerInvariant() switch
+        {
+            "busy" => new SolidColorBrush(Color.Parse("#facc15")), // warning
+            _ => new SolidColorBrush(Color.Parse("#4ade80")) // success (Online)
+        };
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}

@@ -28,6 +28,11 @@ public class TimelineViewModel : ViewModelBase
 
     public ObservableCollection<TimelineEntry> TimelineEntries { get; set; } = new();
     public ObservableCollection<TimelineEdge> TimelineEdges { get; set; } = new();
+
+    /// <summary>
+    /// True when the timeline has entries to display.
+    /// </summary>
+    public bool HasTimelineData => TimelineEntries.Count > 0;
     public DateTime? MinTime { get; set; }
     public DateTime? MaxTime { get; set; }
 
@@ -145,6 +150,7 @@ public class TimelineViewModel : ViewModelBase
 
     public TimelineViewModel()
     {
+        TimelineEntries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTimelineData));
     }
 
     /// <summary>

@@ -43,6 +43,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _userQuery = "";
     private string _logText = "";
     private bool _isBusy;
+    private string _agentStatus = "Online";
     private bool _isSlashPaletteOpen;
     private bool _hasPrivilegeWarning;
     private string _privilegeWarningText = "";
@@ -180,6 +181,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             if (SetField(ref _isBusy, value))
             {
+                AgentStatus = value ? "Busy" : "Online";
                 SendQueryCommand.RaiseCanExecuteChanged();
                 ExecuteSlashCommandCommand.RaiseCanExecuteChanged();
                 CancelQueryCommand.RaiseCanExecuteChanged();
@@ -204,6 +206,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanCompareAudits));
             }
         }
+    }
+
+    /// <summary>Gets the current agent status for the header badge.</summary>
+    public string AgentStatus
+    {
+        get => _agentStatus;
+        private set => SetField(ref _agentStatus, value);
     }
 
     /// <summary>Gets whether the slash-command palette is open.</summary>

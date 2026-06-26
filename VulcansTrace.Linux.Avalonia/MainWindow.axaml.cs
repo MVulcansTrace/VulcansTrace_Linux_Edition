@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -20,6 +22,7 @@ namespace VulcansTrace.Linux.Avalonia;
 public partial class MainWindow : Window
 {
     private ContentControl? _mainContent;
+    private CancellationTokenSource? _transitionCts;
 
     public MainWindow()
     {
@@ -61,48 +64,76 @@ public partial class MainWindow : Window
     {
         if (_mainContent == null) return;
 
-        // Ensure render transform is set up for translation
-        _mainContent.RenderTransform = new TranslateTransform(0, 0);
+        // Cancel any in-flight transition so rapid navigation doesn't stack animations.
+        var previousTransition = _transitionCts;
+        var transitionCts = new CancellationTokenSource();
+        _transitionCts = transitionCts;
+        previousTransition?.Cancel();
+        var token = transitionCts.Token;
 
-        // Fade out + slide down
-        var fadeOut = new Animation
+        try
         {
-            Duration = TimeSpan.FromMilliseconds(80),
-            Easing = new CubicEaseOut(),
-            Children =
-            {
-                new KeyFrame
-                {
-                    Setters =
-                    {
-                        new Setter(Visual.OpacityProperty, 0.0),
-                        new Setter(Visual.RenderTransformProperty, new TranslateTransform(0, 8))
-                    },
-                    KeyTime = TimeSpan.FromMilliseconds(80)
-                }
-            }
-        };
-        await fadeOut.RunAsync(_mainContent);
+            // Ensure render transform is set up for translation
+            _mainContent.RenderTransform = new TranslateTransform(0, 0);
 
-        // Fade in + slide up (content has already changed via binding during the fade out)
-        var fadeIn = new Animation
-        {
-            Duration = TimeSpan.FromMilliseconds(180),
-            Easing = new CubicEaseOut(),
-            Children =
+            // Fade out + slide down
+            var fadeOut = new Animation
             {
-                new KeyFrame
+                Duration = TimeSpan.FromMilliseconds(80),
+                Easing = new CubicEaseOut(),
+                Children =
                 {
-                    Setters =
+                    new KeyFrame
                     {
-                        new Setter(Visual.OpacityProperty, 1.0),
-                        new Setter(Visual.RenderTransformProperty, new TranslateTransform(0, 0))
-                    },
-                    KeyTime = TimeSpan.FromMilliseconds(180)
+                        Setters =
+                        {
+                            new Setter(Visual.OpacityProperty, 0.0),
+                            new Setter(Visual.RenderTransformProperty, new TranslateTransform(0, 8))
+                        },
+                        KeyTime = TimeSpan.FromMilliseconds(80)
+                    }
                 }
-            }
-        };
-        await fadeIn.RunAsync(_mainContent);
+            };
+            await fadeOut.RunAsync(_mainContent, token);
+
+            if (token.IsCancellationRequested)
+                return;
+
+            // Fade in + slide up (content has already changed via binding during the fade out)
+            var fadeIn = new Animation
+            {
+                Duration = TimeSpan.FromMilliseconds(180),
+                Easing = new CubicEaseOut(),
+                Children =
+                {
+                    new KeyFrame
+                    {
+                        Setters =
+                        {
+                            new Setter(Visual.OpacityProperty, 1.0),
+                            new Setter(Visual.RenderTransformProperty, new TranslateTransform(0, 0))
+                        },
+                        KeyTime = TimeSpan.FromMilliseconds(180)
+                    }
+                }
+            };
+            await fadeIn.RunAsync(_mainContent, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Expected when users navigate quickly or the window closes mid-transition.
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Content transition failed: {ex}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_transitionCts, transitionCts))
+                _transitionCts = null;
+
+            transitionCts.Dispose();
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -112,5 +143,8 @@ public partial class MainWindow : Window
             vm.PropertyChanged -= OnViewModelPropertyChanged;
             vm.Dispose();
         }
+
+        _transitionCts?.Cancel();
+        _transitionCts = null;
     }
 }

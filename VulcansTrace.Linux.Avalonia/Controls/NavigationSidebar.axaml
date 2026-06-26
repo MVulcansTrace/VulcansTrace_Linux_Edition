@@ -11,8 +11,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <ListBox x:Name="NavListBox"
                ItemsSource="{Binding NavigationItems}"
-               SelectedItem="{Binding SelectedNavigationItem}"
-               SelectionChanged="OnSelectionChanged"
+               SelectedItem="{Binding SelectedNavigationItem, Mode=TwoWay}"
                Background="Transparent"
                BorderThickness="0"
                Padding="0,8">

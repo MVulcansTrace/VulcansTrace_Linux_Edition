@@ -17,6 +17,8 @@
     <conv:BoolToBackgroundConverter x:Key="BoolToBackground" />
     <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrush" />
     <conv:BoolToForegroundConverter x:Key="BoolToForeground" />
+    <conv:AgentStatusToBackgroundBrushConverter x:Key="AgentStatusToBackgroundBrush" />
+    <conv:AgentStatusToForegroundBrushConverter x:Key="AgentStatusToForegroundBrush" />
   </UserControl.Resources>
 
   <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="24">
@@ -52,8 +54,8 @@
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Border Theme="{StaticResource VtBadge}" Background="{StaticResource VtSuccessMutedBrush}">
-            <TextBlock Text="Online" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtSuccessBrush}" FontWeight="SemiBold" />
+          <Border Theme="{StaticResource VtBadge}" Background="{Binding AgentStatus, Converter={StaticResource AgentStatusToBackgroundBrush}}">
+            <TextBlock Text="{Binding AgentStatus}" FontSize="{StaticResource VtFontSizeXs}" Foreground="{Binding AgentStatus, Converter={StaticResource AgentStatusToForegroundBrush}}" FontWeight="SemiBold" />
           </Border>
         </StackPanel>
       </Grid>
@@ -64,52 +66,56 @@
             Theme="{StaticResource VtCard}"
             Padding="12"
             Margin="0,0,0,12">
-      <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                    VerticalScrollBarVisibility="Disabled">
-        <WrapPanel Orientation="Horizontal">
-          <Button Content="Explain Selected"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding ExplainSelectedCommand}"
-                  IsEnabled="{Binding CanExplainSelected}"
-                  AutomationProperties.AutomationId="AgentExplainSelectedButton" />
-          <Button Content="Import Threat Intel"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding ImportThreatIntelCommand}"
-                  AutomationProperties.AutomationId="AgentThreatIntelButton" />
-          <Button Content="Export Audit"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding ExportAuditCommand}"
-                  IsEnabled="{Binding CanExportAudit}"
-                  AutomationProperties.AutomationId="AgentExportAuditButton" />
-          <Button Content="Export Remediation"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding ExportRemediationCommand}"
-                  IsEnabled="{Binding CanExportAudit}"
-                  AutomationProperties.AutomationId="AgentExportRemediationButton" />
-          <Button Content="Export Session"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding ExportSessionCommand}"
-                  IsEnabled="{Binding CanExportSession}"
-                  AutomationProperties.AutomationId="AgentExportSessionButton" />
-          <Button Content="Compare Last Two"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding CompareAuditsCommand}"
-                  IsEnabled="{Binding CanCompareAudits}"
-                  AutomationProperties.AutomationId="AgentCompareAuditsButton" />
-          <Button Content="Compare Selected"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Margin="0,0,8,8"
-                  Command="{Binding CompareSelectedAuditsCommand}"
-                  IsEnabled="{Binding CanCompareSelectedAudits}"
-                  AutomationProperties.AutomationId="AgentCompareSelectedButton" />
-        </WrapPanel>
-      </ScrollViewer>
+      <WrapPanel Orientation="Horizontal">
+        <Button Content="Explain Selected"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding ExplainSelectedCommand}"
+                IsEnabled="{Binding CanExplainSelected}"
+                ToolTip.Tip="Explain the currently selected finding"
+                AutomationProperties.AutomationId="AgentExplainSelectedButton" />
+        <Button Content="Import Threat Intel"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding ImportThreatIntelCommand}"
+                ToolTip.Tip="Import threat intelligence data"
+                AutomationProperties.AutomationId="AgentThreatIntelButton" />
+        <Button Content="Export Audit"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding ExportAuditCommand}"
+                IsEnabled="{Binding CanExportAudit}"
+                ToolTip.Tip="Export the current audit report"
+                AutomationProperties.AutomationId="AgentExportAuditButton" />
+        <Button Content="Export Remediation"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding ExportRemediationCommand}"
+                IsEnabled="{Binding CanExportAudit}"
+                ToolTip.Tip="Export the remediation plan"
+                AutomationProperties.AutomationId="AgentExportRemediationButton" />
+        <Button Content="Export Session"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding ExportSessionCommand}"
+                IsEnabled="{Binding CanExportSession}"
+                ToolTip.Tip="Export the current session report"
+                AutomationProperties.AutomationId="AgentExportSessionButton" />
+        <Button Content="Compare Last Two"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding CompareAuditsCommand}"
+                IsEnabled="{Binding CanCompareAudits}"
+                ToolTip.Tip="Compare the last two audits"
+                AutomationProperties.AutomationId="AgentCompareAuditsButton" />
+        <Button Content="Compare Selected"
+                Theme="{StaticResource VtSecondaryButton}"
+                Margin="0,0,8,8"
+                Command="{Binding CompareSelectedAuditsCommand}"
+                IsEnabled="{Binding CanCompareSelectedAudits}"
+                ToolTip.Tip="Compare the two selected audit history entries"
+                AutomationProperties.AutomationId="AgentCompareSelectedButton" />
+      </WrapPanel>
     </Border>
 
     <!-- Chat -->
@@ -192,7 +198,6 @@
 
                 <!-- Message bubble -->
                 <Border Grid.Column="1"
-                        MaxWidth="760"
                         Background="{Binding IsUser, Converter={StaticResource BoolToBackground}}"
                         BorderBrush="{Binding IsUser, Converter={StaticResource BoolToBorderBrush}}"
                         BorderThickness="1"
@@ -629,29 +634,27 @@
     <Border Grid.Row="3" Theme="{StaticResource VtCard}" Padding="16" Margin="0,0,0,12">
       <StackPanel Orientation="Vertical" Spacing="0">
         <!-- Quick-check chips -->
-        <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled"
+        <ItemsControl ItemsSource="{Binding QuickActions}"
                       Margin="0,0,0,12">
-          <ItemsControl ItemsSource="{Binding QuickActions}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="8" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate DataType="vm:AgentQuickAction">
-                <Button Command="{Binding Command}"
-                        Padding="10,6"
-                        Theme="{StaticResource VtSecondaryButton}">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="{Binding Icon}" FontSize="12" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding Label}" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center" />
-                  </StackPanel>
-                </Button>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:AgentQuickAction">
+              <Button Command="{Binding Command}"
+                      Padding="10,6"
+                      Margin="0,0,8,6"
+                      Theme="{StaticResource VtSecondaryButton}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{Binding Icon}" FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Label}" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
         <!-- Slash command palette -->
         <Border Background="{StaticResource VtBackground700Brush}"
