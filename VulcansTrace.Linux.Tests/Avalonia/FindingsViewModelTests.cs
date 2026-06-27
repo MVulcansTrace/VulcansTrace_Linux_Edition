@@ -241,4 +241,52 @@ public class FindingsViewModelTests
         Assert.Single(vm.FilteredItems);
         Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
     }
+
+    [Theory]
+    [InlineData(1, "")]
+    [InlineData(5, "×5")]
+    [InlineData(438, "×438")]
+    public void FindingItemViewModel_GroupBadge_OnlyShowsGroupedFindings(int groupedCount, string expectedBadge)
+    {
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail",
+            GroupedCount = groupedCount
+        };
+
+        var item = new FindingItemViewModel(finding);
+
+        Assert.Equal(expectedBadge, item.GroupBadge);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(438)]
+    public void FindingItemViewModel_GroupedCount_AlwaysShowsRawCount(int groupedCount)
+    {
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail",
+            GroupedCount = groupedCount
+        };
+
+        var item = new FindingItemViewModel(finding);
+
+        Assert.Equal(groupedCount, item.GroupedCount);
+    }
 }

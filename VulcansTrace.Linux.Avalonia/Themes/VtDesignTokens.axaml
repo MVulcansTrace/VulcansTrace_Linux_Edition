@@ -180,7 +180,6 @@
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
       <Setter Property="Padding" Value="16,12" />
       <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
-      <Setter Property="Watermark" Value="Ask the agent..." />
       <Style Selector="^:focus /template/ Border#PART_BorderElement">
         <Setter Property="BorderBrush" Value="{StaticResource VtBorderAccentBrush}" />
         <Setter Property="BorderThickness" Value="1.5" />
@@ -260,7 +259,7 @@
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="GridLinesVisibility" Value="Horizontal" />
     <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
-    <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+    <Setter Property="VerticalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
     <Setter Property="RowBackground" Value="Transparent" />
   </Style>
   <Style Selector="DataGrid DataGridColumnHeader">
@@ -291,6 +290,9 @@
   <Style Selector="DataGrid DataGridCell">
     <Setter Property="Padding" Value="12,0" />
     <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="DataGrid DataGridCell TextBlock">
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
   </Style>
 
   <!-- === ScrollViewer === -->

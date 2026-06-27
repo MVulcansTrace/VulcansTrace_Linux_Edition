@@ -84,7 +84,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets available severity filters for the chat.</summary>
     public ObservableCollection<SeverityFilterOption> ChatSeverityFilters { get; } = new()
     {
-        new SeverityFilterOption("All", Severity.Info),
+        new SeverityFilterOption("All severities", Severity.Info),
         new SeverityFilterOption("High & Critical only", Severity.High),
         new SeverityFilterOption("Critical only", Severity.Critical)
     };

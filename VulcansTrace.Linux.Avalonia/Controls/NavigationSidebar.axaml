@@ -57,6 +57,12 @@
             <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
           </Style>
+          <Style Selector="TextBlock.group-header">
+            <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource VtFontSizeXs}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1" />
+          </Style>
           <Style Selector="ListBoxItem:selected TextBlock.group-header">
             <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -69,17 +75,14 @@
           <DataTemplate DataType="models:NavigationItem">
             <StackPanel>
               <!-- Group header with separator -->
-              <Border Margin="12,8,12,0"
+              <Border Margin="12,16,12,0"
                       BorderBrush="{StaticResource VtBorderDefaultBrush}"
                       BorderThickness="0,1,0,0"
                       IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                       Opacity="0.5" />
               <TextBlock Text="{Binding Group}"
                          Classes="group-header"
-                         Foreground="{StaticResource VtTextMutedBrush}"
-                         FontSize="{StaticResource VtFontSizeXs}"
-                         FontWeight="SemiBold"
-                         Margin="16,8,16,4"
+                         Margin="16,12,16,4"
                          IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
               <!-- Navigation item content -->

@@ -21,6 +21,7 @@
                      Width="220"
                      VerticalAlignment="Center"
                      Theme="{StaticResource VtInput}"
+                     Watermark="Search findings..."
                      AutomationProperties.AutomationId="SearchTextBox"/>
             <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <ComboBox ItemsSource="{Binding SeverityFilters}"
@@ -51,12 +52,14 @@
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
                   CanUserResizeColumns="True"
+                  CanUserReorderColumns="False"
+                  HorizontalScrollBarVisibility="Auto"
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" Width="80" MinWidth="70">
+                <DataGridTemplateColumn Header="Severity" Width="Auto" MinWidth="90" CanUserResize="True">
                     <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
                                     CornerRadius="4"
                                     Padding="6,2"
@@ -71,16 +74,53 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Count" Binding="{Binding GroupBadge}" Width="80" MinWidth="80" />
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="*" MinWidth="90" />
-                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="1.5*" MinWidth="180" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*" MinWidth="100" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="*" MinWidth="100" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="*" MinWidth="100" />
-                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="120" />
-                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="120" />
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="130" />
-                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="2*" MinWidth="180" />
+                <DataGridTemplateColumn Header="Count" Width="Auto" MinWidth="70" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding GroupedCount}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                                       FontWeight="SemiBold"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="Auto" MinWidth="100" CanUserResize="True" />
+                <DataGridTemplateColumn Header="Evidence Signals" Width="Auto" MinWidth="240" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding EvidenceSignalsDisplay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding EvidenceSignalsDisplay}"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" MinWidth="120" CanUserResize="True" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="Auto" MinWidth="110" CanUserResize="True" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="Auto" MinWidth="110" CanUserResize="True" />
+                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="130" CanUserResize="True" />
+                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="130" CanUserResize="True" />
+                <DataGridTemplateColumn Header="MITRE ATT&amp;CK" Width="Auto" MinWidth="160" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding MitreTechniquesDisplay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding MitreTechniquesDisplay}"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Description" Width="Auto" MinWidth="300" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding ShortDescription}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding ShortDescription}"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
