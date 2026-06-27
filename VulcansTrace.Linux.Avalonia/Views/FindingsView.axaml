@@ -32,12 +32,12 @@
                       AutomationProperties.AutomationId="SeverityFilterComboBox"/>
         </StackPanel>
 
-        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center" x:CompileBindings="False">
+        <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
             <Button Content="Accept Risk"
                     Theme="{StaticResource VtSecondaryButton}"
                     Margin="0,0,8,6"
                     ToolTip.Tip="Mark the selected finding as accepted/expected"
-                    Command="{Binding DataContext.AcceptRiskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Command="{Binding AcceptRiskCommand}"
                     AutomationProperties.AutomationId="FindingsAcceptRiskButton"/>
             <TextBlock Text="Select a finding to accept or remediate risk."
                        VerticalAlignment="Center"
@@ -85,7 +85,13 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="Auto" MinWidth="100" CanUserResize="True" />
+                <DataGridTemplateColumn Header="Confidence" Width="Auto" MinWidth="100" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding Confidence}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Evidence Signals" Width="Auto" MinWidth="240" CanUserResize="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:FindingItemViewModel">
@@ -96,11 +102,41 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" MinWidth="120" CanUserResize="True" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="Auto" MinWidth="110" CanUserResize="True" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="Auto" MinWidth="110" CanUserResize="True" />
-                <DataGridTextColumn Header="From" Binding="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="130" CanUserResize="True" />
-                <DataGridTextColumn Header="To" Binding="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="Auto" MinWidth="130" CanUserResize="True" />
+                <DataGridTemplateColumn Header="Category" Width="Auto" MinWidth="120" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding Category}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Category}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Source" Width="Auto" MinWidth="110" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding SourceHost}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SourceHost}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Target" Width="Auto" MinWidth="110" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding Target}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Target}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="From" Width="Auto" MinWidth="130" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding TimeStart, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="To" Width="Auto" MinWidth="130" CanUserResize="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:FindingItemViewModel">
+                            <TextBlock Text="{Binding TimeEnd, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="MITRE ATT&amp;CK" Width="Auto" MinWidth="160" CanUserResize="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:FindingItemViewModel">

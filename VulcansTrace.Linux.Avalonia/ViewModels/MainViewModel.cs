@@ -451,6 +451,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             {
                 SummaryText = $"Accept risk failed: {ex.Message}";
             });
+        Findings.AcceptRiskCommand = AcceptRiskCommand;
 
         CompareLogsCommand = new AsyncRelayCommand(
             async _ => await RunLogDiffAsync(),

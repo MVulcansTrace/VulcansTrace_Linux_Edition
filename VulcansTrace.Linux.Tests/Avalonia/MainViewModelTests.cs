@@ -38,6 +38,12 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Constructor_WiresFindingsAcceptRiskCommand()
+    {
+        Assert.Same(_vm.AcceptRiskCommand, _vm.Findings.AcceptRiskCommand);
+    }
+
+    [Fact]
     public void AnalyzeCommand_RequiresLogText()
     {
         Assert.False(_vm.AnalyzeCommand.CanExecute(null));

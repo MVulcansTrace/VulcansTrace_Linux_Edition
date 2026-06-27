@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -22,6 +23,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private bool _hasWarnings;
     private bool _hasParseErrors;
     private FindingItemViewModel? _selectedItem;
+    private ICommand? _acceptRiskCommand;
 
     /// <summary>Gets the collection of findings to display.</summary>
     public ObservableCollection<FindingItemViewModel> Items { get; } = new();
@@ -37,6 +39,13 @@ public sealed class FindingsViewModel : ViewModelBase
 
     /// <summary>Gets the available severity filter options.</summary>
     public ObservableCollection<SeverityFilterOption> SeverityFilters { get; } = new();
+
+    /// <summary>Gets or sets the command used to accept risk for the selected finding.</summary>
+    public ICommand? AcceptRiskCommand
+    {
+        get => _acceptRiskCommand;
+        set => SetField(ref _acceptRiskCommand, value);
+    }
 
     /// <summary>Gets or sets the search text for filtering findings.</summary>
     public string SearchText
