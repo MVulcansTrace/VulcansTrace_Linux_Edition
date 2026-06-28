@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 using VulcansTrace.Linux.Core.Compliance;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -74,6 +75,12 @@ public sealed class ComplianceScorecardViewModel : ViewModelBase
         get => _trendArrow;
         private set => SetField(ref _trendArrow, value);
     }
+
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the text of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
 
     /// <summary>
     /// Loads a compliance scorecard into the view model.

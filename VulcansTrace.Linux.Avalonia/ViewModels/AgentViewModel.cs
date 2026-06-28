@@ -627,19 +627,19 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void InitializeQuickActions()
     {
-        QuickActions.Add(new AgentQuickAction { Label = "Full audit", Icon = "🔍", Command = FullAuditCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Firewall", Icon = "🧱", Command = FirewallCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Ports", Icon = "🔌", Command = PortsCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Services", Icon = "⚙️", Command = ServicesCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Network", Icon = "🌐", Command = NetworkCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Containers", Icon = "📦", Command = ContainerCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Kubernetes", Icon = "☸️", Command = KubernetesCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "YARA", Icon = "🦠", Command = YaraCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Processes", Icon = "PROC", Command = ProcessRuntimeCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Set baseline", Icon = "BASE", Command = SetBaselineCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Check drift", Icon = "DIFF", Command = CheckDriftCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Show baseline", Icon = "SHOW", Command = ShowBaselineCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Export audit", Icon = "SAVE", Command = ExportAuditCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Full audit", Icon = "mdi-magnify", Command = FullAuditCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Firewall", Icon = "mdi-shield", Command = FirewallCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Ports", Icon = "mdi-ethernet", Command = PortsCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Services", Icon = "mdi-cog", Command = ServicesCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Network", Icon = "mdi-web", Command = NetworkCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Containers", Icon = "mdi-cube", Command = ContainerCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Kubernetes", Icon = "mdi-kubernetes", Command = KubernetesCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "YARA", Icon = "mdi-virus", Command = YaraCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Processes", Icon = "mdi-monitor", Command = ProcessRuntimeCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Set baseline", Icon = "mdi-pin", Command = SetBaselineCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Check drift", Icon = "mdi-compare", Command = CheckDriftCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Show baseline", Icon = "mdi-eye", Command = ShowBaselineCommand });
+        QuickActions.Add(new AgentQuickAction { Label = "Export audit", Icon = "mdi-content-save", Command = ExportAuditCommand });
     }
 
     private void InitializeSlashCommands()

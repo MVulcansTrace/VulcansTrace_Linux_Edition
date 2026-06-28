@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -23,6 +24,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     private bool _hasCriticalChain;
     private string _markdown = string.Empty;
     private string _copyStatus = string.Empty;
+    private bool _hasLoadedTraceMap;
 
     /// <summary>Gets the ordered beats that make up the attack timeline.</summary>
     public ObservableCollection<StoryBeat> Beats { get; } = new();
@@ -36,6 +38,27 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         get => _hasStory;
         private set => SetField(ref _hasStory, value);
     }
+
+    /// <summary>Gets whether a Trace Map result has been loaded into the story view.</summary>
+    public bool HasLoadedTraceMap
+    {
+        get => _hasLoadedTraceMap;
+        private set
+        {
+            if (SetField(ref _hasLoadedTraceMap, value))
+            {
+                RaiseEmptyStateText();
+            }
+        }
+    }
+
+    /// <summary>Gets the headline shown when no incident story is available.</summary>
+    public string EmptyStateHeadline => HasLoadedTraceMap ? "No incident story in this result" : "No incident story yet";
+
+    /// <summary>Gets the description shown when no incident story is available.</summary>
+    public string EmptyStateDescription => HasLoadedTraceMap
+        ? "The last run completed without findings to narrate. Review the findings, warnings, or parse errors for the run."
+        : "Run an analysis or agent audit to generate a narrative attack chain and recommended response.";
 
     /// <summary>Gets the summary of the likely attack chain.</summary>
     public string LikelyChain
@@ -68,6 +91,12 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     /// <summary>Gets the command that copies the incident story markdown to the clipboard.</summary>
     public AsyncRelayCommand CopyMarkdownCommand { get; }
 
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the text of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
+
     public IncidentStoryViewModel()
     {
         CopyMarkdownCommand = new AsyncRelayCommand(
@@ -81,6 +110,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     /// </summary>
     public void LoadTraceMap(TraceMapResult? traceMap)
     {
+        HasLoadedTraceMap = traceMap != null;
         Beats.Clear();
         Recommendations.Clear();
         CopyStatus = string.Empty;
@@ -137,5 +167,11 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         }
 
         CopyStatus = "Clipboard not available.";
+    }
+
+    private void RaiseEmptyStateText()
+    {
+        OnPropertyChanged(nameof(EmptyStateHeadline));
+        OnPropertyChanged(nameof(EmptyStateDescription));
     }
 }

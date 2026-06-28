@@ -250,6 +250,24 @@ public class TimelineViewModelTraceMapTests
 
         Assert.Empty(vm.TimelineEntries);
         Assert.Equal(0, vm.CanvasHeight);
+        Assert.True(vm.HasLoadedAnalysis);
+        Assert.Equal("No timeline events in this result", vm.EmptyStateHeadline);
+        Assert.Contains("last run completed", vm.EmptyStateDescription);
+    }
+
+    [Fact]
+    public void LoadAnalysisResult_NullResult_RestoresInitialTimelineEmptyState()
+    {
+        var vm = new TimelineViewModel();
+
+        vm.LoadAnalysisResult(new AnalysisResult());
+        Assert.True(vm.HasLoadedAnalysis);
+
+        vm.LoadAnalysisResult(null);
+
+        Assert.False(vm.HasLoadedAnalysis);
+        Assert.Equal("No timeline yet", vm.EmptyStateHeadline);
+        Assert.Contains("click Analyze", vm.EmptyStateDescription);
     }
 
     [Fact]

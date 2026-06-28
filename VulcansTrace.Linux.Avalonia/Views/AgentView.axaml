@@ -5,6 +5,7 @@
              xmlns:local="using:VulcansTrace.Linux.Avalonia.Views"
              xmlns:suggestions="using:VulcansTrace.Linux.Agent.Suggestions"
              xmlns:sessions="using:VulcansTrace.Linux.Agent.Sessions"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.AgentView"
              x:DataType="vm:AgentViewModel">
 
@@ -651,7 +652,7 @@
                       Margin="0,0,8,6"
                       Theme="{StaticResource VtSecondaryButton}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <TextBlock Text="{Binding Icon}" FontSize="12" VerticalAlignment="Center" />
+                  <i:Icon Value="{Binding Icon}" FontSize="14" VerticalAlignment="Center" />
                   <TextBlock Text="{Binding Label}" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>

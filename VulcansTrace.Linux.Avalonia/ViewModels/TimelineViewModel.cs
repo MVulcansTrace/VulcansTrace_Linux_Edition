@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 
@@ -25,6 +26,7 @@ public class TimelineViewModel : ViewModelBase
     private Guid _selectedFindingId;
     private string _selectedChainNarrative = string.Empty;
     private IReadOnlyList<CorrelationEdge> _correlationEdges = Array.Empty<CorrelationEdge>();
+    private bool _hasLoadedAnalysis;
 
     public ObservableCollection<TimelineEntry> TimelineEntries { get; set; } = new();
     public ObservableCollection<TimelineEdge> TimelineEdges { get; set; } = new();
@@ -33,6 +35,36 @@ public class TimelineViewModel : ViewModelBase
     /// True when the timeline has entries to display.
     /// </summary>
     public bool HasTimelineData => TimelineEntries.Count > 0;
+
+    /// <summary>
+    /// True when an analysis or audit result has been loaded into the timeline.
+    /// </summary>
+    public bool HasLoadedAnalysis
+    {
+        get => _hasLoadedAnalysis;
+        private set
+        {
+            if (SetField(ref _hasLoadedAnalysis, value))
+            {
+                RaiseEmptyStateText();
+            }
+        }
+    }
+
+    /// <summary>Gets the headline shown when the timeline has no entries.</summary>
+    public string EmptyStateHeadline => HasLoadedAnalysis ? "No timeline events in this result" : "No timeline yet";
+
+    /// <summary>Gets the description shown when the timeline has no entries.</summary>
+    public string EmptyStateDescription => HasLoadedAnalysis
+        ? "The last run completed, but no findings had usable time ranges to place on the trace map."
+        : "Paste a firewall log and click Analyze to build a trace map.";
+
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the text of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
+
     public DateTime? MinTime { get; set; }
     public DateTime? MaxTime { get; set; }
 
@@ -167,6 +199,7 @@ public class TimelineViewModel : ViewModelBase
     public void LoadAnalysisResult(AnalysisResult? result, IReadOnlyList<CorrelationEdge> edges)
     {
         _analysisResult = result;
+        HasLoadedAnalysis = result != null;
         _correlationEdges = edges ?? Array.Empty<CorrelationEdge>();
         OnPropertyChanged(nameof(IsEdgeRenderingSuppressed));
         OnPropertyChanged(nameof(SuppressionMessage));
@@ -410,6 +443,12 @@ public class TimelineViewModel : ViewModelBase
         ConnectedFindingIds.Clear();
         SelectedChainNarrative = string.Empty;
         OnPropertyChanged(nameof(IsNarrativeVisible));
+    }
+
+    private void RaiseEmptyStateText()
+    {
+        OnPropertyChanged(nameof(EmptyStateHeadline));
+        OnPropertyChanged(nameof(EmptyStateDescription));
     }
 
     private static double Clamp01(double value)

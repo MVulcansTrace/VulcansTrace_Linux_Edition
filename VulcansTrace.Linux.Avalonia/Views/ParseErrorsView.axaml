@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.ParseErrorsView"
              x:DataType="vm:FindingsViewModel">
 
@@ -26,6 +27,17 @@
                  BorderThickness="0"
                  Background="Transparent"
                  Foreground="{StaticResource VtDangerBrush}"
-                 FontFamily="{StaticResource VtFontFamilyMono}"/>
+                 FontFamily="{StaticResource VtFontFamilyMono}"
+                 IsVisible="{Binding HasParseErrors}"/>
+
+        <controls:EmptyStateView Grid.Row="1"
+                                 Icon="mdi-alert-circle"
+                                 Headline="No parse errors"
+                                 Description="Log lines that could not be parsed will appear here. Check your log format if errors show up."
+                                 ActionText="{Binding EmptyStateActionText}"
+                                 ActionCommand="{Binding EmptyStateActionCommand}"
+                                 ActionIcon="mdi-rocket-launch-outline"
+                                 ActionAutomationId="ParseErrorsEmptyStateAnalyzeButton"
+                                 IsVisible="{Binding !HasParseErrors}"/>
     </Grid>
 </UserControl>

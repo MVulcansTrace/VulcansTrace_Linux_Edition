@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.RiskScorecardView"
              x:DataType="vm:RiskScorecardViewModel">
 
@@ -46,16 +47,16 @@
         </StackPanel>
 
         <!-- Empty state -->
-        <Border Grid.Row="1"
-                Theme="{StaticResource VtCard}"
-                Margin="0,4,0,8"
-                IsVisible="{Binding !HasData}">
-            <TextBlock Text="Run an analysis to generate a risk scorecard."
-                       Foreground="{StaticResource VtTextMutedBrush}"
-                       FontSize="{StaticResource VtFontSizeMd}"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"/>
-        </Border>
+        <controls:EmptyStateView Grid.Row="0"
+                                 Grid.RowSpan="4"
+                                 Icon="mdi-alert-decagram"
+                                 Headline="No risk scorecard yet"
+                                 Description="Run an analysis to calculate a weighted risk grade and category breakdown."
+                                 ActionText="{Binding EmptyStateActionText}"
+                                 ActionCommand="{Binding EmptyStateActionCommand}"
+                                 ActionIcon="mdi-rocket-launch-outline"
+                                 ActionAutomationId="RiskEmptyStateAnalyzeButton"
+                                 IsVisible="{Binding !HasData}"/>
 
         <!-- Category breakdown -->
         <TextBlock Grid.Row="2"

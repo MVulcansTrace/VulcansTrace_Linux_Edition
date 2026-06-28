@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.KpiCard"
+             x:Name="Self">
+
+  <Border x:Name="RootBorder"
+          Theme="{StaticResource VtKpiCard}"
+          Padding="0"
+          MinWidth="160">
+    <Grid>
+      <!-- Subtle background tint when the card is in alert state -->
+      <Border Background="{Binding GlowBrush, ElementName=Self, TargetNullValue={StaticResource VtPrimaryGlowBrush}}"
+              Opacity="0.22"
+              IsVisible="{Binding IsAlert, ElementName=Self}"
+              CornerRadius="{StaticResource VtRadiusLg}"/>
+
+      <!-- Left accent bar that appears in alert state -->
+      <Border HorizontalAlignment="Left"
+              Width="4"
+              Background="{Binding AccentBrush, ElementName=Self, TargetNullValue={StaticResource VtTextSecondaryBrush}}"
+              IsVisible="{Binding IsAlert, ElementName=Self}"
+              CornerRadius="{StaticResource VtRadiusLg}"/>
+
+      <!-- Card content -->
+      <StackPanel Margin="16" Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <i:Icon Value="{Binding Icon, ElementName=Self}"
+                  FontSize="20"
+                  Foreground="{Binding AccentBrush, ElementName=Self, TargetNullValue={StaticResource VtTextSecondaryBrush}}"/>
+          <TextBlock Text="{Binding Label, ElementName=Self}"
+                     Classes="group-header"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <TextBlock Text="{Binding Value, ElementName=Self}"
+                   FontSize="{StaticResource VtFontSize2xl}"
+                   FontWeight="Bold"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"/>
+
+        <TextBlock Text="{Binding TrendText, ElementName=Self}"
+                   FontSize="{StaticResource VtFontSizeXs}"
+                   Foreground="{StaticResource VtTextSecondaryBrush}"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

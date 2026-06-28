@@ -411,6 +411,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             dialogService);
         LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
         Doctor = new DoctorViewModel(doctorService ?? new DoctorService(System.Array.Empty<IScanner>()));
+
+        // Wire empty-state action commands
+        Findings.EmptyStateActionCommand = AnalyzeCommand;
+        Timeline.EmptyStateActionCommand = AnalyzeCommand;
+        IncidentStory.EmptyStateActionCommand = AnalyzeCommand;
+        RiskScorecard.EmptyStateActionCommand = AnalyzeCommand;
+        ComplianceScorecard.EmptyStateActionCommand = Agent.FullAuditCommand;
+        ComplianceScorecard.EmptyStateActionText = "Run full audit";
+
         _liveResultHandler = (_, result) =>
         {
             foreach (var finding in result.DeltaFindings)

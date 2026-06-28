@@ -242,6 +242,27 @@ public class FindingsViewModelTests
         Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
     }
 
+    [Fact]
+    public void EmptyStateText_DistinguishesInitialAndCompletedEmptyResults()
+    {
+        var vm = new FindingsViewModel();
+
+        Assert.False(vm.HasLoadedResults);
+        Assert.Equal("No findings yet", vm.EmptyStateHeadline);
+
+        vm.LoadResults(new AnalysisResult());
+
+        Assert.True(vm.HasLoadedResults);
+        Assert.False(vm.HasItems);
+        Assert.Equal("No findings at this intensity", vm.EmptyStateHeadline);
+        Assert.Contains("last run completed", vm.EmptyStateDescription);
+
+        vm.Clear();
+
+        Assert.False(vm.HasLoadedResults);
+        Assert.Equal("No findings yet", vm.EmptyStateHeadline);
+    }
+
     [Theory]
     [InlineData(1, "")]
     [InlineData(5, "×5")]

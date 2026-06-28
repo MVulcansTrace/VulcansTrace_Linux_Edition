@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.FilterEmptyStateView"
+             x:Name="Self"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+
+  <Border Background="{StaticResource VtBackground800Brush}"
+          BorderBrush="{StaticResource VtBorderDefaultBrush}"
+          BorderThickness="1"
+          CornerRadius="{StaticResource VtRadiusLg}"
+          Padding="24"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch">
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8"
+                MaxWidth="420">
+      <i:Icon Value="{Binding Icon, ElementName=Self}"
+              FontSize="40"
+              Foreground="{StaticResource VtTextMutedBrush}"
+              Opacity="0.6"
+              IsVisible="{Binding Icon, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+              HorizontalAlignment="Center"/>
+      <TextBlock Text="{Binding Headline, ElementName=Self}"
+                 FontSize="{StaticResource VtFontSizeLg}"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource VtTextPrimaryBrush}"
+                 TextAlignment="Center"/>
+      <TextBlock Text="{Binding Description, ElementName=Self}"
+                 FontSize="{StaticResource VtFontSizeMd}"
+                 Foreground="{StaticResource VtTextSecondaryBrush}"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"/>
+    </StackPanel>
+  </Border>
+</UserControl>

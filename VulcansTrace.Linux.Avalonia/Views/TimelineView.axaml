@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.TimelineView"
              x:DataType="vm:TimelineViewModel">
 
@@ -80,25 +81,14 @@
                                FontSize="{StaticResource VtFontSizeSm}"
                                Foreground="{StaticResource VtWarningBrush}"
                                TextWrapping="Wrap"/>
-                    <StackPanel IsVisible="{Binding !HasTimelineData}"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Center"
-                                Spacing="8">
-                        <i:Icon Value="mdi-chart-timeline-variant"
-                                FontSize="48"
-                                Foreground="{StaticResource VtTextMutedBrush}"/>
-                        <TextBlock Text="No timeline data yet."
-                                   FontSize="{StaticResource VtFontSizeLg}"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource VtTextPrimaryBrush}"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Paste a firewall log and click Analyze to build a trace map."
-                                   FontSize="{StaticResource VtFontSizeMd}"
-                                   Foreground="{StaticResource VtTextSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   TextAlignment="Center"
-                                   MaxWidth="400"/>
-                    </StackPanel>
+                    <controls:EmptyStateView IsVisible="{Binding !HasTimelineData}"
+                                             Icon="mdi-chart-timeline-variant"
+                                             Headline="{Binding EmptyStateHeadline}"
+                                             Description="{Binding EmptyStateDescription}"
+                                             ActionText="{Binding EmptyStateActionText}"
+                                             ActionCommand="{Binding EmptyStateActionCommand}"
+                                             ActionIcon="mdi-rocket-launch-outline"
+                                             ActionAutomationId="TimelineEmptyStateAnalyzeButton"/>
                 </Grid>
             </Border>
 

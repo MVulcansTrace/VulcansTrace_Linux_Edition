@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.ComplianceScorecardView"
              x:DataType="vm:ComplianceScorecardViewModel">
 
@@ -81,16 +82,16 @@
         </StackPanel>
 
         <!-- Empty state -->
-        <Border Grid.Row="2"
-                Theme="{StaticResource VtCard}"
-                Margin="0,4,0,8"
-                IsVisible="{Binding !HasData}">
-            <TextBlock Text="Run an agent audit to generate a compliance scorecard."
-                       Foreground="{StaticResource VtTextMutedBrush}"
-                       FontSize="{StaticResource VtFontSizeMd}"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"/>
-        </Border>
+        <controls:EmptyStateView Grid.Row="0"
+                                 Grid.RowSpan="5"
+                                 Icon="mdi-clipboard-check"
+                                 Headline="No compliance scorecard yet"
+                                 Description="Run a full agent audit to generate a CIS compliance scorecard with per-family pass/fail breakdown."
+                                 ActionText="{Binding EmptyStateActionText}"
+                                 ActionCommand="{Binding EmptyStateActionCommand}"
+                                 ActionIcon="mdi-robot"
+                                 ActionAutomationId="ComplianceEmptyStateAuditButton"
+                                 IsVisible="{Binding !HasData}"/>
 
         <!-- Family scores -->
         <TextBlock Grid.Row="3"

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -60,6 +61,12 @@ public sealed class RiskScorecardViewModel : ViewModelBase
         get => _hasData;
         private set => SetField(ref _hasData, value);
     }
+
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the text of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
 
     /// <summary>
     /// Loads a risk scorecard into the view model.

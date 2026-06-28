@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.IncidentStoryView"
              x:DataType="vm:IncidentStoryViewModel">
 
@@ -8,21 +9,20 @@
         <vm:IncidentStoryViewModel/>
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="*">
         <!-- Empty state -->
-        <Border Grid.Row="0"
-                Theme="{StaticResource VtCard}"
-                Margin="0,0,0,8"
-                IsVisible="{Binding !HasStory}">
-            <TextBlock Text="Run an analysis or agent audit to generate an incident story."
-                       Foreground="{StaticResource VtTextMutedBrush}"
-                       FontSize="{StaticResource VtFontSizeMd}"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"/>
-        </Border>
+        <controls:EmptyStateView Grid.Row="0"
+                                 Icon="mdi-book-open-variant"
+                                 Headline="{Binding EmptyStateHeadline}"
+                                 Description="{Binding EmptyStateDescription}"
+                                 ActionText="{Binding EmptyStateActionText}"
+                                 ActionCommand="{Binding EmptyStateActionCommand}"
+                                 ActionIcon="mdi-rocket-launch-outline"
+                                 ActionAutomationId="IncidentStoryEmptyStateAnalyzeButton"
+                                 IsVisible="{Binding !HasStory}"/>
 
         <!-- Story content -->
-        <ScrollViewer Grid.Row="1"
+        <ScrollViewer Grid.Row="0"
                       IsVisible="{Binding HasStory}">
             <StackPanel Spacing="12" Margin="0,0,8,0">
                 <!-- Toolbar -->

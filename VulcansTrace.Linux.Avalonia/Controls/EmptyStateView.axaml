@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.EmptyStateView"
+             x:Name="Self"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+
+  <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12"
+                MaxWidth="420">
+      <i:Icon Value="{Binding Icon, ElementName=Self}"
+              FontSize="64"
+              Foreground="{StaticResource VtTextMutedBrush}"
+              Opacity="0.6"
+              IsVisible="{Binding Icon, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+              HorizontalAlignment="Center"/>
+      <TextBlock Text="{Binding Headline, ElementName=Self}"
+                 FontSize="{StaticResource VtFontSizeXl}"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource VtTextPrimaryBrush}"
+                 TextAlignment="Center"/>
+      <TextBlock Text="{Binding Description, ElementName=Self}"
+                 FontSize="{StaticResource VtFontSizeMd}"
+                 Foreground="{StaticResource VtTextSecondaryBrush}"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"/>
+      <Button Theme="{StaticResource VtSecondaryButton}"
+              Command="{Binding ActionCommand, ElementName=Self}"
+              AutomationProperties.AutomationId="{Binding ActionAutomationId, ElementName=Self}"
+              IsVisible="{Binding ActionText, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+              HorizontalAlignment="Center"
+              Margin="0,8,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <i:Icon Value="{Binding ActionIcon, ElementName=Self}"
+                  FontSize="18"
+                  IsVisible="{Binding ActionIcon, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          <TextBlock Text="{Binding ActionText, ElementName=Self}"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+    </StackPanel>
+  </Grid>
+</UserControl>

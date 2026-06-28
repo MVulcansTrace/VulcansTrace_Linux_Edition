@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -39,6 +40,21 @@ public partial class MainWindow : Window
             window.ShowDialog(this);
         };
         DataContext = viewModel;
+
+        // The Warnings and Parse Errors nav items share the Findings data context but
+        // need their own dedicated views instead of the generic Findings grid.
+        var warningsItem = viewModel.NavigationItems.FirstOrDefault(i => i.Label == "Warnings");
+        if (warningsItem != null)
+        {
+            warningsItem.Content = new Views.WarningsView { DataContext = viewModel.Findings };
+        }
+
+        var parseErrorsItem = viewModel.NavigationItems.FirstOrDefault(i => i.Label == "Parse Errors");
+        if (parseErrorsItem != null)
+        {
+            parseErrorsItem.Content = new Views.ParseErrorsView { DataContext = viewModel.Findings };
+        }
+
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Closed += OnClosed;
 

@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.FindingsView"
              x:DataType="vm:FindingsViewModel">
 
@@ -54,6 +56,7 @@
                   CanUserResizeColumns="True"
                   CanUserReorderColumns="False"
                   HorizontalScrollBarVisibility="Auto"
+                  IsVisible="{Binding HasData}"
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
             <DataGrid.Columns>
@@ -159,5 +162,22 @@
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
+
+        <!-- Filter excluded everything: show a targeted hint instead of the never-analyzed empty state -->
+        <controls:FilterEmptyStateView Grid.Row="2"
+                                       IsVisible="{Binding HasNoFilterMatches}"
+                                       Icon="mdi-filter-remove-outline"
+                                       Headline="No findings match your filter"
+                                       Description="Adjust the search box or severity filter to widen the results."/>
+
+        <controls:EmptyStateView Grid.Row="2"
+                                 Icon="mdi-magnify"
+                                 Headline="{Binding EmptyStateHeadline}"
+                                 Description="{Binding EmptyStateDescription}"
+                                 ActionText="{Binding EmptyStateActionText}"
+                                 ActionCommand="{Binding EmptyStateActionCommand}"
+                                 ActionIcon="mdi-rocket-launch-outline"
+                                 ActionAutomationId="FindingsEmptyStateAnalyzeButton"
+                                 IsVisible="{Binding !HasItems}"/>
     </Grid>
 </UserControl>

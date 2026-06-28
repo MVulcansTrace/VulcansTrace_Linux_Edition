@@ -22,6 +22,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private int _skippedLineCount;
     private bool _hasWarnings;
     private bool _hasParseErrors;
+    private bool _hasLoadedResults;
     private FindingItemViewModel? _selectedItem;
     private ICommand? _acceptRiskCommand;
 
@@ -46,6 +47,42 @@ public sealed class FindingsViewModel : ViewModelBase
         get => _acceptRiskCommand;
         set => SetField(ref _acceptRiskCommand, value);
     }
+
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the text of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
+
+    /// <summary>Gets whether there are filtered findings to display.</summary>
+    public bool HasData => FilteredItems.Count > 0;
+
+    /// <summary>Gets whether any findings have been loaded, regardless of the active filter.</summary>
+    public bool HasItems => Items.Count > 0;
+
+    /// <summary>Gets whether findings exist but none match the current filter.</summary>
+    public bool HasNoFilterMatches => Items.Count > 0 && FilteredItems.Count == 0;
+
+    /// <summary>Gets whether an analysis or audit result has been loaded.</summary>
+    public bool HasLoadedResults
+    {
+        get => _hasLoadedResults;
+        private set
+        {
+            if (SetField(ref _hasLoadedResults, value))
+            {
+                RaiseEmptyStateText();
+            }
+        }
+    }
+
+    /// <summary>Gets the headline shown when no findings are available.</summary>
+    public string EmptyStateHeadline => HasLoadedResults ? "No findings at this intensity" : "No findings yet";
+
+    /// <summary>Gets the description shown when no findings are available.</summary>
+    public string EmptyStateDescription => HasLoadedResults
+        ? "The last run completed without displayable findings. Review warnings or parse errors, adjust filters, or try a higher intensity if you expected activity."
+        : "Paste a firewall log and click Analyze to detect port scans, floods, and other suspicious activity.";
 
     /// <summary>Gets or sets the search text for filtering findings.</summary>
     public string SearchText
@@ -195,6 +232,7 @@ public sealed class FindingsViewModel : ViewModelBase
         }
 
         // Update statistics
+        HasLoadedResults = true;
         FindingsCount = result.Findings.Count;
         HighCriticalCount = result.Findings.Count(f => f.Severity >= Severity.High);
         WarningCount = result.Warnings.Count;
@@ -203,6 +241,7 @@ public sealed class FindingsViewModel : ViewModelBase
 
         // Apply initial filters
         ApplyFilters();
+        RaiseDataState();
     }
 
     /// <summary>
@@ -212,6 +251,7 @@ public sealed class FindingsViewModel : ViewModelBase
     public void AddFinding(Finding finding)
     {
         var item = new FindingItemViewModel(finding);
+        HasLoadedResults = true;
         Items.Add(item);
         FindingsCount++;
         if (finding.Severity >= Severity.High)
@@ -236,6 +276,21 @@ public sealed class FindingsViewModel : ViewModelBase
         WarningCount = 0;
         ParseErrorCount = 0;
         SkippedLineCount = 0;
+        HasLoadedResults = false;
+        RaiseDataState();
+    }
+
+    private void RaiseDataState()
+    {
+        OnPropertyChanged(nameof(HasData));
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(HasNoFilterMatches));
+    }
+
+    private void RaiseEmptyStateText()
+    {
+        OnPropertyChanged(nameof(EmptyStateHeadline));
+        OnPropertyChanged(nameof(EmptyStateDescription));
     }
 
     private void ApplyFilters()
@@ -249,6 +304,8 @@ public sealed class FindingsViewModel : ViewModelBase
                 FilteredItems.Add(item);
             }
         }
+
+        RaiseDataState();
     }
 
     private bool FilterItem(FindingItemViewModel item)
