@@ -34,6 +34,9 @@ public sealed class FindingItemViewModel
     /// <summary>Gets the end time for the finding.</summary>
     public DateTime TimeEnd { get; }
 
+    /// <summary>Gets the formatted start/end time range for display.</summary>
+    public string TimeRangeDisplay { get; }
+
     /// <summary>Gets the short description for the finding.</summary>
     public string ShortDescription { get; }
 
@@ -67,8 +70,19 @@ public sealed class FindingItemViewModel
         Target = finding.Target;
         TimeStart = finding.TimeRangeStart;
         TimeEnd = finding.TimeRangeEnd;
+        TimeRangeDisplay = FormatTimeRange(finding.TimeRangeStart, finding.TimeRangeEnd);
         ShortDescription = finding.ShortDescription;
         MitreTechniquesDisplay = FormatMitreTechniques(finding.MitreTechniques);
+    }
+
+    private static string FormatTimeRange(DateTime start, DateTime end)
+    {
+        if (start.Date == end.Date)
+        {
+            return $"{start:yyyy-MM-dd HH:mm} - {end:HH:mm}";
+        }
+
+        return $"{start:yyyy-MM-dd HH:mm} - {end:yyyy-MM-dd HH:mm}";
     }
 
     private static string FormatMitreTechniques(IReadOnlyList<MitreTechnique> techniques)

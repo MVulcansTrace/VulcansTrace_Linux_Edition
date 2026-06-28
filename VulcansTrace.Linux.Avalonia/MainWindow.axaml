@@ -239,12 +239,6 @@
                                     AutomationProperties.AutomationId="CompareLogsButton"
                                     Command="{Binding CompareLogsCommand}"
                                     Margin="0,0,8,8"/>
-                            <Button Content="Accept Risk"
-                                    Theme="{StaticResource VtSecondaryButton}"
-                                    ToolTip.Tip="Mark selected finding as accepted/expected"
-                                    AutomationProperties.AutomationId="AcceptRiskButton"
-                                    Command="{Binding AcceptRiskCommand}"
-                                    Margin="0,0,8,8"/>
                             <Button Content="Cancel Export"
                                     Theme="{StaticResource VtSecondaryButton}"
                                     IsVisible="{Binding Evidence.IsBusy}"

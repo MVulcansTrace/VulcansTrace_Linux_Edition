@@ -236,6 +236,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the last agent result.</summary>
     public AgentResult? LastResult => _resultState.LastResult;
 
+    /// <summary>Gets whether the last agent operation completed without erroring or being cancelled.</summary>
+    public bool LastOperationSucceeded => _operationRunner.LastSucceeded;
+
     /// <summary>Gets whether the selected UI finding can be explained now.</summary>
     public bool CanExplainSelected => !_isBusy && SelectedFindingProvider?.Invoke() != null;
 

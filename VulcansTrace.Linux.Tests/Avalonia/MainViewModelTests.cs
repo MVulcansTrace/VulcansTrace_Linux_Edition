@@ -38,9 +38,41 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Constructor_WiresFindingsAcceptRiskCommand()
+    public void Constructor_WiresFindingsCommands()
     {
-        Assert.Same(_vm.AcceptRiskCommand, _vm.Findings.AcceptRiskCommand);
+        Assert.Same(_vm.InvestigateCommand, _vm.Findings.InvestigateCommand);
+        Assert.Same(_vm.SuppressCommand, _vm.Findings.SuppressCommand);
+        Assert.Same(_vm.ResolveCommand, _vm.Findings.ResolveCommand);
+    }
+
+    [Fact]
+    public void InvestigateCommand_CanExecute_WhenParameterIsFindingItem()
+    {
+        var item = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        Assert.True(_vm.InvestigateCommand.CanExecute(item));
+        Assert.False(_vm.InvestigateCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void SuppressCommand_CanExecute_WhenFindingHasRuleId()
+    {
+        var withRuleId = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        var withoutRuleId = new FindingItemViewModel(new Finding { RuleId = "" });
+
+        Assert.True(_vm.SuppressCommand.CanExecute(withRuleId));
+        Assert.False(_vm.SuppressCommand.CanExecute(withoutRuleId));
+        Assert.False(_vm.SuppressCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ResolveCommand_CanExecute_WhenFindingHasRuleId()
+    {
+        var withRuleId = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        var withoutRuleId = new FindingItemViewModel(new Finding { RuleId = "" });
+
+        Assert.True(_vm.ResolveCommand.CanExecute(withRuleId));
+        Assert.False(_vm.ResolveCommand.CanExecute(withoutRuleId));
+        Assert.False(_vm.ResolveCommand.CanExecute(null));
     }
 
     [Fact]

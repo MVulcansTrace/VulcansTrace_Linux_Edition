@@ -262,6 +262,9 @@
     <Setter Property="VerticalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
     <Setter Property="RowBackground" Value="Transparent" />
   </Style>
+  <Style Selector="DataGridRow:nth-child(2n)">
+    <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+  </Style>
   <Style Selector="DataGrid DataGridColumnHeader">
     <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
     <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />

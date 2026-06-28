@@ -243,6 +243,75 @@ public class FindingsViewModelTests
     }
 
     [Fact]
+    public void SearchText_FiltersByMitreTechnique()
+    {
+        var vm = new FindingsViewModel();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.Medium,
+                    SourceHost = "192.168.1.12",
+                    Target = "multi",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan detected",
+                    Details = "detail",
+                    MitreTechniques =
+                    [
+                        new MitreTechnique { TechniqueId = "T1046" }
+                    ]
+                },
+                new Finding
+                {
+                    Category = FindingCategories.Beaconing,
+                    Severity = Severity.Medium,
+                    SourceHost = "192.168.1.13",
+                    Target = "10.0.0.9",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Periodic beacons",
+                    Details = "detail",
+                    MitreTechniques =
+                    [
+                        new MitreTechnique { TechniqueId = "T1071.001" }
+                    ]
+                }
+            ]
+        };
+
+        vm.LoadResults(result);
+        vm.SearchText = "T1071.001";
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
+        Assert.Equal("T1071.001", vm.FilteredItems[0].MitreTechniquesDisplay);
+    }
+
+    [Fact]
+    public void FindingItemViewModel_TimeRangeDisplay_ShowsStartAndEnd()
+    {
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(7),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+
+        var item = new FindingItemViewModel(finding);
+
+        Assert.Equal("1970-01-01 00:00 - 00:07", item.TimeRangeDisplay);
+    }
+
+    [Fact]
     public void EmptyStateText_DistinguishesInitialAndCompletedEmptyResults()
     {
         var vm = new FindingsViewModel();
@@ -285,6 +354,21 @@ public class FindingsViewModelTests
         var item = new FindingItemViewModel(finding);
 
         Assert.Equal(expectedBadge, item.GroupBadge);
+    }
+
+    [Fact]
+    public void Commands_CanBeSetAndRead()
+    {
+        var vm = new FindingsViewModel();
+        var cmd = new RelayCommand(_ => { });
+
+        vm.InvestigateCommand = cmd;
+        vm.SuppressCommand = cmd;
+        vm.ResolveCommand = cmd;
+
+        Assert.Same(cmd, vm.InvestigateCommand);
+        Assert.Same(cmd, vm.SuppressCommand);
+        Assert.Same(cmd, vm.ResolveCommand);
     }
 
     [Theory]

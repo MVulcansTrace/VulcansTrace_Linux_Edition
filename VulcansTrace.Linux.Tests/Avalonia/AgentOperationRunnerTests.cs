@@ -78,6 +78,48 @@ public class AgentOperationRunnerTests
     }
 
     [Fact]
+    public async Task LastSucceeded_True_WhenOperationCompletes()
+    {
+        var runner = CreateRunner();
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.True(runner.LastSucceeded);
+    }
+
+    [Fact]
+    public async Task LastSucceeded_False_WhenOperationThrows()
+    {
+        var runner = CreateRunner();
+
+        await runner.RunAsync(_ => throw new InvalidOperationException("boom"));
+        FlushDispatcher();
+
+        Assert.False(runner.LastSucceeded);
+    }
+
+    [Fact]
+    public async Task LastSucceeded_False_WhenOperationCancelled()
+    {
+        var runner = CreateRunner();
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var runTask = runner.RunAsync(async ct =>
+        {
+            started.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        });
+
+        await started.Task;
+        runner.Cancel();
+        await runTask;
+        FlushDispatcher();
+
+        Assert.False(runner.LastSucceeded);
+    }
+
+    [Fact]
     public void CanCancel_FalseWhenNoOperationRunning()
     {
         var runner = CreateRunner();

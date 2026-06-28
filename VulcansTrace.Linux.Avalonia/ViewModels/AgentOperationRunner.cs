@@ -11,6 +11,7 @@ internal sealed class AgentOperationRunner : IDisposable
     private readonly Action _clearPrivilegeWarning;
     private readonly Action<string, bool> _addAgentMessage;
     private CancellationTokenSource? _cts;
+    private bool _lastSucceeded = true;
 
     public AgentOperationRunner(
         Action<bool> setBusy,
@@ -24,6 +25,11 @@ internal sealed class AgentOperationRunner : IDisposable
 
     public bool CanCancel => _cts != null && !_cts.IsCancellationRequested;
 
+    /// <summary>
+    /// Gets whether the most recent operation completed without throwing or being cancelled.
+    /// </summary>
+    public bool LastSucceeded => _lastSucceeded;
+
     public void Cancel()
     {
         _cts?.Cancel();
@@ -33,16 +39,22 @@ internal sealed class AgentOperationRunner : IDisposable
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        _cts?.Dispose();
+        if (_cts != null)
+        {
+            throw new InvalidOperationException("An agent operation is already in progress.");
+        }
+
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         _setBusy(true);
         _clearPrivilegeWarning();
+        _lastSucceeded = false;
 
         try
         {
             await operation(token);
+            _lastSucceeded = true;
         }
         catch (OperationCanceledException)
         {

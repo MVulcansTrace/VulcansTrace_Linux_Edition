@@ -44,6 +44,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly EventHandler<string> _evidenceStatusHandler;
     private readonly EventHandler _evidenceExportCompletedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
+    private readonly PropertyChangedEventHandler _agentPropertyChangedHandler;
     private readonly EventHandler<LiveAnalysisResult> _liveResultHandler;
     private readonly EventHandler<DemoCompletedEventArgs> _demoCompletedHandler;
 
@@ -326,8 +327,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the cancel command.</summary>
     public RelayCommand CancelCommand { get; }
 
-    /// <summary>Gets the accept risk command.</summary>
-    public AsyncRelayCommand AcceptRiskCommand { get; }
+    /// <summary>Gets the investigate selected finding command.</summary>
+    public AsyncRelayCommand InvestigateCommand { get; }
+
+    /// <summary>Gets the suppress (accept risk) command.</summary>
+    public AsyncRelayCommand SuppressCommand { get; }
+
+    /// <summary>Gets the resolve (generate remediation plan) command.</summary>
+    public AsyncRelayCommand ResolveCommand { get; }
 
     /// <summary>Gets the compare logs command.</summary>
     public AsyncRelayCommand CompareLogsCommand { get; }
@@ -389,6 +396,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             RequestExportSession = async markdown => await ExportSessionReportAsync(markdown)
         };
         Agent.AuditCompleted += OnAgentAuditCompleted;
+        _agentPropertyChangedHandler = OnAgentPropertyChanged;
+        Agent.PropertyChanged += _agentPropertyChangedHandler;
         _findingsPropertyChangedHandler = OnFindingsPropertyChanged;
         Findings.PropertyChanged += _findingsPropertyChangedHandler;
         _evidenceStatusHandler = (s, msg) =>
@@ -453,14 +462,33 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SelectNavigationCommand = new RelayCommand<NavigationItem>(
             item => SelectedNavigationItem = item);
 
-        AcceptRiskCommand = new AsyncRelayCommand(
-            async _ => await AcceptRiskAsync(),
-            _ => Findings.SelectedItem != null,
+        InvestigateCommand = new AsyncRelayCommand(
+            async parameter => await InvestigateFindingAsync(parameter),
+            parameter => parameter is FindingItemViewModel && !Agent.IsBusy,
             ex =>
             {
-                SummaryText = $"Accept risk failed: {ex.Message}";
+                SummaryText = $"Investigate failed: {ex.Message}";
             });
-        Findings.AcceptRiskCommand = AcceptRiskCommand;
+
+        SuppressCommand = new AsyncRelayCommand(
+            async parameter => await SuppressFindingAsync(parameter),
+            parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId),
+            ex =>
+            {
+                SummaryText = $"Suppress failed: {ex.Message}";
+            });
+
+        ResolveCommand = new AsyncRelayCommand(
+            async parameter => await ResolveFindingAsync(parameter),
+            parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId),
+            ex =>
+            {
+                SummaryText = $"Resolve failed: {ex.Message}";
+            });
+
+        Findings.InvestigateCommand = InvestigateCommand;
+        Findings.SuppressCommand = SuppressCommand;
+        Findings.ResolveCommand = ResolveCommand;
 
         CompareLogsCommand = new AsyncRelayCommand(
             async _ => await RunLogDiffAsync(),
@@ -821,16 +849,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(FindingsViewModel.SelectedItem))
         {
             Agent.NotifySelectedFindingChanged();
-            AcceptRiskCommand.RaiseCanExecuteChanged();
         }
     }
 
-    private async Task AcceptRiskAsync()
+    private void OnAgentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(AgentViewModel.IsBusy))
+        {
+            InvestigateCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    private async Task SuppressFindingAsync(object? parameter)
+    {
+        if (parameter is FindingItemViewModel item)
+        {
+            Findings.SelectedItem = item;
+        }
+
         var selected = Findings.SelectedItem?.Finding;
         if (selected == null || string.IsNullOrEmpty(selected.RuleId))
         {
-            SummaryText = "Select a finding with a rule ID to accept risk.";
+            SummaryText = "Select a finding with a rule ID to suppress.";
             return;
         }
 
@@ -843,8 +883,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         };
 
         var durationIndex = await _dialogService.ShowSelectionDialogAsync(
-            "Accept Risk",
-            $"Accept risk for {selected.RuleId} on {selected.Target}?\n\nSelect suppression duration:",
+            "Suppress Finding",
+            $"Suppress {selected.RuleId} on {selected.Target}?\n\nSelect suppression duration:",
             durationOptions,
             defaultIndex: 1); // Default to 30 days
 
@@ -862,8 +902,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         };
 
         var reason = await _dialogService.ShowInputDialogAsync(
-            "Accept Risk",
-            $"Accept risk for {selected.RuleId} on {selected.Target} ({durationOptions[durationIndex.Value]}).\n\nOptional reason:",
+            "Suppress Finding",
+            $"Suppress {selected.RuleId} on {selected.Target} ({durationOptions[durationIndex.Value]}).\n\nOptional reason:",
             "");
 
         if (reason == null)
@@ -872,7 +912,71 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         Suppressions.AddSuppression(selected.RuleId, selected.Target, reason, duration, selected.Fingerprint);
-        SummaryText = $"Accepted risk: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
+        SummaryText = $"Suppressed: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
+    }
+
+    private async Task InvestigateFindingAsync(object? parameter)
+    {
+        if (parameter is FindingItemViewModel item)
+        {
+            Findings.SelectedItem = item;
+        }
+
+        var selected = Findings.SelectedItem?.Finding;
+        if (selected == null)
+        {
+            SummaryText = "Select a finding to investigate.";
+            return;
+        }
+
+        if (!Agent.ExplainSelectedCommand.CanExecute(null))
+        {
+            SummaryText = "Agent is busy. Wait for the current operation to finish.";
+            return;
+        }
+
+        SummaryText = $"Investigating {selected.Category}…";
+        SelectedNavigationItem = NavigationItems[0]; // Agent tab
+        Agent.ExplainSelectedCommand.Execute(null);
+
+        // Wait for the agent operation to complete.
+        await Agent.ExplainSelectedCommand.ExecutionTask;
+        SummaryText = Agent.LastOperationSucceeded
+            ? $"Investigation of {selected.Category} ready in the Agent tab."
+            : $"Investigation of {selected.Category} did not complete — see the Agent tab.";
+    }
+
+    private async Task ResolveFindingAsync(object? parameter)
+    {
+        if (parameter is FindingItemViewModel item)
+        {
+            Findings.SelectedItem = item;
+        }
+
+        var selected = Findings.SelectedItem?.Finding;
+        if (selected == null || string.IsNullOrEmpty(selected.RuleId))
+        {
+            SummaryText = "Select a finding with a rule ID to resolve.";
+            return;
+        }
+
+        var plan = _remediationPlanBuilder.Build(new[] { selected });
+        var validation = RemediationPlanValidator.Validate(plan);
+        if (!validation.IsValid)
+        {
+            SummaryText = $"Resolve blocked for {selected.RuleId}: {string.Join(", ", validation.Errors)}.";
+            return;
+        }
+
+        if (plan.Sections.Count == 0)
+        {
+            SummaryText = $"No remediation guidance available for {selected.RuleId}.";
+            return;
+        }
+
+        var formatter = new RemediationMarkdownFormatter();
+        var markdown = formatter.Format(plan);
+        await ExportRemediationPlanAsync(markdown);
     }
 
     private AnalysisResult AnalyzeWithOverrides(IntensityLevel intensity, string logText, CancellationToken token)
@@ -977,6 +1081,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (Agent != null)
         {
             Agent.AuditCompleted -= OnAgentAuditCompleted;
+            Agent.PropertyChanged -= _agentPropertyChangedHandler;
             Agent.Dispose();
         }
 

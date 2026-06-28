@@ -24,7 +24,9 @@ public sealed class FindingsViewModel : ViewModelBase
     private bool _hasParseErrors;
     private bool _hasLoadedResults;
     private FindingItemViewModel? _selectedItem;
-    private ICommand? _acceptRiskCommand;
+    private ICommand? _investigateCommand;
+    private ICommand? _suppressCommand;
+    private ICommand? _resolveCommand;
 
     /// <summary>Gets the collection of findings to display.</summary>
     public ObservableCollection<FindingItemViewModel> Items { get; } = new();
@@ -41,11 +43,25 @@ public sealed class FindingsViewModel : ViewModelBase
     /// <summary>Gets the available severity filter options.</summary>
     public ObservableCollection<SeverityFilterOption> SeverityFilters { get; } = new();
 
-    /// <summary>Gets or sets the command used to accept risk for the selected finding.</summary>
-    public ICommand? AcceptRiskCommand
+    /// <summary>Gets or sets the command used to investigate a finding via the Security Agent.</summary>
+    public ICommand? InvestigateCommand
     {
-        get => _acceptRiskCommand;
-        set => SetField(ref _acceptRiskCommand, value);
+        get => _investigateCommand;
+        set => SetField(ref _investigateCommand, value);
+    }
+
+    /// <summary>Gets or sets the command used to suppress (accept risk for) a finding.</summary>
+    public ICommand? SuppressCommand
+    {
+        get => _suppressCommand;
+        set => SetField(ref _suppressCommand, value);
+    }
+
+    /// <summary>Gets or sets the command used to generate a remediation plan for a finding.</summary>
+    public ICommand? ResolveCommand
+    {
+        get => _resolveCommand;
+        set => SetField(ref _resolveCommand, value);
     }
 
     /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
@@ -325,8 +341,10 @@ public sealed class FindingsViewModel : ViewModelBase
         return item.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.SourceHost.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.Target.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               item.TimeRangeDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.ShortDescription.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.Confidence.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-               item.EvidenceSignalsDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+               item.EvidenceSignalsDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               item.MitreTechniquesDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
     }
 }
