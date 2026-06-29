@@ -9,6 +9,7 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class AgentHistoryCoordinatorTests
 {
     [Fact]

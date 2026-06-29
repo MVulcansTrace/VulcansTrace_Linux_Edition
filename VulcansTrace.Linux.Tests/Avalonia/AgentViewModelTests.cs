@@ -13,6 +13,7 @@ using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class AgentViewModelTests
 {
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());

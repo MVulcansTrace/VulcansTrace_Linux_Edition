@@ -69,6 +69,22 @@
           </Style>
           <Style Selector="ListBoxItem:selected i|Icon">
             <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
+            <Setter Property="Transitions">
+              <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+              </Transitions>
+            </Setter>
+          </Style>
+          <Style Selector="ListBoxItem:selected TextBlock.nav-label">
+            <Setter Property="RenderTransform" Value="translateX(2px)" />
+            <Setter Property="Transitions">
+              <Transitions>
+                <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+              </Transitions>
+            </Setter>
           </Style>
         </ListBox.Styles>
         <ListBox.ItemTemplate>

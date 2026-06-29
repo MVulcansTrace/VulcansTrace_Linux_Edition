@@ -1,6 +1,12 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.VisualTree;
 
 namespace VulcansTrace.Linux.Avalonia.Controls;
 
@@ -121,5 +127,105 @@ public partial class KpiCard : UserControl
     public KpiCard()
     {
         InitializeComponent();
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == ValueProperty)
+        {
+            if (_valueInitialized)
+            {
+                StartValueAnimation();
+            }
+
+            _valueInitialized = true;
+        }
+    }
+
+    private bool _valueInitialized;
+    private CancellationTokenSource? _valueAnimationCts;
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        CancelValueAnimation();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void StartValueAnimation()
+    {
+        var animationCts = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _valueAnimationCts, animationCts);
+        previous?.Cancel();
+
+        _ = AnimateValueChangeAsync(animationCts);
+    }
+
+    private void CancelValueAnimation()
+    {
+        var cts = Interlocked.Exchange(ref _valueAnimationCts, null);
+        cts?.Cancel();
+    }
+
+    private async Task AnimateValueChangeAsync(CancellationTokenSource animationCts)
+    {
+        var valueText = this.FindControl<TextBlock>("ValueText");
+        if (valueText is null)
+        {
+            CompleteValueAnimation(animationCts);
+            return;
+        }
+
+        var animation = new Animation
+        {
+            Duration = TimeSpan.FromMilliseconds(300),
+            Children =
+            {
+                new KeyFrame
+                {
+                    Setters = { new Setter(Visual.OpacityProperty, 1.0) },
+                    KeyTime = TimeSpan.Zero
+                },
+                new KeyFrame
+                {
+                    Setters = { new Setter(Visual.OpacityProperty, 0.5) },
+                    KeyTime = TimeSpan.FromMilliseconds(100)
+                },
+                new KeyFrame
+                {
+                    Setters = { new Setter(Visual.OpacityProperty, 1.0) },
+                    KeyTime = TimeSpan.FromMilliseconds(300)
+                }
+            }
+        };
+
+        try
+        {
+            await animation.RunAsync(valueText, animationCts.Token);
+        }
+        catch (OperationCanceledException) when (animationCts.IsCancellationRequested)
+        {
+            // Expected when a newer value change or visual-tree detach supersedes this animation.
+        }
+        catch (Exception) when (animationCts.IsCancellationRequested)
+        {
+            // Avalonia can surface teardown cancellation through animation cleanup paths.
+        }
+        catch (Exception)
+        {
+            // The KPI pulse is decorative; keep animation failures from escaping fire-and-forget.
+        }
+        finally
+        {
+            CompleteValueAnimation(animationCts);
+        }
+    }
+
+    private void CompleteValueAnimation(CancellationTokenSource animationCts)
+    {
+        Interlocked.CompareExchange(ref _valueAnimationCts, null, animationCts);
+        animationCts.Dispose();
     }
 }

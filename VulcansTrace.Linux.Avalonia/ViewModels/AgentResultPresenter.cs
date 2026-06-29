@@ -449,7 +449,10 @@ internal sealed class AgentResultPresenter
         var severityFilter = _getSeverityFilter();
         var categoryFilter = _getCategoryFilter();
 
-        foreach (var msg in _messages)
+        // Snapshot the collection so a concurrent/re-entrant modification (e.g. another
+        // dispatcher job adding messages while a filter change is being applied) cannot
+        // invalidate the enumerator.
+        foreach (var msg in _messages.ToList())
         {
             if (msg == null)
                 continue;

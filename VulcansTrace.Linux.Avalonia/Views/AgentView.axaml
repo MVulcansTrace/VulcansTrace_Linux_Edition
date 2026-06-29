@@ -125,7 +125,7 @@
             Theme="{StaticResource VtCard}"
             Padding="0"
             Margin="0,0,0,12">
-      <Grid RowDefinitions="Auto,Auto,*">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
         <Border Grid.Row="0"
                 Background="{StaticResource VtWarningMutedBrush}"
                 BorderBrush="{StaticResource VtWarningBrush}"
@@ -631,6 +631,90 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+
+        <!-- Agent typing indicator -->
+        <Grid Grid.Row="3"
+              ColumnDefinitions="Auto,*"
+              HorizontalAlignment="Left"
+              Margin="16,8,16,16"
+              IsVisible="{Binding IsBusy}"
+              Classes.busy="{Binding IsBusy}">
+          <Grid.Styles>
+            <Style Selector="Grid.busy Ellipse:nth-child(1)">
+              <Style.Animations>
+                <Animation Duration="0:0:0.6" IterationCount="Infinite">
+                  <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                  <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="1" />
+                  </KeyFrame>
+                  <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                </Animation>
+              </Style.Animations>
+            </Style>
+            <Style Selector="Grid.busy Ellipse:nth-child(2)">
+              <Style.Animations>
+                <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.15">
+                  <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                  <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="1" />
+                  </KeyFrame>
+                  <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                </Animation>
+              </Style.Animations>
+            </Style>
+            <Style Selector="Grid.busy Ellipse:nth-child(3)">
+              <Style.Animations>
+                <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.3">
+                  <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                  <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="1" />
+                  </KeyFrame>
+                  <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="0.4" />
+                  </KeyFrame>
+                </Animation>
+              </Style.Animations>
+            </Style>
+          </Grid.Styles>
+          <Border Grid.Column="0"
+                  Width="28" Height="28"
+                  CornerRadius="14"
+                  Background="{StaticResource VtPrimaryGlowBrush}"
+                  BorderBrush="{StaticResource VtPrimaryBrush}"
+                  BorderThickness="1"
+                  Margin="0,0,12,0"
+                  VerticalAlignment="Top">
+            <TextBlock Text="VT"
+                       FontSize="10"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource VtPrimaryBrush}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+          </Border>
+          <Border Grid.Column="1"
+                  Background="{StaticResource VtPrimaryGlowBrush}"
+                  BorderBrush="{StaticResource VtPrimaryBrush}"
+                  BorderThickness="1"
+                  CornerRadius="{StaticResource VtRadiusLg}"
+                  Padding="16,12"
+                  VerticalAlignment="Top">
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+            </StackPanel>
+          </Border>
+        </Grid>
       </Grid>
     </Border>
 

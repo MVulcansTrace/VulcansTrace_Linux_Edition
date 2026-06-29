@@ -133,9 +133,22 @@
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Padding" Value="16,8" />
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+        </Transitions>
+      </Setter>
       <Setter Property="Cursor" Value="Hand" />
       <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource VtPrimaryHoverBrush}" />
+      </Style>
+      <Style Selector="^:pointerover">
+        <Setter Property="RenderTransform" Value="scale(1.02)" />
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
       </Style>
     </ControlTheme>
 

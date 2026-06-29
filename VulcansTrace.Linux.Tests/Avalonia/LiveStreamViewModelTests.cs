@@ -11,6 +11,7 @@ using VulcansTrace.Linux.Engine.Live;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class LiveStreamViewModelTests : IDisposable
 {
     private readonly LiveStreamAnalyzer _analyzer;

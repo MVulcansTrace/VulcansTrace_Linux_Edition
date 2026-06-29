@@ -29,7 +29,49 @@
     <!-- Status Row -->
     <Border Grid.Row="2" Theme="{StaticResource VtCard}" Padding="12,8" Margin="8,0,8,8">
       <StackPanel>
-        <TextBlock Text="{Binding StatusText}" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="{Binding StatusText}" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" VerticalAlignment="Center" />
+          <Grid Width="16" Height="16"
+                IsVisible="{Binding IsRunning}"
+                Classes.running="{Binding IsRunning}"
+                VerticalAlignment="Center">
+            <Grid.Styles>
+              <!-- Gated on the `running` class so the loop only ticks while streaming. -->
+              <Style Selector="Grid.running Ellipse">
+                <Style.Animations>
+                  <!-- Animate concrete ScaleTransform sub-properties. Animating
+                       RenderTransform with string values can silently break the view. -->
+                  <Animation Duration="0:0:1.2" IterationCount="Infinite">
+                    <KeyFrame Cue="0%">
+                      <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                      <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                      <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                    <KeyFrame Cue="50%">
+                      <Setter Property="ScaleTransform.ScaleX" Value="1.6" />
+                      <Setter Property="ScaleTransform.ScaleY" Value="1.6" />
+                      <Setter Property="Opacity" Value="0.3" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                      <Setter Property="ScaleTransform.ScaleX" Value="1" />
+                      <Setter Property="ScaleTransform.ScaleY" Value="1" />
+                      <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                  </Animation>
+                </Style.Animations>
+              </Style>
+            </Grid.Styles>
+            <Ellipse Width="8" Height="8"
+                     Fill="{StaticResource VtSuccessBrush}"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     RenderTransformOrigin="0.5,0.5">
+              <Ellipse.RenderTransform>
+                <ScaleTransform ScaleX="1" ScaleY="1" />
+              </Ellipse.RenderTransform>
+            </Ellipse>
+          </Grid>
+        </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
           <TextBlock Foreground="{StaticResource VtTextSecondaryBrush}">
             <TextBlock.Text>
@@ -68,26 +110,33 @@
       <DataGrid ItemsSource="{Binding LiveFindings}"
                 IsReadOnly="True"
                 AutoGenerateColumns="False"
-                >
+                CanUserResizeColumns="True"
+                HorizontalScrollBarVisibility="Auto">
         <DataGrid.Columns>
           <DataGridTextColumn Header="Time"
                               Binding="{Binding TimeRangeStart, StringFormat='{}{0:HH:mm:ss.fff}'}"
-                              Width="100" />
+                              Width="100"
+                              CanUserResize="True" />
           <DataGridTextColumn Header="Severity"
                               Binding="{Binding Severity}"
-                              Width="80" />
+                              Width="80"
+                              CanUserResize="True" />
           <DataGridTextColumn Header="Category"
                               Binding="{Binding Category}"
-                              Width="140" />
+                              Width="140"
+                              CanUserResize="True" />
           <DataGridTextColumn Header="Source"
                               Binding="{Binding SourceHost}"
-                              Width="120" />
+                              Width="120"
+                              CanUserResize="True" />
           <DataGridTextColumn Header="Target"
                               Binding="{Binding Target}"
-                              Width="120" />
+                              Width="120"
+                              CanUserResize="True" />
           <DataGridTextColumn Header="Description"
                               Binding="{Binding ShortDescription}"
-                              Width="*" />
+                              Width="*"
+                              CanUserResize="True" />
         </DataGrid.Columns>
       </DataGrid>
     </Border>

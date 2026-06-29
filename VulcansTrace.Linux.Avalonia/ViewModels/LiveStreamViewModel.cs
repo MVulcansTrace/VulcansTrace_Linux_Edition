@@ -207,9 +207,15 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         IsRunning = true;
         StatusText = $"Capturing: {source.DisplayName}";
 
+        // Demo scenarios are tuned to produce detections quickly. If the user has
+        // the global intensity set to Low, the demo would run but suppress all
+        // findings, leaving the grid empty even though metrics update. Force
+        // High intensity for canned demos so the live stream actually shows rows.
+        var intensity = IsScenarioSource ? IntensityLevel.High : _intensityProvider();
+
         try
         {
-            _analyzer.Start(source, _intensityProvider());
+            _analyzer.Start(source, intensity);
         }
         catch (Exception ex)
         {

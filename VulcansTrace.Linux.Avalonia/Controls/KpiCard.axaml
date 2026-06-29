@@ -33,7 +33,8 @@
                      VerticalAlignment="Center"/>
         </StackPanel>
 
-        <TextBlock Text="{Binding Value, ElementName=Self}"
+        <TextBlock x:Name="ValueText"
+                   Text="{Binding Value, ElementName=Self}"
                    FontSize="{StaticResource VtFontSize2xl}"
                    FontWeight="Bold"
                    Foreground="{StaticResource VtTextPrimaryBrush}"/>

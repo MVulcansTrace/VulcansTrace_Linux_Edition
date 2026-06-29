@@ -13,6 +13,7 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class AgentViewModelHistoryTests
 {
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());

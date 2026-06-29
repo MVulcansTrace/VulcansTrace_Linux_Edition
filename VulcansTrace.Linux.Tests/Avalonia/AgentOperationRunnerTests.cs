@@ -4,6 +4,7 @@ using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class AgentOperationRunnerTests
 {
     [Fact]
