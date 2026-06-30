@@ -158,7 +158,7 @@
                                         Command="{Binding DataContext.InvestigateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
                                         CommandParameter="{Binding}"
                                         AutomationProperties.AutomationId="FindingsInvestigateButton">
-                                    <i:Icon Value="mdi-magnify" FontSize="16" VerticalAlignment="Center"/>
+                                    <i:Icon Value="mdi-magnify" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Theme="{StaticResource VtGhostButton}"
                                         Padding="6,2"
@@ -167,7 +167,7 @@
                                         Command="{Binding DataContext.SuppressCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
                                         CommandParameter="{Binding}"
                                         AutomationProperties.AutomationId="FindingsSuppressButton">
-                                    <i:Icon Value="mdi-volume-off" FontSize="16" VerticalAlignment="Center"/>
+                                    <i:Icon Value="mdi-volume-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Theme="{StaticResource VtGhostButton}"
                                         Padding="6,2"
@@ -176,7 +176,7 @@
                                         Command="{Binding DataContext.ResolveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
                                         CommandParameter="{Binding}"
                                         AutomationProperties.AutomationId="FindingsResolveButton">
-                                    <i:Icon Value="mdi-shield-check-outline" FontSize="16" VerticalAlignment="Center"/>
+                                    <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                             </StackPanel>
                         </DataTemplate>

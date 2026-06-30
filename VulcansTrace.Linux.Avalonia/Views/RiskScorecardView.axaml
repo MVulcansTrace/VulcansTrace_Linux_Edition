@@ -19,12 +19,12 @@
                     Padding="24,16">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding LetterGrade}"
-                               FontSize="48"
+                               FontSize="{StaticResource VtIconSize3xl}"
                                FontWeight="Bold"
                                Foreground="{Binding GradeColor}"
                                HorizontalAlignment="Center"/>
                     <TextBlock Text="{Binding NumericScore, StringFormat={}{0:F1}}"
-                               FontSize="14"
+                               FontSize="{StaticResource VtFontSizeSm}"
                                FontWeight="SemiBold"
                                Foreground="{Binding GradeColor}"
                                HorizontalAlignment="Center"/>
@@ -40,7 +40,7 @@
                            FontSize="{StaticResource VtFontSizeMd}"
                            Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <TextBlock Text="{Binding SummaryStatus}"
-                           FontSize="12"
+                           FontSize="{StaticResource VtFontSizeXs}"
                            Foreground="{Binding GradeColor}"
                            FontWeight="SemiBold"/>
             </StackPanel>

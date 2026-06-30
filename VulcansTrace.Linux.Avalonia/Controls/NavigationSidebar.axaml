@@ -104,7 +104,7 @@
               <!-- Navigation item content -->
               <StackPanel Orientation="Horizontal" Spacing="10" Margin="12,8,12,8">
                 <i:Icon Value="{Binding Icon}"
-                        FontSize="20"
+                        FontSize="{StaticResource VtIconSizeMd}"
                         Foreground="{StaticResource VtTextSecondaryBrush}" />
                 <TextBlock Text="{Binding Label}"
                            Classes="nav-label"

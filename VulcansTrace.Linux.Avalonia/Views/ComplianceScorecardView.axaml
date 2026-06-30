@@ -25,12 +25,12 @@
                     Padding="24,16">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding OverallScore, StringFormat={}{0:F1}%}"
-                               FontSize="48"
+                               FontSize="{StaticResource VtIconSize3xl}"
                                FontWeight="Bold"
                                Foreground="{Binding StatusColor}"
                                HorizontalAlignment="Center"/>
                     <TextBlock Text="{Binding SummaryStatus}"
-                               FontSize="14"
+                               FontSize="{StaticResource VtFontSizeSm}"
                                FontWeight="SemiBold"
                                Foreground="{Binding StatusColor}"
                                HorizontalAlignment="Center"

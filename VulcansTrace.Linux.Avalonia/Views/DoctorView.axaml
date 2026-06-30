@@ -37,7 +37,7 @@
                         VerticalAlignment="Center"
                         Margin="24">
                 <i:Icon Value="mdi-stethoscope"
-                        FontSize="48"
+                        FontSize="{StaticResource VtIconSize2xl}"
                         Foreground="{StaticResource VtTextMutedBrush}"
                         HorizontalAlignment="Center"/>
                 <TextBlock Text="No diagnostics run yet."

@@ -107,14 +107,24 @@
     <Thickness x:Key="VtPadLg">16</Thickness>
 
     <!-- === Typography === -->
-    <system:Double x:Key="VtFontSizeXs">13</system:Double>
-    <system:Double x:Key="VtFontSizeSm">14</system:Double>
-    <system:Double x:Key="VtFontSizeMd">15</system:Double>
-    <system:Double x:Key="VtFontSizeXl">21</system:Double>
-    <system:Double x:Key="VtFontSize2xl">28</system:Double>
+    <system:Double x:Key="VtFontSizeXs">15</system:Double>
+    <system:Double x:Key="VtFontSizeSm">16</system:Double>
+    <system:Double x:Key="VtFontSizeMd">17</system:Double>
+    <system:Double x:Key="VtFontSizeLg">20</system:Double>
+    <system:Double x:Key="VtFontSizeXl">23</system:Double>
+    <system:Double x:Key="VtFontSize2xl">30</system:Double>
 
     <FontFamily x:Key="VtFontFamily">Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif</FontFamily>
     <FontFamily x:Key="VtFontFamilyMono">JetBrains Mono, Cascadia Code, Consolas, monospace</FontFamily>
+
+    <!-- === Icon sizes === -->
+    <system:Double x:Key="VtIconSizeXs">12</system:Double>
+    <system:Double x:Key="VtIconSizeSm">16</system:Double>
+    <system:Double x:Key="VtIconSizeMd">20</system:Double>
+    <system:Double x:Key="VtIconSizeLg">24</system:Double>
+    <system:Double x:Key="VtIconSizeXl">32</system:Double>
+    <system:Double x:Key="VtIconSize2xl">48</system:Double>
+    <system:Double x:Key="VtIconSize3xl">64</system:Double>
 
     <!-- === Control themes === -->
     <ControlTheme x:Key="VtCard" TargetType="Border">

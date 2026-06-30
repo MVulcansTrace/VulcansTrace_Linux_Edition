@@ -18,7 +18,7 @@
                 Spacing="8"
                 MaxWidth="420">
       <i:Icon Value="{Binding Icon, ElementName=Self}"
-              FontSize="40"
+              FontSize="{StaticResource VtIconSize2xl}"
               Foreground="{StaticResource VtTextMutedBrush}"
               Opacity="0.6"
               IsVisible="{Binding Icon, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"

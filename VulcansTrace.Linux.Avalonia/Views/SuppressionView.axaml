@@ -55,7 +55,7 @@
                                 <TextBlock Text="{Binding StatusLabel}"
                                            Foreground="{Binding StatusForeground}"
                                            FontWeight="SemiBold"
-                                           FontSize="11"/>
+                                           FontSize="{StaticResource VtFontSizeXs}"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
