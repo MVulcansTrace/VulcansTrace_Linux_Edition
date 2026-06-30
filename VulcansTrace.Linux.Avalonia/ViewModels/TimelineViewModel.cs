@@ -17,6 +17,8 @@ public class TimelineViewModel : ViewModelBase
     private const double DefaultRowHeight = 22;
     private const double DefaultRowGap = 8;
     private const double DefaultTopPadding = 6;
+    private const double DefaultAxisHeight = 34;
+    private const double DefaultMinimumInteractiveCanvasHeight = 220;
 
     private AnalysisResult? _analysisResult;
     private double _canvasHeight;
@@ -24,6 +26,7 @@ public class TimelineViewModel : ViewModelBase
     private TimelineGroupMode _groupMode = TimelineGroupMode.Category;
     private bool _isTraceMapEnabled;
     private Guid _selectedFindingId;
+    private TimelineEntry? _selectedEntry;
     private string _selectedChainNarrative = string.Empty;
     private IReadOnlyList<CorrelationEdge> _correlationEdges = Array.Empty<CorrelationEdge>();
     private bool _hasLoadedAnalysis;
@@ -84,6 +87,8 @@ public class TimelineViewModel : ViewModelBase
     public double RowHeight => DefaultRowHeight;
     public double RowGap => DefaultRowGap;
     public double TopPadding => DefaultTopPadding;
+    public double AxisHeight => DefaultAxisHeight;
+    public double MinimumInteractiveCanvasHeight => DefaultMinimumInteractiveCanvasHeight;
 
     public double CanvasHeight
     {
@@ -133,9 +138,17 @@ public class TimelineViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// True when the narrative panel should be shown (Trace Map is on and a finding is selected).
+    /// True when a selected finding with a matching timeline entry is available for the detail card.
+    /// Guards against a stale <see cref="SelectedFindingId"/> that no longer maps to an entry.
     /// </summary>
-    public bool IsNarrativeVisible => _isTraceMapEnabled && _selectedFindingId != Guid.Empty;
+    public bool IsFindingSelected => _selectedEntry != null;
+
+    /// <summary>
+    /// True when the narrative panel should be shown (Trace Map is on and a real entry is selected).
+    /// Uses the same entry-based criterion as <see cref="IsFindingSelected"/> so the two
+    /// selection flags can never disagree.
+    /// </summary>
+    public bool IsNarrativeVisible => _isTraceMapEnabled && _selectedEntry != null;
 
     /// <summary>
     /// Header text for the Y-axis label column.
@@ -150,12 +163,30 @@ public class TimelineViewModel : ViewModelBase
         get => _selectedFindingId;
         set
         {
-            if (SetField(ref _selectedFindingId, value))
+            if (_selectedFindingId == value)
             {
-                UpdateConnectedFindings();
-                OnPropertyChanged(nameof(IsNarrativeVisible));
+                return;
             }
+
+            _selectedFindingId = value;
+            // Refresh derived state BEFORE raising SelectedFindingId so the view's
+            // filtered re-render observes the updated ConnectedFindingIds/SelectedEntry
+            // (otherwise dimming/highlighting renders one selection stale).
+            UpdateSelectedEntry();
+            UpdateConnectedFindings();
+            OnPropertyChanged(nameof(SelectedFindingId));
+            OnPropertyChanged(nameof(IsNarrativeVisible));
+            OnPropertyChanged(nameof(IsFindingSelected));
         }
+    }
+
+    /// <summary>
+    /// The full timeline entry for the currently selected finding, exposed for the detail card.
+    /// </summary>
+    public TimelineEntry? SelectedEntry
+    {
+        get => _selectedEntry;
+        private set => SetField(ref _selectedEntry, value);
     }
 
     /// <summary>
@@ -277,6 +308,7 @@ public class TimelineViewModel : ViewModelBase
             {
                 Category = finding.Category,
                 SourceHost = finding.SourceHost,
+                Target = finding.Target,
                 StartTime = finding.TimeRangeStart,
                 EndTime = finding.TimeRangeEnd,
                 Description = finding.ShortDescription,
@@ -329,9 +361,10 @@ public class TimelineViewModel : ViewModelBase
             }
         }
 
+        var naturalHeight = AxisHeight + TopPadding + (Categories.Count * RowHeight) + ((Categories.Count - 1) * RowGap) + TopPadding;
         CanvasHeight = Categories.Count == 0
             ? 0
-            : TopPadding + (Categories.Count * RowHeight) + ((Categories.Count - 1) * RowGap) + TopPadding;
+            : Math.Max(MinimumInteractiveCanvasHeight, naturalHeight);
     }
 
     private void CalculateEdgePositions()
@@ -370,6 +403,17 @@ public class TimelineViewModel : ViewModelBase
                 Narrative = edge.Narrative
             });
         }
+    }
+
+    private void UpdateSelectedEntry()
+    {
+        if (_selectedFindingId == Guid.Empty)
+        {
+            SelectedEntry = null;
+            return;
+        }
+
+        SelectedEntry = TimelineEntries.FirstOrDefault(e => e.FindingId == _selectedFindingId);
     }
 
     private void UpdateConnectedFindings()
@@ -466,11 +510,47 @@ public class TimelineEntry
 {
     public string Category { get; set; } = string.Empty;
     public string SourceHost { get; set; } = string.Empty;
+    public string Target { get; set; } = string.Empty;
     public Guid FindingId { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public string Description { get; set; } = string.Empty;
     public Severity Severity { get; set; }
+
+    /// <summary>
+    /// Human-readable time range, formatted for the detail card.
+    /// </summary>
+    public string FormattedTimeRange
+    {
+        get
+        {
+            if (StartTime == DateTime.MinValue)
+            {
+                return "No time data";
+            }
+
+            // Normalize to UTC before comparing so mixed-Kind DateTimes (e.g. a Local
+            // start and a Utc end) don't misclassify the single-timestamp vs range branch.
+            var start = StartTime.ToUniversalTime();
+            if (EndTime == DateTime.MinValue)
+            {
+                return $"{start:yyyy-MM-dd HH:mm:ss} UTC";
+            }
+
+            var end = EndTime.ToUniversalTime();
+            if (end <= start)
+            {
+                return $"{start:yyyy-MM-dd HH:mm:ss} UTC";
+            }
+
+            if (start.Date == end.Date)
+            {
+                return $"{start:yyyy-MM-dd HH:mm:ss} – {end:HH:mm:ss} UTC";
+            }
+
+            return $"{start:yyyy-MM-dd HH:mm:ss} UTC – {end:yyyy-MM-dd HH:mm:ss} UTC";
+        }
+    }
 
     public double StartPosition { get; set; } // Position in the timeline (0-1)
     public double EndPosition { get; set; }   // Position in the timeline (0-1)

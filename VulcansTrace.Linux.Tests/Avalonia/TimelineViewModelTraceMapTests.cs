@@ -444,6 +444,158 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(expectedVisible, vm.IsNarrativeVisible);
     }
 
+    [Fact]
+    public void SelectedFindingId_SetToValidId_SelectedEntryMatches()
+    {
+        var vm = new TimelineViewModel();
+        var baseTime = DateTime.UtcNow;
+        var finding = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "192.168.1.10",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = baseTime,
+            TimeRangeEnd = baseTime.AddMinutes(5),
+            ShortDescription = "Beaconing detected",
+            Details = "Details"
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { finding } });
+        vm.SelectedFindingId = finding.Id;
+
+        Assert.NotNull(vm.SelectedEntry);
+        Assert.Equal(finding.Id, vm.SelectedEntry.FindingId);
+        Assert.Equal(FindingCategories.Beaconing, vm.SelectedEntry.Category);
+        Assert.Equal("192.168.1.10", vm.SelectedEntry.SourceHost);
+        Assert.Equal("10.0.0.5:443", vm.SelectedEntry.Target);
+        Assert.Equal("Beaconing detected", vm.SelectedEntry.Description);
+        Assert.True(vm.IsFindingSelected);
+    }
+
+    [Fact]
+    public void SelectedFindingId_Clear_SelectedEntryIsNull()
+    {
+        var vm = new TimelineViewModel();
+        var finding = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "host-a",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow.AddMinutes(5),
+            ShortDescription = "A"
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { finding } });
+        vm.SelectedFindingId = finding.Id;
+        Assert.NotNull(vm.SelectedEntry);
+
+        vm.SelectedFindingId = Guid.Empty;
+
+        Assert.Null(vm.SelectedEntry);
+        Assert.False(vm.IsFindingSelected);
+    }
+
+    [Fact]
+    public void LoadAnalysisResult_ClearsSelectedEntry()
+    {
+        var vm = new TimelineViewModel();
+        var f1 = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "host-a",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow.AddMinutes(5),
+            ShortDescription = "A"
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { f1 } });
+        vm.SelectedFindingId = f1.Id;
+        Assert.NotNull(vm.SelectedEntry);
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = Array.Empty<Finding>() });
+
+        Assert.Null(vm.SelectedEntry);
+        Assert.Equal(Guid.Empty, vm.SelectedFindingId);
+    }
+
+    [Fact]
+    public void SelectedFindingId_Change_Fires_After_ConnectedFindings_Updated()
+    {
+        // Regression guard: the view re-renders on the SelectedFindingId change, so
+        // ConnectedFindingIds must already reflect the new selection at that moment,
+        // otherwise marker/edge dimming renders one selection stale.
+        var vm = new TimelineViewModel();
+        var f1 = new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = DateTime.UtcNow, TimeRangeEnd = DateTime.UtcNow.AddMinutes(5), ShortDescription = "A" };
+        var f2 = new Finding { Category = FindingCategories.LateralMovement, SourceHost = "host-a", TimeRangeStart = DateTime.UtcNow.AddMinutes(10), TimeRangeEnd = DateTime.UtcNow.AddMinutes(15), ShortDescription = "B" };
+        var edges = new List<CorrelationEdge> { new(f1.Id, f2.Id, CorrelationType.EscalatesTo, "A→B", CorrelationConfidence.High) };
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { f1, f2 } }, edges);
+
+        HashSet<Guid>? snapshotAtChange = null;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TimelineViewModel.SelectedFindingId))
+            {
+                snapshotAtChange = new HashSet<Guid>(vm.ConnectedFindingIds);
+            }
+        };
+
+        vm.SelectedFindingId = f1.Id;
+
+        Assert.NotNull(snapshotAtChange);
+        Assert.Contains(f1.Id, snapshotAtChange!);
+        Assert.Contains(f2.Id, snapshotAtChange!);
+    }
+
+    [Fact]
+    public void SelectedFindingId_StaleId_HidesDetailCard()
+    {
+        // A non-empty id with no matching entry must not leave the detail card visible.
+        var vm = new TimelineViewModel();
+        var f1 = new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = DateTime.UtcNow, TimeRangeEnd = DateTime.UtcNow.AddMinutes(5), ShortDescription = "A" };
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { f1 } });
+
+        vm.SelectedFindingId = Guid.NewGuid(); // an id with no matching timeline entry
+
+        Assert.Null(vm.SelectedEntry);
+        Assert.False(vm.IsFindingSelected);
+    }
+
+    [Fact]
+    public void LoadAnalysisResult_SingleRow_ReservesStableOverlayRoom()
+    {
+        var vm = new TimelineViewModel();
+        var finding = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            SourceHost = "host-a",
+            Target = "10.0.0.5:443",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow.AddMinutes(5),
+            ShortDescription = "A single-row timeline should still have room for the selected finding overlay."
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = new[] { finding } });
+        var heightBeforeSelection = vm.CanvasHeight;
+
+        vm.SelectedFindingId = finding.Id;
+
+        Assert.Equal(vm.MinimumInteractiveCanvasHeight, heightBeforeSelection);
+        Assert.Equal(heightBeforeSelection, vm.CanvasHeight);
+    }
+
+    [Fact]
+    public void FormattedTimeRange_NormalizesBeforeFormatting()
+    {
+        // DateTimeKind-agnostic expectations (all Utc): locks the normalized-comparison
+        // refactor so mixed-Kind inputs no longer misclassify the single-vs-range branch.
+        var baseUtc = new DateTime(2026, 6, 30, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal("No time data", new TimelineEntry { StartTime = DateTime.MinValue, EndTime = baseUtc }.FormattedTimeRange);
+        Assert.Equal("2026-06-30 12:00:00 UTC", new TimelineEntry { StartTime = baseUtc, EndTime = baseUtc }.FormattedTimeRange);
+        Assert.Equal("2026-06-30 12:00:00 – 12:05:00 UTC", new TimelineEntry { StartTime = baseUtc, EndTime = baseUtc.AddMinutes(5) }.FormattedTimeRange);
+        Assert.Equal("2026-06-30 12:00:00 UTC – 2026-07-01 09:00:00 UTC", new TimelineEntry { StartTime = baseUtc, EndTime = baseUtc.AddDays(1).AddHours(-3) }.FormattedTimeRange);
+    }
+
     private static AnalysisResult CreateAnalysisResult(IEnumerable<(string Category, string SourceHost)> items)
     {
         var baseTime = DateTime.UtcNow;

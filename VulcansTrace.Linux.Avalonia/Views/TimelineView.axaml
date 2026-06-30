@@ -3,6 +3,7 @@
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:i="https://github.com/projektanker/icons.avalonia"
              xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
              x:Class="VulcansTrace.Linux.Avalonia.Views.TimelineView"
              x:DataType="vm:TimelineViewModel">
 
@@ -41,7 +42,7 @@
                            Foreground="{StaticResource VtTextPrimaryBrush}"/>
             </Border>
             <Border Grid.Row="2" Grid.Column="0" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
-                <ItemsControl ItemsSource="{Binding Categories}" Margin="4,6,4,6">
+                <ItemsControl ItemsSource="{Binding Categories}" Margin="4,40,4,6">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="8" />
@@ -49,12 +50,14 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}"
-                                       Margin="4,0"
-                                       Height="22"
-                                       VerticalAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <Grid Height="22" VerticalAlignment="Center" Margin="4,0">
+                                <TextBlock Text="{Binding}"
+                                           Height="22"
+                                           VerticalAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                                           Margin="4,0"/>
+                            </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -68,11 +71,11 @@
                            Foreground="{StaticResource VtTextMutedBrush}"/>
             </Border>
             <Border Grid.Row="2" Grid.Column="1" Background="{StaticResource VtBackground900Brush}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0">
-                <Grid>
+                <Grid Height="{Binding CanvasHeight}" ClipToBounds="True">
                     <Canvas x:Name="TimelineCanvas"
                             Background="{StaticResource VtBackground900Brush}"
                             Height="{Binding CanvasHeight}">
-                        <!-- Timeline bars and edges will be drawn here -->
+                        <!-- Timeline axis, grid, markers, edges and selection glow will be drawn here -->
                     </Canvas>
                     <TextBlock Text="{Binding SuppressionMessage}"
                                IsVisible="{Binding IsEdgeRenderingSuppressed}"
@@ -89,6 +92,96 @@
                                              ActionCommand="{Binding EmptyStateActionCommand}"
                                              ActionIcon="mdi-rocket-launch-outline"
                                              ActionAutomationId="TimelineEmptyStateAnalyzeButton"/>
+
+                    <!-- Selected finding detail card -->
+                    <Border Theme="{StaticResource VtCard}"
+                            Padding="12"
+                            Margin="16"
+                            MaxWidth="360"
+                            MaxHeight="188"
+                            MinWidth="260"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Background="{StaticResource VtBackground800Brush}"
+                            IsVisible="{Binding IsFindingSelected}"
+                            x:Name="DetailCard">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Ellipse Width="10" Height="10"
+                                             VerticalAlignment="Center"
+                                             Fill="{Binding SelectedEntry.Severity, Converter={StaticResource SeverityToBrushConverter}}"/>
+                                    <TextBlock Text="{Binding SelectedEntry.Category}"
+                                               FontWeight="Bold"
+                                               FontSize="{StaticResource VtFontSizeMd}"
+                                               Foreground="{StaticResource VtTextPrimaryBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Grid.Column="2"
+                                        x:Name="CloseDetailButton"
+                                        Theme="{StaticResource VtGhostButton}"
+                                        Padding="6"
+                                        VerticalAlignment="Top">
+                                    <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeSm}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                                </Button>
+                            </Grid>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding SelectedEntry.Severity}"
+                                           FontSize="{StaticResource VtFontSizeSm}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{Binding SelectedEntry.Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"/>
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                               Text="Source:"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextMutedBrush}"
+                                               Margin="0,0,8,2"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1"
+                                               Text="{Binding SelectedEntry.SourceHost}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                                               FontFamily="{StaticResource VtFontFamilyMono}"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                               Text="Target:"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextMutedBrush}"
+                                               Margin="0,0,8,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                               Text="{Binding SelectedEntry.Target}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                                               FontFamily="{StaticResource VtFontFamilyMono}"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0"
+                                               Text="Time:"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextMutedBrush}"
+                                               Margin="0,0,8,2"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1"
+                                               Text="{Binding SelectedEntry.FormattedTimeRange}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                                               FontFamily="{StaticResource VtFontFamilyMono}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
+                                <ScrollViewer MaxHeight="56"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding SelectedEntry.Description}"
+                                               FontSize="{StaticResource VtFontSizeSm}"
+                                               Foreground="{StaticResource VtTextPrimaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
