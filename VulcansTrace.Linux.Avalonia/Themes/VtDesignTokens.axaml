@@ -22,6 +22,7 @@
     <Color x:Key="VtTextPrimary">#F8FAFC</Color>
     <Color x:Key="VtTextSecondary">#94A3B8</Color>
     <Color x:Key="VtTextMuted">#64748B</Color>
+    <Color x:Key="VtTextPlaceholder">#A3B3C6</Color>
     <Color x:Key="VtTextInverse">#020617</Color>
 
     <Color x:Key="VtPrimary">#3B82F6</Color>
@@ -68,6 +69,7 @@
     <SolidColorBrush x:Key="VtTextPrimaryBrush" Color="{StaticResource VtTextPrimary}" />
     <SolidColorBrush x:Key="VtTextSecondaryBrush" Color="{StaticResource VtTextSecondary}" />
     <SolidColorBrush x:Key="VtTextMutedBrush" Color="{StaticResource VtTextMuted}" />
+    <SolidColorBrush x:Key="VtTextPlaceholderBrush" Color="{StaticResource VtTextPlaceholder}" />
     <SolidColorBrush x:Key="VtTextInverseBrush" Color="{StaticResource VtTextInverse}" />
 
     <SolidColorBrush x:Key="VtPrimaryBrush" Color="{StaticResource VtPrimary}" />
@@ -203,6 +205,9 @@
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
       <Setter Property="Padding" Value="16,12" />
       <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Style Selector="^ /template/ TextBlock#PART_Watermark">
+        <Setter Property="Foreground" Value="{StaticResource VtTextPlaceholderBrush}" />
+      </Style>
       <Style Selector="^:focus /template/ Border#PART_BorderElement">
         <Setter Property="BorderBrush" Value="{StaticResource VtBorderAccentBrush}" />
         <Setter Property="BorderThickness" Value="1.5" />

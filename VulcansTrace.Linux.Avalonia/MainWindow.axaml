@@ -10,10 +10,12 @@
         x:DataType="vm:MainViewModel"
         Icon="/Assets/VulcansTraceAvatar.png"
         Title="VulcansTrace"
-        Width="1700"
-        Height="900"
-        MinWidth="1000"
-        MinHeight="700"
+        MinWidth="1280"
+        MinHeight="800"
+        Width="1800"
+        Height="1100"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
         FontSize="{StaticResource VtFontSizeMd}">
 
@@ -28,11 +30,11 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2.5*" MinWidth="300"/>
+            <ColumnDefinition Width="2.5*" MinWidth="280"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="2*" MinWidth="180" MaxWidth="300"/>
+            <ColumnDefinition Width="1.5*" MinWidth="160" MaxWidth="260"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="6*" MinWidth="500"/>
+            <ColumnDefinition Width="6.5*" MinWidth="500"/>
         </Grid.ColumnDefinitions>
 
         <!-- Summary and warnings (spans all 5 columns: panel, splitter, sidebar, splitter, content) -->
@@ -164,7 +166,7 @@
                         </Ellipse>
                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                             <TextBlock Text="VulcansTrace" FontWeight="Bold" FontSize="{StaticResource VtFontSizeMd}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                            <TextBlock Text="{Binding BotIntroText}" TextWrapping="Wrap" FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding BotIntroText}" TextWrapping="Wrap" FontSize="{StaticResource VtFontSizeMd}" Foreground="{StaticResource VtTextSecondaryBrush}" LineHeight="22"/>
                         </StackPanel>
                     </Grid>
 

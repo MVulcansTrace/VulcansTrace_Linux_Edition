@@ -353,6 +353,19 @@ public class AgentViewModelTests
         Assert.Contains("VerifySessionCommand", xaml);
         Assert.Contains("HasSessionTimeline", xaml);
         Assert.Contains("SessionTimeline", xaml);
+
+        foreach (var directAction in new[]
+        {
+            "Export Audit",
+            "Export Remediation",
+            "Export Session",
+            "Compare Last Two",
+            "Compare Selected"
+        })
+        {
+            Assert.Contains($"<Button Content=\"{directAction}\"", xaml);
+            Assert.DoesNotContain($"<MenuItem Header=\"{directAction}\"", xaml);
+        }
     }
 
     [Fact]

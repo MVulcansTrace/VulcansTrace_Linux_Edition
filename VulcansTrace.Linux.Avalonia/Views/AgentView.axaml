@@ -67,57 +67,56 @@
             Theme="{StaticResource VtCard}"
             Padding="12"
             Margin="0,0,0,12">
-      <StackPanel Orientation="Vertical" Spacing="10">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="Explain Selected"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding ExplainSelectedCommand}"
-                  IsEnabled="{Binding CanExplainSelected}"
-                  ToolTip.Tip="Explain the currently selected finding"
-                  AutomationProperties.AutomationId="AgentExplainSelectedButton" />
-          <Button Content="Import Threat Intel"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding ImportThreatIntelCommand}"
-                  ToolTip.Tip="Import threat intelligence data"
-                  AutomationProperties.AutomationId="AgentThreatIntelButton" />
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="Export Audit"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding ExportAuditCommand}"
-                  IsEnabled="{Binding CanExportAudit}"
-                  ToolTip.Tip="Export the current audit report"
-                  AutomationProperties.AutomationId="AgentExportAuditButton" />
-          <Button Content="Export Remediation"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding ExportRemediationCommand}"
-                  IsEnabled="{Binding CanExportAudit}"
-                  ToolTip.Tip="Export the remediation plan"
-                  AutomationProperties.AutomationId="AgentExportRemediationButton" />
-          <Button Content="Export Session"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding ExportSessionCommand}"
-                  IsEnabled="{Binding CanExportSession}"
-                  ToolTip.Tip="Export the current session report"
-                  AutomationProperties.AutomationId="AgentExportSessionButton" />
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="Compare Last Two"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding CompareAuditsCommand}"
-                  IsEnabled="{Binding CanCompareAudits}"
-                  ToolTip.Tip="Compare the last two audits"
-                  AutomationProperties.AutomationId="AgentCompareAuditsButton" />
-          <Button Content="Compare Selected"
-                  Theme="{StaticResource VtSecondaryButton}"
-                  Command="{Binding CompareSelectedAuditsCommand}"
-                  IsEnabled="{Binding CanCompareSelectedAudits}"
-                  ToolTip.Tip="Compare the two selected audit history entries"
-                  AutomationProperties.AutomationId="AgentCompareSelectedButton" />
-        </StackPanel>
-      </StackPanel>
+      <WrapPanel Orientation="Horizontal">
+        <Button Content="Explain Selected"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding ExplainSelectedCommand}"
+                IsEnabled="{Binding CanExplainSelected}"
+                ToolTip.Tip="Explain the currently selected finding"
+                AutomationProperties.AutomationId="AgentExplainSelectedButton"
+                Margin="0,0,8,8" />
+        <Button Content="Import Threat Intel"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding ImportThreatIntelCommand}"
+                ToolTip.Tip="Import threat intelligence data"
+                AutomationProperties.AutomationId="AgentThreatIntelButton"
+                Margin="0,0,8,8" />
+        <Button Content="Export Audit"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding ExportAuditCommand}"
+                IsEnabled="{Binding CanExportAudit}"
+                ToolTip.Tip="Export the current audit report"
+                AutomationProperties.AutomationId="AgentExportAuditButton"
+                Margin="0,0,8,8" />
+        <Button Content="Export Remediation"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding ExportRemediationCommand}"
+                IsEnabled="{Binding CanExportAudit}"
+                ToolTip.Tip="Export the remediation plan"
+                AutomationProperties.AutomationId="AgentExportRemediationButton"
+                Margin="0,0,8,8" />
+        <Button Content="Export Session"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding ExportSessionCommand}"
+                IsEnabled="{Binding CanExportSession}"
+                ToolTip.Tip="Export the current session report"
+                AutomationProperties.AutomationId="AgentExportSessionButton"
+                Margin="0,0,8,8" />
+        <Button Content="Compare Last Two"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding CompareAuditsCommand}"
+                IsEnabled="{Binding CanCompareAudits}"
+                ToolTip.Tip="Compare the last two audits"
+                AutomationProperties.AutomationId="AgentCompareAuditsButton"
+                Margin="0,0,8,8" />
+        <Button Content="Compare Selected"
+                Theme="{StaticResource VtSecondaryButton}"
+                Command="{Binding CompareSelectedAuditsCommand}"
+                IsEnabled="{Binding CanCompareSelectedAudits}"
+                ToolTip.Tip="Compare the two selected audit history entries"
+                AutomationProperties.AutomationId="AgentCompareSelectedButton"
+                Margin="0,0,8,8" />
+      </WrapPanel>
     </Border>
 
     <!-- Chat -->
