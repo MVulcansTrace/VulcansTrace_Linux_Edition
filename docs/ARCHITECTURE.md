@@ -432,7 +432,8 @@ The guided remediation layer adds session-aware, manual-first remediation with b
 - `MainViewModel` — receives `RemediationPlanBuilder` via constructor for evidence export (not created inline). Exposes the agent as a first-class navigation item instead of a bottom-panel expander.
 - `Views/AgentView.axaml` — full-screen chat UI with a header, message bubbles, markdown rendering, verification/remediation command rows, quick-action chips, and a `/` slash-command palette.
 - `Views/CommandRow.axaml` — reusable copyable shell-command row with safety/structure badges (SUDO, CHAIN, PIPE, etc.).
-- `Converters/Markdown.cs` — attached property that renders `**bold**` and `*italic*` markup into `TextBlock.Inlines`.
+- `Converters/MarkdownBlocksConverter.cs` — parses narrative prose, lists, and fenced code blocks into message blocks for the agent chat.
+- `Converters/MarkdownInlinesConverter.cs` and `Converters/FormattedTextBlock.cs` — render inline markdown and populate `TextBlock.Inlines` for message paragraphs.
 - `Themes/VtDesignTokens.axaml` — centralized design-system resource dictionary replacing the previous `Themes/DarkTheme.axaml` and `Themes/ThemeStyles.axaml` files.
 
 ### Intent Routing

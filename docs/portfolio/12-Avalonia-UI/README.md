@@ -52,7 +52,8 @@ Documentation is organized for two audiences:
 - [AgentResultPresenter.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs) — chat message presentation, finding grouping, filtering, warnings, and remediation cards
 - [Views/AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick-action chips, markdown message bubbles, and copyable command rows
 - [Views/CommandRow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml) — reusable copyable shell-command row with safety/structure badges
-- [Converters/Markdown.cs](../../../VulcansTrace.Linux.Avalonia/Converters/Markdown.cs) — `Markdown.Text` attached property for inline bold/italic rendering
+- [Converters/MarkdownBlocksConverter.cs](../../../VulcansTrace.Linux.Avalonia/Converters/MarkdownBlocksConverter.cs) — parses narrative prose, lists, and fenced code blocks into message blocks
+- [Converters/MarkdownInlinesConverter.cs](../../../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown inside Avalonia chat bubbles
 - [Themes/VtDesignTokens.axaml](../../../VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml) — centralized design tokens and control themes
 - [AgentHistoryCoordinator.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — audit history persistence, refresh, exported-state marking, and persistence warnings
 - [ScheduleViewModel.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/ScheduleViewModel.cs) — recurring schedule management, cron status, selection preservation, and on-demand execution

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.VtAgentAvatar"
+             x:Name="Root"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls">
+  <Design.PreviewWith>
+    <controls:VtAgentAvatar AvatarSize="36" AvatarFontSize="14" />
+  </Design.PreviewWith>
+
+  <Border Width="{Binding AvatarSize, ElementName=Root}"
+          Height="{Binding AvatarSize, ElementName=Root}"
+          CornerRadius="{Binding CornerRadius, ElementName=Root}"
+          Background="{StaticResource VtPrimaryGlowBrush}"
+          BorderBrush="{StaticResource VtPrimaryBrush}"
+          BorderThickness="1">
+    <TextBlock Text="VT"
+               FontWeight="Bold"
+               FontSize="{Binding AvatarFontSize, ElementName=Root}"
+               Foreground="{StaticResource VtPrimaryBrush}"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center" />
+  </Border>
+</UserControl>

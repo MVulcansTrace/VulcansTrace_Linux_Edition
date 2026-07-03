@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Input;
 using Avalonia;
@@ -8,6 +9,7 @@ using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
+using VulcansTrace.Linux.Avalonia.Converters;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -32,11 +34,31 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private ICommand? _suggestionCommand;
     private RemediationSection? _remediationSection;
 
+    private bool _isError;
+    private IReadOnlyList<AgentMessageBlock> _formattedBlocks = Array.Empty<AgentMessageBlock>();
+
     /// <summary>Gets or sets the message text shown to the user.</summary>
     public string Text
     {
         get => _text;
-        set => SetField(ref _text, value);
+        set
+        {
+            if (SetField(ref _text, value))
+            {
+                RebuildFormattedBlocks();
+                OnPropertyChanged(nameof(AutomationName));
+            }
+        }
+    }
+
+    /// <summary>Gets the parsed rich-content blocks for the message bubble.</summary>
+    public IReadOnlyList<AgentMessageBlock> FormattedBlocks => _formattedBlocks;
+
+    /// <summary>Gets or sets whether this message represents an error.</summary>
+    public bool IsError
+    {
+        get => _isError;
+        set => SetField(ref _isError, value);
     }
 
     /// <summary>Gets or sets optional detail text for the message.</summary>
@@ -50,7 +72,13 @@ public sealed class AgentMessageViewModel : ViewModelBase
     public bool IsUser
     {
         get => _isUser;
-        set => SetField(ref _isUser, value);
+        set
+        {
+            if (SetField(ref _isUser, value))
+            {
+                OnPropertyChanged(nameof(AutomationName));
+            }
+        }
     }
 
     /// <summary>Gets or sets whether this message is informational (not a finding).</summary>
@@ -117,8 +145,25 @@ public sealed class AgentMessageViewModel : ViewModelBase
     public DateTime Timestamp
     {
         get => _timestamp;
-        set => SetField(ref _timestamp, value);
+        set
+        {
+            if (SetField(ref _timestamp, value))
+            {
+                OnPropertyChanged(nameof(FormattedTimestamp));
+                OnPropertyChanged(nameof(ShowTimestamp));
+                OnPropertyChanged(nameof(AutomationName));
+            }
+        }
     }
+
+    /// <summary>Gets a short, user-facing timestamp for the message bubble.</summary>
+    public string FormattedTimestamp => _timestamp.ToString("HH:mm");
+
+    /// <summary>Gets whether the timestamp should be shown on the message bubble.</summary>
+    public bool ShowTimestamp => _timestamp != DateTime.MinValue;
+
+    /// <summary>Gets a screen-reader-friendly name for this message bubble.</summary>
+    public string AutomationName => $"{(IsUser ? "You" : "VulcansTrace")}{(ShowTimestamp ? $" at {FormattedTimestamp}" : "")}: {Text}";
 
     /// <summary>Gets or sets the verification commands that can be copied from this message.</summary>
     public IReadOnlyList<CopyableCommand> VerificationCommands
@@ -219,40 +264,9 @@ public sealed class AgentMessageViewModel : ViewModelBase
         {
             if (SetField(ref _remediationSection, value))
             {
-                OnPropertyChanged(nameof(HasRemediationSection));
-                OnPropertyChanged(nameof(HasPreconditions));
-                OnPropertyChanged(nameof(HasBackupCommands));
-                OnPropertyChanged(nameof(HasApplyCommands));
-                OnPropertyChanged(nameof(HasRollbackCommands));
-                OnPropertyChanged(nameof(HasRemediationVerificationCommands));
-                OnPropertyChanged(nameof(RemediationPreconditions));
-                OnPropertyChanged(nameof(RemediationBackupCommands));
-                OnPropertyChanged(nameof(RemediationApplyCommands));
-                OnPropertyChanged(nameof(RemediationRollbackCommands));
-                OnPropertyChanged(nameof(RemediationVerificationCommands));
-                OnPropertyChanged(nameof(HasImpactPreview));
-                OnPropertyChanged(nameof(ImpactPreviewExpectedImpact));
-                OnPropertyChanged(nameof(ImpactPreviewRollbackPath));
-                OnPropertyChanged(nameof(ImpactPreviewVerificationCommand));
-                OnPropertyChanged(nameof(IsRollbackPathCommand));
-                OnPropertyChanged(nameof(RollbackPathFontFamily));
-                OnPropertyChanged(nameof(IsImpactPreviewVerificationCommand));
-                OnPropertyChanged(nameof(ImpactPreviewVerificationFontFamily));
-                OnPropertyChanged(nameof(ImpactPreviewExpectedImpactSource));
-                OnPropertyChanged(nameof(ImpactPreviewRollbackPathKind));
-                OnPropertyChanged(nameof(ImpactPreviewVerificationKind));
-                OnPropertyChanged(nameof(ImpactPreviewRiskBefore));
-                OnPropertyChanged(nameof(ImpactPreviewExpectedRiskAfter));
-                OnPropertyChanged(nameof(ImpactPreviewCommandCount));
-                OnPropertyChanged(nameof(ImpactPreviewRollbackAvailable));
-                OnPropertyChanged(nameof(ImpactPreviewRollbackUnavailable));
-                OnPropertyChanged(nameof(ImpactPreviewRollbackAvailabilityLabel));
-                OnPropertyChanged(nameof(ImpactPreviewHasRestartImpact));
-                OnPropertyChanged(nameof(ImpactPreviewHasLockoutRisk));
-                OnPropertyChanged(nameof(ImpactPreviewRestartImpactDescription));
-                OnPropertyChanged(nameof(ImpactPreviewLockoutRiskDescription));
-                OnPropertyChanged(nameof(HasCountermeasureCommands));
-                OnPropertyChanged(nameof(CountermeasureCommands));
+                // Notify that every derived remediation property may have changed,
+                // rather than firing ~30 individual PropertyChanged events.
+                OnPropertyChanged(string.Empty);
             }
         }
     }
@@ -426,5 +440,34 @@ public sealed class AgentMessageViewModel : ViewModelBase
         {
             desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
         }
+    }
+
+    /// <summary>
+    /// Opens the specified URL in the default browser.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
+    public void OpenUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Silently ignore failures from missing browser handlers or sandbox restrictions.
+        }
+    }
+
+    private void RebuildFormattedBlocks()
+    {
+        var parser = new MarkdownBlocksConverter();
+        _formattedBlocks = parser.Parse(
+            _text,
+            code => new RelayCommand<string>(_ => CopyCommandToClipboard(code)),
+            url => new RelayCommand<string>(_ => OpenUrl(url), _ => !string.IsNullOrWhiteSpace(url)));
+        OnPropertyChanged(nameof(FormattedBlocks));
     }
 }

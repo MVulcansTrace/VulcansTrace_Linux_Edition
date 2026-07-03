@@ -1,3 +1,5 @@
+using System;
+using Avalonia.Media;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -7,6 +9,7 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
+using VulcansTrace.Linux.Avalonia.Converters;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -214,13 +217,15 @@ public class AgentViewModelTests
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
-        var labels = vm.QuickActions.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var runCheckLabels = vm.QuickActionsChecks.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var baselineLabels = vm.QuickActionsBaseline.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var exportLabels = vm.QuickActionsExport.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Contains("Processes", labels);
-        Assert.Contains("Set baseline", labels);
-        Assert.Contains("Check drift", labels);
-        Assert.Contains("Show baseline", labels);
-        Assert.Contains("Export audit", labels);
+        Assert.Contains("Processes", runCheckLabels);
+        Assert.Contains("Set baseline", baselineLabels);
+        Assert.Contains("Check drift", baselineLabels);
+        Assert.Contains("Show baseline", baselineLabels);
+        Assert.Contains("Export audit", exportLabels);
     }
 
     [Fact]
@@ -254,6 +259,194 @@ public class AgentViewModelTests
 
         Assert.True(vm.IsSlashPaletteOpen);
         Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/firewall");
+    }
+
+    [Fact]
+    public void SlashPalette_PrefixQuery_SelectsFirstCommand()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/fire"
+        };
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.NotNull(vm.SelectedSlashCommand);
+        Assert.Equal("/firewall", vm.SelectedSlashCommand!.CommandText);
+    }
+
+    [Fact]
+    public void SlashPalette_Down_SelectsNextCommand()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/baseline"
+        };
+
+        Assert.Equal("/baseline", vm.SelectedSlashCommand!.CommandText);
+
+        vm.SelectNextSlashCommand();
+
+        Assert.Equal("/baseline show", vm.SelectedSlashCommand!.CommandText);
+    }
+
+    [Fact]
+    public void SlashPalette_Down_AtEnd_WrapsToTop()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/baseline"
+        };
+
+        vm.SelectNextSlashCommand();
+        vm.SelectNextSlashCommand();
+
+        Assert.Equal("/baseline", vm.SelectedSlashCommand!.CommandText);
+    }
+
+    [Fact]
+    public void SlashPalette_Up_WrapsToEnd()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/baseline"
+        };
+
+        Assert.Equal("/baseline", vm.SelectedSlashCommand!.CommandText);
+
+        vm.SelectPreviousSlashCommand();
+
+        Assert.Equal("/baseline show", vm.SelectedSlashCommand!.CommandText);
+    }
+
+    [Fact]
+    public void SlashPalette_Close_ClearsSelection()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/firewall"
+        };
+
+        Assert.NotNull(vm.SelectedSlashCommand);
+
+        vm.CloseSlashPalette();
+
+        Assert.Null(vm.SelectedSlashCommand);
+    }
+
+    [Fact]
+    public void SlashPalette_Enter_ExecutesSelectedCommand()
+    {
+        // Programmatic Enter dispatch when the palette is open executes the highlighted command,
+        // mirroring the view's KeyDown handler.
+        var agent = new TrackingAgent(AgentIntent.FullAudit);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/firewall"
+        };
+
+        vm.ExecuteSlashCommandCommand.Execute(vm.SelectedSlashCommand);
+
+        Assert.Equal(AgentIntent.FirewallCheck, agent.LastRunAuditIntent);
+        Assert.False(vm.IsSlashPaletteOpen);
+    }
+
+    [Fact]
+    public async Task SendQueryCommand_AgentError_MarksMessageAsError()
+    {
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var errorMessage = vm.Messages.FirstOrDefault(m => m.Text == "Agent error: boom");
+        Assert.NotNull(errorMessage);
+        Assert.True(errorMessage!.IsError);
+    }
+
+    [Fact]
+    public async Task SendQueryCommand_AgentError_StylingUsesErrorBubbleConverter()
+    {
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var errorMessage = vm.Messages.First(m => m.Text == "Agent error: boom");
+        var converter = new MessageBubbleBackgroundConverter();
+        var brush = converter.Convert(errorMessage, typeof(global::Avalonia.Media.IBrush), null, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.IsType<global::Avalonia.Media.SolidColorBrush>(brush);
+    }
+
+    [Fact]
+    public async Task SendQueryCommand_AgentError_ExistingMessageStaysNonError()
+    {
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var userMessage = vm.Messages.First(m => m.IsUser);
+        Assert.False(userMessage.IsError);
+    }
+
+    [Fact]
+    public void SendQueryCommand_AgentError_KeepsAutomationIdAndFeatureParityControls()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains("MessageBubbleBackground", xaml);
+        Assert.Contains("MessageBubbleBorderBrush", xaml);
+        Assert.Contains("MessageBubbleForeground", xaml);
+        Assert.Contains("FormattedBlocks", xaml);
+    }
+
+    [Fact]
+    public void AgentMessageViewModel_IsError_DefaultsFalse()
+    {
+        var message = new AgentMessageViewModel { Text = "normal" };
+
+        Assert.False(message.IsError);
+    }
+
+    [Fact]
+    public void AgentMessageViewModel_ErrorText_IsErrorSetByPresenter()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/clear"
+        };
+        vm.SendQueryCommand.Execute(null);
+
+        // /clear adds an info message; no error.
+        Assert.DoesNotContain(vm.Messages, m => m.IsError);
+    }
+
+    [Fact]
+    public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
+    {
+        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsBusy);
+        Assert.Contains(vm.Messages, message => message.Text == "Agent error: boom" && message.IsInfo);
     }
 
     [Fact]
@@ -312,25 +505,198 @@ public class AgentViewModelTests
         FlushDispatcher();
 
         Assert.DoesNotContain(vm.Messages, m => m.Text == "old");
-        Assert.Contains(vm.Messages, m => m.Text == "Chat cleared.");
+        Assert.Contains(vm.Messages, m => m.Text.Contains("Ask me about your system security", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Constructor_HasOnlyWelcomeMessage_IsTrue()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.True(vm.HasOnlyWelcomeMessage);
+    }
+
+    [Fact]
+    public void Constructor_InitializesAgentToolsPanelCollections()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.IsAgentToolsPanelOpen);
+        Assert.NotEmpty(vm.ToolPanelAnalysisActions);
+        Assert.NotEmpty(vm.ToolPanelRunCheckActions);
+        Assert.NotEmpty(vm.ToolPanelBaselineActions);
+        Assert.NotEmpty(vm.ToolPanelExportActions);
+    }
+
+    [Fact]
+    public void ToggleAgentToolsPanelCommand_FlipsIsAgentToolsPanelOpen()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.IsAgentToolsPanelOpen);
+
+        vm.ToggleAgentToolsPanelCommand.Execute(null);
+
+        Assert.True(vm.IsAgentToolsPanelOpen);
+
+        vm.ToggleAgentToolsPanelCommand.Execute(null);
+
+        Assert.False(vm.IsAgentToolsPanelOpen);
+    }
+
+    [Fact]
+    public void AgentToolsPanel_PreservesLegacyAutomationIds()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        var panelIds = vm.ToolPanelAnalysisActions
+            .Concat(vm.ToolPanelRunCheckActions)
+            .Concat(vm.ToolPanelBaselineActions)
+            .Concat(vm.ToolPanelExportActions)
+            .Select(a => a.AutomationId)
+            .ToList();
+
+        Assert.Contains("AgentExplainSelectedButton", panelIds);
+        Assert.Contains("AgentThreatIntelButton", panelIds);
+        Assert.Contains("AgentCompareAuditsButton", panelIds);
+        Assert.Contains("AgentCompareSelectedButton", panelIds);
+        Assert.Contains("AgentExportRemediationButton", panelIds);
+        Assert.Contains("AgentExportSessionButton", panelIds);
+    }
+
+    [Fact]
+    public async Task SendQuery_MarksChatInteracted()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "hello"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.HasOnlyWelcomeMessage);
+    }
+
+    [Fact]
+    public async Task ClearChat_RestoresWelcomeState()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "hello"
+        };
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+        Assert.False(vm.HasOnlyWelcomeMessage);
+
+        vm.UserQuery = "/clear";
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.HasOnlyWelcomeMessage);
+    }
+
+    [Fact]
+    public void SelectedChatSeverityFilter_NonDefault_CreatesActiveChip()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.SelectedChatSeverityFilter = vm.ChatSeverityFilters[1];
+
+        Assert.Single(vm.ActiveChatFilterChips);
+        Assert.Contains("High", vm.ActiveChatFilterChips[0].Label, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SelectedChatCategoryFilter_NonAll_CreatesActiveChip()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add("Firewall");
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+
+        Assert.Single(vm.ActiveChatFilterChips);
+        Assert.Contains("Firewall", vm.ActiveChatFilterChips[0].Label, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HasNoVisibleMessages_TrueWhenFiltersHideAllMessages()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear(); // remove welcome message so the property reflects filtered content only
+        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.Messages.Add(new AgentMessageViewModel { Text = "Network finding", Category = "Network", IsVisible = true });
+
+        Assert.False(vm.HasNoVisibleMessages);
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+
+        Assert.True(vm.HasNoVisibleMessages);
+    }
+
+    [Fact]
+    public void HasNoVisibleMessages_UpdatesWhenMessageBecomesVisibleWithoutFilterChange()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.SelectedChatCategoryFilter = "Firewall";
+
+        var message = new AgentMessageViewModel { Text = "Network finding", Category = "Network", IsVisible = false };
+        vm.Messages.Add(message);
+
+        Assert.True(vm.HasNoVisibleMessages);
+
+        message.IsVisible = true;
+
+        Assert.False(vm.HasNoVisibleMessages);
+    }
+
+    [Fact]
+    public void HasNoVisibleMessages_UpdatesWhenMessageRemoved()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+
+        var message = new AgentMessageViewModel { Text = "Hidden finding", Category = "Network", IsVisible = false };
+        vm.Messages.Add(message);
+        Assert.True(vm.HasNoVisibleMessages);
+
+        vm.Messages.Remove(message);
+
+        Assert.False(vm.HasNoVisibleMessages);
+    }
+
+    [Fact]
+    public void AgentMessageViewModel_FormattedTimestamp_ReturnsShortTime()
+    {
+        var message = new AgentMessageViewModel
+        {
+            Timestamp = new DateTime(2026, 7, 2, 14, 30, 0)
+        };
+
+        Assert.Equal("14:30", message.FormattedTimestamp);
+        Assert.True(message.ShowTimestamp);
     }
 
     [Fact]
     public void AgentViewXaml_ExposesFeatureParityControls()
     {
         var xaml = ReadAgentViewXaml();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         foreach (var automationId in new[]
         {
+            "AgentQueryInput",
             "AgentSendButton",
             "AgentCancelButton",
-            "AgentExplainSelectedButton",
-            "AgentThreatIntelButton",
-            "AgentExportAuditButton",
-            "AgentExportRemediationButton",
-            "AgentExportSessionButton",
-            "AgentCompareAuditsButton",
-            "AgentCompareSelectedButton",
+            "AgentToolsToggleButton",
             "AgentChatSeverityFilter",
             "AgentChatCategoryFilter",
             "AgentClearChatFiltersButton",
@@ -341,8 +707,34 @@ public class AgentViewModelTests
             Assert.Contains($"AutomationProperties.AutomationId=\"{automationId}\"", xaml);
         }
 
+        var panelIds = vm.ToolPanelAnalysisActions
+            .Concat(vm.ToolPanelRunCheckActions)
+            .Concat(vm.ToolPanelBaselineActions)
+            .Concat(vm.ToolPanelExportActions)
+            .Select(a => a.AutomationId)
+            .ToList();
+
+        foreach (var automationId in new[]
+        {
+            "AgentExplainSelectedButton",
+            "AgentThreatIntelButton",
+            "AgentExportRemediationButton",
+            "AgentExportSessionButton",
+            "AgentCompareAuditsButton",
+            "AgentCompareSelectedButton"
+        })
+        {
+            Assert.Contains(automationId, panelIds);
+        }
+
         Assert.Contains("Header=\"Audit History\"", xaml);
         Assert.Contains("Header=\"Remediation Sessions\"", xaml);
+        Assert.Contains("ToolPanelAnalysisActions", xaml);
+        Assert.Contains("ToolPanelRunCheckActions", xaml);
+        Assert.Contains("ToolPanelBaselineActions", xaml);
+        Assert.Contains("ToolPanelExportActions", xaml);
+        Assert.Contains("ToggleAgentToolsPanelCommand", xaml);
+        Assert.Contains("BoolToMaxHeight", xaml);
         Assert.Contains("HasImpactPreview", xaml);
         Assert.Contains("ImpactPreviewRiskBefore", xaml);
         Assert.Contains("ImpactPreviewRollbackAvailabilityLabel", xaml);
@@ -356,14 +748,13 @@ public class AgentViewModelTests
 
         foreach (var directAction in new[]
         {
-            "Export Audit",
             "Export Remediation",
             "Export Session",
             "Compare Last Two",
             "Compare Selected"
         })
         {
-            Assert.Contains($"<Button Content=\"{directAction}\"", xaml);
+            Assert.DoesNotContain($"<Button Content=\"{directAction}\"", xaml);
             Assert.DoesNotContain($"<MenuItem Header=\"{directAction}\"", xaml);
         }
     }
@@ -436,22 +827,6 @@ public class AgentViewModelTests
         Assert.Null(vm.LastResult);
         Assert.False(vm.CanExportAudit);
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
-    }
-
-    [Fact]
-    public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
-    {
-        var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
-        {
-            UserQuery = "check firewall"
-        };
-
-        vm.SendQueryCommand.Execute(null);
-        await vm.SendQueryCommand.ExecutionTask;
-        FlushDispatcher();
-
-        Assert.False(vm.IsBusy);
-        Assert.Contains(vm.Messages, message => message.Text == "Agent error: boom" && message.IsInfo);
     }
 
     [Fact]

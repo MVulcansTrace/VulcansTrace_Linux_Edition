@@ -45,25 +45,25 @@ public class AgentOperationRunnerTests
     [Fact]
     public async Task RunAsync_OperationCanceledException_PostsCancelledMessage()
     {
-        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
-        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+        var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo, isError) => messages.Add((text, isInfo, isError)));
 
         await runner.RunAsync(_ => throw new OperationCanceledException());
         FlushDispatcher();
 
-        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo);
+        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo && !m.IsError);
     }
 
     [Fact]
     public async Task RunAsync_GenericException_PostsAgentErrorMessage()
     {
-        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
-        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+        var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo, isError) => messages.Add((text, isInfo, isError)));
 
         await runner.RunAsync(_ => throw new InvalidOperationException("something broke"));
         FlushDispatcher();
 
-        Assert.Contains(messages, m => m.Text == "Agent error: something broke" && m.IsInfo);
+        Assert.Contains(messages, m => m.Text == "Agent error: something broke" && m.IsInfo && m.IsError);
     }
 
     [Fact]
@@ -131,8 +131,8 @@ public class AgentOperationRunnerTests
     [Fact]
     public async Task Cancel_TriggersOperationCanceledException()
     {
-        var messages = new ObservableCollection<(string Text, bool IsInfo)>();
-        var runner = CreateRunner(addAgentMessage: (text, isInfo) => messages.Add((text, isInfo)));
+        var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
+        var runner = CreateRunner(addAgentMessage: (text, isInfo, isError) => messages.Add((text, isInfo, isError)));
 
         // Wait until the operation has actually started before cancelling, so the test doesn't race
         // on async-lambda setup timing (which made CanCancel flicker under concurrent load).
@@ -155,7 +155,7 @@ public class AgentOperationRunnerTests
         await WaitForAsync(() => messages.Any(m => m.Text == "Query cancelled." && m.IsInfo));
 
         Assert.False(runner.CanCancel);
-        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo);
+        Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo && !m.IsError);
     }
 
     [Fact]
@@ -217,14 +217,14 @@ public class AgentOperationRunnerTests
     public void Constructor_NullSetBusy_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new AgentOperationRunner(null!, () => { }, (text, isInfo) => { }));
+            new AgentOperationRunner(null!, () => { }, (text, isInfo, isError) => { }));
     }
 
     [Fact]
     public void Constructor_NullClearPrivilegeWarning_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new AgentOperationRunner(_ => { }, null!, (text, isInfo) => { }));
+            new AgentOperationRunner(_ => { }, null!, (text, isInfo, isError) => { }));
     }
 
     [Fact]
@@ -250,11 +250,11 @@ public class AgentOperationRunnerTests
     private static AgentOperationRunner CreateRunner(
         Action<bool>? setBusy = null,
         Action? clearPrivilegeWarning = null,
-        Action<string, bool>? addAgentMessage = null)
+        Action<string, bool, bool>? addAgentMessage = null)
     {
         return new AgentOperationRunner(
             setBusy ?? (_ => { }),
             clearPrivilegeWarning ?? (() => { }),
-            addAgentMessage ?? ((_, _) => { }));
+            addAgentMessage ?? ((_, _, _) => { }));
     }
 }

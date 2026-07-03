@@ -29,6 +29,8 @@ internal sealed class AgentResultPresenter
     private readonly WarningInterpreter _warningInterpreter;
     private readonly IntentSummaryBuilder _intentSummaryBuilder;
 
+    private readonly Action _onFiltersApplied;
+
     public AgentResultPresenter(
         ObservableCollection<AgentMessageViewModel> messages,
         ObservableCollection<string> categoryFilters,
@@ -37,6 +39,7 @@ internal sealed class AgentResultPresenter
         Action<bool> setPrivilegeWarning,
         Action<string> setPrivilegeWarningText,
         Func<SuggestedFollowUp, Task> executeSuggestion,
+        Action? onFiltersApplied = null,
         WarningInterpreter? warningInterpreter = null,
         IntentSummaryBuilder? intentSummaryBuilder = null)
     {
@@ -47,6 +50,7 @@ internal sealed class AgentResultPresenter
         _setPrivilegeWarning = setPrivilegeWarning ?? throw new ArgumentNullException(nameof(setPrivilegeWarning));
         _setPrivilegeWarningText = setPrivilegeWarningText ?? throw new ArgumentNullException(nameof(setPrivilegeWarningText));
         _executeSuggestion = executeSuggestion ?? throw new ArgumentNullException(nameof(executeSuggestion));
+        _onFiltersApplied = onFiltersApplied ?? (() => { });
         _warningInterpreter = warningInterpreter ?? new WarningInterpreter();
         _intentSummaryBuilder = intentSummaryBuilder ?? new IntentSummaryBuilder();
     }
@@ -172,6 +176,7 @@ internal sealed class AgentResultPresenter
 
         AttachSuggestions(result, suggestionAnchor);
         ApplyChatFilters();
+        _onFiltersApplied();
     }
 
     private static void TrackSuggestionAnchor(ref AgentMessageViewModel? anchor, AgentMessageViewModel? candidate)
@@ -205,17 +210,28 @@ internal sealed class AgentResultPresenter
         });
     }
 
-    public AgentMessageViewModel AddAgentMessage(string text, bool isInfo)
+    public AgentMessageViewModel AddAgentMessage(string text, bool isInfo, bool isError = false)
     {
         var message = new AgentMessageViewModel
         {
             Text = text,
             IsUser = false,
             IsInfo = isInfo,
+            IsError = isError || (!isInfo && IsErrorText(text)),
             Timestamp = DateTime.Now
         };
         _messages.Add(message);
         return message;
+    }
+
+    private static bool IsErrorText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        var trimmed = text.Trim();
+        return trimmed.StartsWith("Error:", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Agent error:", StringComparison.OrdinalIgnoreCase);
     }
 
     public void AddAgentFinding(Finding finding)

@@ -655,7 +655,7 @@ The Avalonia application exposes the agent as a first-class **Security Agent** v
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.
 - Role-aware rule tuning through local policy, currently wired as `Workstation` in the desktop UI.
 - **Follow-up suggestion chips** — every agent message with suggestions shows a row of clickable chips (`What should I fix first?`, `Fix it`, `Check drift`, etc.). Clicking a chip runs the underlying query.
-- **Narrative rendering** — the composed `AgentResult.Narrative` is rendered in the chat panel with `**bold**` and `*italic*` styling via the `Markdown.Text` attached property and `MarkdownInlinesConverter`; intraword underscores are preserved so snake_case rule IDs stay readable.
+- **Narrative rendering** — the composed `AgentResult.Narrative` is rendered in the chat panel with `**bold**` and `*italic*` styling via `MarkdownBlocksConverter` and `MarkdownInlinesConverter`; intraword underscores are preserved so snake_case rule IDs stay readable.
 - **Cross-session memory** — the agent restores the last conversation context (topic, focused finding, recent turns, rule history, and last result) when the Avalonia app restarts, using the lightweight `agent-memory.json` snapshot and the existing audit-history store.
 - Audit history persisted to the user config directory when available, capped at 50 lightweight snapshots by default, with compare-last-two, selectable before/after comparison, deterministic narrative diff summaries, and exported-state tracking after successful evidence export. If persistence fails, the UI reports that history is session-only.
 - Configuration baselines persisted to the user config directory (`~/.config/VulcansTrace/baselines.json`) when available, with in-memory fallback. Baselines are intent-scoped; each intent has one active baseline at a time. Drift detection re-runs the last completed audit intent and compares against the active baseline, surfacing new and worsened findings.
@@ -885,8 +885,8 @@ Mappings are defined on `IRule.CisMappings`, flow through `RuleResult.CisMapping
 - [RemediationWisdomAnalyzer.cs](../VulcansTrace.Linux.Agent/Analysis/RemediationWisdomAnalyzer.cs) — detects repeated remediation-recurrence patterns
 - [RuleCategoryResolver.cs](../VulcansTrace.Linux.Agent/Rules/RuleCategoryResolver.cs) — shared rule-prefix/category resolver
 - [NarrativeComposer.cs](../VulcansTrace.Linux.Agent/Dialogue/NarrativeComposer.cs) — composes traceable multi-paragraph agent replies
-- [MarkdownInlinesConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown in Avalonia chat
-- [Markdown.cs](../VulcansTrace.Linux.Avalonia/Converters/Markdown.cs) — `Markdown.Text` attached property for inline markdown in chat bubbles
+- [MarkdownInlinesConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown in Avalonia chat bubbles
+- [MarkdownBlocksConverter.cs](../VulcansTrace.Linux.Avalonia/Converters/MarkdownBlocksConverter.cs) — parses narrative prose, lists, and fenced code blocks into message blocks
 - [Views/AgentView.axaml](../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick actions, and message bubbles
 - [Views/CommandRow.axaml](../VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml) — copyable shell-command rows with safety/structure badges
 - [WarningInterpreter.cs](../VulcansTrace.Linux.Agent/Reports/WarningInterpreter.cs) — classifies raw scanner warnings into user-friendly messages

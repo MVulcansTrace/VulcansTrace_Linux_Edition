@@ -5,6 +5,7 @@
              xmlns:local="using:VulcansTrace.Linux.Avalonia.Views"
              xmlns:suggestions="using:VulcansTrace.Linux.Agent.Suggestions"
              xmlns:sessions="using:VulcansTrace.Linux.Agent.Sessions"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.AgentView"
              x:DataType="vm:AgentViewModel">
@@ -15,14 +16,30 @@
 
   <UserControl.Resources>
     <conv:BoolToAlignmentConverter x:Key="BoolToAlignment" />
-    <conv:BoolToBackgroundConverter x:Key="BoolToBackground" />
-    <conv:BoolToBorderBrushConverter x:Key="BoolToBorderBrush" />
-    <conv:BoolToForegroundConverter x:Key="BoolToForeground" />
+    <conv:MessageBubbleBackgroundConverter x:Key="MessageBubbleBackground" />
+    <conv:MessageBubbleBorderBrushConverter x:Key="MessageBubbleBorderBrush" />
+    <conv:MessageBubbleForegroundConverter x:Key="MessageBubbleForeground" />
     <conv:AgentStatusToBackgroundBrushConverter x:Key="AgentStatusToBackgroundBrush" />
     <conv:AgentStatusToForegroundBrushConverter x:Key="AgentStatusToForegroundBrush" />
+
+    <DataTemplate x:Key="AgentQuickActionTemplate" DataType="vm:AgentQuickAction">
+      <Button Command="{Binding Command}"
+              Padding="10,8"
+              Margin="0,0,8,6"
+              Theme="{StaticResource VtSecondaryButton}"
+              AutomationProperties.AutomationId="{Binding AutomationId}"
+              AutomationProperties.Name="{Binding Label}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <i:Icon Value="{Binding Icon}" FontSize="{StaticResource VtIconSizeXs}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding Label}" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+    <conv:BoolToDoubleConverter x:Key="BoolToMaxHeight" TrueValue="1200" FalseValue="0" />
+    <conv:BoolToDoubleConverter x:Key="BoolToOpacity" TrueValue="1" FalseValue="0" />
   </UserControl.Resources>
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="24">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="24">
 
     <!-- Header -->
     <Border Grid.Row="0"
@@ -31,18 +48,7 @@
             Margin="0,0,0,12">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-          <Border Width="36" Height="36"
-                  CornerRadius="18"
-                  Background="{StaticResource VtPrimaryGlowBrush}"
-                  BorderBrush="{StaticResource VtPrimaryBrush}"
-                  BorderThickness="1">
-            <TextBlock Text="VT"
-                       FontWeight="Bold"
-                       FontSize="{StaticResource VtFontSizeSm}"
-                       Foreground="{StaticResource VtPrimaryBrush}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center" />
-          </Border>
+          <controls:VtAgentAvatar AvatarSize="36" AvatarFontSize="{StaticResource VtFontSizeSm}" />
           <StackPanel Orientation="Vertical" VerticalAlignment="Center">
             <TextBlock Text="Security Agent"
                        FontSize="{StaticResource VtFontSizeXl}"
@@ -62,69 +68,235 @@
       </Grid>
     </Border>
 
-    <!-- Action bar -->
+    <!-- Agent Tools toggle -->
     <Border Grid.Row="1"
             Theme="{StaticResource VtCard}"
             Padding="12"
             Margin="0,0,0,12">
-      <WrapPanel Orientation="Horizontal">
-        <Button Content="Explain Selected"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding ExplainSelectedCommand}"
-                IsEnabled="{Binding CanExplainSelected}"
-                ToolTip.Tip="Explain the currently selected finding"
-                AutomationProperties.AutomationId="AgentExplainSelectedButton"
-                Margin="0,0,8,8" />
-        <Button Content="Import Threat Intel"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding ImportThreatIntelCommand}"
-                ToolTip.Tip="Import threat intelligence data"
-                AutomationProperties.AutomationId="AgentThreatIntelButton"
-                Margin="0,0,8,8" />
-        <Button Content="Export Audit"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding ExportAuditCommand}"
-                IsEnabled="{Binding CanExportAudit}"
-                ToolTip.Tip="Export the current audit report"
-                AutomationProperties.AutomationId="AgentExportAuditButton"
-                Margin="0,0,8,8" />
-        <Button Content="Export Remediation"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding ExportRemediationCommand}"
-                IsEnabled="{Binding CanExportAudit}"
-                ToolTip.Tip="Export the remediation plan"
-                AutomationProperties.AutomationId="AgentExportRemediationButton"
-                Margin="0,0,8,8" />
-        <Button Content="Export Session"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding ExportSessionCommand}"
-                IsEnabled="{Binding CanExportSession}"
-                ToolTip.Tip="Export the current session report"
-                AutomationProperties.AutomationId="AgentExportSessionButton"
-                Margin="0,0,8,8" />
-        <Button Content="Compare Last Two"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding CompareAuditsCommand}"
-                IsEnabled="{Binding CanCompareAudits}"
-                ToolTip.Tip="Compare the last two audits"
-                AutomationProperties.AutomationId="AgentCompareAuditsButton"
-                Margin="0,0,8,8" />
-        <Button Content="Compare Selected"
-                Theme="{StaticResource VtSecondaryButton}"
-                Command="{Binding CompareSelectedAuditsCommand}"
-                IsEnabled="{Binding CanCompareSelectedAudits}"
-                ToolTip.Tip="Compare the two selected audit history entries"
-                AutomationProperties.AutomationId="AgentCompareSelectedButton"
-                Margin="0,0,8,8" />
-      </WrapPanel>
+      <Button Theme="{StaticResource VtSecondaryButton}"
+              HorizontalAlignment="Stretch"
+              HorizontalContentAlignment="Center"
+              Command="{Binding ToggleAgentToolsPanelCommand}"
+              AutomationProperties.AutomationId="AgentToolsToggleButton"
+              AutomationProperties.Name="Toggle Agent Tools panel">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <i:Icon Value="mdi-tools" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" />
+          <TextBlock Text="Agent Tools" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <i:Icon Value="mdi-chevron-down" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" IsVisible="{Binding !IsAgentToolsPanelOpen}" />
+          <i:Icon Value="mdi-chevron-up" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" IsVisible="{Binding IsAgentToolsPanelOpen}" />
+        </StackPanel>
+      </Button>
+    </Border>
+
+    <!-- Agent Tools panel -->
+    <Border Grid.Row="2"
+            Theme="{StaticResource VtAgentToolsPanel}"
+            Margin="0,0,0,12"
+            MaxHeight="{Binding IsAgentToolsPanelOpen, Converter={StaticResource BoolToMaxHeight}}"
+            Opacity="{Binding IsAgentToolsPanelOpen, Converter={StaticResource BoolToOpacity}}"
+            IsHitTestVisible="{Binding IsAgentToolsPanelOpen}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    MaxHeight="520">
+        <WrapPanel Orientation="Horizontal">
+          <!-- Analysis -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
+            <TextBlock Text="Analysis" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding ToolPanelAnalysisActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+
+          <!-- Run checks -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
+            <TextBlock Text="Run checks" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding ToolPanelRunCheckActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+
+          <!-- Baseline -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
+            <TextBlock Text="Baseline" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding ToolPanelBaselineActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+
+          <!-- Export -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
+            <TextBlock Text="Export" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding ToolPanelExportActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </StackPanel>
+
+          <!-- History &amp; Sessions -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="900" MaxWidth="1200" Margin="0,0,0,12">
+            <TextBlock Text="History &amp; Sessions" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+              <Expander Grid.Column="0"
+                        Header="Audit History"
+                        Theme="{StaticResource VtExpander}"
+                        IsExpanded="False">
+                <StackPanel Margin="8" Spacing="8">
+                  <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                    <ComboBox Grid.Column="0"
+                              ItemsSource="{Binding History}"
+                              SelectedItem="{Binding SelectedBeforeEntry}"
+                              Theme="{StaticResource VtComboBox}"
+                              PlaceholderText="Before"
+                              MaxDropDownHeight="160" />
+                    <TextBlock Grid.Column="1"
+                               Text="to"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource VtTextMutedBrush}" />
+                    <ComboBox Grid.Column="2"
+                              ItemsSource="{Binding History}"
+                              SelectedItem="{Binding SelectedAfterEntry}"
+                              Theme="{StaticResource VtComboBox}"
+                              PlaceholderText="After"
+                              MaxDropDownHeight="160" />
+                  </Grid>
+
+                  <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding History}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Spacing="6" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Background="{StaticResource VtBackground700Brush}"
+                                  BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                                  BorderThickness="1"
+                                  CornerRadius="{StaticResource VtRadiusMd}"
+                                  Padding="8,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}"
+                                         Foreground="{StaticResource VtTextMutedBrush}"
+                                         FontSize="{StaticResource VtFontSizeXs}"
+                                         VerticalAlignment="Center" />
+                              <TextBlock Grid.Column="1"
+                                         Text="{Binding Intent}"
+                                         Foreground="{StaticResource VtTextPrimaryBrush}"
+                                         FontSize="{StaticResource VtFontSizeSm}"
+                                         VerticalAlignment="Center" />
+                              <TextBlock Grid.Column="2"
+                                         Text="{Binding TotalFindings, StringFormat='findings: {0}'}"
+                                         Foreground="{StaticResource VtTextSecondaryBrush}"
+                                         FontSize="{StaticResource VtFontSizeXs}"
+                                         VerticalAlignment="Center" />
+                              <TextBlock Grid.Column="3"
+                                         Text="{Binding PassedCount, StringFormat='passed: {0}'}"
+                                         Foreground="{StaticResource VtSuccessBrush}"
+                                         FontSize="{StaticResource VtFontSizeXs}"
+                                         VerticalAlignment="Center" />
+                              <TextBlock Grid.Column="4"
+                                         Text="exported"
+                                         Foreground="{StaticResource VtSuccessBrush}"
+                                         FontSize="{StaticResource VtFontSizeXs}"
+                                         IsVisible="{Binding Exported}"
+                                         VerticalAlignment="Center" />
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </StackPanel>
+              </Expander>
+
+              <Expander Grid.Column="1"
+                        Header="Remediation Sessions"
+                        Theme="{StaticResource VtExpander}"
+                        IsExpanded="False">
+                <StackPanel Margin="8" Spacing="8">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Refresh"
+                            Theme="{StaticResource VtSecondaryButton}"
+                            Command="{Binding ListSessionsCommand}" />
+                    <Button Content="Resume"
+                            Theme="{StaticResource VtSecondaryButton}"
+                            Command="{Binding ResumeSessionCommand}" />
+                    <Button Content="Delete"
+                            Theme="{StaticResource VtGhostButton}"
+                            Command="{Binding DeleteSessionCommand}" />
+                  </StackPanel>
+
+                  <ListBox ItemsSource="{Binding Sessions}"
+                           SelectedItem="{Binding SelectedSession}"
+                           MaxHeight="180"
+                           Background="Transparent"
+                           BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate DataType="sessions:RemediationSession">
+                        <Border Background="{StaticResource VtBackground700Brush}"
+                                BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource VtRadiusMd}"
+                                Padding="8,6"
+                                Margin="0,0,0,6">
+                          <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding SessionId}"
+                                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding RemediationPlan.Sections[0].FindingSummary, FallbackValue='No summary'}"
+                                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                                       FontSize="{StaticResource VtFontSizeXs}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Status}"
+                                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                                       FontSize="{StaticResource VtFontSizeXs}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding CreatedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                       Foreground="{StaticResource VtTextMutedBrush}"
+                                       FontSize="{StaticResource VtFontSizeXs}"
+                                       VerticalAlignment="Center" />
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </StackPanel>
+              </Expander>
+            </Grid>
+          </StackPanel>
+        </WrapPanel>
+      </ScrollViewer>
     </Border>
 
     <!-- Chat -->
-    <Border Grid.Row="2"
+    <Border Grid.Row="3"
             Theme="{StaticResource VtCard}"
             Padding="0"
             Margin="0,0,0,12">
-      <Grid RowDefinitions="Auto,Auto,*,Auto">
+      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
         <Border Grid.Row="0"
                 Background="{StaticResource VtWarningMutedBrush}"
                 BorderBrush="{StaticResource VtWarningBrush}"
@@ -143,78 +315,193 @@
                     Orientation="Horizontal"
                     Spacing="8"
                     Margin="16,16,16,12">
-          <TextBlock Text="Severity:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
+          <TextBlock x:Name="SeverityFilterLabel" Text="Severity:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
           <ComboBox ItemsSource="{Binding ChatSeverityFilters}"
                     SelectedItem="{Binding SelectedChatSeverityFilter}"
                     Theme="{StaticResource VtComboBox}"
                     MinWidth="150"
                     MaxDropDownHeight="160"
-                    AutomationProperties.AutomationId="AgentChatSeverityFilter" />
-          <TextBlock Text="Category:" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource VtTextSecondaryBrush}" />
+                    AutomationProperties.AutomationId="AgentChatSeverityFilter"
+                    AutomationProperties.Name="Severity filter"
+                    AutomationProperties.LabeledBy="{Binding ElementName=SeverityFilterLabel}" />
+          <TextBlock x:Name="CategoryFilterLabel" Text="Category:" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource VtTextSecondaryBrush}" />
           <ComboBox ItemsSource="{Binding ChatCategoryFilters}"
                     SelectedItem="{Binding SelectedChatCategoryFilter}"
                     Theme="{StaticResource VtComboBox}"
                     MinWidth="150"
                     MaxDropDownHeight="160"
                     PlaceholderText="All categories"
-                    AutomationProperties.AutomationId="AgentChatCategoryFilter" />
+                    AutomationProperties.AutomationId="AgentChatCategoryFilter"
+                    AutomationProperties.Name="Category filter"
+                    AutomationProperties.LabeledBy="{Binding ElementName=CategoryFilterLabel}" />
           <Button Content="Clear"
                   Theme="{StaticResource VtGhostButton}"
                   Command="{Binding ClearChatFiltersCommand}"
-                  AutomationProperties.AutomationId="AgentClearChatFiltersButton" />
+                  AutomationProperties.AutomationId="AgentClearChatFiltersButton"
+                  AutomationProperties.Name="Clear filters">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <i:Icon Value="mdi-close-circle-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" />
+              <TextBlock Text="Clear" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
         </StackPanel>
 
+        <!-- Active filter chips -->
+        <ItemsControl Grid.Row="2"
+                       ItemsSource="{Binding ActiveChatFilterChips}"
+                       Margin="16,0,16,12">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:ChatFilterChipViewModel">
+              <Button Command="{Binding RemoveCommand}"
+                      Padding="8,4"
+                      Margin="0,0,8,6"
+                      Theme="{StaticResource VtGhostButton}">
+                <Border Background="{StaticResource VtBackground700Brush}"
+                        BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource VtRadiusMd}"
+                        Padding="8,4">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Label}"
+                               FontSize="{StaticResource VtFontSizeSm}"
+                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                               VerticalAlignment="Center" />
+                    <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Border>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
       <ListBox x:Name="ChatListBox"
-               Grid.Row="2"
+               Grid.Row="3"
                Classes="VtChatList"
                ItemsSource="{Binding Messages}"
                ScrollViewer.VerticalScrollBarVisibility="Auto"
                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-               Margin="16,0,16,16">
+               Margin="16,0,16,16"
+               AutomationProperties.Name="Agent chat messages">
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
-            <StackPanel />
+            <VirtualizingStackPanel />
           </ItemsPanelTemplate>
         </ListBox.ItemsPanel>
         <ListBox.ItemTemplate>
           <DataTemplate DataType="vm:AgentMessageViewModel">
             <Grid ColumnDefinitions="Auto,*"
                   HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
-                  IsVisible="{Binding IsVisible}">
+                  IsVisible="{Binding IsVisible}"
+                  AutomationProperties.Name="{Binding AutomationName}"
+                  AutomationProperties.AutomationId="{Binding Text, StringFormat='AgentMessage_{0}'}">
                 <!-- Avatar -->
-                <Border Grid.Column="0"
-                        Width="28" Height="28"
-                        CornerRadius="14"
-                        Background="{StaticResource VtPrimaryGlowBrush}"
-                        BorderBrush="{StaticResource VtPrimaryBrush}"
-                        BorderThickness="1"
-                        Margin="0,0,12,0"
-                        VerticalAlignment="Top"
-                        IsVisible="{Binding !IsUser}">
-                  <TextBlock Text="VT"
-                             FontSize="{StaticResource VtFontSizeXs}"
-                             FontWeight="Bold"
-                             Foreground="{StaticResource VtPrimaryBrush}"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center" />
-                </Border>
+                <controls:VtAgentAvatar Grid.Column="0"
+                                        AvatarSize="28"
+                                        AvatarFontSize="{StaticResource VtFontSizeXs}"
+                                        Margin="0,0,12,0"
+                                        VerticalAlignment="Top"
+                                        IsVisible="{Binding !IsUser}" />
 
                 <!-- Message bubble -->
                 <Border Grid.Column="1"
-                        Background="{Binding IsUser, Converter={StaticResource BoolToBackground}}"
-                        BorderBrush="{Binding IsUser, Converter={StaticResource BoolToBorderBrush}}"
+                        Background="{Binding Converter={StaticResource MessageBubbleBackground}}"
+                        BorderBrush="{Binding Converter={StaticResource MessageBubbleBorderBrush}}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource VtRadiusLg}"
                         Padding="16">
                   <StackPanel Orientation="Vertical" Spacing="12">
 
-                    <!-- Text — bound via the Markdown attached property so **bold** and *italic*
-                         render as styled inlines (TextBlock.Inlines has no setter, hence the helper). -->
-                    <TextBlock conv:Markdown.Text="{Binding Text}"
-                               TextWrapping="Wrap"
-                               Foreground="{Binding IsUser, Converter={StaticResource BoolToForeground}}"
-                               FontSize="{StaticResource VtFontSizeMd}"
-                               LineHeight="30" />
+                    <!-- Timestamp -->
+                    <TextBlock Text="{Binding FormattedTimestamp}"
+                               TextAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
+                               FontSize="{StaticResource VtFontSizeXs}"
+                               Foreground="{StaticResource VtTextMutedBrush}"
+                               IsVisible="{Binding ShowTimestamp}" />
+
+                    <!-- Rich text blocks: paragraphs, inline formatting, code blocks with copy buttons -->
+                    <ItemsControl ItemsSource="{Binding FormattedBlocks}">
+                      <ItemsControl.DataTemplates>
+                        <DataTemplate DataType="vm:ParagraphBlock">
+                          <TextBlock TextWrapping="Wrap"
+                                     FontSize="{StaticResource VtFontSizeMd}"
+                                     LineHeight="30"
+                                     conv:FormattedTextBlock.InlinesSource="{Binding Inlines}"
+                                     Foreground="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource MessageBubbleForeground}}" />
+                        </DataTemplate>
+                        <DataTemplate DataType="vm:CodeBlock">
+                          <Border Background="{StaticResource VtCodeBackgroundBrush}"
+                                  BorderBrush="{StaticResource VtCodeBorderBrush}"
+                                  BorderThickness="1"
+                                  CornerRadius="{StaticResource VtRadiusMd}"
+                                  Padding="12">
+                            <Grid RowDefinitions="Auto,*">
+                              <Grid Grid.Row="0"
+                                    ColumnDefinitions="*,Auto,Auto"
+                                    Margin="0,0,0,8">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Language}"
+                                           FontSize="{StaticResource VtFontSizeXs}"
+                                           Foreground="{StaticResource VtTextMutedBrush}"
+                                           FontWeight="SemiBold"
+                                           IsVisible="{Binding Language, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                           VerticalAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Content="Copy"
+                                        Theme="{StaticResource VtGhostButton}"
+                                        FontSize="{StaticResource VtFontSizeXs}"
+                                        Padding="6,2"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding CopyCommand}" />
+                                <Button Grid.Column="2"
+                                        Theme="{StaticResource VtGhostButton}"
+                                        FontSize="{StaticResource VtFontSizeXs}"
+                                        Padding="6,2"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding ToggleExpandCommand}"
+                                        AutomationProperties.AutomationId="AgentCodeBlock_ToggleExpand"
+                                        AutomationProperties.Name="Collapse or expand code block">
+                                  <Grid>
+                                    <i:Icon Value="mdi-chevron-down"
+                                            FontSize="{StaticResource VtIconSizeXs}"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding IsExpanded}" />
+                                    <i:Icon Value="mdi-chevron-right"
+                                            FontSize="{StaticResource VtIconSizeXs}"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding !IsExpanded}" />
+                                  </Grid>
+                                </Button>
+                              </Grid>
+                              <TextBlock Grid.Row="1"
+                                         Text="{Binding Code}"
+                                         FontFamily="{StaticResource VtFontFamilyMono}"
+                                         FontSize="{StaticResource VtFontSizeSm}"
+                                         Foreground="{StaticResource VtCodeForegroundBrush}"
+                                         TextWrapping="Wrap"
+                                         IsVisible="{Binding IsExpanded}" />
+                              <TextBlock Grid.Row="1"
+                                         Text="{Binding PreviewText}"
+                                         FontFamily="{StaticResource VtFontFamilyMono}"
+                                         FontSize="{StaticResource VtFontSizeSm}"
+                                         Foreground="{StaticResource VtTextMutedBrush}"
+                                         TextWrapping="NoWrap"
+                                         TextTrimming="CharacterEllipsis"
+                                         IsVisible="{Binding !IsExpanded}" />
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.DataTemplates>
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Vertical" Spacing="12" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                    </ItemsControl>
 
                     <!-- Details -->
                     <TextBlock Text="{Binding Details}"
@@ -525,7 +812,8 @@
                                   HorizontalAlignment="Left"
                                   Command="{Binding $parent[ListBox].DataContext.DeployCountermeasuresCommand}"
                                   CommandParameter="{Binding RemediationSection}"
-                                  AutomationProperties.AutomationId="AgentDeployCountermeasuresButton" />
+                                  AutomationProperties.AutomationId="AgentDeployCountermeasuresButton"
+                                  AutomationProperties.Name="Deploy Countermeasures" />
                         </StackPanel>
 
                       </StackPanel>
@@ -550,7 +838,8 @@
                               HorizontalAlignment="Left"
                               Command="{Binding $parent[ListBox].DataContext.VerifySessionCommand}"
                               CommandParameter="{Binding SessionId}"
-                              AutomationProperties.AutomationId="AgentVerifyRemediationButton" />
+                              AutomationProperties.AutomationId="AgentVerifyRemediationButton"
+                              AutomationProperties.Name="Verify Remediation" />
                     </StackPanel>
 
                     <StackPanel Orientation="Vertical"
@@ -631,8 +920,60 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
+        <!-- Welcome suggestions overlay -->
+        <!-- Intentionally stretches to fill the chat cell so the list's own welcome bubble cannot show through. -->
+        <Border Grid.Row="3"
+                Background="{StaticResource VtBackground900Brush}"
+                BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource VtRadiusLg}"
+                Margin="16,0,16,16"
+                Padding="32"
+                IsVisible="{Binding HasOnlyWelcomeMessage}"
+                VerticalAlignment="Stretch"
+                HorizontalAlignment="Stretch"
+                Opacity="1">
+          <Border.Transitions>
+            <Transitions>
+              <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CircularEaseOut" />
+            </Transitions>
+          </Border.Transitions>
+          <Grid RowDefinitions="Auto,Auto,Auto,*"
+                HorizontalAlignment="Center"
+                MaxWidth="900">
+            <i:Icon Grid.Row="0"
+                    Value="mdi-shield-search"
+                    FontSize="48"
+                    Foreground="{StaticResource VtPrimaryBrush}"
+                    HorizontalAlignment="Center" />
+            <TextBlock Grid.Row="1"
+                       Text="What would you like to check?"
+                       FontSize="{StaticResource VtFontSizeLg}"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,16,0,0" />
+            <TextBlock Grid.Row="2"
+                       Text="Open Agent Tools to run a check, or type your own question below."
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0" />
+          </Grid>
+        </Border>
+
+        <!-- Filter empty state -->
+        <controls:FilterEmptyStateView Grid.Row="3"
+                                       Icon="mdi-filter-remove-outline"
+                                       Headline="No matching messages"
+                                       Description="Try clearing the filters to see all results."
+                                       IsVisible="{Binding HasNoVisibleMessages}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Stretch"
+                                       Margin="16,0,16,16" />
+
         <!-- Agent typing indicator -->
-        <Grid Grid.Row="3"
+        <Grid Grid.Row="4"
               ColumnDefinitions="Auto,*"
               HorizontalAlignment="Left"
               Margin="16,8,16,16"
@@ -685,21 +1026,11 @@
               </Style.Animations>
             </Style>
           </Grid.Styles>
-          <Border Grid.Column="0"
-                  Width="28" Height="28"
-                  CornerRadius="14"
-                  Background="{StaticResource VtPrimaryGlowBrush}"
-                  BorderBrush="{StaticResource VtPrimaryBrush}"
-                  BorderThickness="1"
-                  Margin="0,0,12,0"
-                  VerticalAlignment="Top">
-            <TextBlock Text="VT"
-                       FontSize="{StaticResource VtFontSizeXs}"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource VtPrimaryBrush}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center" />
-          </Border>
+          <controls:VtAgentAvatar Grid.Column="0"
+                                  AvatarSize="28"
+                                  AvatarFontSize="{StaticResource VtFontSizeXs}"
+                                  Margin="0,0,12,0"
+                                  VerticalAlignment="Top" />
           <Border Grid.Column="1"
                   Background="{StaticResource VtPrimaryGlowBrush}"
                   BorderBrush="{StaticResource VtPrimaryBrush}"
@@ -718,31 +1049,8 @@
     </Border>
 
     <!-- Input area -->
-    <Border Grid.Row="3" Theme="{StaticResource VtCard}" Padding="16" Margin="0,0,0,12">
+    <Border Grid.Row="4" Theme="{StaticResource VtCard}" Padding="16" Margin="0,0,0,12">
       <StackPanel Orientation="Vertical" Spacing="0">
-        <!-- Quick-check chips -->
-        <ItemsControl ItemsSource="{Binding QuickActions}"
-                      Margin="0,0,0,12">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal" />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="vm:AgentQuickAction">
-              <Button Command="{Binding Command}"
-                      Padding="10,8"
-                      Margin="0,0,8,6"
-                      Theme="{StaticResource VtSecondaryButton}">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <i:Icon Value="{Binding Icon}" FontSize="{StaticResource VtIconSizeXs}" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding Label}" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-
         <!-- Slash command palette -->
         <Border Background="{StaticResource VtBackground700Brush}"
                 BorderBrush="{StaticResource VtBorderDefaultBrush}"
@@ -752,13 +1060,18 @@
                 Margin="0,0,0,12"
                 IsVisible="{Binding IsSlashPaletteOpen}">
           <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding FilteredSlashCommands}">
-              <ItemsControl.ItemsPanel>
+            <ListBox ItemsSource="{Binding FilteredSlashCommands}"
+                     SelectedItem="{Binding SelectedSlashCommand}"
+                     Focusable="False"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0">
+              <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                   <StackPanel Spacing="2" />
                 </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemTemplate>
                 <DataTemplate DataType="vm:SlashCommandItem">
                   <Button Command="{Binding Command}"
                           CommandParameter="{Binding}"
@@ -784,8 +1097,8 @@
                     </StackPanel>
                   </Button>
                 </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+              </ListBox.ItemTemplate>
+            </ListBox>
           </ScrollViewer>
         </Border>
 
@@ -796,161 +1109,27 @@
                    Watermark="Ask the agent or type / for commands..."
                    KeyDown="OnQueryKeyDown"
                    LostFocus="OnQueryLostFocus"
-                   VerticalAlignment="Center" />
+                   VerticalAlignment="Center"
+                   AutomationProperties.AutomationId="AgentQueryInput"
+                   AutomationProperties.Name="Agent query input" />
           <Button Grid.Column="1"
                   Theme="{StaticResource VtPrimaryButton}"
                   Content="Send"
                   Command="{Binding SendQueryCommand}"
                   VerticalAlignment="Center"
-                  AutomationProperties.AutomationId="AgentSendButton" />
+                  AutomationProperties.AutomationId="AgentSendButton"
+                  AutomationProperties.Name="Send" />
           <Button Grid.Column="2"
                   Theme="{StaticResource VtSecondaryButton}"
                   Content="Cancel"
                   Command="{Binding CancelQueryCommand}"
                   IsVisible="{Binding IsBusy}"
                   VerticalAlignment="Center"
-                  AutomationProperties.AutomationId="AgentCancelButton" />
+                  AutomationProperties.AutomationId="AgentCancelButton"
+                  AutomationProperties.Name="Cancel" />
         </Grid>
       </StackPanel>
     </Border>
-
-    <!-- History and sessions -->
-    <Grid Grid.Row="4" ColumnDefinitions="*,*" ColumnSpacing="12">
-      <Expander Grid.Column="0"
-                Header="Audit History"
-                Theme="{StaticResource VtExpander}"
-                IsExpanded="False">
-        <StackPanel Margin="8" Spacing="8">
-          <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
-            <ComboBox Grid.Column="0"
-                      ItemsSource="{Binding History}"
-                      SelectedItem="{Binding SelectedBeforeEntry}"
-                      Theme="{StaticResource VtComboBox}"
-                      PlaceholderText="Before"
-                      MaxDropDownHeight="160" />
-            <TextBlock Grid.Column="1"
-                       Text="to"
-                       VerticalAlignment="Center"
-                       Foreground="{StaticResource VtTextMutedBrush}" />
-            <ComboBox Grid.Column="2"
-                      ItemsSource="{Binding History}"
-                      SelectedItem="{Binding SelectedAfterEntry}"
-                      Theme="{StaticResource VtComboBox}"
-                      PlaceholderText="After"
-                      MaxDropDownHeight="160" />
-          </Grid>
-
-          <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding History}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <StackPanel Spacing="6" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Background="{StaticResource VtBackground700Brush}"
-                          BorderBrush="{StaticResource VtBorderDefaultBrush}"
-                          BorderThickness="1"
-                          CornerRadius="{StaticResource VtRadiusMd}"
-                          Padding="8,6">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="10">
-                      <TextBlock Grid.Column="0"
-                                 Text="{Binding TimestampUtc, StringFormat={}{0:HH:mm:ss}}"
-                                 Foreground="{StaticResource VtTextMutedBrush}"
-                                 FontSize="{StaticResource VtFontSizeXs}"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="1"
-                                 Text="{Binding Intent}"
-                                 Foreground="{StaticResource VtTextPrimaryBrush}"
-                                 FontSize="{StaticResource VtFontSizeSm}"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="2"
-                                 Text="{Binding TotalFindings, StringFormat='findings: {0}'}"
-                                 Foreground="{StaticResource VtTextSecondaryBrush}"
-                                 FontSize="{StaticResource VtFontSizeXs}"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="3"
-                                 Text="{Binding PassedCount, StringFormat='passed: {0}'}"
-                                 Foreground="{StaticResource VtSuccessBrush}"
-                                 FontSize="{StaticResource VtFontSizeXs}"
-                                 VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="4"
-                                 Text="exported"
-                                 Foreground="{StaticResource VtSuccessBrush}"
-                                 FontSize="{StaticResource VtFontSizeXs}"
-                                 IsVisible="{Binding Exported}"
-                                 VerticalAlignment="Center" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
-        </StackPanel>
-      </Expander>
-
-      <Expander Grid.Column="1"
-                Header="Remediation Sessions"
-                Theme="{StaticResource VtExpander}"
-                IsExpanded="False">
-        <StackPanel Margin="8" Spacing="8">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Refresh"
-                    Theme="{StaticResource VtSecondaryButton}"
-                    Command="{Binding ListSessionsCommand}" />
-            <Button Content="Resume"
-                    Theme="{StaticResource VtSecondaryButton}"
-                    Command="{Binding ResumeSessionCommand}" />
-            <Button Content="Delete"
-                    Theme="{StaticResource VtGhostButton}"
-                    Command="{Binding DeleteSessionCommand}" />
-          </StackPanel>
-
-          <ListBox ItemsSource="{Binding Sessions}"
-                   SelectedItem="{Binding SelectedSession}"
-                   MaxHeight="180"
-                   Background="Transparent"
-                   BorderThickness="0">
-            <ListBox.ItemTemplate>
-              <DataTemplate DataType="sessions:RemediationSession">
-                <Border Background="{StaticResource VtBackground700Brush}"
-                        BorderBrush="{StaticResource VtBorderDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{StaticResource VtRadiusMd}"
-                        Padding="8,6"
-                        Margin="0,0,0,6">
-                  <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-                    <TextBlock Grid.Column="0"
-                               Text="{Binding SessionId}"
-                               Foreground="{StaticResource VtTextPrimaryBrush}"
-                               FontSize="{StaticResource VtFontSizeSm}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding RemediationPlan.Sections[0].FindingSummary, FallbackValue='No summary'}"
-                               Foreground="{StaticResource VtTextSecondaryBrush}"
-                               FontSize="{StaticResource VtFontSizeXs}"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2"
-                               Text="{Binding Status}"
-                               Foreground="{StaticResource VtTextSecondaryBrush}"
-                               FontSize="{StaticResource VtFontSizeXs}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3"
-                               Text="{Binding CreatedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
-                               Foreground="{StaticResource VtTextMutedBrush}"
-                               FontSize="{StaticResource VtFontSizeXs}"
-                               VerticalAlignment="Center" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </StackPanel>
-      </Expander>
-    </Grid>
 
   </Grid>
 </UserControl>

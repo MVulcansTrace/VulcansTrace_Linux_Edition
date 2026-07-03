@@ -1,32 +1,75 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Avalonia.Views;
 
 public partial class AgentView : UserControl
 {
+    private AgentViewModel? _viewModel;
+    private ListBox? _chatListBox;
+    private ScrollViewer? _scrollViewer;
+
     public AgentView()
     {
         InitializeComponent();
+        _chatListBox = this.FindControl<ListBox>("ChatListBox");
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
 
-        if (DataContext is AgentViewModel vm)
+        if (_viewModel is not null)
         {
-            // Ensure we only subscribe once by detaching from the old collection if any.
-            vm.Messages.CollectionChanged -= OnMessagesCollectionChanged;
-            vm.Messages.CollectionChanged += OnMessagesCollectionChanged;
+            _viewModel.Messages.CollectionChanged -= OnMessagesCollectionChanged;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
+
+        _viewModel = DataContext as AgentViewModel;
+        if (_viewModel is not null)
+        {
+            _viewModel.Messages.CollectionChanged += OnMessagesCollectionChanged;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        }
+    }
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+        EnsureScrollViewer();
+    }
+
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+
+        if (_viewModel is not null)
+        {
+            _viewModel.Messages.CollectionChanged -= OnMessagesCollectionChanged;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel = null;
+        }
+
+        _scrollViewer = null;
+    }
+
+    private void EnsureScrollViewer()
+    {
+        if (_scrollViewer is not null || _chatListBox is null)
+            return;
+
+        _scrollViewer = _chatListBox.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
     }
 
     private void OnQueryKeyDown(object? sender, KeyEventArgs e)
@@ -43,6 +86,30 @@ public partial class AgentView : UserControl
                 e.Handled = true;
             }
             return;
+        }
+
+        if (vm.IsSlashPaletteOpen)
+        {
+            if (e.Key == Key.Down)
+            {
+                vm.SelectNextSlashCommand();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Up)
+            {
+                vm.SelectPreviousSlashCommand();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Enter && vm.SelectedSlashCommand is not null)
+            {
+                vm.ExecuteSlashCommandCommand.Execute(vm.SelectedSlashCommand);
+                e.Handled = true;
+                return;
+            }
         }
 
         if (e.Key == Key.Enter)
@@ -70,20 +137,55 @@ public partial class AgentView : UserControl
         }, DispatcherPriority.Background);
     }
 
-    private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Add)
+        if (e.PropertyName == nameof(AgentViewModel.IsBusy) && _viewModel?.IsBusy == true)
         {
-            // Defer scrolling until layout has updated with the new item.
-            Dispatcher.UIThread.Post(ScrollChatToEnd, DispatcherPriority.Background);
+            // When the agent starts responding, re-pin to the bottom so the user sees the
+            // incoming messages. A short delay lets the busy indicator layout first.
+            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: true), DispatcherPriority.Background);
         }
     }
 
-    private void ScrollChatToEnd()
+    private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (this.FindControl<ListBox>("ChatListBox") is { } listBox && listBox.Items.Count > 0)
-        {
-            listBox.ScrollIntoView(listBox.Items.Count - 1);
-        }
+        if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems is null)
+            return;
+
+        var isUserMessage = e.NewItems.OfType<AgentMessageViewModel>().Any(m => m.IsUser);
+
+        // Defer scrolling until layout has updated with the new item.
+        Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: isUserMessage), DispatcherPriority.Background);
+    }
+
+    private void ScrollChatToEnd(bool force = false)
+    {
+        var listBox = _chatListBox;
+        if (listBox is null || listBox.Items.Count == 0)
+            return;
+
+        EnsureScrollViewer();
+
+        if (!force && !IsScrolledToBottom())
+            return;
+
+        listBox.ScrollIntoView(listBox.Items.Count - 1);
+    }
+
+    private bool IsScrolledToBottom()
+    {
+        // If the ScrollViewer is not available yet, assume the user is at the bottom.
+        if (_scrollViewer is null)
+            return true;
+
+        var extent = _scrollViewer.Extent.Height;
+        var viewport = _scrollViewer.Viewport.Height;
+        var offset = _scrollViewer.Offset.Y;
+
+        if (extent <= viewport)
+            return true;
+
+        // Consider "near the bottom" within 40 logical pixels of the end.
+        return offset + viewport >= extent - 40;
     }
 }

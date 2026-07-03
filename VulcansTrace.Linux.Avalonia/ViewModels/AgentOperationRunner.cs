@@ -9,14 +9,14 @@ internal sealed class AgentOperationRunner : IDisposable
 {
     private readonly Action<bool> _setBusy;
     private readonly Action _clearPrivilegeWarning;
-    private readonly Action<string, bool> _addAgentMessage;
+    private readonly Action<string, bool, bool> _addAgentMessage;
     private CancellationTokenSource? _cts;
     private bool _lastSucceeded = true;
 
     public AgentOperationRunner(
         Action<bool> setBusy,
         Action clearPrivilegeWarning,
-        Action<string, bool> addAgentMessage)
+        Action<string, bool, bool> addAgentMessage)
     {
         _setBusy = setBusy ?? throw new ArgumentNullException(nameof(setBusy));
         _clearPrivilegeWarning = clearPrivilegeWarning ?? throw new ArgumentNullException(nameof(clearPrivilegeWarning));
@@ -58,11 +58,12 @@ internal sealed class AgentOperationRunner : IDisposable
         }
         catch (OperationCanceledException)
         {
-            RunOnUiThread(() => _addAgentMessage("Query cancelled.", true));
+            // Cancellation is a user action, not an error — keep it as a neutral info bubble.
+            RunOnUiThread(() => _addAgentMessage("Query cancelled.", true, false));
         }
         catch (Exception ex)
         {
-            RunOnUiThread(() => _addAgentMessage($"Agent error: {ex.Message}", true));
+            RunOnUiThread(() => _addAgentMessage($"Agent error: {ex.Message}", true, true));
         }
         finally
         {

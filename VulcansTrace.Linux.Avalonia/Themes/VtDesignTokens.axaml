@@ -42,6 +42,13 @@
 
     <Color x:Key="VtInfo">#06B6D4</Color>
 
+    <!-- Agent chat bubble colors (preserve exact existing values) -->
+    <Color x:Key="VtUserBubbleBorder">#1D4ED8</Color>
+    <Color x:Key="VtAgentBubbleForeground">#E2E8F0</Color>
+    <Color x:Key="VtAgentStatusBusyBackground">#713F12</Color>
+    <Color x:Key="VtAgentStatusBusyForeground">#FACC15</Color>
+    <Color x:Key="VtAgentStatusOnlineForeground">#4ADE80</Color>
+
     <!-- === Severity colors === -->
     <Color x:Key="VtSeverityCritical">#EF4444</Color>
     <Color x:Key="VtSeverityHigh">#F97316</Color>
@@ -54,6 +61,18 @@
     <!-- === KPI colors === -->
     <Color x:Key="VtKpiFindings">#3B82F6</Color>
     <Color x:Key="VtKpiSkipped">#64748B</Color>
+
+    <!-- Code surface colors -->
+    <Color x:Key="VtCodeBackground">#0B1221</Color>
+    <Color x:Key="VtCodeForeground">#E2E8F0</Color>
+    <Color x:Key="VtCodeBorder">#334155</Color>
+    <Color x:Key="VtInlineCodeBackground">#1E293B</Color>
+    <Color x:Key="VtInlineCodeForeground">#94A3B8</Color>
+
+    <!-- Error bubble colors -->
+    <Color x:Key="VtErrorBubbleBackground">#450A0A</Color>
+    <Color x:Key="VtErrorBubbleBorder">#EF4444</Color>
+    <Color x:Key="VtErrorBubbleForeground">#F8FAFC</Color>
 
     <!-- === Brushes === -->
     <SolidColorBrush x:Key="VtBackground900Brush" Color="{StaticResource VtBackground900}" />
@@ -88,6 +107,30 @@
     <SolidColorBrush x:Key="VtDangerMutedBrush" Color="{StaticResource VtDangerMuted}" />
 
     <SolidColorBrush x:Key="VtInfoBrush" Color="{StaticResource VtInfo}" />
+
+    <!-- Code surface brushes -->
+    <SolidColorBrush x:Key="VtCodeBackgroundBrush" Color="{StaticResource VtCodeBackground}" />
+    <SolidColorBrush x:Key="VtCodeForegroundBrush" Color="{StaticResource VtCodeForeground}" />
+    <SolidColorBrush x:Key="VtCodeBorderBrush" Color="{StaticResource VtCodeBorder}" />
+    <SolidColorBrush x:Key="VtInlineCodeBackgroundBrush" Color="{StaticResource VtInlineCodeBackground}" />
+    <SolidColorBrush x:Key="VtInlineCodeForegroundBrush" Color="{StaticResource VtInlineCodeForeground}" />
+
+    <!-- Error bubble brushes -->
+    <SolidColorBrush x:Key="VtErrorBubbleBackgroundBrush" Color="{StaticResource VtErrorBubbleBackground}" />
+    <SolidColorBrush x:Key="VtErrorBubbleBorderBrush" Color="{StaticResource VtErrorBubbleBorder}" />
+    <SolidColorBrush x:Key="VtErrorBubbleForegroundBrush" Color="{StaticResource VtErrorBubbleForeground}" />
+
+    <!-- Agent chat bubble brushes -->
+    <SolidColorBrush x:Key="VtUserBubbleBackgroundBrush" Color="{StaticResource VtPrimaryHover}" />
+    <SolidColorBrush x:Key="VtAgentBubbleBackgroundBrush" Color="{StaticResource VtBackground500}" />
+    <SolidColorBrush x:Key="VtUserBubbleBorderBrush" Color="{StaticResource VtUserBubbleBorder}" />
+    <SolidColorBrush x:Key="VtAgentBubbleBorderBrush" Color="{StaticResource VtBorderHover}" />
+    <SolidColorBrush x:Key="VtUserBubbleForegroundBrush" Color="{StaticResource VtTextInverse}" />
+    <SolidColorBrush x:Key="VtAgentBubbleForegroundBrush" Color="{StaticResource VtAgentBubbleForeground}" />
+    <SolidColorBrush x:Key="VtAgentStatusBusyBackgroundBrush" Color="{StaticResource VtAgentStatusBusyBackground}" />
+    <SolidColorBrush x:Key="VtAgentStatusBusyForegroundBrush" Color="{StaticResource VtAgentStatusBusyForeground}" />
+    <SolidColorBrush x:Key="VtAgentStatusOnlineBackgroundBrush" Color="{StaticResource VtSuccessMuted}" />
+    <SolidColorBrush x:Key="VtAgentStatusOnlineForegroundBrush" Color="{StaticResource VtAgentStatusOnlineForeground}" />
 
     <SolidColorBrush x:Key="VtSeverityCriticalBrush" Color="{StaticResource VtSeverityCritical}" />
     <SolidColorBrush x:Key="VtSeverityHighBrush" Color="{StaticResource VtSeverityHigh}" />
@@ -268,6 +311,55 @@
       <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtAgentToolsPanel" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="MaxHeight" Duration="0:0:0.25" Easing="CubicEaseOut" />
+          <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CircularEaseOut" />
+        </Transitions>
+      </Setter>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtAgentToolsToggleButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+      <Setter Property="Background" Value="{StaticResource VtBackground600Brush}" />
+      <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+      <Style Selector="^:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtBackground500Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
+      </Style>
+      <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource VtBackground500Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="VtToolbarSeparator" TargetType="Border">
+      <Setter Property="Width" Value="1" />
+      <Setter Property="Background" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="Margin" Value="4,0" />
     </ControlTheme>
 
     <ControlTheme x:Key="VtNumericUpDown" TargetType="NumericUpDown" BasedOn="{StaticResource {x:Type NumericUpDown}}">

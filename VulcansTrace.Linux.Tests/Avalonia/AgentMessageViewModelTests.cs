@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -224,5 +227,147 @@ public class AgentMessageViewModelTests
         Assert.False(msg.ImpactPreviewRollbackAvailable);
         Assert.True(msg.ImpactPreviewRollbackUnavailable);
         Assert.Equal("No", msg.ImpactPreviewRollbackAvailabilityLabel);
+    }
+
+    [Fact]
+    public void RemediationSection_Change_RaisesPropertyChanged()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "FW-001",
+            FindingSummary = "[High] SSH exposed",
+            RiskNote = "Remote access is exposed."
+        };
+        var msg = new AgentMessageViewModel();
+        var changed = new List<string?>();
+        msg.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
+
+        msg.RemediationSection = section;
+
+        Assert.Contains(nameof(AgentMessageViewModel.RemediationSection), changed);
+        Assert.Contains(string.Empty, changed);
+        Assert.True(msg.HasRemediationSection);
+    }
+
+    [Fact]
+    public void FormattedBlocks_ParsesCodeBlock()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            Text = "```bash\nsudo ufw status\n```"
+        };
+
+        var codeBlock = Assert.Single(msg.FormattedBlocks.OfType<CodeBlock>());
+        Assert.Equal("bash", codeBlock.Language);
+        Assert.Equal("sudo ufw status", codeBlock.Code);
+        Assert.NotNull(codeBlock.CopyCommand);
+        Assert.NotNull(codeBlock.ToggleExpandCommand);
+        Assert.True(codeBlock.IsExpanded);
+    }
+
+    [Fact]
+    public void CodeBlock_ToggleCommand_FlipsIsExpanded()
+    {
+        var codeBlock = new CodeBlock("bash", "sudo ufw status", new RelayCommand(_ => { }));
+
+        Assert.True(codeBlock.IsExpanded);
+
+        codeBlock.ToggleExpandCommand.Execute(null);
+        Assert.False(codeBlock.IsExpanded);
+
+        codeBlock.ToggleExpandCommand.Execute(null);
+        Assert.True(codeBlock.IsExpanded);
+    }
+
+    [Fact]
+    public void CodeBlock_IsExpanded_RaisesPropertyChanged()
+    {
+        var codeBlock = new CodeBlock("bash", "sudo ufw status", new RelayCommand(_ => { }));
+        var changed = new List<string?>();
+        codeBlock.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
+
+        codeBlock.IsExpanded = false;
+
+        Assert.Contains(nameof(CodeBlock.IsExpanded), changed);
+    }
+
+    [Fact]
+    public void CodeBlock_PreviewText_TruncatesLongFirstLine()
+    {
+        var longLine = new string('a', 120);
+        var codeBlock = new CodeBlock("bash", $"{longLine}\nsecond line", new RelayCommand(_ => { }));
+
+        Assert.Equal(81, codeBlock.PreviewText.Length);
+        Assert.EndsWith("…", codeBlock.PreviewText);
+    }
+
+    [Fact]
+    public void CodeBlock_PreviewText_UsesFirstLine()
+    {
+        var codeBlock = new CodeBlock("bash", "sudo ufw status\nsudo ufw enable", new RelayCommand(_ => { }));
+
+        Assert.Equal("sudo ufw status", codeBlock.PreviewText);
+    }
+
+    [Fact]
+    public void FormattedBlocks_ParsesInlineCode()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            Text = "Run `sudo ufw status`."
+        };
+
+        var paragraph = Assert.Single(msg.FormattedBlocks.OfType<ParagraphBlock>());
+        Assert.NotEmpty(paragraph.Inlines);
+    }
+
+    [Fact]
+    public void IsError_DefaultsFalse()
+    {
+        var msg = new AgentMessageViewModel();
+
+        Assert.False(msg.IsError);
+    }
+
+    [Fact]
+    public void IsError_CanBeSet()
+    {
+        var msg = new AgentMessageViewModel { IsError = true };
+
+        Assert.True(msg.IsError);
+    }
+
+    [Fact]
+    public void AutomationName_ReturnsRoleTimestampAndText()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            IsUser = true,
+            Text = "hello",
+            Timestamp = new DateTime(2026, 7, 2, 14, 30, 0)
+        };
+
+        Assert.Equal("You at 14:30: hello", msg.AutomationName);
+    }
+
+    [Fact]
+    public void ComputedProperties_RaisePropertyChanged_WhenSourceChanges()
+    {
+        var msg = new AgentMessageViewModel();
+        var changed = new List<string?>();
+        msg.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
+
+        msg.Text = "hello";
+        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
+        changed.Clear();
+
+        msg.IsUser = true;
+        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
+        changed.Clear();
+
+        msg.Timestamp = new DateTime(2026, 7, 2, 14, 30, 0);
+        Assert.Contains(nameof(AgentMessageViewModel.FormattedTimestamp), changed);
+        Assert.Contains(nameof(AgentMessageViewModel.ShowTimestamp), changed);
+        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
     }
 }

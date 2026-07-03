@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -50,16 +52,40 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private SeverityFilterOption? _selectedChatSeverityFilter;
     private string? _selectedChatCategoryFilter;
     private RemediationSession? _selectedSession;
+    private bool _hasOnlyWelcomeMessage = true;
+    private bool _hasNoVisibleMessages;
+    private bool _isAgentToolsPanelOpen;
     private readonly List<SlashCommandItem> _allSlashCommands = new();
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
 
-    /// <summary>Gets the collection of quick-check action chips.</summary>
-    public ObservableCollection<AgentQuickAction> QuickActions { get; } = new();
+    /// <summary>Gets quick-check actions for the "Run checks" group.</summary>
+    public ObservableCollection<AgentQuickAction> QuickActionsChecks { get; } = new();
+
+    /// <summary>Gets quick-check actions for the "Baseline" group.</summary>
+    public ObservableCollection<AgentQuickAction> QuickActionsBaseline { get; } = new();
+
+    /// <summary>Gets quick-check actions for the "Export" group.</summary>
+    public ObservableCollection<AgentQuickAction> QuickActionsExport { get; } = new();
+
+    /// <summary>Gets actions shown in the Agent Tools panel under "Analysis".</summary>
+    public ObservableCollection<AgentQuickAction> ToolPanelAnalysisActions { get; } = new();
+
+    /// <summary>Gets actions shown in the Agent Tools panel under "Run checks".</summary>
+    public ObservableCollection<AgentQuickAction> ToolPanelRunCheckActions { get; } = new();
+
+    /// <summary>Gets actions shown in the Agent Tools panel under "Baseline".</summary>
+    public ObservableCollection<AgentQuickAction> ToolPanelBaselineActions { get; } = new();
+
+    /// <summary>Gets actions shown in the Agent Tools panel under "Export".</summary>
+    public ObservableCollection<AgentQuickAction> ToolPanelExportActions { get; } = new();
 
     /// <summary>Gets the filtered slash-command palette items.</summary>
     public ObservableCollection<SlashCommandItem> FilteredSlashCommands { get; } = new();
+
+    /// <summary>Gets the active chat filter chips shown above the transcript.</summary>
+    public ObservableCollection<ChatFilterChipViewModel> ActiveChatFilterChips { get; } = new();
 
     /// <summary>Gets the collection of recent audit history entries.</summary>
     public ObservableCollection<AuditHistoryEntry> History { get; } = new();
@@ -98,6 +124,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _selectedChatSeverityFilter, value))
             {
                 _presenter.ApplyChatFilters();
+                RefreshActiveFilterChips();
             }
         }
     }
@@ -114,6 +141,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _selectedChatCategoryFilter, value))
             {
                 _presenter.ApplyChatFilters();
+                RefreshActiveFilterChips();
             }
         }
     }
@@ -215,6 +243,67 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         private set => SetField(ref _agentStatus, value);
     }
 
+    /// <summary>Gets whether only the initial welcome message is shown.</summary>
+    public bool HasOnlyWelcomeMessage
+    {
+        get => _hasOnlyWelcomeMessage;
+        private set => SetField(ref _hasOnlyWelcomeMessage, value);
+    }
+
+    /// <summary>Gets whether the agent tools panel is expanded.</summary>
+    public bool IsAgentToolsPanelOpen
+    {
+        get => _isAgentToolsPanelOpen;
+        set => SetField(ref _isAgentToolsPanelOpen, value);
+    }
+
+    /// <summary>Gets whether messages exist but none are visible under the current filters.</summary>
+    public bool HasNoVisibleMessages
+    {
+        get => _hasNoVisibleMessages;
+        private set => SetField(ref _hasNoVisibleMessages, value);
+    }
+
+    /// <summary>Re-evaluates <see cref="HasNoVisibleMessages"/u003e and raises change notification if it changed.</summary>
+    public void RefreshHasNoVisibleMessages()
+    {
+        HasNoVisibleMessages = Messages.Count > 0 && Messages.All(m => !m.IsVisible);
+    }
+
+    private SlashCommandItem? _selectedSlashCommand;
+
+    /// <summary>Gets or sets the currently selected slash-command palette item.</summary>
+    public SlashCommandItem? SelectedSlashCommand
+    {
+        get => _selectedSlashCommand;
+        set => SetField(ref _selectedSlashCommand, value);
+    }
+
+    /// <summary>
+    /// Moves the slash-command selection to the next item, wrapping to the top.
+    /// </summary>
+    public void SelectNextSlashCommand()
+    {
+        if (FilteredSlashCommands.Count == 0)
+            return;
+
+        var index = SelectedSlashCommand is null ? -1 : FilteredSlashCommands.IndexOf(SelectedSlashCommand);
+        index = (index + 1) % FilteredSlashCommands.Count;
+        SelectedSlashCommand = FilteredSlashCommands[index];
+    }
+
+    /// <summary>
+    /// Moves the slash-command selection to the previous item, wrapping to the bottom.
+    /// </summary>
+    public void SelectPreviousSlashCommand()
+    {
+        if (FilteredSlashCommands.Count == 0)
+            return;
+
+        var index = SelectedSlashCommand is null ? 0 : FilteredSlashCommands.IndexOf(SelectedSlashCommand);
+        index = (index - 1 + FilteredSlashCommands.Count) % FilteredSlashCommands.Count;
+        SelectedSlashCommand = FilteredSlashCommands[index];
+    }
     /// <summary>Gets whether the slash-command palette is open.</summary>
     public bool IsSlashPaletteOpen
     {
@@ -231,6 +320,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         IsSlashPaletteOpen = false;
         FilteredSlashCommands.Clear();
+        SelectedSlashCommand = null;
     }
 
     /// <summary>Gets the last agent result.</summary>
@@ -325,6 +415,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to show the current baseline.</summary>
     public AsyncRelayCommand ShowBaselineCommand { get; }
 
+    /// <summary>Gets the command to show the slash-command help message.</summary>
+    public AsyncRelayCommand ShowSlashHelpCommand { get; }
+
     /// <summary>Gets the command to compare the last two audits.</summary>
     public RelayCommand CompareAuditsCommand { get; }
 
@@ -354,6 +447,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to import threat intelligence IOCs.</summary>
     public AsyncRelayCommand ImportThreatIntelCommand { get; }
+
+    /// <summary>Gets the command to toggle the agent tools panel.</summary>
+    public RelayCommand ToggleAgentToolsPanelCommand { get; }
 
     /// <summary>Gets the command to add a note to the active remediation session.</summary>
     public AsyncRelayCommand AddSessionNoteCommand { get; }
@@ -428,7 +524,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             () => _selectedChatCategoryFilter,
             v => HasPrivilegeWarning = v,
             t => PrivilegeWarningText = t,
-            ExecuteSuggestionAsync);
+            ExecuteSuggestionAsync,
+            RefreshHasNoVisibleMessages);
         _operationRunner = new AgentOperationRunner(
             value => IsBusy = value,
             ClearPrivilegeWarning,
@@ -451,13 +548,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             RefreshResultCommands,
             result => AuditCompleted?.Invoke(this, result));
 
+        WireMessagesCollectionChanged();
+
         SendQueryCommand = new AsyncRelayCommand(
             async _ => await SendQueryAsync(),
             _ => CanSendQuery(),
             ex =>
             {
                 IsBusy = false;
-                AddAgentMessage($"Error: {ex.Message}", true);
+                AddAgentMessage($"Error: {ex.Message}", true, isError: true);
             });
 
         CancelQueryCommand = new RelayCommand(
@@ -478,57 +577,57 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 }
             },
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         FullAuditCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.FullAudit, "Run a full audit"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         FirewallCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.FirewallCheck, "Check my firewall"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         PortsCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.PortCheck, "What ports are open?"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ServicesCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.ServiceCheck, "What services are running?"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         NetworkCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.NetworkCheck, "Check my network"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ContainerCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.ContainerCheck, "Check my containers"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         KubernetesCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.KubernetesCheck, "Check my kubernetes"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         YaraCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.YaraCheck, "Run a YARA scan"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ProcessRuntimeCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.ProcessRuntimeCheck, "Check running processes"),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ExplainSelectedCommand = new AsyncRelayCommand(
             async _ => await ExplainSelectedAsync(),
             _ => CanExplainSelected,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ExportAuditCommand = new RelayCommand(
             _ => RequestExportAudit?.Invoke(),
@@ -547,68 +646,81 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => CanCompareSelectedAudits);
 
         ClearChatFiltersCommand = new RelayCommand(
-            _ => { SelectedChatSeverityFilter = ChatSeverityFilters[0]; SelectedChatCategoryFilter = null; },
-            _ => true);
+            _ =>
+            {
+                SelectedChatSeverityFilter = ChatSeverityFilters[0];
+                SelectedChatCategoryFilter = null;
+            },
+            _ => ActiveChatFilterChips.Count > 0);
 
         SetBaselineCommand = new AsyncRelayCommand(
             async _ => await SetBaselineAsync(),
             _ => !_isBusy && _resultState.HasCompletedAudit,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         CheckDriftCommand = new AsyncRelayCommand(
             async _ => await CheckDriftAsync(),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ShowBaselineCommand = new AsyncRelayCommand(
             async _ => await ShowBaselineAsync(),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
+        ShowSlashHelpCommand = new AsyncRelayCommand(
+            async _ => await ShowSlashHelpAsync(),
+            _ => !_isBusy,
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         VerifySessionCommand = new AsyncRelayCommand(
             async param => await VerifySessionAsync((param as string) ?? ""),
             param => !_isBusy && !string.IsNullOrWhiteSpace(param as string),
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ExportSessionCommand = new AsyncRelayCommand(
             async _ => await ExportSessionAsync(),
             _ => !_isBusy && _resultState.LastResult?.RemediationSession != null,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ListSessionsCommand = new AsyncRelayCommand(
             async _ => await ListSessionsAsync(),
             _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ResumeSessionCommand = new AsyncRelayCommand(
             async _ => await ResumeSessionAsync(),
             _ => !_isBusy && _selectedSession != null,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         DeleteSessionCommand = new AsyncRelayCommand(
             async _ => await DeleteSessionAsync(),
             _ => !_isBusy && _selectedSession != null,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         ImportThreatIntelCommand = new AsyncRelayCommand(
             async _ => await ImportThreatIntelAsync(),
             _ => !_isBusy && _threatIntelStore != null && _dialogService != null,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
+        ToggleAgentToolsPanelCommand = new RelayCommand(
+            _ => IsAgentToolsPanelOpen = !IsAgentToolsPanelOpen,
+            _ => true);
 
         AddSessionNoteCommand = new AsyncRelayCommand(
             async param => await AddSessionNoteAsync((param as string) ?? ""),
             param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         AddStepNoteCommand = new AsyncRelayCommand(
             async param => await AddStepNoteAsync((param as string) ?? ""),
             param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         DeployCountermeasuresCommand = new AsyncRelayCommand(
             async param => await DeployCountermeasuresAsync(param as RemediationSection),
             param => !_isBusy && param is RemediationSection section && section.CountermeasureCommands.Count > 0,
-            ex => AddAgentMessage($"Error: {ex.Message}", true));
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
 
@@ -625,24 +737,103 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         ShowMemoryPersistenceWarningIfAny();
     }
 
+    private void MarkChatInteracted()
+    {
+        HasOnlyWelcomeMessage = false;
+    }
+
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
 
     private void InitializeQuickActions()
     {
-        QuickActions.Add(new AgentQuickAction { Label = "Full audit", Icon = "mdi-magnify", Command = FullAuditCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Firewall", Icon = "mdi-shield", Command = FirewallCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Ports", Icon = "mdi-ethernet", Command = PortsCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Services", Icon = "mdi-cog", Command = ServicesCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Network", Icon = "mdi-web", Command = NetworkCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Containers", Icon = "mdi-cube", Command = ContainerCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Kubernetes", Icon = "mdi-kubernetes", Command = KubernetesCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "YARA", Icon = "mdi-virus", Command = YaraCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Processes", Icon = "mdi-monitor", Command = ProcessRuntimeCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Set baseline", Icon = "mdi-pin", Command = SetBaselineCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Check drift", Icon = "mdi-compare", Command = CheckDriftCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Show baseline", Icon = "mdi-eye", Command = ShowBaselineCommand });
-        QuickActions.Add(new AgentQuickAction { Label = "Export audit", Icon = "mdi-content-save", Command = ExportAuditCommand });
+        void AddRunCheck(AgentQuickAction action)
+        {
+            QuickActionsChecks.Add(action);
+            ToolPanelRunCheckActions.Add(action);
+        }
+
+        void AddBaseline(AgentQuickAction action)
+        {
+            QuickActionsBaseline.Add(action);
+            ToolPanelBaselineActions.Add(action);
+        }
+
+        void AddExport(AgentQuickAction action)
+        {
+            QuickActionsExport.Add(action);
+            ToolPanelExportActions.Add(action);
+        }
+
+        void AddAnalysis(AgentQuickAction action)
+        {
+            ToolPanelAnalysisActions.Add(action);
+        }
+
+        AddAnalysis(new AgentQuickAction
+        {
+            Label = "Explain Selected",
+            Icon = "mdi-comment-question-outline",
+            Group = "Analysis",
+            Command = ExplainSelectedCommand,
+            AutomationIdOverride = "AgentExplainSelectedButton"
+        });
+        AddAnalysis(new AgentQuickAction
+        {
+            Label = "Import Threat Intel",
+            Icon = "mdi-shield-link-variant",
+            Group = "Analysis",
+            Command = ImportThreatIntelCommand,
+            AutomationIdOverride = "AgentThreatIntelButton"
+        });
+        AddAnalysis(new AgentQuickAction
+        {
+            Label = "Compare Last Two",
+            Icon = "mdi-compare-horizontal",
+            Group = "Analysis",
+            Command = CompareAuditsCommand,
+            AutomationIdOverride = "AgentCompareAuditsButton"
+        });
+        AddAnalysis(new AgentQuickAction
+        {
+            Label = "Compare Selected",
+            Icon = "mdi-compare",
+            Group = "Analysis",
+            Command = CompareSelectedAuditsCommand,
+            AutomationIdOverride = "AgentCompareSelectedButton"
+        });
+
+        AddRunCheck(new AgentQuickAction { Label = "Full audit", Icon = "mdi-magnify", Group = "Run checks", Command = FullAuditCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Firewall", Icon = "mdi-shield", Group = "Run checks", Command = FirewallCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Ports", Icon = "mdi-ethernet", Group = "Run checks", Command = PortsCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Services", Icon = "mdi-cog", Group = "Run checks", Command = ServicesCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Network", Icon = "mdi-web", Group = "Run checks", Command = NetworkCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Containers", Icon = "mdi-cube", Group = "Run checks", Command = ContainerCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Kubernetes", Icon = "mdi-kubernetes", Group = "Run checks", Command = KubernetesCommand });
+        AddRunCheck(new AgentQuickAction { Label = "YARA", Icon = "mdi-virus", Group = "Run checks", Command = YaraCommand });
+        AddRunCheck(new AgentQuickAction { Label = "Processes", Icon = "mdi-monitor", Group = "Run checks", Command = ProcessRuntimeCommand });
+
+        AddBaseline(new AgentQuickAction { Label = "Set baseline", Icon = "mdi-pin", Group = "Baseline", Command = SetBaselineCommand });
+        AddBaseline(new AgentQuickAction { Label = "Check drift", Icon = "mdi-compare", Group = "Baseline", Command = CheckDriftCommand });
+        AddBaseline(new AgentQuickAction { Label = "Show baseline", Icon = "mdi-eye", Group = "Baseline", Command = ShowBaselineCommand });
+
+        AddExport(new AgentQuickAction { Label = "Export audit", Icon = "mdi-content-save", Group = "Export", Command = ExportAuditCommand });
+        AddExport(new AgentQuickAction
+        {
+            Label = "Export Remediation",
+            Icon = "mdi-file-document-arrow-right-outline",
+            Group = "Export",
+            Command = ExportRemediationCommand,
+            AutomationIdOverride = "AgentExportRemediationButton"
+        });
+        AddExport(new AgentQuickAction
+        {
+            Label = "Export Session",
+            Icon = "mdi-file-document-check-outline",
+            Group = "Export",
+            Command = ExportSessionCommand,
+            AutomationIdOverride = "AgentExportSessionButton"
+        });
     }
 
     private void InitializeSlashCommands()
@@ -701,12 +892,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         Messages.Clear();
         SelectedChatSeverityFilter = ChatSeverityFilters[0];
         SelectedChatCategoryFilter = null;
-        AddAgentMessage("Chat cleared.", true);
+        AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
+        HasOnlyWelcomeMessage = true;
+        RefreshActiveFilterChips();
         return Task.CompletedTask;
     }
 
     private Task ShowSlashHelpAsync()
     {
+        MarkChatInteracted();
         AddAgentMessage(
             "Available commands: /firewall, /ports, /services, /network, /ssh, /filesystem, /kernel, /users, /logging, /cron, /packages, /threatintel, /full, /fullaudit, /containers, /kubernetes, /yara, /processes, /baseline, /drift, /baseline show, /show baseline, /sessions, /risk, /clear, /help",
             false);
@@ -732,6 +926,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 FilteredSlashCommands.Add(item);
             }
 
+            SelectedSlashCommand = FilteredSlashCommands.Count > 0 ? FilteredSlashCommands[0] : null;
             IsSlashPaletteOpen = FilteredSlashCommands.Count > 0;
         }
         else
@@ -796,6 +991,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task SendQueryAsync()
     {
+        MarkChatInteracted();
         var query = _userQuery.Trim();
         if (string.IsNullOrWhiteSpace(query))
             return;
@@ -842,6 +1038,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task RunQuickAuditAsync(AgentIntent intent, string displayQuery)
     {
+        MarkChatInteracted();
         AddUserMessage(displayQuery);
 
         await _operationRunner.RunAsync(async token =>
@@ -857,6 +1054,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ExplainSelectedAsync()
     {
+        MarkChatInteracted();
         var selected = SelectedFindingProvider?.Invoke();
         if (selected == null)
         {
@@ -892,7 +1090,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     }
 
     private void AddUserMessage(string text) => _presenter.AddUserMessage(text);
-    private void AddAgentMessage(string text, bool isInfo) => _presenter.AddAgentMessage(text, isInfo);
+    private void AddAgentMessage(string text, bool isInfo, bool isError = false) => _presenter.AddAgentMessage(text, isInfo, isError);
     private void AddAgentFinding(Finding finding) => _presenter.AddAgentFinding(finding);
 
     private void ClearPrivilegeWarning()
@@ -1139,6 +1337,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ListSessionsAsync()
     {
+        MarkChatInteracted();
         AddUserMessage("List sessions");
 
         await _operationRunner.RunAsync(async token =>
@@ -1424,9 +1623,87 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private void RefreshActiveFilterChips()
+    {
+        ActiveChatFilterChips.Clear();
+
+        var severity = _selectedChatSeverityFilter;
+        if (severity != null && severity != ChatSeverityFilters[0])
+        {
+            ActiveChatFilterChips.Add(new ChatFilterChipViewModel
+            {
+                Label = $"Severity: {severity.Display}",
+                RemoveCommand = new RelayCommand(_ => SelectedChatSeverityFilter = ChatSeverityFilters[0])
+            });
+        }
+
+        var category = _selectedChatCategoryFilter;
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All categories", StringComparison.OrdinalIgnoreCase))
+        {
+            ActiveChatFilterChips.Add(new ChatFilterChipViewModel
+            {
+                Label = $"Category: {category}",
+                RemoveCommand = new RelayCommand(_ => SelectedChatCategoryFilter = null)
+            });
+        }
+
+        ClearChatFiltersCommand.RaiseCanExecuteChanged();
+        RefreshHasNoVisibleMessages();
+    }
+
+    private void WireMessagesCollectionChanged()
+    {
+        Messages.CollectionChanged += (s, e) =>
+        {
+            if (e.OldItems != null)
+            {
+                foreach (AgentMessageViewModel message in e.OldItems)
+                {
+                    message.PropertyChanged -= OnMessagePropertyChanged;
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (AgentMessageViewModel message in e.NewItems)
+                {
+                    message.PropertyChanged += OnMessagePropertyChanged;
+                }
+            }
+
+            RefreshHasNoVisibleMessages();
+        };
+    }
+
+    private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AgentMessageViewModel.IsVisible))
+        {
+            RefreshHasNoVisibleMessages();
+        }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
         _operationRunner.Dispose();
     }
+}
+
+/// <summary>
+/// A small view model for an active chat filter chip shown above the transcript.
+/// </summary>
+public sealed class ChatFilterChipViewModel : ViewModelBase
+{
+    private string _label = "";
+
+    /// <summary>Gets or sets the chip label (e.g. "Severity: High").</summary>
+    public string Label
+    {
+        get => _label;
+        set => SetField(ref _label, value);
+    }
+
+    /// <summary>Gets or sets the command invoked when the chip is removed.</summary>
+    public ICommand RemoveCommand { get; set; } = new RelayCommand(_ => { });
 }

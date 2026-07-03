@@ -108,7 +108,8 @@ Documentation is organized for two audiences:
 - [AgentHistoryCoordinator.cs](../../../VulcansTrace.Linux.Avalonia/ViewModels/AgentHistoryCoordinator.cs) — persisted audit history refresh, comparisons, exported-state tracking, and persistence warnings
 - [Views/AgentView.axaml](../../../VulcansTrace.Linux.Avalonia/Views/AgentView.axaml) — full chat UI with slash palette, quick-action chips, markdown message bubbles, and copyable command rows
 - [Views/CommandRow.axaml](../../../VulcansTrace.Linux.Avalonia/Views/CommandRow.axaml) — reusable copyable shell-command row with safety/structure badges
-- [Converters/Markdown.cs](../../../VulcansTrace.Linux.Avalonia/Converters/Markdown.cs) — `Markdown.Text` attached property for inline bold/italic rendering
+- [Converters/MarkdownBlocksConverter.cs](../../../VulcansTrace.Linux.Avalonia/Converters/MarkdownBlocksConverter.cs) — parses narrative prose, lists, and fenced code blocks into message blocks
+- [Converters/MarkdownInlinesConverter.cs](../../../VulcansTrace.Linux.Avalonia/Converters/MarkdownInlinesConverter.cs) — renders bold/italic markdown inside Avalonia chat bubbles
 - [Themes/VtDesignTokens.axaml](../../../VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml) — centralized design tokens and control themes
 - [IAgent.cs](../../../VulcansTrace.Linux.Agent/IAgent.cs) — public agent interface with session list/load/delete
 - [GuidedRemediationService.cs](../../../VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs) — remediation session lifecycle, blocked-state handling, verification, before/after diffing, and session store operations
