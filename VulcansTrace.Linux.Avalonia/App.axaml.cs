@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using AvaloniaUI.DiagnosticsSupport;
 using Optris.Icons.Avalonia;
 using Optris.Icons.Avalonia.MaterialDesign;
 
@@ -18,6 +19,9 @@ public partial class App : Application
     {
         IconProvider.Current.Register<MaterialDesignIconProvider>();
         AvaloniaXamlLoader.Load(this);
+#if DEBUG
+        this.AttachDeveloperTools();
+#endif
     }
 
     /// <summary>
