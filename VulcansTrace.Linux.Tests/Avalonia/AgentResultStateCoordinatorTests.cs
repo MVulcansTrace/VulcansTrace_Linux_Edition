@@ -9,7 +9,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentResultStateCoordinatorTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void SetLastResult_NonAuditResult_DoesNotEnableExportOrCompletedAudit()
     {
         var harness = new CoordinatorHarness();
@@ -27,7 +27,7 @@ public class AgentResultStateCoordinatorTests
         Assert.Empty(harness.History);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetLastResult_AuditResult_EnablesExportButDoesNotAppendHistory()
     {
         var harness = new CoordinatorHarness();
@@ -42,7 +42,7 @@ public class AgentResultStateCoordinatorTests
         Assert.Null(harness.PublishedResult);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(AgentIntent.FilesystemAuditCheck)]
     [InlineData(AgentIntent.UserAccountCheck)]
     [InlineData(AgentIntent.LoggingAuditCheck)]
@@ -58,7 +58,7 @@ public class AgentResultStateCoordinatorTests
         Assert.True(AgentResultStateCoordinator.IsAuditIntent(intent));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PublishAuditCompleted_UpdatesAuditStatePublishesAndAppendsHistory()
     {
         var harness = new CoordinatorHarness();
@@ -83,7 +83,7 @@ public class AgentResultStateCoordinatorTests
         Assert.Equal(1, harness.RefreshCommandsCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Reset_ClearsLastResultAndRestoresDefaultAuditState()
     {
         var harness = new CoordinatorHarness();
@@ -100,7 +100,7 @@ public class AgentResultStateCoordinatorTests
         Assert.Contains(nameof(AgentViewModel.CanExportAudit), harness.PropertyChanges);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetLastResult_DriftResult_DoesNotOverwriteLastAuditIntent()
     {
         var harness = new CoordinatorHarness();

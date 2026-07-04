@@ -5,7 +5,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentQuickActionTests
 {
-    [Theory]
+    [AvaloniaTheory]
     [InlineData("Run checks", "Full audit", "AgentQuickAction_Runchecks_Fullaudit")]
     [InlineData("Export", "Export audit", "AgentQuickAction_Export_Exportaudit")]
     [InlineData("Baseline", "Check drift", "AgentQuickAction_Baseline_Checkdrift")]
@@ -17,7 +17,7 @@ public class AgentQuickActionTests
         Assert.Equal(expected, action.AutomationId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AutomationId_UsesExplicitOverrideWhenSet()
     {
         var action = new AgentQuickAction { Group = "Analysis", Label = "Explain Selected", AutomationIdOverride = "AgentExplainSelectedButton" };
@@ -25,7 +25,7 @@ public class AgentQuickActionTests
         Assert.Equal("AgentExplainSelectedButton", action.AutomationId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AutomationId_StripsSpacesAndSpecialCharacters()
     {
         var action = new AgentQuickAction { Group = "Run checks", Label = "Show baseline" };

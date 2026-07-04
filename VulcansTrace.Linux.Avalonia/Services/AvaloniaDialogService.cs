@@ -272,7 +272,7 @@ public sealed class AvaloniaDialogService : IDialogService
             var textBox = new TextBox
             {
                 Text = defaultText,
-                Watermark = "Optional reason..."
+                PlaceholderText = "Optional reason..."
             };
 
             string? result = null;

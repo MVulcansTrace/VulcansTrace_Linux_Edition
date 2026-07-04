@@ -11,7 +11,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class RuleCoverageViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_NullResult_ClearsData()
     {
         var vm = new RuleCoverageViewModel();
@@ -22,7 +22,7 @@ public class RuleCoverageViewModelTests
         Assert.False(vm.HasData);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_EmptyRuleResults_ClearsData()
     {
         var vm = new RuleCoverageViewModel();
@@ -33,7 +33,7 @@ public class RuleCoverageViewModelTests
         Assert.False(vm.HasData);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_GroupsByCategoryAndComputesTotals()
     {
         var vm = new RuleCoverageViewModel();
@@ -102,7 +102,7 @@ public class RuleCoverageViewModelTests
         Assert.Equal(1, port.Total);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_OrdersByFailedPlusCrashedDescending()
     {
         var vm = new RuleCoverageViewModel();

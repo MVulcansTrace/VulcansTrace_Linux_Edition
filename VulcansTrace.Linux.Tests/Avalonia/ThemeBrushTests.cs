@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class ThemeBrushTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void Get_SameFallbackColor_ReturnsSameBrushInstance()
     {
         ThemeBrush.ClearFallbackCache();
@@ -19,7 +19,7 @@ public class ThemeBrushTests
         Assert.Same(brush1, brush2);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Get_DifferentFallbackColors_ReturnDifferentBrushes()
     {
         ThemeBrush.ClearFallbackCache();
@@ -30,7 +30,7 @@ public class ThemeBrushTests
         Assert.NotSame(brush1, brush2);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ClearFallbackCache_RemovesCachedEntries()
     {
         ThemeBrush.ClearFallbackCache();
@@ -42,7 +42,7 @@ public class ThemeBrushTests
         Assert.NotSame(brush1, brush2);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Get_ConcurrentReads_DoNotThrow()
     {
         ThemeBrush.ClearFallbackCache();

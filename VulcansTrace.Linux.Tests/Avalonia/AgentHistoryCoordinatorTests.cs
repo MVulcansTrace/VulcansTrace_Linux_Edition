@@ -12,7 +12,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 [Collection(AvaloniaUiTestCollection.Name)]
 public class AgentHistoryCoordinatorTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadExisting_CopiesStoreEntriesAndNotifiesHistoryChanged()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
@@ -28,7 +28,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Equal(1, harness.HistoryChangedCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void RefreshFromStore_ReplacesExistingCollectionAndNotifiesHistoryChanged()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
@@ -45,7 +45,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Equal(1, harness.HistoryChangedCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AppendHistoryEntry_BuildsSnapshotCountsAndRefreshesHistory()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
@@ -102,7 +102,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Single(store.GetAll());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void MarkLatestExported_UpdatesCollectionAndStore()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
@@ -118,7 +118,7 @@ public class AgentHistoryCoordinatorTests
         Assert.True(store.GetAll()[0].Exported);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void MarkLatestExported_WithNoHistory_DoesNothing()
     {
         var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore());
@@ -130,7 +130,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Empty(harness.Messages);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ShowPersistenceWarningIfAny_AddsWarningOnce()
     {
         var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore("History is in memory only."));
@@ -143,7 +143,7 @@ public class AgentHistoryCoordinatorTests
         Assert.True(message.IsInfo);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AppendHistoryEntry_PostsPersistenceWarningAndDeduplicates()
     {
         var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore("History persistence unavailable."));
@@ -167,7 +167,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Single(harness.Messages, m => m.Text == "History persistence unavailable.");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadExisting_CalledTwice_DoesNotDuplicateEntries()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);
@@ -181,7 +181,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Equal(2, harness.History.Count);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadExisting_EmptyStore_ProducesEmptyHistory()
     {
         var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore());
@@ -192,7 +192,7 @@ public class AgentHistoryCoordinatorTests
         Assert.Equal(1, harness.HistoryChangedCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void RefreshFromStore_WithEmptyStore_ClearsHistory()
     {
         var store = new InMemoryAuditHistoryStore(maxEntries: 20);

@@ -6,7 +6,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class TimelineViewModelTraceMapTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_CategoryGrouping_DefaultBehavior()
     {
         var vm = new TimelineViewModel();
@@ -26,7 +26,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Empty(vm.TimelineEdges);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_HostGrouping_CategoriesAreHosts()
     {
         var vm = new TimelineViewModel { GroupMode = TimelineGroupMode.Host };
@@ -44,7 +44,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("192.168.1.20", vm.Categories);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_HostGrouping_EntriesHaveCorrectTopPosition()
     {
         var vm = new TimelineViewModel { GroupMode = TimelineGroupMode.Host };
@@ -64,7 +64,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(vm.TopPadding + 1 * (vm.RowHeight + vm.RowGap), entry2.TopPosition);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_WithEdges_TimelineEdgesPopulated()
     {
         var vm = new TimelineViewModel { GroupMode = TimelineGroupMode.Host };
@@ -111,7 +111,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal("Beaconing → Lateral", edge.Narrative);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_WithEdges_EdgeCoordinatesMatchEntries()
     {
         var vm = new TimelineViewModel { GroupMode = TimelineGroupMode.Host };
@@ -161,7 +161,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(entry2.TopPosition, timelineEdge.ToTopPosition);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void GroupModeChange_TriggersRegeneration()
     {
         var vm = new TimelineViewModel();
@@ -182,7 +182,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("192.168.1.20", vm.Categories);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void GroupModeChange_RaisesRowHeaderLabelChanged()
     {
         var vm = new TimelineViewModel();
@@ -195,7 +195,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal("Hosts", vm.RowHeaderLabel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_NullResult_ClearsEverything()
     {
         var vm = new TimelineViewModel();
@@ -207,7 +207,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(0, vm.CanvasHeight);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_NullResult_ClearsSelectedChainState()
     {
         var vm = new TimelineViewModel();
@@ -227,7 +227,7 @@ public class TimelineViewModelTraceMapTests
         Assert.False(vm.IsNarrativeVisible);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_NoTimeRanges_SetsEmptyState()
     {
         var vm = new TimelineViewModel();
@@ -255,7 +255,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("last run completed", vm.EmptyStateDescription);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_NullResult_RestoresInitialTimelineEmptyState()
     {
         var vm = new TimelineViewModel();
@@ -270,7 +270,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("click Analyze", vm.EmptyStateDescription);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_EmptySelection_ClearsConnectedIds()
     {
         var vm = new TimelineViewModel();
@@ -287,7 +287,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(string.Empty, vm.SelectedChainNarrative);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_DirectConnection_FindsNeighbor()
     {
         var vm = new TimelineViewModel();
@@ -304,7 +304,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("A→B", vm.SelectedChainNarrative);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_TransitiveConnection_BFSWalksChain()
     {
         var vm = new TimelineViewModel();
@@ -326,7 +326,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("B→C", vm.SelectedChainNarrative);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_DisconnectedComponent_Isolated()
     {
         var vm = new TimelineViewModel();
@@ -348,7 +348,7 @@ public class TimelineViewModelTraceMapTests
         Assert.DoesNotContain(f3.Id, vm.ConnectedFindingIds);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_SwitchesSelection_UpdatesCorrectly()
     {
         var vm = new TimelineViewModel();
@@ -366,7 +366,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("A→B", vm.SelectedChainNarrative);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsEdgeRenderingSuppressed_AtThreshold_NotSuppressed()
     {
         var vm = new TimelineViewModel();
@@ -380,7 +380,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(string.Empty, vm.SuppressionMessage);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsEdgeRenderingSuppressed_AboveThreshold_Suppressed()
     {
         var vm = new TimelineViewModel();
@@ -395,7 +395,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains("Export the evidence bundle", vm.SuppressionMessage);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_EdgeCountChange_RaisesSuppressionPropertiesChanged()
     {
         var vm = new TimelineViewModel();
@@ -411,7 +411,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains(nameof(TimelineViewModel.SuppressionMessage), changed);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_NoCorrelations_ShowsNoCorrelationsMessage()
     {
         var vm = new TimelineViewModel();
@@ -427,7 +427,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal("Selected finding has no correlations.", vm.SelectedChainNarrative);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(false, false, false)]  // TraceMap off, no selection
     [InlineData(true, false, false)]   // TraceMap on, no selection
     [InlineData(false, true, false)]   // TraceMap off, has selection
@@ -444,7 +444,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(expectedVisible, vm.IsNarrativeVisible);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_SetToValidId_SelectedEntryMatches()
     {
         var vm = new TimelineViewModel();
@@ -472,7 +472,7 @@ public class TimelineViewModelTraceMapTests
         Assert.True(vm.IsFindingSelected);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_Clear_SelectedEntryIsNull()
     {
         var vm = new TimelineViewModel();
@@ -495,7 +495,7 @@ public class TimelineViewModelTraceMapTests
         Assert.False(vm.IsFindingSelected);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_ClearsSelectedEntry()
     {
         var vm = new TimelineViewModel();
@@ -518,7 +518,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(Guid.Empty, vm.SelectedFindingId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_Change_Fires_After_ConnectedFindings_Updated()
     {
         // Regression guard: the view re-renders on the SelectedFindingId change, so
@@ -546,7 +546,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Contains(f2.Id, snapshotAtChange!);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingId_StaleId_HidesDetailCard()
     {
         // A non-empty id with no matching entry must not leave the detail card visible.
@@ -560,7 +560,7 @@ public class TimelineViewModelTraceMapTests
         Assert.False(vm.IsFindingSelected);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadAnalysisResult_SingleRow_ReservesStableOverlayRoom()
     {
         var vm = new TimelineViewModel();
@@ -583,7 +583,7 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal(heightBeforeSelection, vm.CanvasHeight);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void FormattedTimeRange_NormalizesBeforeFormatting()
     {
         // DateTimeKind-agnostic expectations (all Utc): locks the normalized-comparison

@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class RemediationPreviewViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteCommand_WhileExecuting_DisablesExecutionAndIgnoresSecondClick()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -43,7 +43,7 @@ public class RemediationPreviewViewModelTests
         Assert.NotNull(vm.ExecutionResult);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteCommand_WhenExecutionFails_ResetsExecutingState()
     {
         var vm = new RemediationPreviewViewModel(

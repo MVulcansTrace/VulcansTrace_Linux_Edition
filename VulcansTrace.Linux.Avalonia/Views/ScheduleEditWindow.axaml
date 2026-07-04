@@ -16,20 +16,20 @@
 
     <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
         <TextBlock Grid.Row="0" Text="Schedule Name:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
-        <TextBox Grid.Row="1" Text="{Binding Name}" Watermark="e.g. Daily Full Audit" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
+        <TextBox Grid.Row="1" Text="{Binding Name}" PlaceholderText="e.g. Daily Full Audit" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
 
         <TextBlock Grid.Row="2" Text="Intent:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
         <ComboBox Grid.Row="3" ItemsSource="{Binding AvailableIntents}" SelectedItem="{Binding Intent}" Theme="{StaticResource VtComboBox}" Margin="0,0,0,12"/>
 
         <TextBlock Grid.Row="4" Text="Cron Expression:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
-        <TextBox Grid.Row="5" Text="{Binding CronExpression}" Watermark="e.g. 0 6 * * *" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
+        <TextBox Grid.Row="5" Text="{Binding CronExpression}" PlaceholderText="e.g. 0 6 * * *" Theme="{StaticResource VtInput}" Margin="0,0,0,12"/>
 
         <TextBlock Grid.Row="6" Text="Machine Role:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
         <ComboBox Grid.Row="7" ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding MachineRole}" Theme="{StaticResource VtComboBox}" Margin="0,0,0,12"/>
 
         <StackPanel Grid.Row="8" Orientation="Vertical" Spacing="8">
             <TextBlock Text="Output Directory (optional):" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-            <TextBox Text="{Binding OutputDirectory}" Watermark="/var/log/vulcanstrace" Theme="{StaticResource VtInput}"/>
+            <TextBox Text="{Binding OutputDirectory}" PlaceholderText="/var/log/vulcanstrace" Theme="{StaticResource VtInput}"/>
 
             <TextBlock Text="Notification Channel:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
             <ComboBox ItemsSource="{Binding AvailableChannels}" SelectedItem="{Binding NotificationChannel}" Theme="{StaticResource VtComboBox}"/>
@@ -57,7 +57,7 @@
                         <CheckBox Content="Permit package install/remove" IsChecked="{Binding AllowRemediationPackages}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
                     </StackPanel>
                     <TextBlock Text="Limit to rule prefixes (comma-separated, optional):" Foreground="{StaticResource VtTextSecondaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                    <TextBox Text="{Binding RemediationPrefixes}" Watermark="e.g. FW, KERN, PKG" Theme="{StaticResource VtInput}"/>
+                    <TextBox Text="{Binding RemediationPrefixes}" PlaceholderText="e.g. FW, KERN, PKG" Theme="{StaticResource VtInput}"/>
                     <TextBlock Text="Available prefixes: FW, KERN, PKG, SSH, USER, FILE, LOG, CRON, CONTAINER, K8S, PROCESS" Foreground="{StaticResource VtTextMutedBrush}" FontSize="{StaticResource VtFontSizeSm}"/>
                 </StackPanel>
             </StackPanel>

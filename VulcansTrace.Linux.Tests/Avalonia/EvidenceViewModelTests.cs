@@ -12,7 +12,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class EvidenceViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void SetEvidenceContext_EnablesExport()
     {
         var vm = new EvidenceViewModel(BuildEvidenceBuilder(), new TestDialogService());
@@ -25,7 +25,7 @@ public class EvidenceViewModelTests
         Assert.True(vm.ExportEvidenceCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetEvidenceContext_GeneratesSigningKey()
     {
         var vm = new EvidenceViewModel(BuildEvidenceBuilder(), new TestDialogService());
@@ -45,7 +45,7 @@ public class EvidenceViewModelTests
         Assert.All(vm.SigningKey, c => Assert.True(Uri.IsHexDigit(c)));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetEvidenceContext_MaskedSigningKey_HidesActualKey()
     {
         var vm = new EvidenceViewModel(BuildEvidenceBuilder(), new TestDialogService());
@@ -62,7 +62,7 @@ public class EvidenceViewModelTests
         Assert.DoesNotContain(vm.SigningKey, vm.MaskedSigningKey);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExportEvidenceAsync_GeneratesBundleWithSameKey()
     {
         var dialogService = new TestDialogService();
@@ -83,7 +83,7 @@ public class EvidenceViewModelTests
         Assert.Equal(keyAfterContext, vm.SigningKey);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExportEvidenceTwice_ProducesSameSigningKey()
     {
         var dialogService = new TestDialogService();
@@ -109,7 +109,7 @@ public class EvidenceViewModelTests
         Assert.Equal(keyAfterFirstExport, keyAfterSecondExport);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CopySigningKey_BeforeContext_CommandDisabled()
     {
         var vm = new EvidenceViewModel(BuildEvidenceBuilder(), new TestDialogService());
@@ -117,7 +117,7 @@ public class EvidenceViewModelTests
         Assert.False(vm.CopySigningKeyCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CopySigningKey_AfterContext_CommandEnabled()
     {
         var vm = new EvidenceViewModel(BuildEvidenceBuilder(), new TestDialogService());
@@ -133,7 +133,7 @@ public class EvidenceViewModelTests
         Assert.True(vm.CopySigningKeyCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExportEvidenceAsync_WhenSaveDialogCancelled_DoesNotBuildBundle()
     {
         var dialogService = new TestDialogService();

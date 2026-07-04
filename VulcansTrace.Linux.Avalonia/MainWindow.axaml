@@ -196,7 +196,7 @@
                         </StackPanel>
 
                         <TextBox Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
-                                 Watermark="Paste or type firewall log lines here..."
+                                 PlaceholderText="Paste or type firewall log lines here..."
                                  AcceptsReturn="True"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"

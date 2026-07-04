@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class ComplianceTrendAnalyzerTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_EmptyTrend_ReturnsNoTrendData()
     {
         var (direction, arrow) = ComplianceTrendAnalyzer.ComputeDirection(
@@ -18,7 +18,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Empty(arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_Improving_ReturnsImproving()
     {
         var trend = new List<ComplianceTrendPoint>
@@ -32,7 +32,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Equal("↗", arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_Declining_ReturnsDeclining()
     {
         var trend = new List<ComplianceTrendPoint>
@@ -46,7 +46,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Equal("↘", arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_Stable_ReturnsStable()
     {
         var trend = new List<ComplianceTrendPoint>
@@ -60,7 +60,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Equal("→", arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_ExactlyPlusHalf_ReturnsStable()
     {
         var trend = new List<ComplianceTrendPoint>
@@ -74,7 +74,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Equal("→", arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_ExactlyMinusHalf_ReturnsStable()
     {
         var trend = new List<ComplianceTrendPoint>
@@ -88,7 +88,7 @@ public class ComplianceTrendAnalyzerTests
         Assert.Equal("→", arrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputeDirection_UsesMostRecentPrior()
     {
         var trend = new List<ComplianceTrendPoint>

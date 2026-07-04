@@ -28,7 +28,7 @@
                          Width="220"
                          VerticalAlignment="Center"
                          Theme="{StaticResource VtInput}"
-                         Watermark="Search findings..."
+                         PlaceholderText="Search findings..."
                          AutomationProperties.AutomationId="SearchTextBox"/>
                 <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <ComboBox ItemsSource="{Binding SeverityFilters}"

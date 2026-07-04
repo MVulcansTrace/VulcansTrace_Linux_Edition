@@ -5,7 +5,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class IncidentStoryViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void EmptyStateText_DistinguishesInitialAndCompletedEmptyTraceMap()
     {
         var vm = new IncidentStoryViewModel();

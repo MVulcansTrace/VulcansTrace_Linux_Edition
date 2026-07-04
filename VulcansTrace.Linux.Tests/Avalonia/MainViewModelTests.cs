@@ -25,19 +25,19 @@ public class MainViewModelTests : IAsyncLifetime
 {
     private MainViewModel _vm = null!;
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         _vm = BuildViewModel();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _vm.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_WiresFindingsCommands()
     {
         Assert.Same(_vm.InvestigateCommand, _vm.Findings.InvestigateCommand);
@@ -45,7 +45,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Same(_vm.ResolveCommand, _vm.Findings.ResolveCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void InvestigateCommand_CanExecute_WhenParameterIsFindingItem()
     {
         var item = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
@@ -53,7 +53,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.False(_vm.InvestigateCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SuppressCommand_CanExecute_WhenFindingHasRuleId()
     {
         var withRuleId = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
@@ -64,7 +64,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.False(_vm.SuppressCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ResolveCommand_CanExecute_WhenFindingHasRuleId()
     {
         var withRuleId = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
@@ -75,7 +75,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.False(_vm.ResolveCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AnalyzeCommand_RequiresLogText()
     {
         Assert.False(_vm.AnalyzeCommand.CanExecute(null));
@@ -85,7 +85,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.True(_vm.AnalyzeCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task AnalyzeAsync_SuccessfulAnalysis_UpdatesAllProperties()
     {
         _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
@@ -100,7 +100,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Single(_vm.LastResult.Entries);
     }
 
-    [Fact]
+    [AvaloniaFact]
     [Trait("Category", "Timing")]
     public async Task CancelCommand_CancelsActiveAnalysis()
     {
@@ -124,7 +124,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Contains("cancelled", _vm.SummaryText.ToLowerInvariant());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedIntensity_ChangesAnalyzeCommandState()
     {
         _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
@@ -136,7 +136,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.True(_vm.AnalyzeCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task OverrideFields_FlowIntoProfile()
     {
         _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22\nkernel: Jan 19 10:15:33 server IN=eth0 SRC=192.168.1.10 DST=10.0.0.1 PROTO=TCP SPT=54322 DPT=80";
@@ -150,7 +150,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Contains(_vm.LastResult.Findings, finding => finding.Category == FindingCategories.PortScan);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ParseErrors_AffectSummaryText()
     {
         _vm.LogText = "not a valid log line at all\nmore garbage";
@@ -162,7 +162,7 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Contains("parse error", _vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SkippedLines_AffectSummaryAndFindingsCounts()
     {
         _vm.LogText = @"kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22
@@ -179,7 +179,7 @@ also not a firewall line";
         Assert.Contains("2 lines skipped", _vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task LogTextChangedAfterAnalysis_InvalidatesExportContext()
     {
         _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
@@ -201,7 +201,7 @@ also not a firewall line";
         Assert.Contains("Log changed", _vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task AgentAuditCompleted_RefreshesSuppressionReviewQueue()
     {
         var suppressionStore = new InMemorySuppressionStore();
@@ -223,7 +223,7 @@ also not a firewall line";
         Assert.Empty(vm.Suppressions.ReviewQueueItems);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void DemoCompleted_ReplacesStaleFindingsWithDemoFindings()
     {
         var oldFinding = CreateFinding(FindingCategories.PortScan, "10.0.0.1");

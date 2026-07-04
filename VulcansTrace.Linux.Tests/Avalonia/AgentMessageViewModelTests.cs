@@ -10,7 +10,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentMessageViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewProperties_PopulatedFromRemediationSection()
     {
         var section = new RemediationSection
@@ -51,7 +51,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(RemediationPreviewTextKind.Command, msg.ImpactPreviewVerificationKind);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewProperties_NullSection_ReturnEmptyDefaults()
     {
         var msg = new AgentMessageViewModel();
@@ -67,7 +67,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewVerificationKind);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewProperties_SectionWithoutImpactPreview_ReturnEmptyDefaults()
     {
         var section = new RemediationSection
@@ -90,7 +90,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(RemediationPreviewTextKind.ManualFallback, msg.ImpactPreviewVerificationKind);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsRollbackPathCommand_TrueWhenRollbackCommandsExist()
     {
         var section = new RemediationSection
@@ -111,7 +111,7 @@ public class AgentMessageViewModelTests
         Assert.Equal("Consolas,Monospace", msg.RollbackPathFontFamily);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsRollbackPathCommand_FalseWhenOnlyHintsExist()
     {
         var section = new RemediationSection
@@ -132,7 +132,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(string.Empty, msg.RollbackPathFontFamily);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsRollbackPathCommand_FalseWhenNoRollbackData()
     {
         var section = new RemediationSection
@@ -148,7 +148,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(string.Empty, msg.RollbackPathFontFamily);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewSimulationProperties_PopulatedFromRemediationSection()
     {
         var section = new RemediationSection
@@ -189,7 +189,7 @@ public class AgentMessageViewModelTests
         Assert.Equal("SSH config modified.", msg.ImpactPreviewLockoutRiskDescription);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewSimulationProperties_NullSection_ReturnEmptyDefaults()
     {
         var msg = new AgentMessageViewModel();
@@ -206,7 +206,7 @@ public class AgentMessageViewModelTests
         Assert.Equal(string.Empty, msg.ImpactPreviewLockoutRiskDescription);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ImpactPreviewRollbackUnavailable_TrueWhenPreviewHasNoExplicitRollback()
     {
         var section = new RemediationSection
@@ -229,7 +229,7 @@ public class AgentMessageViewModelTests
         Assert.Equal("No", msg.ImpactPreviewRollbackAvailabilityLabel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void RemediationSection_Change_RaisesPropertyChanged()
     {
         var section = new RemediationSection
@@ -249,7 +249,7 @@ public class AgentMessageViewModelTests
         Assert.True(msg.HasRemediationSection);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void FormattedBlocks_ParsesCodeBlock()
     {
         var msg = new AgentMessageViewModel
@@ -265,7 +265,7 @@ public class AgentMessageViewModelTests
         Assert.True(codeBlock.IsExpanded);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CodeBlock_ToggleCommand_FlipsIsExpanded()
     {
         var codeBlock = new CodeBlock("bash", "sudo ufw status", new RelayCommand(_ => { }));
@@ -279,7 +279,7 @@ public class AgentMessageViewModelTests
         Assert.True(codeBlock.IsExpanded);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CodeBlock_IsExpanded_RaisesPropertyChanged()
     {
         var codeBlock = new CodeBlock("bash", "sudo ufw status", new RelayCommand(_ => { }));
@@ -291,7 +291,7 @@ public class AgentMessageViewModelTests
         Assert.Contains(nameof(CodeBlock.IsExpanded), changed);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CodeBlock_PreviewText_TruncatesLongFirstLine()
     {
         var longLine = new string('a', 120);
@@ -301,7 +301,7 @@ public class AgentMessageViewModelTests
         Assert.EndsWith("…", codeBlock.PreviewText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CodeBlock_PreviewText_UsesFirstLine()
     {
         var codeBlock = new CodeBlock("bash", "sudo ufw status\nsudo ufw enable", new RelayCommand(_ => { }));
@@ -309,7 +309,7 @@ public class AgentMessageViewModelTests
         Assert.Equal("sudo ufw status", codeBlock.PreviewText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void FormattedBlocks_ParsesInlineCode()
     {
         var msg = new AgentMessageViewModel
@@ -321,7 +321,7 @@ public class AgentMessageViewModelTests
         Assert.NotEmpty(paragraph.Inlines);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsError_DefaultsFalse()
     {
         var msg = new AgentMessageViewModel();
@@ -329,7 +329,7 @@ public class AgentMessageViewModelTests
         Assert.False(msg.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsError_CanBeSet()
     {
         var msg = new AgentMessageViewModel { IsError = true };
@@ -337,7 +337,7 @@ public class AgentMessageViewModelTests
         Assert.True(msg.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AutomationName_ReturnsRoleTimestampAndText()
     {
         var msg = new AgentMessageViewModel
@@ -350,7 +350,7 @@ public class AgentMessageViewModelTests
         Assert.Equal("You at 14:30: hello", msg.AutomationName);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ComputedProperties_RaisePropertyChanged_WhenSourceChanges()
     {
         var msg = new AgentMessageViewModel();

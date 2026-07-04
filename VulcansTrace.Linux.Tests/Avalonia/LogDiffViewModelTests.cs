@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class LogDiffViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadDiff_CopiesEventsFindingsAndCountsIntoViewModel()
     {
         var result = new LogDiffResult

@@ -9,7 +9,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentQueryExecutorTests
 {
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteAsync_ExplainFindingWithoutReferenceAndSelectedFinding_CallsExplainFinding()
     {
         var agent = new TrackingAgent();
@@ -30,7 +30,7 @@ public class AgentQueryExecutorTests
         Assert.Equal(cts.Token, agent.ObservedToken);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData("explain")]
     [InlineData("explain that")]
     [InlineData("explain the finding")]
@@ -51,7 +51,7 @@ public class AgentQueryExecutorTests
         Assert.Same(selected, agent.ExplainedFinding);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteAsync_ExplainFindingWithoutSelectedFinding_FallsBackToAsk()
     {
         var agent = new TrackingAgent();
@@ -70,7 +70,7 @@ public class AgentQueryExecutorTests
         Assert.Equal("raw log", agent.ObservedRawLog);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteAsync_ExplainFindingWithExplicitReference_FallsBackToAsk()
     {
         var agent = new TrackingAgent();
@@ -88,7 +88,7 @@ public class AgentQueryExecutorTests
         Assert.Equal("explain FW-001", agent.ObservedQuery);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteAsync_NormalQuery_CallsAskWithRawLogAndCancellationToken()
     {
         var agent = new TrackingAgent();
@@ -108,7 +108,7 @@ public class AgentQueryExecutorTests
         Assert.Equal(cts.Token, agent.ObservedToken);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExecuteAsync_UsesLatestAgentFromFactory()
     {
         var firstAgent = new TrackingAgent();

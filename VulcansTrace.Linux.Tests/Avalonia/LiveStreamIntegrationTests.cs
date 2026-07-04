@@ -8,7 +8,6 @@ using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -39,7 +38,7 @@ public sealed class LiveStreamIntegrationTests : IDisposable
         try { Directory.Delete(_configDir, true); } catch { }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DemoSshBruteforce_AtLowIntensity_ProducesLiveFindings()
     {
         // MainViewModel wires the intensity provider to the global log-analysis
@@ -79,7 +78,7 @@ public sealed class LiveStreamIntegrationTests : IDisposable
         vm.Dispose();
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DemoRandomMix_AtLowIntensity_ProducesLiveFindings()
     {
         var vm = new LiveStreamViewModel(_services.LiveStreamAnalyzer, () => IntensityLevel.Low);

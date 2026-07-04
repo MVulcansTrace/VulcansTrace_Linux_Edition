@@ -248,7 +248,7 @@
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
       <Setter Property="Padding" Value="16,12" />
       <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
-      <Style Selector="^ /template/ TextBlock#PART_Watermark">
+      <Style Selector="^ /template/ TextBlock#PART_PlaceholderText">
         <Setter Property="Foreground" Value="{StaticResource VtTextPlaceholderBrush}" />
       </Style>
       <Style Selector="^:focus /template/ Border#PART_BorderElement">
