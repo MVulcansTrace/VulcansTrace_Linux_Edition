@@ -439,7 +439,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
+            _ = desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
         }
     }
 

@@ -18,7 +18,7 @@ public partial class CommandRow : UserControl
     {
         if (DataContext is CopyableCommand command && Application.Current?.ApplicationLifetime is global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow?.Clipboard?.SetTextAsync(command.FullCommand);
+            _ = desktop.MainWindow?.Clipboard?.SetTextAsync(command.FullCommand);
         }
     }
 }
