@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -438,7 +439,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
+            _ = desktop.MainWindow?.Clipboard?.SetTextAsync(commandText);
         }
     }
 

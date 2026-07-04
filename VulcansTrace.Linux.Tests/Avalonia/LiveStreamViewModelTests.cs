@@ -45,7 +45,7 @@ public class LiveStreamViewModelTests : IDisposable
         return new LiveStreamViewModel(_analyzer);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_InitializesDefaultState()
     {
         var vm = CreateViewModel();
@@ -58,7 +58,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.Equal(0, vm.WindowEventCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AvailableSources_ContainsExpectedNames()
     {
         var vm = CreateViewModel();
@@ -81,7 +81,7 @@ public class LiveStreamViewModelTests : IDisposable
         return (IEventSource)method.Invoke(vm, null)!;
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ResolveSource_ReturnsCorrectTypes()
     {
         var vm = CreateViewModel();
@@ -105,7 +105,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.IsType<NflogEventSource>(InvokeResolveSource(vm));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ResolveSource_UnknownName_Throws()
     {
         var vm = CreateViewModel();
@@ -120,7 +120,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.IsType<InvalidOperationException>(ex.InnerException);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StartCommand_CanExecute_WhenNotRunningAndSourceAvailable()
     {
         var vm = CreateViewModel();
@@ -130,7 +130,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.False(vm.StopCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void StopCommand_CanExecute_WhenRunning()
     {
         var vm = CreateViewModel();
@@ -146,7 +146,7 @@ public class LiveStreamViewModelTests : IDisposable
         FlushDispatcher();
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Start_SetsIsRunningAndStatusText()
     {
         var vm = CreateViewModel();
@@ -164,7 +164,7 @@ public class LiveStreamViewModelTests : IDisposable
         FlushDispatcher();
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Stop_ClearsIsRunningAndStatusText()
     {
         var vm = CreateViewModel();
@@ -181,7 +181,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.Contains("complete", vm.StatusText, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Dispose_DoesNotThrow()
     {
         var vm = CreateViewModel();
@@ -189,7 +189,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.True(true);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task LiveResultReceived_RaisedWhenResultsArrive()
     {
         var vm = CreateViewModel();
@@ -219,7 +219,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.True(received.Count >= 1, "Should receive at least one live result event");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsScenarioSource_True_ForDemoScenarios()
     {
         var vm = CreateViewModel();
@@ -237,7 +237,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.True(vm.IsScenarioSource);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void IsScenarioSource_False_ForKernelSources()
     {
         var vm = CreateViewModel();
@@ -249,7 +249,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.False(vm.IsScenarioSource);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedSourceName_RaisesIsScenarioSourceChanged()
     {
         var vm = CreateViewModel();
@@ -261,7 +261,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.Contains(nameof(LiveStreamViewModel.IsScenarioSource), changed);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ScenarioAutoStop_StopsAfterDuration()
     {
         var vm = CreateViewModel();
@@ -302,7 +302,7 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.Equal(completed[0].Findings.Count, completed[0].TotalFindings);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DemoCompleted_RaisedOnManualStop()
     {
         var vm = CreateViewModel();

@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class FindingsViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_PopulatesCountsAndFilters()
     {
         var vm = new FindingsViewModel();
@@ -57,7 +57,7 @@ public class FindingsViewModelTests
         Assert.Single(vm.Warnings);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SearchText_FiltersFindings()
     {
         var vm = new FindingsViewModel();
@@ -97,7 +97,7 @@ public class FindingsViewModelTests
         Assert.Contains(vm.FilteredItems, item => item.Category == FindingCategories.Beaconing);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_ClampsParseErrors()
     {
         var vm = new FindingsViewModel();
@@ -114,7 +114,7 @@ public class FindingsViewModelTests
         Assert.EndsWith("more parse errors not shown.", vm.ParseErrors[^1]);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_PopulatesConfidenceAndEvidenceSignals()
     {
         var vm = new FindingsViewModel();
@@ -150,7 +150,7 @@ public class FindingsViewModelTests
         Assert.Contains("Beaconing pattern", item.EvidenceSignalsDisplay);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SearchText_FiltersByConfidence()
     {
         var vm = new FindingsViewModel();
@@ -192,7 +192,7 @@ public class FindingsViewModelTests
         Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SearchText_FiltersByEvidenceSignal()
     {
         var vm = new FindingsViewModel();
@@ -242,7 +242,7 @@ public class FindingsViewModelTests
         Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SearchText_FiltersByMitreTechnique()
     {
         var vm = new FindingsViewModel();
@@ -291,7 +291,7 @@ public class FindingsViewModelTests
         Assert.Equal("T1071.001", vm.FilteredItems[0].MitreTechniquesDisplay);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void FindingItemViewModel_TimeRangeDisplay_ShowsStartAndEnd()
     {
         var finding = new Finding
@@ -311,7 +311,7 @@ public class FindingsViewModelTests
         Assert.Equal("1970-01-01 00:00 - 00:07", item.TimeRangeDisplay);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void EmptyStateText_DistinguishesInitialAndCompletedEmptyResults()
     {
         var vm = new FindingsViewModel();
@@ -332,7 +332,7 @@ public class FindingsViewModelTests
         Assert.Equal("No findings yet", vm.EmptyStateHeadline);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(1, "")]
     [InlineData(5, "×5")]
     [InlineData(438, "×438")]
@@ -356,7 +356,7 @@ public class FindingsViewModelTests
         Assert.Equal(expectedBadge, item.GroupBadge);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Commands_CanBeSetAndRead()
     {
         var vm = new FindingsViewModel();
@@ -371,7 +371,7 @@ public class FindingsViewModelTests
         Assert.Same(cmd, vm.ResolveCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedFindingActionContext_DescribesToolbarTarget()
     {
         var vm = new FindingsViewModel();
@@ -409,7 +409,7 @@ public class FindingsViewModelTests
         Assert.Equal("Select a finding to investigate, suppress, or resolve", vm.SelectedFindingActionContext);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(1)]
     [InlineData(5)]
     [InlineData(438)]

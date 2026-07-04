@@ -13,7 +13,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AgentResultPresenterTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AddsCapabilitySummaryGroupsWarningsAndCategoryFilters()
     {
         var harness = new PresenterHarness();
@@ -57,7 +57,7 @@ public class AgentResultPresenterTests
         Assert.Contains("elevated privileges", harness.PrivilegeWarningText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ApplyChatFilters_HidesOnlyFindingGroupsThatDoNotMatch()
     {
         var harness = new PresenterHarness();
@@ -93,7 +93,7 @@ public class AgentResultPresenterTests
         Assert.True(harness.Messages.Single(m => m.Category == "Network").IsVisible);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddAgentFinding_ExtractsVerificationCommandsFromDetails()
     {
         var harness = new PresenterHarness();
@@ -122,7 +122,7 @@ public class AgentResultPresenterTests
         Assert.True(message.HasVerificationCommands);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddAgentFinding_GroupedFinding_IncludesNoiseBudgetDetails()
     {
         var harness = new PresenterHarness();
@@ -142,7 +142,7 @@ public class AgentResultPresenterTests
         Assert.Contains("Risk drivers: /tmp; /var/log", message.Details);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_FixFindingWithSingleRemediationSection_AddsInteractiveMessage()
     {
         var harness = new PresenterHarness();
@@ -189,7 +189,7 @@ public class AgentResultPresenterTests
         Assert.Equal("sudo ufw allow from 10.0.0.5 to any port 22", Assert.Single(message.RemediationApplyCommands).FullCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_RespectsSuppressedReportSections()
     {
         var harness = new PresenterHarness();
@@ -226,7 +226,7 @@ public class AgentResultPresenterTests
         };
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_StartRemediationWithSession_AddsSessionMessageWithActiveStatus()
     {
         var harness = new PresenterHarness();
@@ -271,7 +271,7 @@ public class AgentResultPresenterTests
         Assert.Same(section, message.RemediationSection);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_VerifyRemediationWithSession_AddsVerificationResultMessage()
     {
         var harness = new PresenterHarness();
@@ -314,7 +314,7 @@ public class AgentResultPresenterTests
         Assert.False(message.HasActiveSession);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_StartRemediation_IncludesTimeline()
     {
         var harness = new PresenterHarness();
@@ -362,7 +362,7 @@ public class AgentResultPresenterTests
         Assert.Equal(RemediationSessionEventType.Created, message.SessionTimeline[0].Type);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_VerifyRemediation_IncludesUpdatedTimeline()
     {
         var harness = new PresenterHarness();
@@ -414,7 +414,7 @@ public class AgentResultPresenterTests
         Assert.Equal(RemediationSessionEventType.VerificationCompleted, message.SessionTimeline[1].Type);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AddSessionNote_RendersConciseConfirmation()
     {
         var harness = new PresenterHarness();
@@ -461,7 +461,7 @@ public class AgentResultPresenterTests
         Assert.True(message.HasSessionTimeline);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AddStepNote_RendersConciseConfirmation()
     {
         var harness = new PresenterHarness();
@@ -498,7 +498,7 @@ public class AgentResultPresenterTests
         Assert.Equal("abc12345", message.SessionId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AddSessionNote_NoNotes_FallsBackToSummary()
     {
         var harness = new PresenterHarness();
@@ -525,7 +525,7 @@ public class AgentResultPresenterTests
         Assert.Equal("Session not found.", message.Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentMessageViewModel_HasActiveSession_TrueOnlyWhenActive()
     {
         var msg = new AgentMessageViewModel { SessionId = "abc", SessionStatus = RemediationSessionStatus.Active };
@@ -545,7 +545,7 @@ public class AgentResultPresenterTests
         Assert.False(msg.HasActiveSession);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AttachesSuggestionsToSummaryMessage()
     {
         var harness = new PresenterHarness();
@@ -568,7 +568,7 @@ public class AgentResultPresenterTests
         Assert.NotNull(summary.SuggestionCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void PresentFindings_AuditWithMissingTool_LeadsWithFriendlyMissingToolLine()
     {
         var harness = new PresenterHarness();

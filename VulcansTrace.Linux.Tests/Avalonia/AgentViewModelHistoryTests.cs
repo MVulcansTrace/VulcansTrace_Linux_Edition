@@ -17,7 +17,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 public class AgentViewModelHistoryTests
 {
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
-    [Fact]
+    [AvaloniaFact]
     public async Task History_Accumulates_On_Audit()
     {
         var agent = new MockHistoryAgent();
@@ -34,7 +34,7 @@ public class AgentViewModelHistoryTests
         Assert.Equal(2, vm.History[0].TotalFindings);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task History_Caps_At_Store_Max()
     {
         var agent = new MockHistoryAgent();
@@ -49,7 +49,7 @@ public class AgentViewModelHistoryTests
         Assert.Equal(20, vm.History.Count);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task History_Entry_Has_Correct_Counts()
     {
         var agent = new MockHistoryAgent();
@@ -68,7 +68,7 @@ public class AgentViewModelHistoryTests
         Assert.True(entry.SnapshotFindings.Count > 0);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task CompareAuditsCommand_Requires_Two_HistoryEntries()
     {
         var agent = new MockHistoryAgent();
@@ -89,7 +89,7 @@ public class AgentViewModelHistoryTests
         Assert.True(vm.CompareAuditsCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task MarkLatestAuditExported_Updates_MostRecentHistoryEntry()
     {
         var agent = new MockHistoryAgent();
@@ -105,7 +105,7 @@ public class AgentViewModelHistoryTests
         Assert.True(vm.History[0].Exported);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_Loads_Existing_History_From_Store()
     {
         var agent = new MockHistoryAgent();
@@ -120,7 +120,7 @@ public class AgentViewModelHistoryTests
         Assert.Equal("snap-1", vm.History[1].SnapshotId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_Shows_HistoryPersistenceWarning()
     {
         var agent = new MockHistoryAgent();

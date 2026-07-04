@@ -21,7 +21,7 @@ public class AgentViewModelTests
 {
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
 
-    [Fact]
+    [AvaloniaFact]
     public void NotifySelectedFindingChanged_RefreshesExplainSelectedState()
     {
         var selected = CreateFinding();
@@ -47,7 +47,7 @@ public class AgentViewModelTests
         Assert.False(vm.ExplainSelectedCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedChatCategoryFilter_AllCategories_KeepsFindingMessagesVisible()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -80,7 +80,7 @@ public class AgentViewModelTests
         Assert.True(networkMessage.IsVisible);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
@@ -96,7 +96,7 @@ public class AgentViewModelTests
         Assert.Equal(1, vm.Messages.Count(message => message.Text == capabilityReport));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task FullAuditCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
@@ -109,7 +109,7 @@ public class AgentViewModelTests
         Assert.Equal(1, vm.Messages.Count(message => message.Text == capabilityReport));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_TypedSshAudit_AppendsHistoryAndEnablesExport()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
@@ -127,7 +127,7 @@ public class AgentViewModelTests
         Assert.Equal(AgentIntent.SshCheck, vm.History[0].Intent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_TypedYaraAudit_AppendsHistoryAndEnablesExport()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
@@ -145,7 +145,7 @@ public class AgentViewModelTests
         Assert.Equal(AgentIntent.YaraCheck, vm.History[0].Intent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_PrefixQuery_ShowsMatchingCommands()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -156,7 +156,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/firewall");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_NonMatchingPrefix_StaysClosed()
     {
         // The palette filters by command-text prefix, so a genuinely non-matching prefix stays closed
@@ -169,7 +169,7 @@ public class AgentViewModelTests
         Assert.Empty(vm.FilteredSlashCommands);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_BaselinePrefix_ShowsBothBaselineCommands()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -181,7 +181,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/baseline show");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_ShowPrefix_ShowsShowBaselineAlias()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -192,7 +192,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/show baseline");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_RootQuery_ContainsDocumentedCommands()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -212,7 +212,7 @@ public class AgentViewModelTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void QuickActions_ExposeCommonAuditsAndFollowUps()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -228,7 +228,7 @@ public class AgentViewModelTests
         Assert.Contains("Export audit", exportLabels);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Close_DismissesWithoutClearingQuery()
     {
         // Esc / blur dismiss the palette via CloseSlashPalette but preserve the typed query, so a
@@ -245,7 +245,7 @@ public class AgentViewModelTests
         Assert.Equal("/baseline", vm.UserQuery);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Close_ThenEditingReopens()
     {
         // After dismissing, editing the query re-derives the palette (UpdateSlashPalette runs again).
@@ -261,7 +261,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/firewall");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_PrefixQuery_SelectsFirstCommand()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -274,7 +274,7 @@ public class AgentViewModelTests
         Assert.Equal("/firewall", vm.SelectedSlashCommand!.CommandText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Down_SelectsNextCommand()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -289,7 +289,7 @@ public class AgentViewModelTests
         Assert.Equal("/baseline show", vm.SelectedSlashCommand!.CommandText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Down_AtEnd_WrapsToTop()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -303,7 +303,7 @@ public class AgentViewModelTests
         Assert.Equal("/baseline", vm.SelectedSlashCommand!.CommandText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Up_WrapsToEnd()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -318,7 +318,7 @@ public class AgentViewModelTests
         Assert.Equal("/baseline show", vm.SelectedSlashCommand!.CommandText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Close_ClearsSelection()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -333,7 +333,7 @@ public class AgentViewModelTests
         Assert.Null(vm.SelectedSlashCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SlashPalette_Enter_ExecutesSelectedCommand()
     {
         // Programmatic Enter dispatch when the palette is open executes the highlighted command,
@@ -350,7 +350,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsSlashPaletteOpen);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_MarksMessageAsError()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -367,7 +367,7 @@ public class AgentViewModelTests
         Assert.True(errorMessage!.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_StylingUsesErrorBubbleConverter()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -385,7 +385,7 @@ public class AgentViewModelTests
         Assert.IsType<global::Avalonia.Media.SolidColorBrush>(brush);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_ExistingMessageStaysNonError()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -401,7 +401,7 @@ public class AgentViewModelTests
         Assert.False(userMessage.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SendQueryCommand_AgentError_KeepsAutomationIdAndFeatureParityControls()
     {
         var xaml = ReadAgentViewXaml();
@@ -412,7 +412,7 @@ public class AgentViewModelTests
         Assert.Contains("FormattedBlocks", xaml);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentMessageViewModel_IsError_DefaultsFalse()
     {
         var message = new AgentMessageViewModel { Text = "normal" };
@@ -420,7 +420,7 @@ public class AgentViewModelTests
         Assert.False(message.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentMessageViewModel_ErrorText_IsErrorSetByPresenter()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -433,7 +433,7 @@ public class AgentViewModelTests
         Assert.DoesNotContain(vm.Messages, m => m.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -449,7 +449,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, message => message.Text == "Agent error: boom" && message.IsInfo);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQuery_SlashCommand_RunsThatCommand()
     {
         // The typed command must dispatch to its own handler (consistent with the palette shown).
@@ -466,7 +466,7 @@ public class AgentViewModelTests
         Assert.Equal(AgentIntent.FirewallCheck, agent.LastRunAuditIntent);
     }
 
-    [Theory]
+    [AvaloniaTheory]
     [InlineData("/ssh", AgentIntent.SshCheck)]
     [InlineData("/filesystem", AgentIntent.FilesystemAuditCheck)]
     [InlineData("/kernel", AgentIntent.KernelCheck)]
@@ -491,7 +491,7 @@ public class AgentViewModelTests
         Assert.Equal(expectedIntent, agent.LastRunAuditIntent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQuery_ClearSlashCommand_ClearsVisibleConversation()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -508,7 +508,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, m => m.Text.Contains("Ask me about your system security", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_HasOnlyWelcomeMessage_IsTrue()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -516,7 +516,7 @@ public class AgentViewModelTests
         Assert.True(vm.HasOnlyWelcomeMessage);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_InitializesAgentToolsPanelCollections()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -528,7 +528,7 @@ public class AgentViewModelTests
         Assert.NotEmpty(vm.ToolPanelExportActions);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ToggleAgentToolsPanelCommand_FlipsIsAgentToolsPanelOpen()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -544,7 +544,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsAgentToolsPanelOpen);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentToolsPanel_PreservesLegacyAutomationIds()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -564,7 +564,7 @@ public class AgentViewModelTests
         Assert.Contains("AgentExportSessionButton", panelIds);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SendQuery_MarksChatInteracted()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -579,7 +579,7 @@ public class AgentViewModelTests
         Assert.False(vm.HasOnlyWelcomeMessage);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ClearChat_RestoresWelcomeState()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -599,7 +599,7 @@ public class AgentViewModelTests
         Assert.True(vm.HasOnlyWelcomeMessage);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedChatSeverityFilter_NonDefault_CreatesActiveChip()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -610,7 +610,7 @@ public class AgentViewModelTests
         Assert.Contains("High", vm.ActiveChatFilterChips[0].Label, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedChatCategoryFilter_NonAll_CreatesActiveChip()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -623,7 +623,7 @@ public class AgentViewModelTests
         Assert.Contains("Firewall", vm.ActiveChatFilterChips[0].Label, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void HasNoVisibleMessages_TrueWhenFiltersHideAllMessages()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -639,7 +639,7 @@ public class AgentViewModelTests
         Assert.True(vm.HasNoVisibleMessages);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void HasNoVisibleMessages_UpdatesWhenMessageBecomesVisibleWithoutFilterChange()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -658,7 +658,7 @@ public class AgentViewModelTests
         Assert.False(vm.HasNoVisibleMessages);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void HasNoVisibleMessages_UpdatesWhenMessageRemoved()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -673,7 +673,7 @@ public class AgentViewModelTests
         Assert.False(vm.HasNoVisibleMessages);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentMessageViewModel_FormattedTimestamp_ReturnsShortTime()
     {
         var message = new AgentMessageViewModel
@@ -685,7 +685,7 @@ public class AgentViewModelTests
         Assert.True(message.ShowTimestamp);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AgentViewXaml_ExposesFeatureParityControls()
     {
         var xaml = ReadAgentViewXaml();
@@ -759,7 +759,7 @@ public class AgentViewModelTests
         }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task YaraCommand_RunsYaraAudit()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
@@ -775,7 +775,7 @@ public class AgentViewModelTests
         Assert.Equal(AgentIntent.YaraCheck, vm.History[0].Intent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task CheckDriftCommand_AfterShowBaseline_UsesLastAuditIntent()
     {
         var agent = new TrackingAgent(AgentIntent.SshCheck);
@@ -800,7 +800,7 @@ public class AgentViewModelTests
         Assert.Equal(AgentIntent.SshCheck, agent.LastDriftIntent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetBaselineCommand_IsDisabledBeforeAudit()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -808,7 +808,7 @@ public class AgentViewModelTests
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SetAgent_ClearsStaleAuditState()
     {
         var vm = new AgentViewModel(new TrackingAgent(AgentIntent.SshCheck), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -829,7 +829,7 @@ public class AgentViewModelTests
         Assert.False(vm.SetBaselineCommand.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task CancelQueryCommand_CancelsActiveOperationAndClearsBusyState()
     {
         var vm = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -849,7 +849,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, message => message.Text == "Query cancelled." && message.IsInfo);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SetBaselineCommand_AgentError_AddsErrorMessageAndClearsBusyState()
     {
         var vm = new AgentViewModel(new SetBaselineErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -868,7 +868,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, message => message.Text == "Agent error: baseline boom" && message.IsInfo);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task CancelQueryCommand_CancelsActiveDriftOperationAndClearsBusyState()
     {
         var vm = new AgentViewModel(new CancellableDriftAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -891,7 +891,7 @@ public class AgentViewModelTests
         Assert.Contains(vm.Messages, message => message.Text == "Query cancelled." && message.IsInfo);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ShowBaselineCommand_SuppressesCapabilityPassedAndWarningSections()
     {
         var vm = new AgentViewModel(new NoisyBaselineAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -913,7 +913,7 @@ public class AgentViewModelTests
         Assert.DoesNotContain(vm.Messages, message => message.Text.StartsWith("Warnings:"));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExplainSelectedCommand_ExplainsFindingAndAddsMessages()
     {
         var finding = CreateFinding();
@@ -935,7 +935,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsBusy);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExplainSelectedCommand_NoSelection_AddsGuidanceMessage()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -951,7 +951,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsBusy);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SetBaselineCommand_AfterAudit_DisplaysBaselineSummary()
     {
         var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -974,7 +974,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsBusy);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task CheckDriftCommand_AfterAudit_DisplaysDriftResult()
     {
         var agent = new DriftResultAgent();
@@ -997,7 +997,7 @@ public class AgentViewModelTests
         Assert.False(vm.IsBusy);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExportSessionCommand_WithSessionResult_InvokesExportCallbackAndRefreshesTimeline()
     {
         var agent = new SessionResultAgent();
@@ -1031,7 +1031,7 @@ public class AgentViewModelTests
             && m.SessionTimeline.Any(e => e.Type == RemediationSessionEventType.Exported));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ExportSessionCommand_WhenSaveIsCancelled_DoesNotMarkSessionExported()
     {
         var agent = new SessionResultAgent();
@@ -1053,7 +1053,7 @@ public class AgentViewModelTests
         Assert.DoesNotContain(vm.LastResult!.RemediationSession!.Timeline, e => e.Type == RemediationSessionEventType.Exported);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SuggestionCommand_AuditIntent_RoutesToRunAuditAsync()
     {
         var agent = new SuggestionRoutingAgent();
@@ -1077,7 +1077,7 @@ public class AgentViewModelTests
         Assert.Null(agent.LastAskQuery);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task SuggestionCommand_NonAuditIntent_RoutesToAskAsync()
     {
         var agent = new SuggestionRoutingAgent();
@@ -1104,7 +1104,7 @@ public class AgentViewModelTests
         Assert.Null(agent.LastRunAuditIntent);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_MemoryStoreWarning_AddsInfoMessage()
     {
         var memoryStore = new InMemoryAgentMemoryStore("Memory persistence is unavailable for testing.");
@@ -1545,7 +1545,7 @@ public class AgentViewModelTests
             });
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_WithSessionStore_PopulatesSessions()
     {
         var store = new InMemorySessionStore();
@@ -1565,7 +1565,7 @@ public class AgentViewModelTests
         Assert.Equal("abc12345", vm.Sessions[0].SessionId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SetAgent_WithSessionStore_ReplacesSessionBrowserStore()
     {
         var firstStore = new InMemorySessionStore();
@@ -1593,7 +1593,7 @@ public class AgentViewModelTests
         Assert.Null(vm.SelectedSession);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void SelectedSession_Set_RaisesCanExecuteChanged()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -1614,7 +1614,7 @@ public class AgentViewModelTests
         Assert.True(deleted);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddCountermeasureMessage_DuplicateSection_IsNotAddedTwice()
     {
         var section = new RemediationSection
@@ -1664,7 +1664,7 @@ public class AgentViewModelTests
             });
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DeployCountermeasuresCommand_DryRun_PostsSummaryMessage()
     {
         var section = new RemediationSection
@@ -1707,7 +1707,7 @@ public class AgentViewModelTests
         Assert.False(fakeRunner.WasCalled);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DeployCountermeasuresCommand_LiveRun_WithConfirmation_Executes()
     {
         var section = new RemediationSection

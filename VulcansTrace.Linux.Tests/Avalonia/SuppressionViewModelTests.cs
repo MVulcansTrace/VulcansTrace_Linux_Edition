@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class SuppressionViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void ReviewQueue_CategorizesCorrectly()
     {
         var now = DateTime.UtcNow;
@@ -68,7 +68,7 @@ public class SuppressionViewModelTests
         Assert.DoesNotContain(vm.ReviewQueueItems, i => i.Entry.RuleId == "FW-005");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ReviewFilter_ExpiringSoon_ReturnsOnlyExpiringSoon()
     {
         var now = DateTime.UtcNow;
@@ -85,7 +85,7 @@ public class SuppressionViewModelTests
         Assert.Equal("FW-001", vm.ReviewQueueItems[0].Entry.RuleId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ReviewFilter_ExpiredRecently_ReturnsOnlyExpiredRecently()
     {
         var now = DateTime.UtcNow;
@@ -102,7 +102,7 @@ public class SuppressionViewModelTests
         Assert.Equal("FW-002", vm.ReviewQueueItems[0].Entry.RuleId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ReviewFilter_ExpiredRecently_IncludesFullRetentionWindow()
     {
         var now = DateTime.UtcNow;
@@ -118,7 +118,7 @@ public class SuppressionViewModelTests
         Assert.Equal("FW-001", vm.ReviewQueueItems[0].Entry.RuleId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ReviewFilter_Permanent_ReturnsOnlyPermanent()
     {
         var now = DateTime.UtcNow;
@@ -135,7 +135,7 @@ public class SuppressionViewModelTests
         Assert.Equal("FW-002", vm.ReviewQueueItems[0].Entry.RuleId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ReviewFilter_StalePermanent_ReturnsOnlyStalePermanent()
     {
         var now = DateTime.UtcNow;
@@ -152,7 +152,7 @@ public class SuppressionViewModelTests
         Assert.Equal("FW-003", vm.ReviewQueueItems[0].Entry.RuleId);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RenewCommand_UpdatesExpiryAndReviewDate()
     {
         var now = DateTime.UtcNow;
@@ -186,7 +186,7 @@ public class SuppressionViewModelTests
         Assert.Equal("fp-renew", renewed.Fingerprint);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ConvertCommand_ChangesDuration()
     {
         var now = DateTime.UtcNow;
@@ -217,7 +217,7 @@ public class SuppressionViewModelTests
         Assert.Equal("fp-convert", converted.Fingerprint);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task EditReasonCommand_UpdatesReason()
     {
         var store = new InMemorySuppressionStore();
@@ -243,7 +243,7 @@ public class SuppressionViewModelTests
         Assert.Equal("Updated reason", store.GetAllRaw()[0].Reason);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void RemoveCommand_RemovesFromStoreAndQueue()
     {
         var store = new InMemorySuppressionStore();
@@ -260,7 +260,7 @@ public class SuppressionViewModelTests
         Assert.Empty(vm.ReviewQueueItems);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void RemoveCommand_HandlesSuppressionEntryParameter()
     {
         var store = new InMemorySuppressionStore();
@@ -276,7 +276,7 @@ public class SuppressionViewModelTests
         Assert.Empty(store.GetAllRaw());
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void AddSuppression_PreservesFingerprint()
     {
         var store = new InMemorySuppressionStore();

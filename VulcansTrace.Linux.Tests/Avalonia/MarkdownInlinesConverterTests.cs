@@ -14,7 +14,7 @@ public class MarkdownInlinesConverterTests
 {
     private readonly MarkdownInlinesConverter _converter = new();
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_PlainText_ReturnsSingleRun()
     {
         var inlines = Convert("Hello world");
@@ -23,7 +23,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("Hello world", run.Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BoldText_ReturnsBoldRun()
     {
         var inlines = Convert("**Hello**");
@@ -35,7 +35,7 @@ public class MarkdownInlinesConverterTests
 
 
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_MixedContent_ReturnsRunsAndBold()
     {
         var inlines = Convert("Hello **bold** world").ToList();
@@ -46,7 +46,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" world", Assert.IsType<Run>(inlines[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_ParagraphBreak_ReturnsTwoLineBreaks()
     {
         var inlines = Convert("Line one\n\nLine two").ToList();
@@ -55,7 +55,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(2, lineBreaks);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_EmptyString_ReturnsEmpty()
     {
         var inlines = Convert("");
@@ -63,7 +63,7 @@ public class MarkdownInlinesConverterTests
         Assert.Empty(inlines);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_Null_ReturnsEmpty()
     {
         var result = _converter.Convert(null, typeof(object), null, CultureInfo.InvariantCulture);
@@ -71,7 +71,7 @@ public class MarkdownInlinesConverterTests
         Assert.Empty((System.Collections.IEnumerable)result);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_ItalicText_ReturnsItalicRun()
     {
         var inlines = Convert("*Hello*");
@@ -81,7 +81,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("Hello", run.Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_SnakeCase_PreservedAsPlainText()
     {
         var inlines = Convert("file_name_here and /path/to_some/file").ToList();
@@ -91,7 +91,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("file_name_here and /path/to_some/file", text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_Underscore_NoLongerTreatedAsItalic()
     {
         var inlines = Convert("_Hello_").ToList();
@@ -100,7 +100,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("_Hello_", Assert.IsType<Run>(inlines[0]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_InlineCode_ReturnsInlineUIContainer()
     {
         var inlines = Convert("Use `sudo ufw status` to check.").ToList();
@@ -111,7 +111,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" to check.", Assert.IsType<Run>(inlines[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BareUrl_ReturnsSpanWithUnderline()
     {
         var inlines = Convert("See https://example.com for details.").ToList();
@@ -123,7 +123,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" for details.", Assert.IsType<Run>(inlines[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_MarkdownLink_ReturnsSpanWithText()
     {
         var inlines = Convert("[docs](https://example.com)").ToList();
@@ -133,7 +133,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("docs", run.Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_UrlWithAdjacentBold_AsterisksDoNotLeakIntoLink()
     {
         var inlines = Convert("See https://x.com**now** for details.").ToList();
@@ -147,7 +147,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" for details.", Assert.IsType<Run>(inlines[3]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BoldAndItalic_StillRendersViaPlaceholders()
     {
         var inlines = Convert("**bold** and *italic*").ToList();
@@ -158,7 +158,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("italic", Assert.IsType<Italic>(inlines[2]).Inlines.OfType<Run>().First().Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BareUrl_WithOpenUrlCommand_ReturnsClickableButton()
     {
         var command = new RelayCommand<string>(_ => { });
@@ -173,7 +173,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("https://example.com", Assert.IsType<TextBlock>(button.Content).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_MarkdownLink_WithOpenUrlCommand_ReturnsClickableButtonWithText()
     {
         var command = new RelayCommand<string>(_ => { });
@@ -186,7 +186,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("docs", Assert.IsType<TextBlock>(button.Content).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_Url_WithoutOpenUrlCommand_ReturnsNonClickableSpan()
     {
         var inlines = Convert("See https://example.com for details.").ToList();
@@ -195,7 +195,7 @@ public class MarkdownInlinesConverterTests
         Assert.IsType<Span>(inlines[1]);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BareUrl_WithQueryString_KeepsQueryString()
     {
         var inlines = Convert("See https://example.com/path?q=1&r=2 for details.").ToList();
@@ -204,7 +204,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("https://example.com/path?q=1&r=2", span.Inlines.OfType<Run>().First().Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BareUrl_WithPort_KeepsPort()
     {
         var inlines = Convert("See https://example.com:8443/x for details.").ToList();
@@ -213,7 +213,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("https://example.com:8443/x", span.Inlines.OfType<Run>().First().Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BareUrl_WithTrailingDot_StripsTrailingDot()
     {
         var inlines = Convert("See https://example.com.").ToList();
@@ -222,7 +222,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal("https://example.com", span.Inlines.OfType<Run>().First().Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BoldContainsUrl_RendersUrlInsideBold()
     {
         var inlines = Convert("**see https://example.com now**").ToList();
@@ -235,7 +235,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" now", Assert.IsType<Run>(children[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BoldContainsInlineCode_RendersCodeInsideBold()
     {
         var inlines = Convert("**run `sudo ufw` now**").ToList();
@@ -248,7 +248,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" now", Assert.IsType<Run>(children[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_BoldContainsItalic_RendersItalicInsideBold()
     {
         var inlines = Convert("**bold *italic* end**").ToList();
@@ -261,7 +261,7 @@ public class MarkdownInlinesConverterTests
         Assert.Equal(" end", Assert.IsType<Run>(children[2]).Text);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Convert_ItalicContainsBold_RendersBoldInsideItalic()
     {
         var inlines = Convert("*text **bold** more*").ToList();

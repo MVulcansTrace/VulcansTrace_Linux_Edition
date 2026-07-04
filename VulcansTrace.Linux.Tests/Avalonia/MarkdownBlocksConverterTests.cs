@@ -10,7 +10,7 @@ public class MarkdownBlocksConverterTests
 {
     private readonly MarkdownBlocksConverter _converter = new();
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_EmptyText_ReturnsEmptyBlocks()
     {
         var blocks = _converter.Parse("", _ => new RelayCommand(_ => { }));
@@ -18,7 +18,7 @@ public class MarkdownBlocksConverterTests
         Assert.Empty(blocks);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_FencedCodeBlock_ReturnsCodeBlock()
     {
         var blocks = _converter.Parse("```bash\nsudo ufw status\n```", _ => new RelayCommand(_ => { }));
@@ -31,7 +31,7 @@ public class MarkdownBlocksConverterTests
         Assert.NotNull(codeBlock.CopyCommand);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_CodeBlockWithoutLanguage_ReturnsCodeBlockWithEmptyLanguage()
     {
         var blocks = _converter.Parse("```\nsudo ufw status\n```", _ => new RelayCommand(_ => { }));
@@ -41,7 +41,7 @@ public class MarkdownBlocksConverterTests
         Assert.Equal("sudo ufw status", codeBlock.Code);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_ProseAndCode_ReturnsParagraphThenCode()
     {
         var text = "Run this command:\n\n```bash\nsudo ufw status\n```";
@@ -53,7 +53,7 @@ public class MarkdownBlocksConverterTests
         Assert.Equal("bash", codeBlock.Language);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_BulletList_RendersBulletPrefix()
     {
         var text = "First line\n\n- item one\n- item two";
@@ -66,7 +66,7 @@ public class MarkdownBlocksConverterTests
         Assert.Contains("• item two", textRuns);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_NumberedList_RendersNormalizedPrefix()
     {
         var text = "First line\n\n9. item one\n3. item two";
@@ -79,7 +79,7 @@ public class MarkdownBlocksConverterTests
         Assert.Contains("2.  item two", textRuns);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_MixedList_RendersBothPrefixes()
     {
         var text = "- bullet\n1. numbered";
@@ -92,7 +92,7 @@ public class MarkdownBlocksConverterTests
         Assert.Contains("1.  numbered", textRuns);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Parse_CodeBlock_ToggleCommandChangesIsExpanded()
     {
         var blocks = _converter.Parse("```bash\nsudo ufw status\n```", _ => new RelayCommand(_ => { }));

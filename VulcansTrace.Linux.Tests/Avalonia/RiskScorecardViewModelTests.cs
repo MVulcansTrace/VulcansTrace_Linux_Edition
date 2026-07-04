@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class RiskScorecardViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_Null_ClearsData()
     {
         var vm = new RiskScorecardViewModel();
@@ -22,7 +22,7 @@ public class RiskScorecardViewModelTests
         Assert.Empty(vm.ByCategory);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_WithData_PopulatesProperties()
     {
         var vm = new RiskScorecardViewModel();
@@ -49,7 +49,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("Firewall", vm.ByCategory[1].Category);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_GradeA_MapsGreenColors()
     {
         var vm = new RiskScorecardViewModel();
@@ -66,7 +66,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("#064e3b", vm.GradeBackground);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_GradeB_MapsBlueColors()
     {
         var vm = new RiskScorecardViewModel();
@@ -83,7 +83,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("#1e3a8a", vm.GradeBackground);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_GradeC_MapsYellowColors()
     {
         var vm = new RiskScorecardViewModel();
@@ -100,7 +100,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("#451a03", vm.GradeBackground);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_GradeD_MapsOrangeColors()
     {
         var vm = new RiskScorecardViewModel();
@@ -117,7 +117,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("#431407", vm.GradeBackground);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_GradeF_MapsRedColors()
     {
         var vm = new RiskScorecardViewModel();
@@ -134,7 +134,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("#450a0a", vm.GradeBackground);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_Overwrite_ClearsPreviousCategories()
     {
         var vm = new RiskScorecardViewModel();
@@ -166,7 +166,7 @@ public class RiskScorecardViewModelTests
         Assert.Equal("A", vm.LetterGrade);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_UnknownGrade_MapsRedColors()
     {
         var vm = new RiskScorecardViewModel();

@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 [Collection(AvaloniaUiTestCollection.Name)]
 public class AgentOperationRunnerTests
 {
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_SetsBusyTrueThenFalse()
     {
         var busyStates = new List<bool>();
@@ -19,7 +19,7 @@ public class AgentOperationRunnerTests
         Assert.Equal(new[] { true, false }, busyStates);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_ClearsPrivilegeWarningBeforeRunning()
     {
         var clearCount = 0;
@@ -31,7 +31,7 @@ public class AgentOperationRunnerTests
         Assert.Equal(1, clearCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_Success_CompletesAndCanCancelIsFalse()
     {
         var runner = CreateRunner();
@@ -42,7 +42,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.CanCancel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_OperationCanceledException_PostsCancelledMessage()
     {
         var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
@@ -54,7 +54,7 @@ public class AgentOperationRunnerTests
         Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo && !m.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_GenericException_PostsAgentErrorMessage()
     {
         var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
@@ -66,7 +66,7 @@ public class AgentOperationRunnerTests
         Assert.Contains(messages, m => m.Text == "Agent error: something broke" && m.IsInfo && m.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_ExceptionStillClearsBusy()
     {
         var busyStates = new List<bool>();
@@ -78,7 +78,7 @@ public class AgentOperationRunnerTests
         Assert.Equal(new[] { true, false }, busyStates);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task LastSucceeded_True_WhenOperationCompletes()
     {
         var runner = CreateRunner();
@@ -89,7 +89,7 @@ public class AgentOperationRunnerTests
         Assert.True(runner.LastSucceeded);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task LastSucceeded_False_WhenOperationThrows()
     {
         var runner = CreateRunner();
@@ -100,7 +100,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.LastSucceeded);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task LastSucceeded_False_WhenOperationCancelled()
     {
         var runner = CreateRunner();
@@ -120,7 +120,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.LastSucceeded);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void CanCancel_FalseWhenNoOperationRunning()
     {
         var runner = CreateRunner();
@@ -128,7 +128,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.CanCancel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Cancel_TriggersOperationCanceledException()
     {
         var messages = new ObservableCollection<(string Text, bool IsInfo, bool IsError)>();
@@ -158,7 +158,7 @@ public class AgentOperationRunnerTests
         Assert.Contains(messages, m => m.Text == "Query cancelled." && m.IsInfo && !m.IsError);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_SecondRunDisposesPreviousCancellationTokenSource()
     {
         var runner = CreateRunner();
@@ -181,7 +181,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.CanCancel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Dispose_CancelsActiveOperation()
     {
         var runner = CreateRunner();
@@ -197,7 +197,7 @@ public class AgentOperationRunnerTests
         Assert.False(runner.CanCancel);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Dispose_WhenNoOperationRunning_DoesNotThrow()
     {
         var runner = CreateRunner();
@@ -205,7 +205,7 @@ public class AgentOperationRunnerTests
         runner.Dispose();
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task RunAsync_NullOperation_ThrowsArgumentNullException()
     {
         var runner = CreateRunner();
@@ -213,21 +213,21 @@ public class AgentOperationRunnerTests
         await Assert.ThrowsAsync<ArgumentNullException>(() => runner.RunAsync(null!));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_NullSetBusy_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
             new AgentOperationRunner(null!, () => { }, (text, isInfo, isError) => { }));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_NullClearPrivilegeWarning_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
             new AgentOperationRunner(_ => { }, null!, (text, isInfo, isError) => { }));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Constructor_NullAddAgentMessage_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>

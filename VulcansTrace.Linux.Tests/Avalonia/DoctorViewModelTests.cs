@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class DoctorViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_ZeroCapabilities_SetsHasProbedAndSummary()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
@@ -27,7 +27,7 @@ public class DoctorViewModelTests
         Assert.Equal("No capabilities reported.", vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_WithCapabilities_SetsHasDataAndHasProbed()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
@@ -49,7 +49,7 @@ public class DoctorViewModelTests
         Assert.Equal("All 1 data sources are available.", vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_WithWarnings_PopulatesWarningsCollection()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
@@ -68,7 +68,7 @@ public class DoctorViewModelTests
         Assert.Contains("Scanner 'X' failed: boom", vm.Warnings);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_WithPermissionLimited_SetsCorrectSummary()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
@@ -89,7 +89,7 @@ public class DoctorViewModelTests
         Assert.Contains("1 permission-limited", vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_WithUnknown_SetsIncompleteVisibilitySummary()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
@@ -110,7 +110,7 @@ public class DoctorViewModelTests
         Assert.DoesNotContain("All", vm.SummaryText);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadResults_ClearsPreviousData()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));

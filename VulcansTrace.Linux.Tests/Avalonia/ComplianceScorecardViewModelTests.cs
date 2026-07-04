@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class ComplianceScorecardViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_Null_ClearsData()
     {
         var vm = new ComplianceScorecardViewModel();
@@ -19,7 +19,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal("—", vm.SummaryStatus);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_NoTrend_ShowsNoTrendData()
     {
         var vm = new ComplianceScorecardViewModel();
@@ -39,7 +39,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Empty(vm.TrendPoints);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_SingleTrend_ComparesCurrentAgainstPrior()
     {
         var vm = new ComplianceScorecardViewModel();
@@ -66,7 +66,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal(60.0, vm.TrendPoints[0].BarHeight); // single point = full height
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_MultipleTrend_ComparesCurrentAgainstMostRecentPrior()
     {
         // This is the key bug fix: trend contains [older, newer] previous audits.
@@ -104,7 +104,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal(60.0, vm.TrendPoints[1].BarHeight);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_DecliningTrend_ShowsDeclining()
     {
         var vm = new ComplianceScorecardViewModel();
@@ -127,7 +127,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal("↘", vm.TrendArrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_StableTrend_ShowsStable()
     {
         var vm = new ComplianceScorecardViewModel();
@@ -150,7 +150,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal("→", vm.TrendArrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_ExactlyHalfPercentImproving_ShowsStable()
     {
         // Boundary: delta = +0.5 is NOT "Improving", it's "Stable"
@@ -174,7 +174,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal("→", vm.TrendArrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_ExactlyHalfPercentDeclining_ShowsStable()
     {
         // Boundary: delta = -0.5 is NOT "Declining", it's "Stable"
@@ -198,7 +198,7 @@ public class ComplianceScorecardViewModelTests
         Assert.Equal("→", vm.TrendArrow);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadScorecard_FamilyScores_Populated()
     {
         var vm = new ComplianceScorecardViewModel();

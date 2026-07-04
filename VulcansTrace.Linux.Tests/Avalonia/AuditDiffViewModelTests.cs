@@ -6,7 +6,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AuditDiffViewModelTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void LoadDiff_CopiesNarrativeIntoViewModel()
     {
         var diff = new AuditDiff

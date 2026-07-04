@@ -1106,7 +1106,7 @@
           <TextBox Grid.Column="0"
                    Theme="{StaticResource VtInput}"
                    Text="{Binding UserQuery, UpdateSourceTrigger=PropertyChanged}"
-                   Watermark="Ask the agent or type / for commands..."
+                   PlaceholderText="Ask the agent or type / for commands..."
                    KeyDown="OnQueryKeyDown"
                    LostFocus="OnQueryLostFocus"
                    VerticalAlignment="Center"

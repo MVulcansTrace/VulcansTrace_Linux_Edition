@@ -7,7 +7,7 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 
 public class AsyncRelayCommandTests
 {
-    [Fact]
+    [AvaloniaFact]
     public void Execute_SynchronousThrow_CallsExceptionHandlerAndResetsExecuting()
     {
         Exception? captured = null;
@@ -26,7 +26,7 @@ public class AsyncRelayCommandTests
         Assert.True(cmd.CanExecute(null)); // _isExecuting was reset
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Execute_AsyncThrow_CallsExceptionHandlerAndResetsExecuting()
     {
         Exception? captured = null;
@@ -48,7 +48,7 @@ public class AsyncRelayCommandTests
         Assert.True(cmd.CanExecute(null));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Execute_WhileExecuting_SecondCallIgnored()
     {
         var tcs = new TaskCompletionSource();
