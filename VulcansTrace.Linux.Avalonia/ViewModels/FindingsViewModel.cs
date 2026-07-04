@@ -191,8 +191,23 @@ public sealed class FindingsViewModel : ViewModelBase
     public FindingItemViewModel? SelectedItem
     {
         get => _selectedItem;
-        set => SetField(ref _selectedItem, value);
+        set
+        {
+            if (SetField(ref _selectedItem, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedItem));
+                OnPropertyChanged(nameof(SelectedFindingActionContext));
+            }
+        }
     }
+
+    /// <summary>Gets whether a finding is selected for toolbar actions.</summary>
+    public bool HasSelectedItem => SelectedItem != null;
+
+    /// <summary>Gets the toolbar text that explains which finding actions apply to.</summary>
+    public string SelectedFindingActionContext => SelectedItem == null
+        ? "Select a finding to investigate, suppress, or resolve"
+        : $"Selected: {FormatSelectedFinding(SelectedItem)}";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FindingsViewModel"/> class.
@@ -307,6 +322,19 @@ public sealed class FindingsViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(EmptyStateHeadline));
         OnPropertyChanged(nameof(EmptyStateDescription));
+    }
+
+    private static string FormatSelectedFinding(FindingItemViewModel item)
+    {
+        var label = string.IsNullOrWhiteSpace(item.Finding.RuleId)
+            ? item.Category
+            : item.Finding.RuleId;
+
+        var route = string.IsNullOrWhiteSpace(item.SourceHost)
+            ? item.Target
+            : $"{item.SourceHost} -> {item.Target}";
+
+        return $"{label} - {item.Severity} - {route}";
     }
 
     private void ApplyFilters()

@@ -228,7 +228,7 @@ Last updated: 2026-06-25
 
 ### Dependencies
 - Removed FluentAvalonia UI dependency.
-- Added `Avalonia.Controls.DataGrid` (11.3.11) for the grid view.
+- Added `Avalonia.Controls.DataGrid` (11.3.13) for the grid view.
   - Code: `VulcansTrace.Linux.Avalonia/VulcansTrace.Linux.Avalonia.csproj`
 
 ### Tests and fixtures

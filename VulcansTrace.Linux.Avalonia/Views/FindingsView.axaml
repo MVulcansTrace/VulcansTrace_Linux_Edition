@@ -16,22 +16,77 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
-            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-            <TextBox Text="{Binding SearchText}"
-                     Width="220"
-                     VerticalAlignment="Center"
-                     Theme="{StaticResource VtInput}"
-                     Watermark="Search findings..."
-                     AutomationProperties.AutomationId="SearchTextBox"/>
-            <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-            <ComboBox ItemsSource="{Binding SeverityFilters}"
-                      SelectedItem="{Binding SelectedSeverityFilter}"
-                      Width="180"
-                      VerticalAlignment="Center"
-                      Theme="{StaticResource VtComboBox}"
-                      AutomationProperties.AutomationId="SeverityFilterComboBox"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <TextBox Text="{Binding SearchText}"
+                         Width="220"
+                         VerticalAlignment="Center"
+                         Theme="{StaticResource VtInput}"
+                         Watermark="Search findings..."
+                         AutomationProperties.AutomationId="SearchTextBox"/>
+                <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <ComboBox ItemsSource="{Binding SeverityFilters}"
+                          SelectedItem="{Binding SelectedSeverityFilter}"
+                          Width="180"
+                          VerticalAlignment="Center"
+                          Theme="{StaticResource VtComboBox}"
+                          AutomationProperties.AutomationId="SeverityFilterComboBox"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedFindingActionContext}"
+                           Width="280"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding SelectedFindingActionContext}"
+                           Foreground="{StaticResource VtTextMutedBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,4,0"
+                           AutomationProperties.AutomationId="FindingsSelectedActionContext"/>
+                <Button Theme="{StaticResource VtGhostButton}"
+                        Padding="8,4"
+                        FontSize="{StaticResource VtFontSizeSm}"
+                        ToolTip.Tip="Investigate with Security Agent"
+                        Command="{Binding InvestigateCommand}"
+                        CommandParameter="{Binding SelectedItem}"
+                        AutomationProperties.AutomationId="FindingsInvestigateButton">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <i:Icon Value="mdi-magnify" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Investigate" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Theme="{StaticResource VtGhostButton}"
+                        Padding="8,4"
+                        FontSize="{StaticResource VtFontSizeSm}"
+                        ToolTip.Tip="Suppress (accept risk)"
+                        Command="{Binding SuppressCommand}"
+                        CommandParameter="{Binding SelectedItem}"
+                        AutomationProperties.AutomationId="FindingsSuppressButton">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <i:Icon Value="mdi-volume-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Suppress" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Theme="{StaticResource VtGhostButton}"
+                        Padding="8,4"
+                        FontSize="{StaticResource VtFontSizeSm}"
+                        ToolTip.Tip="Generate remediation plan"
+                        Command="{Binding ResolveCommand}"
+                        CommandParameter="{Binding SelectedItem}"
+                        AutomationProperties.AutomationId="FindingsResolveButton">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Resolve" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
 
         <DataGrid Grid.Row="1"
                   ItemsSource="{Binding FilteredItems}"
@@ -45,143 +100,37 @@
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
             <DataGrid.Styles>
-                <Style Selector="DataGridRow StackPanel.actionsPanel">
-                    <Setter Property="IsVisible" Value="False"/>
-                </Style>
-                <Style Selector="DataGridRow:pointerover StackPanel.actionsPanel">
-                    <Setter Property="IsVisible" Value="True"/>
-                </Style>
-                <Style Selector="DataGridRow:selected StackPanel.actionsPanel">
-                    <Setter Property="IsVisible" Value="True"/>
+                <Style Selector="DataGridCell TextBlock">
+                    <Setter Property="ToolTip.Tip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="Severity" Width="90" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                <Ellipse Width="8" Height="8"
-                                         Fill="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"/>
+                        <DataTemplate>
+                            <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="2">
                                 <TextBlock Text="{Binding Severity}"
-                                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                                           Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}"
+                                           FontWeight="SemiBold"
                                            FontSize="{StaticResource VtFontSizeSm}"/>
-                            </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Count" Width="Auto" MinWidth="70" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding GroupedCount}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{StaticResource VtTextPrimaryBrush}"
-                                       FontWeight="SemiBold"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Confidence" Width="Auto" MinWidth="80" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding Confidence}" VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Evidence Signals" Width="*" MinWidth="120" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding EvidenceSignalsDisplay}"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding EvidenceSignalsDisplay}"
-                                       VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Category" Width="Auto" MinWidth="90" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding Category}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Category}" VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Source" Width="Auto" MinWidth="90" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding SourceHost}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SourceHost}" VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Target" Width="Auto" MinWidth="90" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding Target}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Target}" VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Time" Width="Auto" MinWidth="110" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding TimeRangeDisplay}"
-                                       ToolTip.Tip="{Binding TimeRangeDisplay}"
-                                       VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="MITRE ATT&amp;CK" Width="Auto" MinWidth="120" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding MitreTechniquesDisplay}"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding MitreTechniquesDisplay}"
-                                       VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Description" Width="*" MinWidth="140" CanUserResize="True">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <TextBlock Text="{Binding ShortDescription}"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding ShortDescription}"
-                                       VerticalAlignment="Center"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Actions" Width="Auto" CanUserResize="False">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate DataType="vm:FindingItemViewModel">
-                            <StackPanel Classes="actionsPanel" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                                <Button Theme="{StaticResource VtGhostButton}"
-                                        Padding="6,2"
-                                        FontSize="{StaticResource VtFontSizeSm}"
-                                        ToolTip.Tip="Investigate"
-                                        Command="{Binding DataContext.InvestigateCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
-                                        CommandParameter="{Binding}"
-                                        AutomationProperties.AutomationId="FindingsInvestigateButton">
-                                    <i:Icon Value="mdi-magnify" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
-                                </Button>
-                                <Button Theme="{StaticResource VtGhostButton}"
-                                        Padding="6,2"
-                                        FontSize="{StaticResource VtFontSizeSm}"
-                                        ToolTip.Tip="Suppress"
-                                        Command="{Binding DataContext.SuppressCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
-                                        CommandParameter="{Binding}"
-                                        AutomationProperties.AutomationId="FindingsSuppressButton">
-                                    <i:Icon Value="mdi-volume-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
-                                </Button>
-                                <Button Theme="{StaticResource VtGhostButton}"
-                                        Padding="6,2"
-                                        FontSize="{StaticResource VtFontSizeSm}"
-                                        ToolTip.Tip="Resolve"
-                                        Command="{Binding DataContext.ResolveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}, x:CompileBindings=False}"
-                                        CommandParameter="{Binding}"
-                                        AutomationProperties.AutomationId="FindingsResolveButton">
-                                    <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
-                                </Button>
-                            </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupedCount}" Width="Auto" MinWidth="70" CanUserResize="True"/>
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="Auto" MinWidth="80" CanUserResize="True"/>
+                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="*" MinWidth="120" CanUserResize="True"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" MinWidth="90" CanUserResize="True"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="Auto" MinWidth="90" CanUserResize="True"/>
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="Auto" MinWidth="90" CanUserResize="True"/>
+                <DataGridTextColumn Header="Time" Binding="{Binding TimeRangeDisplay}" Width="Auto" MinWidth="110" CanUserResize="True"/>
+                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="120" CanUserResize="True"/>
+                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" MinWidth="140" CanUserResize="True"/>
             </DataGrid.Columns>
         </DataGrid>
 

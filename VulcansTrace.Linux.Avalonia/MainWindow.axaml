@@ -349,9 +349,15 @@
                     </Expander>
 
                     <!-- Active Suppressions -->
-                    <Expander Header="Active Suppressions" IsExpanded="False" Theme="{StaticResource VtExpander}">
+                    <Expander Header="Active Suppressions" IsExpanded="True" Theme="{StaticResource VtExpander}">
                         <StackPanel Orientation="Vertical">
-                            <ItemsControl ItemsSource="{Binding Suppressions.Entries}" MaxHeight="120">
+                            <TextBlock Text="No active suppressions."
+                                       IsVisible="{Binding Suppressions.IsEmpty}"
+                                       Foreground="{StaticResource VtTextMutedBrush}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
+                                       Margin="0,4,0,4"/>
+                            <ItemsControl ItemsSource="{Binding Suppressions.Entries}" MaxHeight="120"
+                                          IsVisible="{Binding !Suppressions.IsEmpty}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Spacing="4"/>

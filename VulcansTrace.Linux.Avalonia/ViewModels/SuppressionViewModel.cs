@@ -69,6 +69,9 @@ public sealed class SuppressionViewModel : ViewModelBase
     /// <summary>Gets the collection of active suppression entries.</summary>
     public ObservableCollection<SuppressionEntry> Entries { get; } = new();
 
+    /// <summary>Gets a value indicating whether there are no active suppression entries.</summary>
+    public bool IsEmpty => Entries.Count == 0;
+
     /// <summary>Gets the collection of review queue items.</summary>
     public ObservableCollection<ReviewItem> ReviewQueueItems { get; } = new();
 
@@ -181,6 +184,8 @@ public sealed class SuppressionViewModel : ViewModelBase
         {
             ReviewFilters.Add(filter);
         }
+
+        Entries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
     }
 
     /// <summary>

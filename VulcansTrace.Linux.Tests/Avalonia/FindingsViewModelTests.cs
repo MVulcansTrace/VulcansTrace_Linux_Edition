@@ -371,6 +371,44 @@ public class FindingsViewModelTests
         Assert.Same(cmd, vm.ResolveCommand);
     }
 
+    [Fact]
+    public void SelectedFindingActionContext_DescribesToolbarTarget()
+    {
+        var vm = new FindingsViewModel();
+        var result = new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    RuleId = "FW-001",
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.High,
+                    SourceHost = "192.168.1.10",
+                    Target = "10.0.0.5",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan",
+                    Details = "detail"
+                }
+            ]
+        };
+
+        Assert.False(vm.HasSelectedItem);
+        Assert.Equal("Select a finding to investigate, suppress, or resolve", vm.SelectedFindingActionContext);
+
+        vm.LoadResults(result);
+        vm.SelectedItem = vm.Items.Single();
+
+        Assert.True(vm.HasSelectedItem);
+        Assert.Equal("Selected: FW-001 - High - 192.168.1.10 -> 10.0.0.5", vm.SelectedFindingActionContext);
+
+        vm.Clear();
+
+        Assert.False(vm.HasSelectedItem);
+        Assert.Equal("Select a finding to investigate, suppress, or resolve", vm.SelectedFindingActionContext);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
