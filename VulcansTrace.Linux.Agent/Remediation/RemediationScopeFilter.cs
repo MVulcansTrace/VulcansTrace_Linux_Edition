@@ -62,8 +62,10 @@ public static class RemediationScopeFilter
 
     private static string GetRuleToken(string ruleId)
     {
-        var separatorIndex = ruleId.AsSpan().IndexOfAny('-', '_', '.');
-        var token = separatorIndex < 0 ? ruleId : ruleId[..separatorIndex];
-        return token.ToUpperInvariant();
+        var span = ruleId.AsSpan();
+        var separatorIndex = span.IndexOfAny('-', '_', '.');
+        return separatorIndex < 0
+            ? ruleId.ToUpperInvariant()
+            : span[..separatorIndex].ToString().ToUpperInvariant();
     }
 }

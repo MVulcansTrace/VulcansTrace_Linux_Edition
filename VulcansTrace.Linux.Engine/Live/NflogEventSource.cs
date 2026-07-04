@@ -118,7 +118,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                     if (received < 16)
                         continue;
 
-                    var packet = new ReadOnlySpan<byte>(buffer, 0, received);
+                    ReadOnlySpan<byte> packet = buffer.AsSpan(0, received);
                     if (TryParseNflogMessage(packet, out var evt) && evt != null)
                     {
                         yield return evt;

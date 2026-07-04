@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-![.NET 9.0](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
+![.NET 10.0](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
 ![Tests: 3247 passing](https://img.shields.io/badge/Tests-3247%20passing-2E7D32)
@@ -89,7 +89,7 @@ VulcansTrace is built for local investigation of Linux firewall telemetry:
 - **Targeted Audit Scanner Selection** — agent audits derive the required scanner set from each rule's actual data dependencies (`IRule.RequiredDataFields`), so targeted checks like `/threatintel` or `/network` cannot be silently data-starved. Full audits still run every scanner.
 - **Redesigned Agent UI** — the Security Agent is now a first-class Avalonia view with a `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows, and a centralized `VtDesignTokens.axaml` design system.
 
-The desktop app is implemented with Avalonia and targets .NET 9.0.
+The desktop app is implemented with Avalonia and targets .NET 10.0.
 
 ## Detection Coverage
 
@@ -121,7 +121,7 @@ Advanced detectors and correlation:
 
 Prerequisites:
 
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - Linux desktop environment for running the Avalonia UI
 
 Build the solution:

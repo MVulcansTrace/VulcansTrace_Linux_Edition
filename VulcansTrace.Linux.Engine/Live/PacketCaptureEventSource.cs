@@ -119,7 +119,7 @@ public sealed class PacketCaptureEventSource : IEventSource, IDisposable
                     if (received < 20)
                         continue; // Too small for IPv4 header
 
-                    var packet = new ReadOnlySpan<byte>(buffer, 0, received);
+                    ReadOnlySpan<byte> packet = buffer.AsSpan(0, received);
 
                     if (!IpHeaderParser.TryParseIpv4(packet, out var srcIp, out var dstIp, out var protocol, out var ttl, out var ipTotalLength, out var payloadOffset))
                         continue;

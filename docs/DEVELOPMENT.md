@@ -3,7 +3,7 @@
 ## Build
 
 Prerequisites:
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - Standard NuGet restore from the public nuget.org feed
 
 Build the solution:
