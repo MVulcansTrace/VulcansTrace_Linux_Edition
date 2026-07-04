@@ -39,12 +39,12 @@ internal static class IpHeaderParser
         if (ihl < 20 || packet.Length < ihl)
             return false;
 
-        ipTotalLength = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(2, 2));
+        ipTotalLength = BinaryPrimitives.ReadUInt16BigEndian(packet[2..4]);
         ttl = packet[8];
         protocol = packet[9];
 
-        sourceIp = FormatIpAddress(packet.Slice(12, 4));
-        destinationIp = FormatIpAddress(packet.Slice(16, 4));
+        sourceIp = FormatIpAddress(packet[12..16]);
+        destinationIp = FormatIpAddress(packet[16..20]);
 
         payloadOffset = ihl;
         return true;
@@ -62,8 +62,8 @@ internal static class IpHeaderParser
         if (payload.Length < 20)
             return false;
 
-        sourcePort = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(0, 2));
-        destinationPort = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(2, 2));
+        sourcePort = BinaryPrimitives.ReadUInt16BigEndian(payload[0..2]);
+        destinationPort = BinaryPrimitives.ReadUInt16BigEndian(payload[2..4]);
         int dataOffset = (payload[12] >> 4) * 4;
         if (dataOffset < 20 || payload.Length < dataOffset)
             return false;
@@ -84,9 +84,9 @@ internal static class IpHeaderParser
         if (payload.Length < 8)
             return false;
 
-        sourcePort = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(0, 2));
-        destinationPort = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(2, 2));
-        length = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(4, 2));
+        sourcePort = BinaryPrimitives.ReadUInt16BigEndian(payload[0..2]);
+        destinationPort = BinaryPrimitives.ReadUInt16BigEndian(payload[2..4]);
+        length = BinaryPrimitives.ReadUInt16BigEndian(payload[4..6]);
         return true;
     }
 

@@ -279,11 +279,10 @@ public sealed class NflogEventSource : IEventSource, IDisposable
         int attrLen = 4 + data.Length;
         int paddedLen = (attrLen + 3) & ~3;
 
-        BinaryPrimitives.WriteUInt16LittleEndian(msg.AsSpan(offset, 2), (ushort)attrLen);
-        offset += 2;
-        BinaryPrimitives.WriteUInt16LittleEndian(msg.AsSpan(offset, 2), type);
-        offset += 2;
-        data.CopyTo(msg.AsSpan(offset, data.Length));
+        var attrSpan = msg.AsSpan(offset, paddedLen);
+        BinaryPrimitives.WriteUInt16LittleEndian(attrSpan[..2], (ushort)attrLen);
+        BinaryPrimitives.WriteUInt16LittleEndian(attrSpan[2..4], type);
+        data.CopyTo(attrSpan[4..]);
         offset = attrStart + paddedLen;
     }
 
@@ -305,7 +304,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
         if (data.Length < 16)
             return false;
 
-        int nlmsgLen = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(0, 4));
+        int nlmsgLen = (int)BinaryPrimitives.ReadUInt32LittleEndian(data[0..4]);
         if (nlmsgLen > data.Length)
             return false;
 
@@ -351,7 +350,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                 case 2: // NFULA_MARK
                     if (attrDataLen >= 4)
                     {
-                        uint mark = BinaryPrimitives.ReadUInt32BigEndian(attrData);
+                        uint mark = BinaryPrimitives.ReadUInt32BigEndian(attrData[0..4]);
                         linuxSpecific["MARK"] = mark.ToString();
                     }
                     break;
@@ -359,8 +358,8 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                 case 3: // NFULA_TIMESTAMP
                     if (attrDataLen >= 16)
                     {
-                        ulong sec = BinaryPrimitives.ReadUInt64BigEndian(attrData.Slice(0, 8));
-                        ulong usec = BinaryPrimitives.ReadUInt64BigEndian(attrData.Slice(8, 8));
+                        ulong sec = BinaryPrimitives.ReadUInt64BigEndian(attrData[0..8]);
+                        ulong usec = BinaryPrimitives.ReadUInt64BigEndian(attrData[8..16]);
                         kernelTimestamp = DateTime.UnixEpoch
                             + TimeSpan.FromSeconds(sec)
                             + TimeSpan.FromMicroseconds(usec);
@@ -370,7 +369,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                 case 4: // NFULA_IFINDEX_INDEV
                     if (attrDataLen >= 4)
                     {
-                        uint ifindex = BinaryPrimitives.ReadUInt32BigEndian(attrData);
+                        uint ifindex = BinaryPrimitives.ReadUInt32BigEndian(attrData[0..4]);
                         linuxSpecific["IN"] = $"ifindex{ifindex}";
                     }
                     break;
@@ -378,7 +377,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                 case 5: // NFULA_IFINDEX_OUTDEV
                     if (attrDataLen >= 4)
                     {
-                        uint ifindex = BinaryPrimitives.ReadUInt32BigEndian(attrData);
+                        uint ifindex = BinaryPrimitives.ReadUInt32BigEndian(attrData[0..4]);
                         linuxSpecific["OUT"] = $"ifindex{ifindex}";
                     }
                     break;
@@ -386,7 +385,7 @@ public sealed class NflogEventSource : IEventSource, IDisposable
                 case NfulaHwAddr:
                     if (attrDataLen >= 8)
                     {
-                        var macBytes = attrData.Slice(2, 6);
+                        var macBytes = attrData[2..8];
                         linuxSpecific["MAC"] = BitConverter.ToString(macBytes.ToArray()).Replace("-", ":");
                     }
                     break;
