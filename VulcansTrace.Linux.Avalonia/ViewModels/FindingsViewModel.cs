@@ -501,10 +501,6 @@ public sealed class FindingsViewModel : ViewModelBase
         {
             ApplyFilters();
         }
-        else
-        {
-            RaiseDataState();
-        }
     }
 
     private void UnpinItem(FindingItemViewModel? item)
@@ -521,15 +517,15 @@ public sealed class FindingsViewModel : ViewModelBase
         {
             ApplyFilters();
         }
-        else
-        {
-            RaiseDataState();
-        }
     }
 
     private void RefreshPinnedCount()
     {
-        PinnedCount = _pinnedFindingStore.GetAll().Count;
+        // Count pinned findings that are actually present in the current view.
+        // The store may contain pins from prior sessions whose fingerprints do
+        // not appear in the current scan; showing that total on the badge would
+        // over-promise how many rows "Pinned only" will display.
+        PinnedCount = Items.Count(i => i.IsPinned);
         TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
     }
 

@@ -22,6 +22,7 @@ public partial class FindingsView : UserControl
         _root = TopLevel.GetTopLevel(this);
         if (_root is not null)
         {
+            _root.KeyDown -= OnRootKeyDown;
             _root.KeyDown += OnRootKeyDown;
         }
     }
@@ -42,8 +43,8 @@ public partial class FindingsView : UserControl
         if (DataContext is not FindingsViewModel vm)
             return;
 
-        // Ctrl+P toggles pin/unpin on the currently selected finding.
-        if (e.Key == Key.P && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        // Ctrl+P (exactly) toggles pin/unpin on the currently selected finding.
+        if (e.Key == Key.P && e.KeyModifiers == KeyModifiers.Control)
         {
             vm.TogglePinSelectedCommand.Execute(null);
             e.Handled = true;
