@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Agent.Findings;
 using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
@@ -431,5 +432,324 @@ public class FindingsViewModelTests
         var item = new FindingItemViewModel(finding);
 
         Assert.Equal(groupedCount, item.GroupedCount);
+    }
+
+    [AvaloniaFact]
+    public void LoadResults_MarksPinnedItemsFromStore()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        store.Pin(new PinnedFinding
+        {
+            Fingerprint = finding.Fingerprint,
+            Category = finding.Category,
+            Severity = finding.Severity.ToString(),
+            SourceHost = finding.SourceHost,
+            Target = finding.Target,
+            ShortDescription = finding.ShortDescription
+        });
+
+        var vm = new FindingsViewModel(store);
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+
+        Assert.True(vm.Items.Single().IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        Assert.True(vm.HasPinnedFindings);
+    }
+
+    [AvaloniaFact]
+    public void PinCommand_PinsFindingAndUpdatesCount()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+
+        Assert.False(item.IsPinned);
+        Assert.True(vm.PinCommand.CanExecute(item));
+        Assert.False(vm.UnpinCommand.CanExecute(item));
+
+        vm.PinCommand.Execute(item);
+
+        Assert.True(item.IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        Assert.True(store.IsPinned(finding.Fingerprint));
+    }
+
+    [AvaloniaFact]
+    public void UnpinCommand_RemovesPinAndUpdatesCount()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+        vm.PinCommand.Execute(item);
+
+        vm.UnpinCommand.Execute(item);
+
+        Assert.False(item.IsPinned);
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.False(store.IsPinned(finding.Fingerprint));
+    }
+
+    [AvaloniaFact]
+    public void ShowPinnedOnly_FiltersToPinned()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var pinned = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Pinned port scan",
+            Details = "detail"
+        };
+        var unpinned = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.11",
+            Target = "10.0.0.2",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Beaconing",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [pinned, unpinned] });
+        vm.PinCommand.Execute(vm.Items[0]);
+
+        vm.ShowPinnedOnly = true;
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("PortScan", vm.FilteredItems[0].Category);
+    }
+
+    [AvaloniaFact]
+    public void ShowPinnedOnly_StillAppliesSearchText()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var pinnedA = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Pinned port scan",
+            Details = "detail"
+        };
+        var pinnedB = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.11",
+            Target = "10.0.0.2",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Pinned beaconing",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [pinnedA, pinnedB] });
+        vm.PinCommand.Execute(vm.Items[0]);
+        vm.PinCommand.Execute(vm.Items[1]);
+
+        vm.ShowPinnedOnly = true;
+        vm.SearchText = "beacon";
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
+    }
+
+    [AvaloniaFact]
+    public void Clear_DoesNotRemovePersistedPins()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        vm.PinCommand.Execute(vm.Items.Single());
+
+        vm.Clear();
+
+        Assert.True(store.IsPinned(finding.Fingerprint));
+        Assert.Equal(1, vm.PinnedCount);
+    }
+
+    [AvaloniaFact]
+    public void TogglePinSelectedCommand_PinsAndUnpinsSelectedFinding()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+
+        Assert.False(vm.TogglePinSelectedCommand.CanExecute(null));
+
+        vm.SelectedItem = item;
+
+        Assert.True(vm.TogglePinSelectedCommand.CanExecute(null));
+
+        vm.TogglePinSelectedCommand.Execute(null);
+
+        Assert.True(item.IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        Assert.True(store.IsPinned(finding.Fingerprint));
+
+        vm.TogglePinSelectedCommand.Execute(null);
+
+        Assert.False(item.IsPinned);
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.False(store.IsPinned(finding.Fingerprint));
+    }
+
+    [AvaloniaFact]
+    public void TogglePinSelectedCommand_DoesNothingWhenNothingSelected()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+
+        vm.TogglePinSelectedCommand.Execute(null);
+
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.False(vm.Items.Single().IsPinned);
+    }
+
+    [AvaloniaFact]
+    public void TogglePinSelectedCommand_TogglesThroughShowPinnedOnly()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var pinned = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        var unpinned = new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Medium,
+            SourceHost = "192.168.1.11",
+            Target = "10.0.0.2",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Beaconing",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [pinned, unpinned] });
+        vm.SelectedItem = vm.Items[1];
+        vm.ShowPinnedOnly = true;
+
+        // Pin the currently selected (second) item while pinned-only filter is active.
+        vm.TogglePinSelectedCommand.Execute(null);
+
+        Assert.True(vm.Items[1].IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        // Once pinned, the newly pinned item qualifies for the pinned-only filter.
+        Assert.Single(vm.FilteredItems);
+        Assert.Same(vm.Items[1], vm.FilteredItems[0]);
+    }
+
+    [AvaloniaFact]
+    public void UnpinLastFinding_WhilePinnedOnly_LeavesButtonEnabledSoUserCanExit()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+        vm.PinCommand.Execute(item);
+        vm.ShowPinnedOnly = true;
+
+        vm.UnpinCommand.Execute(item);
+
+        Assert.Empty(vm.FilteredItems);
+        Assert.True(vm.TogglePinnedOnlyCommand.CanExecute(null));
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using VulcansTrace.Linux.Agent.Findings;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -13,6 +14,7 @@ public sealed class FindingsViewModel : ViewModelBase
 {
     private const int MaxParseErrorsToDisplay = 200;
 
+    private readonly IPinnedFindingStore _pinnedFindingStore;
     private string _searchText = "";
     private SeverityFilterOption? _selectedSeverityFilter;
     private int _findingsCount;
@@ -20,6 +22,8 @@ public sealed class FindingsViewModel : ViewModelBase
     private int _warningCount;
     private int _parseErrorCount;
     private int _skippedLineCount;
+    private int _pinnedCount;
+    private bool _showPinnedOnly;
     private bool _hasWarnings;
     private bool _hasParseErrors;
     private bool _hasLoadedResults;
@@ -63,6 +67,53 @@ public sealed class FindingsViewModel : ViewModelBase
         get => _resolveCommand;
         set => SetField(ref _resolveCommand, value);
     }
+
+    /// <summary>Gets the command used to pin a finding.</summary>
+    public RelayCommand PinCommand { get; }
+
+    /// <summary>Gets the command used to unpin a finding.</summary>
+    public RelayCommand UnpinCommand { get; }
+
+    /// <summary>Gets the command used to toggle the pinned-only filter.</summary>
+    public RelayCommand TogglePinnedOnlyCommand { get; }
+
+    /// <summary>Gets the command used to toggle pin/unpin on the selected finding.</summary>
+    public RelayCommand TogglePinSelectedCommand { get; }
+
+    /// <summary>Gets or sets whether only pinned findings are shown.</summary>
+    public bool ShowPinnedOnly
+    {
+        get => _showPinnedOnly;
+        set
+        {
+            if (SetField(ref _showPinnedOnly, value))
+            {
+                ApplyFilters();
+                TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Gets the number of pinned findings currently in the store.</summary>
+    public int PinnedCount
+    {
+        get => _pinnedCount;
+        private set
+        {
+            if (SetField(ref _pinnedCount, value))
+            {
+                OnPropertyChanged(nameof(HasPinnedFindings));
+                OnPropertyChanged(nameof(PinnedCountLabel));
+                TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Gets whether there are any pinned findings.</summary>
+    public bool HasPinnedFindings => PinnedCount > 0;
+
+    /// <summary>Gets the formatted pinned count label for the toolbar button.</summary>
+    public string PinnedCountLabel => PinnedCount > 0 ? $"({PinnedCount})" : string.Empty;
 
     /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
     public ICommand? EmptyStateActionCommand { get; set; }
@@ -197,6 +248,7 @@ public sealed class FindingsViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(HasSelectedItem));
                 OnPropertyChanged(nameof(SelectedFindingActionContext));
+                TogglePinSelectedCommand?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -211,14 +263,63 @@ public sealed class FindingsViewModel : ViewModelBase
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FindingsViewModel"/> class.
+    /// Uses an in-memory store for design-time and fallback scenarios.
     /// </summary>
     public FindingsViewModel()
+        : this(new InMemoryPinnedFindingStore())
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FindingsViewModel"/> class.
+    /// </summary>
+    /// <param name="pinnedFindingStore">The store for pinned findings.</param>
+    public FindingsViewModel(IPinnedFindingStore pinnedFindingStore)
+    {
+        _pinnedFindingStore = pinnedFindingStore ?? throw new ArgumentNullException(nameof(pinnedFindingStore));
+
         // Initialize severity filters
         SeverityFilters.Add(new SeverityFilterOption("All severities", null));
         SeverityFilters.Add(new SeverityFilterOption("High & Critical only", Severity.High));
         SeverityFilters.Add(new SeverityFilterOption("Critical only", Severity.Critical));
         SelectedSeverityFilter = SeverityFilters[0];
+
+        PinCommand = new RelayCommand(
+            param => PinItem(param as FindingItemViewModel),
+            param => param is FindingItemViewModel item && !item.IsPinned);
+
+        UnpinCommand = new RelayCommand(
+            param => UnpinItem(param as FindingItemViewModel),
+            param => param is FindingItemViewModel item && item.IsPinned);
+
+        TogglePinnedOnlyCommand = new RelayCommand(
+            _ => ShowPinnedOnly = !ShowPinnedOnly,
+            _ => PinnedCount > 0 || ShowPinnedOnly);
+
+        TogglePinSelectedCommand = new RelayCommand(
+            _ => TogglePinSelected(),
+            _ => SelectedItem != null);
+
+        RefreshPinnedCount();
+    }
+
+    /// <summary>
+    /// Toggles the pinned state of the currently selected finding.
+    /// </summary>
+    public void TogglePinSelected()
+    {
+        var item = SelectedItem;
+        if (item == null)
+            return;
+
+        if (item.IsPinned)
+        {
+            UnpinItem(item);
+        }
+        else
+        {
+            PinItem(item);
+        }
     }
 
     /// <summary>
@@ -237,7 +338,9 @@ public sealed class FindingsViewModel : ViewModelBase
         // Load findings
         foreach (var f in result.Findings)
         {
-            Items.Add(new FindingItemViewModel(f));
+            var item = new FindingItemViewModel(f);
+            item.IsPinned = _pinnedFindingStore.IsPinned(f.Fingerprint);
+            Items.Add(item);
         }
 
         // Load parse errors (with limit)
@@ -269,6 +372,7 @@ public sealed class FindingsViewModel : ViewModelBase
         WarningCount = result.Warnings.Count;
         ParseErrorCount = result.ParseErrorCount;
         SkippedLineCount = result.SkippedLineCount;
+        RefreshPinnedCount();
 
         // Apply initial filters
         ApplyFilters();
@@ -282,6 +386,7 @@ public sealed class FindingsViewModel : ViewModelBase
     public void AddFinding(Finding finding)
     {
         var item = new FindingItemViewModel(finding);
+        item.IsPinned = _pinnedFindingStore.IsPinned(finding.Fingerprint);
         HasLoadedResults = true;
         Items.Add(item);
         FindingsCount++;
@@ -354,6 +459,12 @@ public sealed class FindingsViewModel : ViewModelBase
 
     private bool FilterItem(FindingItemViewModel item)
     {
+        // Apply pinned-only filter
+        if (_showPinnedOnly && !item.IsPinned)
+        {
+            return false;
+        }
+
         // Apply severity filter
         if (_selectedSeverityFilter?.MinSeverity != null &&
             Enum.TryParse<Severity>(item.Severity, out var sev) &&
@@ -374,5 +485,65 @@ public sealed class FindingsViewModel : ViewModelBase
                item.Confidence.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.EvidenceSignalsDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.MitreTechniquesDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PinItem(FindingItemViewModel? item)
+    {
+        if (item == null)
+            return;
+
+        _pinnedFindingStore.Pin(CreatePinnedFinding(item));
+        item.IsPinned = true;
+        PinCommand.RaiseCanExecuteChanged();
+        UnpinCommand.RaiseCanExecuteChanged();
+        RefreshPinnedCount();
+        if (_showPinnedOnly)
+        {
+            ApplyFilters();
+        }
+        else
+        {
+            RaiseDataState();
+        }
+    }
+
+    private void UnpinItem(FindingItemViewModel? item)
+    {
+        if (item == null)
+            return;
+
+        _pinnedFindingStore.Unpin(item.Finding.Fingerprint);
+        item.IsPinned = false;
+        PinCommand.RaiseCanExecuteChanged();
+        UnpinCommand.RaiseCanExecuteChanged();
+        RefreshPinnedCount();
+        if (_showPinnedOnly)
+        {
+            ApplyFilters();
+        }
+        else
+        {
+            RaiseDataState();
+        }
+    }
+
+    private void RefreshPinnedCount()
+    {
+        PinnedCount = _pinnedFindingStore.GetAll().Count;
+        TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
+    }
+
+    private static PinnedFinding CreatePinnedFinding(FindingItemViewModel item)
+    {
+        return new PinnedFinding
+        {
+            Fingerprint = item.Finding.Fingerprint,
+            RuleId = item.Finding.RuleId,
+            Category = item.Category,
+            Severity = item.Severity,
+            SourceHost = item.SourceHost,
+            Target = item.Target,
+            ShortDescription = item.ShortDescription
+        };
     }
 }

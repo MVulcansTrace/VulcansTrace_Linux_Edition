@@ -16,6 +16,7 @@ using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
+using VulcansTrace.Linux.Agent.Findings;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
 using VulcansTrace.Linux.Core.ThreatIntel;
@@ -38,6 +39,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly AnalysisProfileProvider _profileProvider;
     private readonly IDialogService _dialogService;
     private readonly ISuppressionStore _suppressionStore;
+    private readonly IPinnedFindingStore _pinnedFindingStore;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
     private readonly TraceMapCorrelator _traceMapCorrelator;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -352,6 +354,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AnalysisProfileProvider profileProvider,
         IAgent agent,
         ISuppressionStore suppressionStore,
+        IPinnedFindingStore pinnedFindingStore,
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
         RemediationExecutor remediationExecutor,
@@ -368,6 +371,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _profileProvider = profileProvider;
         _dialogService = dialogService;
         _suppressionStore = suppressionStore;
+        _pinnedFindingStore = pinnedFindingStore;
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
         _traceMapCorrelator = traceMapCorrelator;
 
@@ -384,7 +388,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CancelCommand = new RelayCommand(_ => CancelAnalysis(), _ => CanCancel());
 
         // Initialize child ViewModels
-        Findings = new FindingsViewModel();
+        Findings = new FindingsViewModel(_pinnedFindingStore);
         Timeline = new TimelineViewModel();
         IncidentStory = new IncidentStoryViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);

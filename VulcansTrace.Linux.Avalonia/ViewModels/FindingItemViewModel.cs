@@ -8,8 +8,29 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// <summary>
 /// ViewModel that adapts a <see cref="Finding"/> for UI display.
 /// </summary>
-public sealed class FindingItemViewModel
+public sealed class FindingItemViewModel : ViewModelBase
 {
+    private bool _isPinned;
+
+    /// <summary>Gets or sets whether this finding is pinned.</summary>
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set
+        {
+            if (SetField(ref _isPinned, value))
+            {
+                OnPropertyChanged(nameof(PinIcon));
+                OnPropertyChanged(nameof(PinTooltip));
+            }
+        }
+    }
+
+    /// <summary>Gets the icon name for the pin action button.</summary>
+    public string PinIcon => IsPinned ? "mdi-pin-off" : "mdi-pin";
+
+    /// <summary>Gets the tooltip for the pin action button.</summary>
+    public string PinTooltip => IsPinned ? "Unpin finding" : "Pin finding";
     /// <summary>Gets the finding category.</summary>
     public string Category { get; }
 

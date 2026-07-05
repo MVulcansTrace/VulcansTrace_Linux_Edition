@@ -4,7 +4,9 @@
              xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.FindingsView"
-             x:DataType="vm:FindingsViewModel">
+             x:DataType="vm:FindingsViewModel"
+             Focusable="True"
+             ToolTip.Tip="Findings (Ctrl+P to pin/unpin selected)">
 
     <Design.DataContext>
         <vm:FindingsViewModel/>
@@ -37,6 +39,22 @@
                           VerticalAlignment="Center"
                           Theme="{StaticResource VtComboBox}"
                           AutomationProperties.AutomationId="SeverityFilterComboBox"/>
+                <Button Theme="{StaticResource VtGhostButton}"
+                        Padding="8,4"
+                        FontSize="{StaticResource VtFontSizeSm}"
+                        ToolTip.Tip="Show only pinned findings"
+                        Command="{Binding TogglePinnedOnlyCommand}"
+                        AutomationProperties.AutomationId="FindingsPinnedOnlyButton">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <i:Icon Value="mdi-pin" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Pinned only" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding PinnedCountLabel}"
+                                   FontSize="{StaticResource VtFontSizeSm}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource VtTextMutedBrush}"
+                                   IsVisible="{Binding HasPinnedFindings}"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,8,0,0" HorizontalAlignment="Right">
@@ -88,7 +106,7 @@
             </StackPanel>
         </Grid>
 
-        <DataGrid Grid.Row="1"
+        <DataGrid x:Name="FindingsDataGrid" Grid.Row="1"
                   ItemsSource="{Binding FilteredItems}"
                   SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   AutoGenerateColumns="False"
@@ -97,6 +115,7 @@
                   CanUserReorderColumns="False"
                   HorizontalScrollBarVisibility="Auto"
                   IsVisible="{Binding HasData}"
+                  Focusable="True"
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
             <DataGrid.Styles>
@@ -105,6 +124,32 @@
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
+                <DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Button Theme="{StaticResource VtGhostButton}"
+                                        Padding="6,2"
+                                        ToolTip.Tip="{Binding PinTooltip}"
+                                        Command="{Binding #FindingsDataGrid.DataContext.PinCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{Binding !IsPinned}"
+                                        AutomationProperties.AutomationId="FindingsPinButton">
+                                    <i:Icon Value="mdi-pin-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Theme="{StaticResource VtGhostButton}"
+                                        Padding="6,2"
+                                        ToolTip.Tip="{Binding PinTooltip}"
+                                        Command="{Binding #FindingsDataGrid.DataContext.UnpinCommand}"
+                                        CommandParameter="{Binding}"
+                                        IsVisible="{Binding IsPinned}"
+                                        AutomationProperties.AutomationId="FindingsUnpinButton">
+                                    <i:Icon Value="mdi-pin-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                                </Button>
+                            </Panel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Severity" Width="90" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
