@@ -620,7 +620,8 @@ public class FindingsViewModelTests
         vm.Clear();
 
         Assert.True(store.IsPinned(finding.Fingerprint));
-        Assert.Equal(1, vm.PinnedCount);
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.False(vm.HasPinnedFindings);
     }
 
     [AvaloniaFact]
@@ -724,6 +725,35 @@ public class FindingsViewModelTests
         // Once pinned, the newly pinned item qualifies for the pinned-only filter.
         Assert.Single(vm.FilteredItems);
         Assert.Same(vm.Items[1], vm.FilteredItems[0]);
+    }
+
+    [AvaloniaFact]
+    public void AddFinding_WithPersistedPin_UpdatesPinnedCountAndEnablesPinnedOnlyFilter()
+    {
+        var store = new InMemoryPinnedFindingStore();
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        store.Pin(FindingsViewModel.CreatePinnedFinding(new FindingItemViewModel(finding)));
+
+        var vm = new FindingsViewModel(store);
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.False(vm.TogglePinnedOnlyCommand.CanExecute(null));
+
+        vm.AddFinding(finding);
+
+        Assert.True(vm.Items.Single().IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        Assert.True(vm.HasPinnedFindings);
+        Assert.True(vm.TogglePinnedOnlyCommand.CanExecute(null));
     }
 
     [AvaloniaFact]

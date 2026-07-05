@@ -394,6 +394,10 @@ public sealed class FindingsViewModel : ViewModelBase
         {
             HighCriticalCount++;
         }
+        if (item.IsPinned)
+        {
+            RefreshPinnedCount();
+        }
         ApplyFilters();
     }
 
@@ -413,6 +417,7 @@ public sealed class FindingsViewModel : ViewModelBase
         ParseErrorCount = 0;
         SkippedLineCount = 0;
         HasLoadedResults = false;
+        RefreshPinnedCount();
         RaiseDataState();
     }
 
@@ -529,7 +534,7 @@ public sealed class FindingsViewModel : ViewModelBase
         TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
     }
 
-    private static PinnedFinding CreatePinnedFinding(FindingItemViewModel item)
+    internal static PinnedFinding CreatePinnedFinding(FindingItemViewModel item)
     {
         return new PinnedFinding
         {
