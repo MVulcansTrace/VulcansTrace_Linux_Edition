@@ -55,6 +55,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private bool _hasOnlyWelcomeMessage = true;
     private bool _hasNoVisibleMessages;
     private bool _isAgentToolsPanelOpen;
+    private string _slashHelpQuery = "";
+    private bool _isSlashHelpOpen;
+    private SlashCommandItem? _selectedSlashHelpCommand;
     private readonly List<SlashCommandItem> _allSlashCommands = new();
 
     /// <summary>Gets the collection of chat messages.</summary>
@@ -83,6 +86,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the filtered slash-command palette items.</summary>
     public ObservableCollection<SlashCommandItem> FilteredSlashCommands { get; } = new();
+
+    /// <summary>Gets the filtered items shown in the searchable slash-command help popup.</summary>
+    public ObservableCollection<SlashCommandItem> FilteredSlashHelpCommands { get; } = new();
 
     /// <summary>Gets the active chat filter chips shown above the transcript.</summary>
     public ObservableCollection<ChatFilterChipViewModel> ActiveChatFilterChips { get; } = new();
@@ -323,6 +329,84 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         SelectedSlashCommand = null;
     }
 
+    /// <summary>Gets whether the searchable slash-command help popup is open.</summary>
+    public bool IsSlashHelpOpen
+    {
+        get => _isSlashHelpOpen;
+        private set
+        {
+            if (SetField(ref _isSlashHelpOpen, value))
+            {
+                OpenSlashHelpCommand.RaiseCanExecuteChanged();
+                CloseSlashHelpCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the search text in the slash-command help popup.</summary>
+    public string SlashHelpQuery
+    {
+        get => _slashHelpQuery;
+        set
+        {
+            if (SetField(ref _slashHelpQuery, value))
+            {
+                UpdateSlashHelpFilter();
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the currently selected item in the slash-command help popup.</summary>
+    public SlashCommandItem? SelectedSlashHelpCommand
+    {
+        get => _selectedSlashHelpCommand;
+        set => SetField(ref _selectedSlashHelpCommand, value);
+    }
+
+    /// <summary>Opens the searchable slash-command help popup.</summary>
+    public void OpenSlashHelp()
+    {
+        // Dismiss the inline palette so only one command surface is visible at a time.
+        IsSlashPaletteOpen = false;
+        FilteredSlashCommands.Clear();
+        SelectedSlashCommand = null;
+
+        SlashHelpQuery = string.Empty;
+        IsSlashHelpOpen = true;
+        UpdateSlashHelpFilter();
+    }
+
+    /// <summary>Closes the searchable slash-command help popup.</summary>
+    public void CloseSlashHelp()
+    {
+        IsSlashHelpOpen = false;
+        SlashHelpQuery = string.Empty;
+        FilteredSlashHelpCommands.Clear();
+        SelectedSlashHelpCommand = null;
+    }
+
+    /// <summary>Moves the help-popup selection to the next item, wrapping to the top.</summary>
+    public void SelectNextSlashHelpCommand()
+    {
+        if (FilteredSlashHelpCommands.Count == 0)
+            return;
+
+        var index = SelectedSlashHelpCommand is null ? -1 : FilteredSlashHelpCommands.IndexOf(SelectedSlashHelpCommand);
+        index = (index + 1) % FilteredSlashHelpCommands.Count;
+        SelectedSlashHelpCommand = FilteredSlashHelpCommands[index];
+    }
+
+    /// <summary>Moves the help-popup selection to the previous item, wrapping to the bottom.</summary>
+    public void SelectPreviousSlashHelpCommand()
+    {
+        if (FilteredSlashHelpCommands.Count == 0)
+            return;
+
+        var index = SelectedSlashHelpCommand is null ? 0 : FilteredSlashHelpCommands.IndexOf(SelectedSlashHelpCommand);
+        index = (index - 1 + FilteredSlashHelpCommands.Count) % FilteredSlashHelpCommands.Count;
+        SelectedSlashHelpCommand = FilteredSlashHelpCommands[index];
+    }
+
     /// <summary>Gets the last agent result.</summary>
     public AgentResult? LastResult => _resultState.LastResult;
 
@@ -417,6 +501,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to show the slash-command help message.</summary>
     public AsyncRelayCommand ShowSlashHelpCommand { get; }
+
+    /// <summary>Gets the command to open the searchable slash-command help popup.</summary>
+    public RelayCommand OpenSlashHelpCommand { get; }
+
+    /// <summary>Gets the command to close the searchable slash-command help popup.</summary>
+    public RelayCommand CloseSlashHelpCommand { get; }
 
     /// <summary>Gets the command to compare the last two audits.</summary>
     public RelayCommand CompareAuditsCommand { get; }
@@ -569,6 +659,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 if (param is SlashCommandItem cmd && !_isBusy)
                 {
                     IsSlashPaletteOpen = false;
+                    IsSlashHelpOpen = false;
                     UserQuery = string.Empty;
                     if (cmd.Handler is not null)
                     {
@@ -672,6 +763,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             async _ => await ShowSlashHelpAsync(),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
+        OpenSlashHelpCommand = new RelayCommand(
+            _ => OpenSlashHelp(),
+            _ => !_isSlashHelpOpen);
+
+        CloseSlashHelpCommand = new RelayCommand(
+            _ => CloseSlashHelp(),
+            _ => _isSlashHelpOpen);
 
         VerifySessionCommand = new AsyncRelayCommand(
             async param => await VerifySessionAsync((param as string) ?? ""),
@@ -900,15 +999,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private Task ShowSlashHelpAsync()
     {
-        MarkChatInteracted();
-        AddAgentMessage(
-            "Available commands: /firewall, /ports, /services, /network, /ssh, /filesystem, /kernel, /users, /logging, /cron, /packages, /threatintel, /full, /fullaudit, /containers, /kubernetes, /yara, /processes, /baseline, /drift, /baseline show, /show baseline, /sessions, /risk, /clear, /help",
-            false);
+        OpenSlashHelp();
         return Task.CompletedTask;
     }
 
     private void UpdateSlashPalette()
     {
+        // While the searchable help popup is open, keep the inline palette suppressed so only one
+        // command surface is visible at a time.
+        if (_isSlashHelpOpen)
+        {
+            IsSlashPaletteOpen = false;
+            FilteredSlashCommands.Clear();
+            SelectedSlashCommand = null;
+            return;
+        }
+
         var query = _userQuery.Trim();
         if (query.StartsWith("/"))
         {
@@ -934,6 +1040,26 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             IsSlashPaletteOpen = false;
             FilteredSlashCommands.Clear();
         }
+    }
+
+    private void UpdateSlashHelpFilter()
+    {
+        var query = _slashHelpQuery.Trim();
+        var filtered = string.IsNullOrWhiteSpace(query)
+            ? _allSlashCommands.OrderBy(c => c.CommandText, StringComparer.OrdinalIgnoreCase)
+            : _allSlashCommands.Where(c =>
+                  c.CommandText.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                  c.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                  c.Description.Contains(query, StringComparison.OrdinalIgnoreCase))
+              .OrderBy(c => c.CommandText, StringComparer.OrdinalIgnoreCase);
+
+        FilteredSlashHelpCommands.Clear();
+        foreach (var item in filtered)
+        {
+            FilteredSlashHelpCommands.Add(item);
+        }
+
+        SelectedSlashHelpCommand = FilteredSlashHelpCommands.Count > 0 ? FilteredSlashHelpCommands[0] : null;
     }
 
     private async Task ExecuteSuggestionAsync(SuggestedFollowUp suggestion)
@@ -991,7 +1117,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task SendQueryAsync()
     {
-        MarkChatInteracted();
         var query = _userQuery.Trim();
         if (string.IsNullOrWhiteSpace(query))
             return;
@@ -1007,6 +1132,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 c.CommandText.StartsWith(query, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
             {
+                // Mark interaction only for commands that actually post to the chat. /help only opens
+                // the popup and should not hide the welcome overlay.
+                if (match.CommandText != "/help")
+                {
+                    MarkChatInteracted();
+                }
+
                 IsSlashPaletteOpen = false;
                 UserQuery = string.Empty;
                 await match.Handler!();
@@ -1014,6 +1146,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             }
         }
 
+        MarkChatInteracted();
         AddUserMessage(query);
         UserQuery = string.Empty;
 

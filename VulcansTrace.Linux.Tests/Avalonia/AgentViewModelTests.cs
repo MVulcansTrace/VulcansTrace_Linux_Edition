@@ -351,6 +351,167 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public void SlashHelp_OpenSlashHelpCommand_ShowsAllCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.IsSlashHelpOpen);
+        Assert.True(vm.OpenSlashHelpCommand.CanExecute(null));
+        Assert.False(vm.CloseSlashHelpCommand.CanExecute(null));
+
+        var openChanged = false;
+        var closeChanged = false;
+        vm.OpenSlashHelpCommand.CanExecuteChanged += (_, _) => openChanged = true;
+        vm.CloseSlashHelpCommand.CanExecuteChanged += (_, _) => closeChanged = true;
+
+        vm.OpenSlashHelpCommand.Execute(null);
+
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.False(vm.OpenSlashHelpCommand.CanExecute(null));
+        Assert.True(vm.CloseSlashHelpCommand.CanExecute(null));
+        Assert.True(openChanged, "OpenSlashHelpCommand should raise CanExecuteChanged when popup opens.");
+        Assert.True(closeChanged, "CloseSlashHelpCommand should raise CanExecuteChanged when popup opens.");
+        Assert.NotEmpty(vm.FilteredSlashHelpCommands);
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/help");
+        Assert.NotNull(vm.SelectedSlashHelpCommand);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_OpenSlashHelpCommand_ClosesInlinePalette()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/fire"
+        };
+        Assert.True(vm.IsSlashPaletteOpen);
+
+        vm.OpenSlashHelpCommand.Execute(null);
+
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.False(vm.IsSlashPaletteOpen);
+        Assert.Empty(vm.FilteredSlashCommands);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_ShowSlashHelpCommand_DoesNotMarkChatInteracted()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        Assert.True(vm.HasOnlyWelcomeMessage);
+
+        vm.ShowSlashHelpCommand.Execute(null);
+
+        Assert.True(vm.HasOnlyWelcomeMessage);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelpQuery_FiltersByTitleAndDescription()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+
+        vm.SlashHelpQuery = "firewall";
+
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+        Assert.DoesNotContain(vm.FilteredSlashHelpCommands, c => c.CommandText == "/ports");
+
+        vm.SlashHelpQuery = "ports";
+
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/ports");
+        Assert.DoesNotContain(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+    }
+
+    [AvaloniaFact]
+    public void SlashHelpQuery_Empty_ShowsAllCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        var allCount = vm.FilteredSlashHelpCommands.Count;
+        vm.SlashHelpQuery = "firewall";
+        Assert.Single(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+        Assert.True(vm.FilteredSlashHelpCommands.Count < allCount);
+
+        vm.SlashHelpQuery = "";
+
+        Assert.Equal(allCount, vm.FilteredSlashHelpCommands.Count);
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/ports");
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_CloseSlashHelpCommand_HidesHelp()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        Assert.True(vm.IsSlashHelpOpen);
+
+        vm.CloseSlashHelpCommand.Execute(null);
+
+        Assert.False(vm.IsSlashHelpOpen);
+        Assert.Empty(vm.FilteredSlashHelpCommands);
+        Assert.Null(vm.SelectedSlashHelpCommand);
+    }
+
+    [AvaloniaFact]
+    public async Task SlashHelp_ShowSlashHelpCommand_OpensPopup()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.ShowSlashHelpCommand.Execute(null);
+        await vm.ShowSlashHelpCommand.ExecutionTask;
+
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/help");
+        Assert.DoesNotContain(vm.Messages, m => m.Text.Contains("Available commands:", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_ExecuteSelectedCommand_ClosesPopup()
+    {
+        var agent = new TrackingAgent(AgentIntent.FullAudit);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        vm.SlashHelpQuery = "/firewall";
+        Assert.True(vm.IsSlashHelpOpen);
+
+        vm.ExecuteSlashCommandCommand.Execute(vm.SelectedSlashHelpCommand);
+
+        Assert.False(vm.IsSlashHelpOpen);
+        Assert.Equal(AgentIntent.FirewallCheck, agent.LastRunAuditIntent);
+    }
+
+    [AvaloniaFact]
+    public async Task SendQuery_HelpSlashCommand_OpensPopup()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/help"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.True(vm.HasOnlyWelcomeMessage);
+        Assert.DoesNotContain(vm.Messages, m => m.Text.Contains("Available commands:", StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public void SlashPalette_UpdateSlashPalette_DoesNotOpenWhileHelpIsOpen()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        Assert.True(vm.IsSlashHelpOpen);
+
+        // Typing a slash command while the help popup is open should not reveal the inline palette.
+        vm.UserQuery = "/fire";
+
+        Assert.False(vm.IsSlashPaletteOpen);
+        Assert.Empty(vm.FilteredSlashCommands);
+    }
+
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_MarksMessageAsError()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -696,6 +857,7 @@ public class AgentViewModelTests
             "AgentQueryInput",
             "AgentSendButton",
             "AgentCancelButton",
+            "AgentSlashHelpButton",
             "AgentToolsToggleButton",
             "AgentChatSeverityFilter",
             "AgentChatCategoryFilter",

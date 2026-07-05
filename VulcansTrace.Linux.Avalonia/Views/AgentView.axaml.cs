@@ -19,11 +19,15 @@ public partial class AgentView : UserControl
     private AgentViewModel? _viewModel;
     private ListBox? _chatListBox;
     private ScrollViewer? _scrollViewer;
+    private TextBox? _queryInput;
+    private TextBox? _slashHelpSearchBox;
 
     public AgentView()
     {
         InitializeComponent();
         _chatListBox = this.FindControl<ListBox>("ChatListBox");
+        _queryInput = this.FindControl<TextBox>("AgentQueryInput");
+        _slashHelpSearchBox = this.FindControl<TextBox>("SlashHelpSearchBox");
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -77,10 +81,26 @@ public partial class AgentView : UserControl
         if (DataContext is not AgentViewModel vm)
             return;
 
+        // Ctrl+K toggles the searchable slash-command help popup.
+        if (e.Key == Key.K && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            if (vm.IsSlashHelpOpen)
+                vm.CloseSlashHelpCommand.Execute(null);
+            else
+                vm.OpenSlashHelpCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Escape)
         {
-            // Esc dismisses the slash palette (if open) without clearing the typed query.
-            if (vm.IsSlashPaletteOpen)
+            // Esc closes the help popup first, then the slash palette, preserving the typed query.
+            if (vm.IsSlashHelpOpen)
+            {
+                vm.CloseSlashHelpCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (vm.IsSlashPaletteOpen)
             {
                 vm.CloseSlashPalette();
                 e.Handled = true;
@@ -119,6 +139,47 @@ public partial class AgentView : UserControl
         }
     }
 
+    private void OnSlashHelpKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not AgentViewModel vm)
+            return;
+
+        // Ctrl+K toggles the help popup closed even when focus is in the search box.
+        if (e.Key == Key.K && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            vm.CloseSlashHelpCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            vm.CloseSlashHelpCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Down)
+        {
+            vm.SelectNextSlashHelpCommand();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Up)
+        {
+            vm.SelectPreviousSlashHelpCommand();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter && vm.SelectedSlashHelpCommand is not null)
+        {
+            vm.ExecuteSlashCommandCommand.Execute(vm.SelectedSlashHelpCommand);
+            e.Handled = true;
+        }
+    }
+
     private void OnQueryLostFocus(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not AgentViewModel vm || !vm.IsSlashPaletteOpen)
@@ -144,6 +205,19 @@ public partial class AgentView : UserControl
             // When the agent starts responding, re-pin to the bottom so the user sees the
             // incoming messages. A short delay lets the busy indicator layout first.
             Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: true), DispatcherPriority.Background);
+        }
+        else if (e.PropertyName == nameof(AgentViewModel.IsSlashHelpOpen))
+        {
+            if (_viewModel?.IsSlashHelpOpen == true)
+            {
+                // Focus the search box when the help popup opens so the user can type immediately.
+                Dispatcher.UIThread.Post(() => _slashHelpSearchBox?.Focus(), DispatcherPriority.Background);
+            }
+            else
+            {
+                // Return focus to the query box when the help popup closes so the user can resume typing.
+                Dispatcher.UIThread.Post(() => _queryInput?.Focus(), DispatcherPriority.Background);
+            }
         }
     }
 
