@@ -23,6 +23,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private int _parseErrorCount;
     private int _skippedLineCount;
     private int _pinnedCount;
+    private string _pinStatusMessage = "";
     private bool _showPinnedOnly;
     private bool _hasWarnings;
     private bool _hasParseErrors;
@@ -114,6 +115,22 @@ public sealed class FindingsViewModel : ViewModelBase
 
     /// <summary>Gets the formatted pinned count label for the toolbar button.</summary>
     public string PinnedCountLabel => PinnedCount > 0 ? $"({PinnedCount})" : string.Empty;
+
+    /// <summary>Gets the latest pinned-finding persistence warning, if any.</summary>
+    public string PinStatusMessage
+    {
+        get => _pinStatusMessage;
+        private set
+        {
+            if (SetField(ref _pinStatusMessage, value))
+            {
+                OnPropertyChanged(nameof(HasPinStatusMessage));
+            }
+        }
+    }
+
+    /// <summary>Gets whether the pinned-finding status message should be shown.</summary>
+    public bool HasPinStatusMessage => !string.IsNullOrWhiteSpace(PinStatusMessage);
 
     /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
     public ICommand? EmptyStateActionCommand { get; set; }
@@ -301,6 +318,7 @@ public sealed class FindingsViewModel : ViewModelBase
             _ => SelectedItem != null);
 
         RefreshPinnedCount();
+        RefreshPinStatusMessage();
     }
 
     /// <summary>
@@ -498,10 +516,11 @@ public sealed class FindingsViewModel : ViewModelBase
             return;
 
         _pinnedFindingStore.Pin(CreatePinnedFinding(item));
-        item.IsPinned = true;
+        item.IsPinned = _pinnedFindingStore.IsPinned(item.Finding.Fingerprint);
         PinCommand.RaiseCanExecuteChanged();
         UnpinCommand.RaiseCanExecuteChanged();
         RefreshPinnedCount();
+        RefreshPinStatusMessage();
         if (_showPinnedOnly)
         {
             ApplyFilters();
@@ -514,10 +533,11 @@ public sealed class FindingsViewModel : ViewModelBase
             return;
 
         _pinnedFindingStore.Unpin(item.Finding.Fingerprint);
-        item.IsPinned = false;
+        item.IsPinned = _pinnedFindingStore.IsPinned(item.Finding.Fingerprint);
         PinCommand.RaiseCanExecuteChanged();
         UnpinCommand.RaiseCanExecuteChanged();
         RefreshPinnedCount();
+        RefreshPinStatusMessage();
         if (_showPinnedOnly)
         {
             ApplyFilters();
@@ -532,6 +552,11 @@ public sealed class FindingsViewModel : ViewModelBase
         // over-promise how many rows "Pinned only" will display.
         PinnedCount = Items.Count(i => i.IsPinned);
         TogglePinnedOnlyCommand?.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshPinStatusMessage()
+    {
+        PinStatusMessage = _pinnedFindingStore.PersistenceWarning ?? string.Empty;
     }
 
     internal static PinnedFinding CreatePinnedFinding(FindingItemViewModel item)

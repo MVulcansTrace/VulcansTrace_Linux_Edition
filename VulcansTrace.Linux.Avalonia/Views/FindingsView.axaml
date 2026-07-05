@@ -55,6 +55,15 @@
                                    IsVisible="{Binding HasPinnedFindings}"/>
                     </StackPanel>
                 </Button>
+                <TextBlock Text="{Binding PinStatusMessage}"
+                           MaxWidth="360"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding PinStatusMessage}"
+                           Foreground="{StaticResource VtSeverityMediumBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           VerticalAlignment="Center"
+                           IsVisible="{Binding HasPinStatusMessage}"
+                           AutomationProperties.AutomationId="FindingsPinStatusMessage"/>
             </StackPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,8,0,0" HorizontalAlignment="Right">

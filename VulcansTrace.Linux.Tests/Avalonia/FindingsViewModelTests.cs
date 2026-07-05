@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -781,5 +782,123 @@ public class FindingsViewModelTests
 
         Assert.Empty(vm.FilteredItems);
         Assert.True(vm.TogglePinnedOnlyCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void Constructor_WithPinnedPersistenceWarning_SurfacesPinStatus()
+    {
+        var vm = new FindingsViewModel(new InMemoryPinnedFindingStore("Pinned findings persistence is unavailable."));
+
+        Assert.True(vm.HasPinStatusMessage);
+        Assert.Equal("Pinned findings persistence is unavailable.", vm.PinStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public void PinCommand_SaveWarning_SurfacesPinStatusAndKeepsSessionPin()
+    {
+        var store = new WarningPinnedFindingStore("Could not save pinned findings to disk: boom. Pins will last only for this session.");
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+
+        vm.PinCommand.Execute(item);
+
+        Assert.True(item.IsPinned);
+        Assert.Equal(1, vm.PinnedCount);
+        Assert.True(vm.HasPinStatusMessage);
+        Assert.Contains("Pins will last only for this session", vm.PinStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public void PinCommand_RejectedByStore_DoesNotMarkItemPinned()
+    {
+        var store = new RejectingPinnedFindingStore("Could not save pinned findings to disk: invalid pin.");
+        var vm = new FindingsViewModel(store);
+        var finding = new Finding
+        {
+            Category = FindingCategories.PortScan,
+            Severity = Severity.High,
+            SourceHost = "192.168.1.10",
+            Target = "multi",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+            ShortDescription = "Port scan",
+            Details = "detail"
+        };
+        vm.LoadResults(new AnalysisResult { Findings = [finding] });
+        var item = vm.Items.Single();
+
+        vm.PinCommand.Execute(item);
+
+        Assert.False(item.IsPinned);
+        Assert.Equal(0, vm.PinnedCount);
+        Assert.True(vm.HasPinStatusMessage);
+        Assert.Contains("invalid pin", vm.PinStatusMessage);
+    }
+
+    private sealed class WarningPinnedFindingStore : IPinnedFindingStore
+    {
+        private readonly Dictionary<string, PinnedFinding> _entries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly string _warning;
+
+        public WarningPinnedFindingStore(string warning)
+        {
+            _warning = warning;
+        }
+
+        public string? PersistenceWarning { get; private set; }
+
+        public void Pin(PinnedFinding finding)
+        {
+            _entries[finding.Fingerprint] = finding;
+            PersistenceWarning = _warning;
+        }
+
+        public void Unpin(string fingerprint)
+        {
+            _entries.Remove(fingerprint);
+            PersistenceWarning = _warning;
+        }
+
+        public bool IsPinned(string fingerprint) => _entries.ContainsKey(fingerprint);
+
+        public IReadOnlyList<PinnedFinding> GetAll() => _entries.Values.ToList();
+    }
+
+    private sealed class RejectingPinnedFindingStore : IPinnedFindingStore
+    {
+        private readonly string _warning;
+
+        public RejectingPinnedFindingStore(string warning)
+        {
+            _warning = warning;
+        }
+
+        public string? PersistenceWarning { get; private set; }
+
+        public void Pin(PinnedFinding finding)
+        {
+            PersistenceWarning = _warning;
+        }
+
+        public void Unpin(string fingerprint)
+        {
+            PersistenceWarning = _warning;
+        }
+
+        public bool IsPinned(string fingerprint) => false;
+
+        public IReadOnlyList<PinnedFinding> GetAll() => Array.Empty<PinnedFinding>();
     }
 }
