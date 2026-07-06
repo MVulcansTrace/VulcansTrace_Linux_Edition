@@ -481,7 +481,7 @@ public class GuidedRemediationServiceTests
 
         var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (intent, _, _) => Task.FromResult(afterResult));
+            runAudit: (intent, _, _, _) => Task.FromResult(afterResult));
 
         await service.CreateSessionAsync("FW-001", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -508,7 +508,7 @@ public class GuidedRemediationServiceTests
 
         var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (intent, _, _) => Task.FromResult(afterResult));
+            runAudit: (intent, _, _, _) => Task.FromResult(afterResult));
 
         await service.CreateSessionAsync("FW-001", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -531,7 +531,7 @@ public class GuidedRemediationServiceTests
         state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-DANGER", finding) });
         var store = new InMemorySessionStore();
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (_, _, _) => Task.FromResult(new AgentResult { Intent = AgentIntent.FirewallCheck }));
+            runAudit: (_, _, _, _) => Task.FromResult(new AgentResult { Intent = AgentIntent.FirewallCheck }));
 
         await service.CreateSessionAsync("FW-DANGER", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -551,7 +551,7 @@ public class GuidedRemediationServiceTests
         state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
         var store = new InMemorySessionStore();
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (_, _, _) => throw new InvalidOperationException("audit crashed"));
+            runAudit: (_, _, _, _) => throw new InvalidOperationException("audit crashed"));
 
         await service.CreateSessionAsync("FW-001", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -577,7 +577,7 @@ public class GuidedRemediationServiceTests
 
         var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (intent, _, _) => Task.FromResult(afterResult));
+            runAudit: (intent, _, _, _) => Task.FromResult(afterResult));
 
         await service.CreateSessionAsync("FW-001", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -594,7 +594,7 @@ public class GuidedRemediationServiceTests
         var store = new InMemorySessionStore();
         var fallbackResult = new AgentResult { Intent = AgentIntent.FullAudit, AgentFindings = Array.Empty<Finding>() };
         var service = CreateService(state, sessionStore: store,
-            runAudit: (intent, _, _) => Task.FromResult(fallbackResult));
+            runAudit: (intent, _, _, _) => Task.FromResult(fallbackResult));
 
         var result = await service.RunVerificationAsync("nonexistent", CancellationToken.None);
 
@@ -610,7 +610,7 @@ public class GuidedRemediationServiceTests
         state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-DANGER", finding) });
         var store = new InMemorySessionStore();
         var service = CreateService(state, new ExplanationProvider(), sessionStore: store,
-            runAudit: (_, _, _) => Task.FromResult(new AgentResult { Intent = AgentIntent.FirewallCheck }));
+            runAudit: (_, _, _, _) => Task.FromResult(new AgentResult { Intent = AgentIntent.FirewallCheck }));
 
         await service.CreateSessionAsync("FW-DANGER", CancellationToken.None);
         var sessionId = store.List()[0].SessionId;
@@ -1020,7 +1020,7 @@ public class GuidedRemediationServiceTests
         AgentAuditState state,
         IExplanationProvider? explanationProvider = null,
         ISessionStore? sessionStore = null,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>>? runAudit = null)
     {
         var planBuilder = new RemediationPlanBuilder(explanationProvider ?? new TestExplanationProvider());
         return new GuidedRemediationService(state, planBuilder, sessionStore, runAudit);

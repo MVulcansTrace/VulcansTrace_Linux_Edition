@@ -363,29 +363,29 @@ public class AutonomousDriftResponderTests
         public bool CheckDriftCalled { get; set; }
         public bool RunAuditCalled { get; set; }
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             RunAuditCalled = true;
             return Task.FromResult(FullResult);
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             CheckDriftCalled = true;
             return Task.FromResult(DriftResult);
         }
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) => throw new NotSupportedException();
 

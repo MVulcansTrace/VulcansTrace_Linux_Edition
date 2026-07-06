@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
@@ -210,7 +211,7 @@ public class AgentOperationRunnerTests
     {
         var runner = CreateRunner();
 
-        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.RunAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => runner.RunAsync((Func<CancellationToken, Task>)null!));
     }
 
     [AvaloniaFact]
@@ -232,6 +233,34 @@ public class AgentOperationRunnerTests
     {
         Assert.Throws<ArgumentNullException>(() =>
             new AgentOperationRunner(_ => { }, () => { }, null!));
+    }
+
+    [AvaloniaFact]
+    public async Task RunAsync_ProgressOverload_ReportsProgressOnUiThread()
+    {
+        var progressReports = new List<AgentAuditProgress>();
+        var runner = new AgentOperationRunner(
+            _ => { },
+            () => { },
+            (_, _, _) => { },
+            p => progressReports.Add(p));
+
+        await runner.RunAsync((progress, ct) =>
+        {
+            progress?.Report(new AgentAuditProgress
+            {
+                Phase = "Test phase",
+                StepIndex = 0,
+                TotalSteps = 2
+            });
+            return Task.CompletedTask;
+        });
+        FlushDispatcher();
+
+        var report = Assert.Single(progressReports);
+        Assert.Equal("Test phase", report.Phase);
+        Assert.Equal(0, report.StepIndex);
+        Assert.Equal(2, report.TotalSteps);
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();

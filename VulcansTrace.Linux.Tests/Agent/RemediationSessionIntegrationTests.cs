@@ -22,7 +22,7 @@ public class RemediationSessionIntegrationTests
         state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
 
         var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
-        var service = CreateService(state, store, (intent, _, _) => Task.FromResult(afterResult));
+        var service = CreateService(state, store, (intent, _, _, _) => Task.FromResult(afterResult));
 
         var messages = new ObservableCollection<AgentMessageViewModel>();
         var categories = new ObservableCollection<string>();
@@ -128,7 +128,7 @@ public class RemediationSessionIntegrationTests
         state.RememberAudit(audit, AgentIntent.FirewallCheck, new[] { ("FW-001", finding) });
 
         var afterResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
-        var service = CreateService(state, store, (intent, _, _) => Task.FromResult(afterResult));
+        var service = CreateService(state, store, (intent, _, _, _) => Task.FromResult(afterResult));
 
         // Create session
         var createResult = await service.CreateSessionAsync("FW-001", CancellationToken.None);
@@ -447,7 +447,7 @@ public class RemediationSessionIntegrationTests
     private static GuidedRemediationService CreateService(
         AgentAuditState state,
         InMemorySessionStore store,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>>? runAudit = null)
     {
         var planBuilder = new RemediationPlanBuilder(new ExplanationProvider());
         return new GuidedRemediationService(state, planBuilder, store, runAudit);

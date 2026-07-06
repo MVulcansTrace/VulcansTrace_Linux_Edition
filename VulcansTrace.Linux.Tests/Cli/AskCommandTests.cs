@@ -268,7 +268,7 @@ public class AskCommandTests
             return new AgentQuery(AgentIntent.Help, RawQuery: query);
         }
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             AskCalled = true;
             LastAskQuery = query;
@@ -276,7 +276,7 @@ public class AskCommandTests
             return Task.FromResult(AskResult);
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             AuditCalled = true;
             LastAuditIntent = intent.ToString();
@@ -284,22 +284,22 @@ public class AskCommandTests
             return Task.FromResult(new AgentResult { Summary = "Audit complete.", AgentFindings = [] });
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Explanation.", AgentFindings = [finding] });
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Baseline set.", AgentFindings = [] });
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Drift checked.", AgentFindings = [] });
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Baseline retrieved.", AgentFindings = [] });
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Remediation started.", AgentFindings = [] });
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
             => Task.FromResult(new AgentResult { Summary = "Remediation verified.", AgentFindings = [] });
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct)

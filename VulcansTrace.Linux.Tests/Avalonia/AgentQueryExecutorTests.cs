@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
@@ -147,13 +151,15 @@ public class AgentQueryExecutorTests
         public string? ObservedRawLog { get; private set; }
         public CancellationToken ObservedToken { get; private set; }
         public Finding? ExplainedFinding { get; private set; }
+        public IProgress<AgentAuditProgress>? ObservedProgress { get; private set; }
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             AskCalls++;
             ObservedQuery = query;
             ObservedRawLog = rawLog;
             ObservedToken = ct;
+            ObservedProgress = progress;
 
             return Task.FromResult(new AgentResult
             {
@@ -162,14 +168,15 @@ public class AgentQueryExecutorTests
             });
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = intent, Summary = "audit" });
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             ExplainFindingCalls++;
             ExplainedFinding = finding;
             ObservedToken = ct;
+            ObservedProgress = progress;
 
             return Task.FromResult(new AgentResult
             {
@@ -179,19 +186,19 @@ public class AgentQueryExecutorTests
             });
         }
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.SetBaseline, Summary = "baseline" });
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "drift" });
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.ShowBaseline, Summary = "show baseline" });
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "remediation" });
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "verify" });
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>

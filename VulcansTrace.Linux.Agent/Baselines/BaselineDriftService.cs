@@ -1,3 +1,4 @@
+using System;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -8,12 +9,12 @@ internal sealed class BaselineDriftService
 {
     private readonly AgentAuditState _auditState;
     private readonly IBaselineStore? _baselineStore;
-    private readonly Func<AgentIntent, string?, CancellationToken, Task<AgentResult>> _runAudit;
+    private readonly Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> _runAudit;
 
     public BaselineDriftService(
         AgentAuditState auditState,
         IBaselineStore? baselineStore,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>> runAudit)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit)
     {
         _auditState = auditState ?? throw new ArgumentNullException(nameof(auditState));
         _baselineStore = baselineStore;
@@ -96,11 +97,14 @@ internal sealed class BaselineDriftService
         });
     }
 
-    public Task<AgentResult> CheckDriftAsync(AgentQuery agentQuery, CancellationToken ct)
+    public Task<AgentResult> CheckDriftAsync(AgentQuery agentQuery, CancellationToken ct) =>
+        CheckDriftAsync(agentQuery, null, ct);
+
+    public Task<AgentResult> CheckDriftAsync(AgentQuery agentQuery, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var intent = _auditState.LastResult?.Intent ?? AgentIntent.FullAudit;
-        return RunDriftCheckAsync(intent, null, ct);
+        return RunDriftCheckAsync(intent, null, progress, ct);
     }
 
     public Task<AgentResult> ShowBaselineAsync(AgentQuery agentQuery, CancellationToken ct)
@@ -179,7 +183,14 @@ internal sealed class BaselineDriftService
         });
     }
 
-    public async Task<AgentResult> RunDriftCheckAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    public Task<AgentResult> RunDriftCheckAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        RunDriftCheckAsync(intent, rawLog, null, ct);
+
+    public async Task<AgentResult> RunDriftCheckAsync(
+        AgentIntent intent,
+        string? rawLog,
+        IProgress<AgentAuditProgress>? progress,
+        CancellationToken ct)
     {
         if (_baselineStore == null)
         {
@@ -207,7 +218,7 @@ internal sealed class BaselineDriftService
         var savedState = _auditState.SnapshotState();
         try
         {
-            var liveResult = await _runAudit(intent, rawLog, ct);
+            var liveResult = await _runAudit(intent, rawLog, progress, ct);
 
             var currentEntry = new AuditHistoryEntry
             {

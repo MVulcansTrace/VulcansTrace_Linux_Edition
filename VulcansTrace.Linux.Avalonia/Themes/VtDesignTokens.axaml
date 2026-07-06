@@ -418,6 +418,17 @@
     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
   </Style>
 
+  <!-- === ProgressBar === -->
+  <!-- Scoped to VtAuditProgress so the agent chat's determinate bar doesn't restyle unrelated
+       indeterminate ProgressBars (e.g. MainWindow / DoctorView loading spinners). -->
+  <Style Selector="ProgressBar.VtAuditProgress">
+    <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}" />
+    <Setter Property="Background" Value="{StaticResource VtBackground600Brush}" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="MinHeight" Value="6" />
+    <Setter Property="MaxHeight" Value="6" />
+  </Style>
+
   <!-- === ScrollViewer === -->
   <Style Selector="ScrollViewer.VtScroll">
     <Setter Property="VerticalScrollBarVisibility" Value="Auto" />

@@ -1,3 +1,4 @@
+using System;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -17,7 +18,21 @@ public interface IAgent
     /// <param name="rawLog">Optional firewall log content to include in the analysis.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent audit result.</returns>
-    Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct);
+    Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+    {
+        return AskAsync(query, rawLog, null, ct);
+    }
+
+    /// <summary>
+    /// Answers a natural language user query by parsing intent, running the appropriate audit, and returning results,
+    /// reporting progress through <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="query">The user's natural language query.</param>
+    /// <param name="rawLog">Optional firewall log content to include in the analysis.</param>
+    /// <param name="progress">Optional progress reporter for long-running audits.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent audit result.</returns>
+    Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Resolves the intent and target reference for a raw query without executing it,
@@ -39,7 +54,21 @@ public interface IAgent
     /// <param name="rawLog">Optional firewall log content to include in the analysis.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent audit result.</returns>
-    Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct);
+    Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    {
+        return RunAuditAsync(intent, rawLog, null, ct);
+    }
+
+    /// <summary>
+    /// Runs a targeted audit for the specified intent, reporting progress through
+    /// <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="intent">The structured intent to execute.</param>
+    /// <param name="rawLog">Optional firewall log content to include in the analysis.</param>
+    /// <param name="progress">Optional progress reporter for long-running audits.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent audit result.</returns>
+    Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Returns a focused explanation for the provided finding without re-running scans or rules.
@@ -47,7 +76,20 @@ public interface IAgent
     /// <param name="finding">The finding to explain.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>An agent result containing only the explained finding.</returns>
-    Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct);
+    Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+    {
+        return ExplainFindingAsync(finding, null, ct);
+    }
+
+    /// <summary>
+    /// Returns a focused explanation for the provided finding without re-running scans or rules,
+    /// reporting progress through <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="finding">The finding to explain.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>An agent result containing only the explained finding.</returns>
+    Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Saves the most recent audit result as a known-good baseline.
@@ -56,7 +98,21 @@ public interface IAgent
     /// <param name="description">Optional description.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result confirming the baseline was saved.</returns>
-    Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct);
+    Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+    {
+        return SetBaselineAsync(name, description, null, ct);
+    }
+
+    /// <summary>
+    /// Saves the most recent audit result as a known-good baseline, reporting progress through
+    /// <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="name">User-friendly name for the baseline.</param>
+    /// <param name="description">Optional description.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result confirming the baseline was saved.</returns>
+    Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Runs an audit and compares it against the active baseline for the intent.
@@ -65,7 +121,21 @@ public interface IAgent
     /// <param name="rawLog">Optional firewall log content.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result with drift findings.</returns>
-    Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct);
+    Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    {
+        return CheckDriftAsync(intent, rawLog, null, ct);
+    }
+
+    /// <summary>
+    /// Runs an audit and compares it against the active baseline for the intent, reporting progress
+    /// through <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="intent">The audit intent to check.</param>
+    /// <param name="rawLog">Optional firewall log content.</param>
+    /// <param name="progress">Optional progress reporter for the underlying audit.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result with drift findings.</returns>
+    Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Returns the active baseline for the specified intent without running an audit.
@@ -73,7 +143,19 @@ public interface IAgent
     /// <param name="intent">The audit intent.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the baseline findings.</returns>
-    Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct);
+    Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+    {
+        return GetBaselineAsync(intent, null, ct);
+    }
+
+    /// <summary>
+    /// Returns the active baseline for the specified intent without running an audit.
+    /// </summary>
+    /// <param name="intent">The audit intent.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the baseline findings.</returns>
+    Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Starts a guided remediation session for the specified finding reference.
@@ -81,7 +163,19 @@ public interface IAgent
     /// <param name="findingReference">The finding ID or reference to remediate (e.g. "FW-001").</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the remediation session.</returns>
-    Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct);
+    Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+    {
+        return StartRemediationAsync(findingReference, null, ct);
+    }
+
+    /// <summary>
+    /// Starts a guided remediation session for the specified finding reference.
+    /// </summary>
+    /// <param name="findingReference">The finding ID or reference to remediate (e.g. "FW-001").</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the remediation session.</returns>
+    Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Runs verification on an active remediation session, re-auditing and producing a before/after diff.
@@ -89,7 +183,20 @@ public interface IAgent
     /// <param name="sessionId">The session ID to verify.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the verification diff.</returns>
-    Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct);
+    Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+    {
+        return VerifyRemediationAsync(sessionId, null, ct);
+    }
+
+    /// <summary>
+    /// Runs verification on an active remediation session, re-auditing and producing a before/after
+    /// diff, reporting progress through <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="sessionId">The session ID to verify.</param>
+    /// <param name="progress">Optional progress reporter for the re-audit.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the verification diff.</returns>
+    Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct);
 
     /// <summary>
     /// Re-runs the last audit intent and verifies whether a specific rule is still failing.
@@ -98,6 +205,19 @@ public interface IAgent
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The agent result containing the targeted verification outcome.</returns>
     Task<AgentResult> VerifyFindingAsync(string ruleId, CancellationToken ct)
+    {
+        return VerifyFindingAsync(ruleId, null, ct);
+    }
+
+    /// <summary>
+    /// Re-runs the last audit intent and verifies whether a specific rule is still failing,
+    /// reporting progress through <paramref name="progress"/>.
+    /// </summary>
+    /// <param name="ruleId">The rule ID to verify, for example <c>FW-001</c>.</param>
+    /// <param name="progress">Optional progress reporter for the re-audit.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The agent result containing the targeted verification outcome.</returns>
+    Task<AgentResult> VerifyFindingAsync(string ruleId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         throw new NotSupportedException("This agent does not support targeted finding verification.");
     }

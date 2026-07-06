@@ -1981,6 +1981,35 @@ public class SecurityAgentTests
         Assert.Contains("Run an audit first", result.Summary);
     }
 
+    [Fact]
+    public async Task RunAuditAsync_ReportsProgressPhases()
+    {
+        var agent = CreateAgent();
+        // Capture reports synchronously rather than via Progress<T>, whose delivery is marshaled
+        // through the captured SynchronizationContext and can arrive out of order / after the
+        // audit completes under xUnit parallelism. ReportProgress calls are sequential within
+        // RunAuditCoreAsync, so a plain list is safe here.
+        var progress = new CapturingProgress();
+
+        var result = await agent.RunAuditAsync(AgentIntent.FirewallCheck, null, progress, CancellationToken.None);
+        var reports = progress.Reports;
+
+        Assert.Equal(AgentIntent.FirewallCheck, result.Intent);
+        Assert.True(reports.Count >= 2, $"Expected at least 2 progress reports, got {reports.Count}");
+        Assert.All(reports, r => Assert.False(string.IsNullOrWhiteSpace(r.Phase)));
+        Assert.Equal(15, reports[^1].TotalSteps);
+        Assert.Equal(reports[^1].TotalSteps - 1, reports[^1].StepIndex);
+        Assert.True(reports[^1].PercentComplete > reports[0].PercentComplete,
+            "Final progress percent should be greater than initial percent");
+    }
+
+    /// <summary>Synchronously records every Report call in order; context-independent.</summary>
+    private sealed class CapturingProgress : IProgress<AgentAuditProgress>
+    {
+        public List<AgentAuditProgress> Reports { get; } = new();
+        public void Report(AgentAuditProgress value) => Reports.Add(value);
+    }
+
     private sealed class AlwaysFailHighRule : IRule
     {
         public string Id => "TEST-005";

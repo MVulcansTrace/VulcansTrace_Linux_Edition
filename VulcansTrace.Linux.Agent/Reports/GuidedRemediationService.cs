@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -13,7 +14,7 @@ internal sealed class GuidedRemediationService
     private readonly AgentAuditState _auditState;
     private readonly RemediationPlanBuilder _planBuilder;
     private readonly ISessionStore? _sessionStore;
-    private readonly Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? _runAudit;
+    private readonly Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>>? _runAudit;
     private readonly StepOutcomeParser _outcomeParser;
     private readonly FailureResponseTable _failureResponseTable;
 
@@ -21,7 +22,7 @@ internal sealed class GuidedRemediationService
         AgentAuditState auditState,
         RemediationPlanBuilder planBuilder,
         ISessionStore? sessionStore = null,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null,
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>>? runAudit = null,
         StepOutcomeParser? outcomeParser = null,
         FailureResponseTable? failureResponseTable = null)
     {
@@ -481,7 +482,10 @@ internal sealed class GuidedRemediationService
         return Task.FromResult(BuildStepOutcomeResult(failedSession, ruleId, success: false, failureReason, query.RawQuery, report));
     }
 
-    public async Task<AgentResult> RunVerificationAsync(string sessionId, CancellationToken ct)
+    public Task<AgentResult> RunVerificationAsync(string sessionId, CancellationToken ct) =>
+        RunVerificationAsync(sessionId, null, ct);
+
+    public async Task<AgentResult> RunVerificationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -554,7 +558,7 @@ internal sealed class GuidedRemediationService
                 $"Verification started for session {sessionId}");
             _sessionStore.Save(session);
 
-            var auditResult = await _runAudit(session.BeforeSnapshot!.Intent, null, ct);
+            var auditResult = await _runAudit(session.BeforeSnapshot!.Intent, null, progress, ct);
             var afterSnapshot = CaptureSnapshot(auditResult);
 
             var beforeEntry = ToHistoryEntry(session.BeforeSnapshot);

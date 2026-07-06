@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -151,12 +152,12 @@ public class AgentViewModelHistoryTests
 
     private sealed class MockHistoryAgent : IAgent
     {
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
-            return RunAuditAsync(AgentIntent.FullAudit, rawLog, ct);
+            return RunAuditAsync(AgentIntent.FullAudit, rawLog, progress, ct);
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -172,7 +173,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -183,7 +184,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -194,7 +195,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -205,7 +206,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -216,7 +217,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -227,7 +228,7 @@ public class AgentViewModelHistoryTests
             });
         }
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {

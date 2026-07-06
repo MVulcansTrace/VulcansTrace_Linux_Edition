@@ -57,7 +57,7 @@ public class AgentFollowUpServiceTests
         var calls = new List<AgentIntent>();
         var service = CreateService(
             state,
-            runAudit: (intent, _, _) =>
+            runAudit: (intent, _, _, _) =>
             {
                 calls.Add(intent);
                 return Task.FromResult(fallbackResult);
@@ -69,6 +69,32 @@ public class AgentFollowUpServiceTests
         Assert.Same(fallbackFinding, result.AgentFindings[0]);
         Assert.Equal(AgentIntent.SshCheck, Assert.Single(calls));
         Assert.Null(state.LastResult);
+    }
+
+    [Fact]
+    public async Task HandleFollowUpAsync_WithProgress_ForwardsProgressToFallbackAudit()
+    {
+        var state = new AgentAuditState();
+        var fallbackFinding = CreateFinding("SSH-001", "sshd_config", Severity.High) with { Category = "SSH" };
+        var fallbackResult = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            AgentFindings = new[] { fallbackFinding }
+        };
+        IProgress<AgentAuditProgress>? capturedProgress = null;
+        var service = CreateService(
+            state,
+            runAudit: (intent, rawLog, progress, ct) =>
+            {
+                capturedProgress = progress;
+                return Task.FromResult(fallbackResult);
+            });
+
+        var sentProgress = new Progress<AgentAuditProgress>(_ => { });
+        var result = await service.HandleFollowUpAsync(new AgentQuery(AgentIntent.FilterCategory, "ssh"), sentProgress, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.Same(sentProgress, capturedProgress);
     }
 
     [Fact]
@@ -360,7 +386,7 @@ public class AgentFollowUpServiceTests
         AgentAuditState state,
         IAuditHistoryStore? historyStore = null,
         ISuppressionStore? suppressionStore = null,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>>? runAudit = null,
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>>? runAudit = null,
         IExplanationProvider? explanationProvider = null)
     {
         var planBuilder = new RemediationPlanBuilder(explanationProvider ?? new TestExplanationProvider());
@@ -374,7 +400,7 @@ public class AgentFollowUpServiceTests
             runAudit ?? RunAuditShouldNotBeCalled);
     }
 
-    private static Task<AgentResult> RunAuditShouldNotBeCalled(AgentIntent intent, string? rawLog, CancellationToken ct)
+    private static Task<AgentResult> RunAuditShouldNotBeCalled(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         throw new InvalidOperationException("RunAudit should not be called by this test.");
     }

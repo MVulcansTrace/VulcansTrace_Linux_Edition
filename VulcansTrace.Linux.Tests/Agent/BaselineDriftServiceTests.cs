@@ -71,7 +71,7 @@ public class BaselineDriftServiceTests
             FailedCount = 2,
             CapabilityReport = "capabilities"
         };
-        var service = new BaselineDriftService(state, store, (_, _, _) => Task.FromResult(liveResult));
+        var service = new BaselineDriftService(state, store, (_, _, _, _) => Task.FromResult(liveResult));
 
         var result = await service.RunDriftCheckAsync(AgentIntent.FirewallCheck, null, CancellationToken.None);
 
@@ -87,6 +87,40 @@ public class BaselineDriftServiceTests
         Assert.Equal(2, result.FailedCount);
         Assert.Equal("capabilities", result.CapabilityReport);
         Assert.Same(previousResult, state.LastResult);
+    }
+
+    [Fact]
+    public async Task CheckDriftAsync_WithProgress_ForwardsProgressToRunAudit()
+    {
+        var state = new AgentAuditState();
+        var previousFinding = CreateFinding("PREV-001", "previous", Severity.Low);
+        var previousResult = new AgentResult
+        {
+            Intent = AgentIntent.FirewallCheck,
+            AgentFindings = new[] { previousFinding }
+        };
+        state.RememberAudit(previousResult, AgentIntent.FirewallCheck, new[] { ("PREV-001", previousFinding) });
+
+        var baseline = CreateBaseline(
+            AgentIntent.FirewallCheck,
+            CreateFinding("FW-001", "22/tcp", Severity.Low),
+            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var store = new InMemoryBaselineStore();
+        store.Save(baseline);
+        store.SetActive(baseline.BaselineId);
+
+        IProgress<AgentAuditProgress>? capturedProgress = null;
+        var liveResult = new AgentResult { Intent = AgentIntent.FirewallCheck, AgentFindings = Array.Empty<Finding>() };
+        var service = new BaselineDriftService(state, store, (intent, rawLog, progress, ct) =>
+        {
+            capturedProgress = progress;
+            return Task.FromResult(liveResult);
+        });
+
+        var sentProgress = new Progress<AgentAuditProgress>(_ => { });
+        await service.CheckDriftAsync(new AgentQuery(AgentIntent.CheckDrift, null), sentProgress, CancellationToken.None);
+
+        Assert.Same(sentProgress, capturedProgress);
     }
 
     [Fact]
@@ -212,7 +246,7 @@ public class BaselineDriftServiceTests
 
         var service = new BaselineDriftService(
             state, store,
-            (_, _, _) => throw new InvalidOperationException("audit failed"));
+            (_, _, _, _) => throw new InvalidOperationException("audit failed"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.RunDriftCheckAsync(AgentIntent.FirewallCheck, null, CancellationToken.None));
@@ -284,7 +318,7 @@ public class BaselineDriftServiceTests
         Assert.Contains("Part of baseline", shown.Details);
     }
 
-    private static Task<AgentResult> RunAuditShouldNotBeCalled(AgentIntent intent, string? rawLog, CancellationToken ct)
+    private static Task<AgentResult> RunAuditShouldNotBeCalled(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         throw new InvalidOperationException("RunAudit should not be called by this test.");
     }

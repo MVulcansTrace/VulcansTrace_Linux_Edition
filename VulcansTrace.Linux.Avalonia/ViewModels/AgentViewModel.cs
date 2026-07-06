@@ -64,6 +64,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private int _queryHistoryIndex = -1;
     private string _chatSearchQuery = "";
     private bool _hasNoSearchMatches;
+    private double _auditProgressPercent;
+    private string _auditProgressMessage = string.Empty;
+    private bool _auditProgressIsIndeterminate;
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
@@ -223,6 +226,13 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _isBusy, value))
             {
                 AgentStatus = value ? "Busy" : "Online";
+                // Reset on every transition: clears stale values when an operation ends (hide the
+                // bar) and when the next one starts (no leftover label/percent from the prior op,
+                // which a late Progress<T> callback may have written after the previous reset).
+                AuditProgressPercent = 0;
+                AuditProgressMessage = string.Empty;
+                AuditProgressIsIndeterminate = false;
+                OnPropertyChanged(nameof(ShowAuditProgress));
                 SendQueryCommand.RaiseCanExecuteChanged();
                 ExecuteSlashCommandCommand.RaiseCanExecuteChanged();
                 CancelQueryCommand.RaiseCanExecuteChanged();
@@ -255,6 +265,30 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         get => _agentStatus;
         private set => SetField(ref _agentStatus, value);
     }
+
+    /// <summary>Gets the current audit progress percent (0–100).</summary>
+    public double AuditProgressPercent
+    {
+        get => _auditProgressPercent;
+        private set => SetField(ref _auditProgressPercent, value);
+    }
+
+    /// <summary>Gets the current audit progress message.</summary>
+    public string AuditProgressMessage
+    {
+        get => _auditProgressMessage;
+        private set => SetField(ref _auditProgressMessage, value);
+    }
+
+    /// <summary>Gets whether the progress bar should be indeterminate.</summary>
+    public bool AuditProgressIsIndeterminate
+    {
+        get => _auditProgressIsIndeterminate;
+        private set => SetField(ref _auditProgressIsIndeterminate, value);
+    }
+
+    /// <summary>Gets whether to show the determinate audit progress UI.</summary>
+    public bool ShowAuditProgress => IsBusy && !string.IsNullOrEmpty(AuditProgressMessage);
 
     /// <summary>Gets whether only the initial welcome message is shown.</summary>
     public bool HasOnlyWelcomeMessage
@@ -717,7 +751,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _operationRunner = new AgentOperationRunner(
             value => IsBusy = value,
             ClearPrivilegeWarning,
-            AddAgentMessage);
+            AddAgentMessage,
+            OnAuditProgress);
         _queryExecutor = new AgentQueryExecutor(() => _agent);
         _historyCoordinator = new AgentHistoryCoordinator(
             historyStore,
@@ -1269,9 +1304,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         AddUserMessage(query);
         UserQuery = string.Empty;
 
-        await _operationRunner.RunAsync(async token =>
+        await _operationRunner.RunAsync(async (progress, token) =>
         {
-            var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, token);
+            var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, progress, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() =>
@@ -1293,9 +1328,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         MarkChatInteracted();
         AddUserMessage(displayQuery);
 
-        await _operationRunner.RunAsync(async token =>
+        await _operationRunner.RunAsync(async (progress, token) =>
         {
-            var result = await _agent.RunAuditAsync(intent, LogText, token);
+            var result = await _agent.RunAuditAsync(intent, LogText, progress, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result));
@@ -1400,11 +1435,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         AddUserMessage("Set baseline");
 
-        await _operationRunner.RunAsync(async token =>
+        await _operationRunner.RunAsync(async (progress, token) =>
         {
             // Pass empty name so the agent generates it from the last audit intent,
             // avoiding wrong intent (e.g. CheckDrift) in the name.
-            var result = await _agent.SetBaselineAsync("", null, token);
+            var result = await _agent.SetBaselineAsync("", null, progress, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() =>
@@ -1419,9 +1454,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         var intent = _resultState.LastAuditIntent;
         AddUserMessage($"Check drift ({intent})");
 
-        await _operationRunner.RunAsync(async token =>
+        await _operationRunner.RunAsync(async (progress, token) =>
         {
-            var result = await _agent.CheckDriftAsync(intent, null, token);
+            var result = await _agent.CheckDriftAsync(intent, null, progress, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false));
@@ -1446,9 +1481,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         AddUserMessage($"Verify remediation session {sessionId}");
 
-        await _operationRunner.RunAsync(async token =>
+        await _operationRunner.RunAsync(async (progress, token) =>
         {
-            var result = await _agent.VerifyRemediationAsync(sessionId, token);
+            var result = await _agent.VerifyRemediationAsync(sessionId, progress, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() =>
@@ -1927,6 +1962,21 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             RefreshHasNoVisibleMessages();
             UpdateHasNoSearchMatches();
         };
+    }
+
+    private void OnAuditProgress(AgentAuditProgress progress)
+    {
+        // Progress<T> may deliver a report asynchronously after the operation has already ended and
+        // IsBusy reset; ignore those so the bar's backing state stays empty while not busy.
+        if (!_isBusy)
+        {
+            return;
+        }
+
+        AuditProgressPercent = progress.PercentComplete;
+        AuditProgressMessage = progress.FormatMessage();
+        AuditProgressIsIndeterminate = progress.IsIndeterminate;
+        OnPropertyChanged(nameof(ShowAuditProgress));
     }
 
     private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)

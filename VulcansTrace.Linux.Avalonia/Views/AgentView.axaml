@@ -1009,60 +1009,12 @@
                                        HorizontalAlignment="Stretch"
                                        Margin="16,0,16,16" />
 
-        <!-- Agent typing indicator -->
+        <!-- Agent progress / typing indicator -->
         <Grid Grid.Row="5"
               ColumnDefinitions="Auto,*"
               HorizontalAlignment="Left"
               Margin="16,8,16,16"
-              IsVisible="{Binding IsBusy}"
-              Classes.busy="{Binding IsBusy}">
-          <Grid.Styles>
-            <Style Selector="Grid.busy Ellipse:nth-child(1)">
-              <Style.Animations>
-                <Animation Duration="0:0:0.6" IterationCount="Infinite">
-                  <KeyFrame Cue="0%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                  <KeyFrame Cue="50%">
-                    <Setter Property="Opacity" Value="1" />
-                  </KeyFrame>
-                  <KeyFrame Cue="100%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                </Animation>
-              </Style.Animations>
-            </Style>
-            <Style Selector="Grid.busy Ellipse:nth-child(2)">
-              <Style.Animations>
-                <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.15">
-                  <KeyFrame Cue="0%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                  <KeyFrame Cue="50%">
-                    <Setter Property="Opacity" Value="1" />
-                  </KeyFrame>
-                  <KeyFrame Cue="100%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                </Animation>
-              </Style.Animations>
-            </Style>
-            <Style Selector="Grid.busy Ellipse:nth-child(3)">
-              <Style.Animations>
-                <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.3">
-                  <KeyFrame Cue="0%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                  <KeyFrame Cue="50%">
-                    <Setter Property="Opacity" Value="1" />
-                  </KeyFrame>
-                  <KeyFrame Cue="100%">
-                    <Setter Property="Opacity" Value="0.4" />
-                  </KeyFrame>
-                </Animation>
-              </Style.Animations>
-            </Style>
-          </Grid.Styles>
+              IsVisible="{Binding IsBusy}">
           <controls:VtAgentAvatar Grid.Column="0"
                                   AvatarSize="28"
                                   AvatarFontSize="{StaticResource VtFontSizeXs}"
@@ -1074,11 +1026,82 @@
                   BorderThickness="1"
                   CornerRadius="{StaticResource VtRadiusLg}"
                   Padding="16,12"
-                  VerticalAlignment="Top">
-            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
-              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
-              <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+                  VerticalAlignment="Top"
+                  MinWidth="240">
+            <StackPanel Orientation="Vertical" Spacing="8">
+              <!-- Progress bar + label for audit operations -->
+              <StackPanel Orientation="Vertical"
+                          Spacing="4"
+                          IsVisible="{Binding ShowAuditProgress}">
+                <TextBlock Text="{Binding AuditProgressMessage}"
+                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           FontWeight="SemiBold"
+                           AutomationProperties.AutomationId="AgentAuditProgressLabel" />
+                <ProgressBar Value="{Binding AuditProgressPercent}"
+                             Minimum="0"
+                             Maximum="100"
+                             IsIndeterminate="{Binding AuditProgressIsIndeterminate}"
+                             Classes="VtAuditProgress"
+                             AutomationProperties.AutomationId="AgentAuditProgressBar" />
+              </StackPanel>
+              <!-- Typing dots for non-audit busy states -->
+              <StackPanel Orientation="Horizontal"
+                          Spacing="4"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding !ShowAuditProgress}"
+                          Classes.busy="{Binding IsBusy}">
+                <StackPanel.Styles>
+                  <Style Selector="StackPanel.busy Ellipse:nth-child(1)">
+                    <Style.Animations>
+                      <Animation Duration="0:0:0.6" IterationCount="Infinite">
+                        <KeyFrame Cue="0%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                        <KeyFrame Cue="50%">
+                          <Setter Property="Opacity" Value="1" />
+                        </KeyFrame>
+                        <KeyFrame Cue="100%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                      </Animation>
+                    </Style.Animations>
+                  </Style>
+                  <Style Selector="StackPanel.busy Ellipse:nth-child(2)">
+                    <Style.Animations>
+                      <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.15">
+                        <KeyFrame Cue="0%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                        <KeyFrame Cue="50%">
+                          <Setter Property="Opacity" Value="1" />
+                        </KeyFrame>
+                        <KeyFrame Cue="100%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                      </Animation>
+                    </Style.Animations>
+                  </Style>
+                  <Style Selector="StackPanel.busy Ellipse:nth-child(3)">
+                    <Style.Animations>
+                      <Animation Duration="0:0:0.6" IterationCount="Infinite" Delay="0:0:0.3">
+                        <KeyFrame Cue="0%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                        <KeyFrame Cue="50%">
+                          <Setter Property="Opacity" Value="1" />
+                        </KeyFrame>
+                        <KeyFrame Cue="100%">
+                          <Setter Property="Opacity" Value="0.4" />
+                        </KeyFrame>
+                      </Animation>
+                    </Style.Animations>
+                  </Style>
+                </StackPanel.Styles>
+                <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+                <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+                <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" />
+              </StackPanel>
             </StackPanel>
           </Border>
         </Grid>

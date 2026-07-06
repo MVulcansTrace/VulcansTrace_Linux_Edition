@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace VulcansTrace.Linux.Agent.Scanners;
 
 /// <summary>
@@ -26,6 +32,7 @@ internal sealed class ScannerCoordinator
         var scanners = relevantScannerNames is null
             ? _scanners
             : _scanners.Where(s => relevantScannerNames.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToArray();
+
         var scanTasks = scanners.Select(s => RunScannerSafelyAsync(s, builder, ct)).ToArray();
         await Task.WhenAll(scanTasks);
 

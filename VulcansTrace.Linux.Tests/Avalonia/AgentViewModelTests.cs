@@ -97,6 +97,28 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task SendQueryCommand_ProgressReports_ResetAfterCompletion()
+    {
+        var agent = new ProgressReportingAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "run audit"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        // The agent reported progress; Progress<T>.Report is queued on the dispatcher and drains in
+        // the Flush above. With the IsBusy=false reset and the OnAuditProgress !IsBusy guard, that
+        // late report must NOT leave stale label/percent behind to flash at the start of the next op.
+        Assert.False(vm.IsBusy);
+        Assert.Equal(0, vm.AuditProgressPercent);
+        Assert.Empty(vm.AuditProgressMessage);
+        Assert.False(vm.ShowAuditProgress);
+    }
+
+    [AvaloniaFact]
     public async Task FullAuditCommand_AddsCapabilityReportOnce()
     {
         const string capabilityReport = "Data sources: ss available.";
@@ -1524,21 +1546,21 @@ public class AgentViewModelTests
 
     private class StubAgent : IAgent
     {
-        public virtual Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.Help,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = intent,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public virtual Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ExplainFinding,
@@ -1546,35 +1568,35 @@ public class AgentViewModelTests
                 AgentFindings = new[] { finding }
             });
 
-        public virtual Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public virtual Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SetBaseline,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public virtual Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.CheckDrift,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public virtual Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ShowBaseline,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+        public virtual Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.StartRemediation,
                 Summary = "stub"
             });
 
-        public virtual Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+        public virtual Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.VerifyRemediation,
@@ -1652,7 +1674,7 @@ public class AgentViewModelTests
 
         public int MarkExportedCallCount { get; private set; }
 
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -1695,28 +1717,28 @@ public class AgentViewModelTests
             _capabilityReport = capabilityReport;
         }
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.FullAudit));
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(intent));
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ExplainFinding));
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.SetBaseline));
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.CheckDrift));
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.StartRemediation));
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
@@ -1745,6 +1767,27 @@ public class AgentViewModelTests
         };
     }
 
+    /// <summary>Reports one progress phase and returns immediately.</summary>
+    private sealed class ProgressReportingAgent : StubAgent
+    {
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
+        {
+            progress?.Report(new AgentAuditProgress
+            {
+                Phase = "Scanning system",
+                Detail = "Test scanner",
+                StepIndex = 0,
+                TotalSteps = 4
+            });
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.FullAudit,
+                Summary = "progress test",
+                AgentFindings = Array.Empty<Finding>()
+            });
+        }
+    }
+
     private sealed class TrackingAgent : IAgent
     {
         private readonly AgentIntent _auditIntent;
@@ -1758,37 +1801,37 @@ public class AgentViewModelTests
         public AgentIntent? LastBaselineIntent { get; private set; }
         public AgentIntent? LastRunAuditIntent { get; private set; }
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(_auditIntent));
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             LastRunAuditIntent = intent;
             return Task.FromResult(CreateResult(intent));
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.ExplainFinding));
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.SetBaseline));
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             LastDriftIntent = intent;
             return Task.FromResult(CreateResult(AgentIntent.CheckDrift));
         }
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             LastBaselineIntent = intent;
             return Task.FromResult(CreateResult(AgentIntent.ShowBaseline));
         }
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.StartRemediation));
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(CreateResult(AgentIntent.VerifyRemediation));
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
@@ -1819,7 +1862,7 @@ public class AgentViewModelTests
 
     private sealed class ErrorAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             throw new InvalidOperationException("boom");
         }
@@ -1827,7 +1870,7 @@ public class AgentViewModelTests
 
     private sealed class CancellableAgent : StubAgent
     {
-        public override async Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public override async Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new AgentResult { Intent = AgentIntent.Help, Summary = "unreachable" };
@@ -1836,7 +1879,7 @@ public class AgentViewModelTests
 
     private sealed class SetBaselineErrorAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SshCheck,
@@ -1844,7 +1887,7 @@ public class AgentViewModelTests
                 UtcTimestamp = DateTime.UtcNow
             });
 
-        public override Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        public override Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             throw new InvalidOperationException("baseline boom");
         }
@@ -1852,7 +1895,7 @@ public class AgentViewModelTests
 
     private sealed class CancellableDriftAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SshCheck,
@@ -1860,7 +1903,7 @@ public class AgentViewModelTests
                 UtcTimestamp = DateTime.UtcNow
             });
 
-        public override async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public override async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, ct);
             return new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "unreachable" };
@@ -1869,7 +1912,7 @@ public class AgentViewModelTests
 
     private sealed class NoisyBaselineAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SshCheck,
@@ -1877,7 +1920,7 @@ public class AgentViewModelTests
                 UtcTimestamp = DateTime.UtcNow
             });
 
-        public override Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public override Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ShowBaseline,
@@ -1897,7 +1940,7 @@ public class AgentViewModelTests
             _finding = finding;
         }
 
-        public override Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public override Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.ExplainFinding,
@@ -1908,7 +1951,7 @@ public class AgentViewModelTests
 
     private sealed class SetBaselineSuccessAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SshCheck,
@@ -1916,7 +1959,7 @@ public class AgentViewModelTests
                 UtcTimestamp = DateTime.UtcNow
             });
 
-        public override Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public override Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SetBaseline,
@@ -2046,7 +2089,7 @@ public class AgentViewModelTests
 
     private sealed class DriftResultAgent : StubAgent
     {
-        public override Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.SshCheck,
@@ -2054,7 +2097,7 @@ public class AgentViewModelTests
                 UtcTimestamp = DateTime.UtcNow
             });
 
-        public override Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public override Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
                 Intent = AgentIntent.CheckDrift,
@@ -2174,7 +2217,7 @@ public class AgentViewModelTests
         public string? LastAskQuery { get; private set; }
         public Task LastCommandTask { get; private set; } = Task.CompletedTask;
 
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             LastAskQuery = query;
             LastCommandTask = Task.CompletedTask;
@@ -2191,7 +2234,7 @@ public class AgentViewModelTests
             return Task.FromResult(result);
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             LastRunAuditIntent = intent;
             LastCommandTask = Task.CompletedTask;
@@ -2208,22 +2251,22 @@ public class AgentViewModelTests
             return Task.FromResult(result);
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) =>
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.ExplainFinding, Summary = "stub" });
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) =>
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.SetBaseline, Summary = "stub" });
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) =>
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "stub" });
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) =>
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.ShowBaseline, Summary = "stub" });
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) =>
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "stub" });
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) =>
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "stub" });
 
         public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>

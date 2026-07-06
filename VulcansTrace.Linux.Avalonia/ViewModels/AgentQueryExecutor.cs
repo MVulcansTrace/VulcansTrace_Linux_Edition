@@ -29,6 +29,16 @@ internal sealed class AgentQueryExecutor
         Func<Finding?>? selectedFindingProvider,
         CancellationToken ct)
     {
+        return ExecuteAsync(query, rawLog, selectedFindingProvider, null, ct);
+    }
+
+    public Task<AgentResult> ExecuteAsync(
+        string query,
+        string? rawLog,
+        Func<Finding?>? selectedFindingProvider,
+        IProgress<AgentAuditProgress>? progress,
+        CancellationToken ct)
+    {
         var agent = _getAgent();
 
         // Selected-finding shortcut: when the user has a finding selected in the UI
@@ -43,10 +53,10 @@ internal sealed class AgentQueryExecutor
             var selected = selectedFindingProvider.Invoke();
             if (selected != null)
             {
-                return agent.ExplainFindingAsync(selected, ct);
+                return agent.ExplainFindingAsync(selected, progress, ct);
             }
         }
 
-        return agent.AskAsync(query, rawLog, ct);
+        return agent.AskAsync(query, rawLog, progress, ct);
     }
 }

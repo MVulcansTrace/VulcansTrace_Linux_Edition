@@ -148,7 +148,10 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+    public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct) => AskAsync(query, rawLog, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         var agentQuery = _dialogueManager.Resolve(query, _auditState);
 
@@ -202,9 +205,9 @@ public sealed class SecurityAgent : IAgent
             result = agentQuery.Intent switch
             {
                 AgentIntent.SetBaseline => await _baselineDriftService.SetBaselineAsync(agentQuery, ct),
-                AgentIntent.CheckDrift => await _baselineDriftService.CheckDriftAsync(agentQuery, ct),
+                AgentIntent.CheckDrift => await _baselineDriftService.CheckDriftAsync(agentQuery, progress, ct),
                 AgentIntent.ShowBaseline => await _baselineDriftService.ShowBaselineAsync(agentQuery, ct),
-                _ => await RunAuditCoreAsync(agentQuery.Intent, rawLog, ct)
+                _ => await RunAuditCoreAsync(agentQuery.Intent, rawLog, progress, ct)
             };
         }
         else if (agentQuery.Intent == AgentIntent.StartRemediation)
@@ -220,10 +223,10 @@ public sealed class SecurityAgent : IAgent
             var target = agentQuery.TargetReference ?? "";
             if (!string.IsNullOrWhiteSpace(target) && !IsSessionId(target))
             {
-                return await VerifyFindingAsync(target, ct).ConfigureAwait(false);
+                return await VerifyFindingAsync(target, progress, ct).ConfigureAwait(false);
             }
 
-            result = await _guidedRemediationService.RunVerificationAsync(target, ct);
+            result = await _guidedRemediationService.RunVerificationAsync(target, progress, ct);
         }
         else if (agentQuery.Intent == AgentIntent.ListRemediationSessions)
         {
@@ -245,11 +248,11 @@ public sealed class SecurityAgent : IAgent
         }
         else if (IsFollowUpIntent(agentQuery.Intent))
         {
-            result = await _followUpService.HandleFollowUpAsync(agentQuery, ct);
+            result = await _followUpService.HandleFollowUpAsync(agentQuery, progress, ct);
         }
         else
         {
-            result = await RunAuditCoreAsync(agentQuery.Intent, rawLog, ct);
+            result = await RunAuditCoreAsync(agentQuery.Intent, rawLog, progress, ct);
         }
 
         return await CompleteStructuredResultAsync(query, agentQuery, result).ConfigureAwait(false);
@@ -394,21 +397,32 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct) => RunAuditAsync(intent, rawLog, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
-        var result = await RunAuditCoreAsync(intent, rawLog, ct);
+        var result = await RunAuditCoreAsync(intent, rawLog, progress, ct);
 
         return await AttachSuggestionsAndSaveAsync(result).ConfigureAwait(false);
     }
 
-    private async Task<AgentResult> RunAuditCoreAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    private async Task<AgentResult> RunAuditCoreAsync(
+        AgentIntent intent,
+        string? rawLog,
+        IProgress<AgentAuditProgress>? progress,
+        CancellationToken ct)
     {
+        const int TotalPhases = 15;
+        var phaseIndex = 0;
+
         ct.ThrowIfCancellationRequested();
 
         // Phase 1: Run only the scanners that feed the rules for this intent, in parallel.
         // The set is derived from rule data dependencies (RuleEvaluationService.GetRequiredScannerNames),
         // not a hand-maintained intent map, so targeted audits can't be silently data-starved.
         var requiredScanners = _ruleEvaluationService.GetRequiredScannerNames(intent);
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Scanning system", requiredScanners is null ? null : string.Join(", ", requiredScanners));
         var scannerResult = await _scannerCoordinator.RunAsync(ct, requiredScanners);
         var scanData = scannerResult.ScanData;
         var warnings = scannerResult.Warnings.ToList();
@@ -418,12 +432,14 @@ public sealed class SecurityAgent : IAgent
         ct.ThrowIfCancellationRequested();
 
         // Phase 2: Evaluate rules against scan data
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Evaluating rules");
         var evaluatedRules = _ruleEvaluationService.EvaluateForIntent(intent, scanData, ct);
         var ruleResults = evaluatedRules.RuleResults.ToList();
         warnings.AddRange(evaluatedRules.Warnings);
 
         // Phase 3: Mark suppression status, convert rule failures to findings,
         // and collapse similar active findings into representative groups.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Assembling findings");
         var findingAssembly = _findingAssemblyService.Assemble(ruleResults);
         ruleResults = findingAssembly.RuleResults.ToList();
         var suppressedCount = findingAssembly.SuppressedCount;
@@ -436,6 +452,7 @@ public sealed class SecurityAgent : IAgent
 
         // Phase 3.5: Deterministic cross-scanner validation.
         // Adjusts confidence when independent scanner data supports or contradicts findings.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Validating findings");
         agentFindings = _crossScannerValidator.Validate(agentFindings, scanData, warnings);
 
         var historyEntries = agentFindings
@@ -447,20 +464,25 @@ public sealed class SecurityAgent : IAgent
         var crashedCount = ruleResults.Count(r => r.Status == RuleStatus.Crashed);
 
         // Phase 4: Optional log analysis
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Analyzing logs");
         var logAnalysis = await _logAnalysisService.AnalyzeAsync(rawLog, ct);
         var logAnalysisResult = logAnalysis.AnalysisResult;
         warnings.AddRange(logAnalysis.Warnings);
 
         // Phase 5: Build summary
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Building summary");
         var summary = _resultComposer.BuildSummary(intent, agentFindings, logAnalysisResult, ruleResults, suppressedCount, crashedCount);
 
         // Phase 6 + 7 (computed before finalization). Posture correlations depend only on findings,
         // and attack chains depend on findings + posture correlations. Building them before
         // FinalizeAudit lets the attack chains be persisted with the audit history entry, so the
         // ShowEvidence attack-chain-membership section survives a process restart/rehydrate.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Correlating posture");
         var postureCorrelations = _postureCorrelator.Correlate(agentFindings);
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Building attack chains");
         var attackChains = _attackChainNarrator.BuildChains(agentFindings, postureCorrelations);
 
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Finalizing result");
         var result = _resultFinalizer.FinalizeAudit(new AgentResultFinalizationRequest(
             intent,
             agentFindings,
@@ -481,25 +503,31 @@ public sealed class SecurityAgent : IAgent
 
         // Phase 8: Detect findings that returned after a verified fix.
         // This runs before Record() so it can see LastVerifiedFixedUtc before it is consumed.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Detecting recurring issues");
         var proactiveAlerts = _proactiveAlertDetector.Detect(result.AgentFindings, _auditState.Entities.RuleHistory, result.UtcTimestamp);
         result = result with { ProactiveAlerts = proactiveAlerts };
 
         // Phase 9: Update persistent per-rule memory so future turns can reference history.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Updating memory");
         _auditState.Entities.RuleHistory = _ruleMemoryRecorder.Record(result, _auditState.Entities.RuleHistory);
 
         // Phase 9.5: Update long-horizon category coverage so the agent can surface blind spots.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Updating coverage");
         _auditState.Entities.CheckedCategories = _categoryCoverageRecorder.Record(
             intent, result.UtcTimestamp, _auditState.Entities.CheckedCategories);
 
         // Phase 10: Compute system-level trajectory from per-rule trend history.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Computing trajectory");
         var systemTrajectory = _systemTrajectoryAnalyzer.Analyze(result.AgentFindings, _auditState.Entities.RuleHistory);
         result = result with { SystemTrajectory = systemTrajectory };
 
         // Phase 11: Surface remediation wisdom for rules with repeated fix-and-return cycles.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Surfacing remediation wisdom");
         var remediationWisdom = _remediationWisdomAnalyzer.Analyze(result.AgentFindings, _auditState.Entities.RuleHistory);
         result = result with { RemediationWisdom = remediationWisdom };
 
         // Phase 12: Compose a traceable narrative from findings, correlations, and memory.
+        ReportProgress(progress, ref phaseIndex, TotalPhases, "Composing narrative");
         var narrative = _narrativeComposer.Compose(result, _auditState.Entities.RuleHistory, _auditState.SnapshotEntities());
         result = result with { Narrative = narrative };
 
@@ -510,6 +538,22 @@ public sealed class SecurityAgent : IAgent
         _auditState.RememberAudit(result, intent, historyEntries);
 
         return result;
+    }
+
+    private static void ReportProgress(
+        IProgress<AgentAuditProgress>? progress,
+        ref int phaseIndex,
+        int totalPhases,
+        string phase,
+        string? detail = null)
+    {
+        progress?.Report(new AgentAuditProgress
+        {
+            Phase = phase,
+            Detail = detail,
+            StepIndex = phaseIndex++,
+            TotalSteps = totalPhases
+        });
     }
 
     private static bool IsFollowUpIntent(AgentIntent intent) => intent switch
@@ -533,7 +577,10 @@ public sealed class SecurityAgent : IAgent
     };
 
     /// <inheritdoc />
-    public async Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+    public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct) => SetBaselineAsync(name, description, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var query = new AgentQuery(AgentIntent.SetBaseline, name);
@@ -545,10 +592,13 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+    public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct) => CheckDriftAsync(intent, rawLog, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var result = await _baselineDriftService.RunDriftCheckAsync(intent, rawLog, ct).ConfigureAwait(false);
+        var result = await _baselineDriftService.RunDriftCheckAsync(intent, rawLog, progress, ct).ConfigureAwait(false);
         return await CompleteStructuredResultAsync(
             "check drift",
             new AgentQuery(AgentIntent.CheckDrift, intent.ToString()),
@@ -556,7 +606,10 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+    public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct) => GetBaselineAsync(intent, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var result = await _baselineDriftService.ShowBaselineForIntentAsync(intent, ct).ConfigureAwait(false);
@@ -567,7 +620,10 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+    public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct) => ExplainFindingAsync(finding, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(finding);
         ct.ThrowIfCancellationRequested();
@@ -584,7 +640,10 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+    public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct) => StartRemediationAsync(findingReference, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var result = await _guidedRemediationService.CreateSessionAsync(findingReference, ct).ConfigureAwait(false);
@@ -595,10 +654,13 @@ public sealed class SecurityAgent : IAgent
     }
 
     /// <inheritdoc />
-    public async Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+    public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct) => VerifyRemediationAsync(sessionId, null, ct);
+
+    /// <inheritdoc />
+    public async Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var result = await _guidedRemediationService.RunVerificationAsync(sessionId, ct).ConfigureAwait(false);
+        var result = await _guidedRemediationService.RunVerificationAsync(sessionId, progress, ct).ConfigureAwait(false);
 
         UpdateMemoryFromVerification(result);
 
@@ -612,7 +674,15 @@ public sealed class SecurityAgent : IAgent
     /// Verifies whether a specific finding has been remediated by re-running
     /// the relevant audit and reporting whether the rule still fails.
     /// </summary>
-    public async Task<AgentResult> VerifyFindingAsync(string ruleId, CancellationToken ct)
+    public Task<AgentResult> VerifyFindingAsync(string ruleId, CancellationToken ct) =>
+        VerifyFindingAsync(ruleId, null, ct);
+
+    /// <summary>
+    /// Verifies whether a specific finding has been remediated by re-running
+    /// the relevant audit and reporting whether the rule still fails,
+    /// reporting progress through <paramref name="progress"/>.
+    /// </summary>
+    public async Task<AgentResult> VerifyFindingAsync(string ruleId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleId);
         ct.ThrowIfCancellationRequested();
@@ -629,7 +699,7 @@ public sealed class SecurityAgent : IAgent
         }
 
         var intent = _auditState.LastResult.Intent;
-        var auditResult = await RunAuditCoreAsync(intent, null, ct).ConfigureAwait(false);
+        var auditResult = await RunAuditCoreAsync(intent, null, progress, ct).ConfigureAwait(false);
         var stillFailing = auditResult.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
             && f.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
 

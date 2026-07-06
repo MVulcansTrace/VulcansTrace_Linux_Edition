@@ -1,3 +1,4 @@
+using System;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
@@ -12,7 +13,7 @@ internal sealed class AgentFollowUpService
     private readonly IAuditHistoryStore? _historyStore;
     private readonly ISuppressionStore? _suppressionStore;
     private readonly GuidedRemediationService _remediationService;
-    private readonly Func<AgentIntent, string?, CancellationToken, Task<AgentResult>> _runAudit;
+    private readonly Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> _runAudit;
 
     public AgentFollowUpService(
         AgentAuditState auditState,
@@ -20,7 +21,7 @@ internal sealed class AgentFollowUpService
         IAuditHistoryStore? historyStore,
         ISuppressionStore? suppressionStore,
         GuidedRemediationService remediationService,
-        Func<AgentIntent, string?, CancellationToken, Task<AgentResult>> runAudit)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit)
     {
         _auditState = auditState ?? throw new ArgumentNullException(nameof(auditState));
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
@@ -30,15 +31,20 @@ internal sealed class AgentFollowUpService
         _runAudit = runAudit ?? throw new ArgumentNullException(nameof(runAudit));
     }
 
-    public Task<AgentResult> HandleFollowUpAsync(AgentQuery agentQuery, CancellationToken ct)
+    public Task<AgentResult> HandleFollowUpAsync(AgentQuery agentQuery, CancellationToken ct) =>
+        HandleFollowUpAsync(agentQuery, null, ct);
+
+    public Task<AgentResult> HandleFollowUpAsync(AgentQuery agentQuery, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         return agentQuery.Intent switch
         {
+            // When adding a new follow-up intent that runs an audit, ensure the IProgress<T>
+            // parameter reaches the underlying audit call so the UI progress bar stays accurate.
             AgentIntent.ShowChanges => HandleShowChangesAsync(ct),
             AgentIntent.ExplainCritical => HandleExplainCriticalAsync(ct),
-            AgentIntent.FilterCategory => HandleFilterCategoryAsync(agentQuery, ct),
+            AgentIntent.FilterCategory => HandleFilterCategoryAsync(agentQuery, progress, ct),
             AgentIntent.PrioritizeRemediation => _remediationService.HandlePrioritizeRemediationAsync(ct),
             AgentIntent.FixFinding => _remediationService.HandleFixFindingAsync(agentQuery, ct),
             AgentIntent.ListSuppressed => HandleListSuppressedAsync(ct),
@@ -202,7 +208,7 @@ internal sealed class AgentFollowUpService
         });
     }
 
-    private async Task<AgentResult> HandleFilterCategoryAsync(AgentQuery agentQuery, CancellationToken ct)
+    private async Task<AgentResult> HandleFilterCategoryAsync(AgentQuery agentQuery, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -216,7 +222,7 @@ internal sealed class AgentFollowUpService
                 var savedState = _auditState.SnapshotState();
                 try
                 {
-                    var fallbackResult = await _runAudit(fallbackIntent, null, ct);
+                    var fallbackResult = await _runAudit(fallbackIntent, null, progress, ct);
                     return fallbackResult with { Intent = AgentIntent.FilterCategory };
                 }
                 finally

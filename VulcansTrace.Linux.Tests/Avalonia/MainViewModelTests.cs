@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
@@ -347,7 +348,7 @@ also not a firewall line";
 
     private sealed class MockAgent : IAgent
     {
-        public Task<AgentResult> AskAsync(string query, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -358,7 +359,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -369,7 +370,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> ExplainFindingAsync(Finding finding, CancellationToken ct)
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -380,7 +381,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> SetBaselineAsync(string name, string? description, CancellationToken ct)
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -391,7 +392,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, CancellationToken ct)
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -402,7 +403,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, CancellationToken ct)
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -413,7 +414,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> StartRemediationAsync(string findingReference, CancellationToken ct)
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -424,7 +425,7 @@ also not a firewall line";
             });
         }
 
-        public Task<AgentResult> VerifyRemediationAsync(string sessionId, CancellationToken ct)
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
