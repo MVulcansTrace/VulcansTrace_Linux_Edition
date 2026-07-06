@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -22,6 +23,7 @@ public partial class AgentView : UserControl
     private TextBox? _queryInput;
     private TextBox? _slashHelpSearchBox;
     private TextBox? _chatSearchBox;
+    private readonly HashSet<AgentMessageViewModel> _streamingMessageSubscriptions = new();
 
     public AgentView()
     {
@@ -40,6 +42,7 @@ public partial class AgentView : UserControl
         {
             _viewModel.Messages.CollectionChanged -= OnMessagesCollectionChanged;
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            DetachStreamingMessageSubscriptions();
         }
 
         _viewModel = DataContext as AgentViewModel;
@@ -47,6 +50,8 @@ public partial class AgentView : UserControl
         {
             _viewModel.Messages.CollectionChanged += OnMessagesCollectionChanged;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            AttachStreamingMessageSubscriptions(_viewModel.Messages.Where(message =>
+                message.IsProse && !message.IsUser && (message.IsStreaming || message.IsStreamingPending)));
         }
     }
 
@@ -67,6 +72,7 @@ public partial class AgentView : UserControl
             _viewModel = null;
         }
 
+        DetachStreamingMessageSubscriptions();
         _scrollViewer = null;
     }
 
@@ -259,13 +265,81 @@ public partial class AgentView : UserControl
 
     private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            DetachStreamingMessageSubscriptions();
+            return;
+        }
+
+        if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems is not null)
+        {
+            DetachStreamingMessageSubscriptions(e.OldItems.OfType<AgentMessageViewModel>());
+            return;
+        }
+
         if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems is null)
             return;
 
         var isUserMessage = e.NewItems.OfType<AgentMessageViewModel>().Any(m => m.IsUser);
 
+        // Subscribe to prose messages (set at add time) so queued bubbles that begin
+        // streaming later still drive the per-tick auto-scroll.
+        AttachStreamingMessageSubscriptions(e.NewItems.OfType<AgentMessageViewModel>().Where(message =>
+            message.IsProse && !message.IsUser));
+
         // Defer scrolling until layout has updated with the new item.
         Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: isUserMessage), DispatcherPriority.Background);
+    }
+
+    private void OnStreamingMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not AgentMessageViewModel message)
+            return;
+
+        if (e.PropertyName == nameof(AgentMessageViewModel.StreamingText))
+        {
+            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: false), DispatcherPriority.Background);
+            return;
+        }
+
+        // A streaming message is finalized once it is neither actively streaming nor queued.
+        // Drop the subscription then. Either transition (stream finishing, or a queued message
+        // being revealed) can change what is on screen, so post a scroll in both cases.
+        var becameInactive = e.PropertyName == nameof(AgentMessageViewModel.IsStreaming) && !message.IsStreaming;
+        var becameRevealed = e.PropertyName == nameof(AgentMessageViewModel.IsStreamingPending) && !message.IsStreamingPending;
+        if (becameInactive || becameRevealed)
+        {
+            if (!message.IsStreaming && !message.IsStreamingPending)
+            {
+                _ = _streamingMessageSubscriptions.Remove(message);
+                message.PropertyChanged -= OnStreamingMessagePropertyChanged;
+            }
+
+            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: false), DispatcherPriority.Background);
+        }
+    }
+
+    private void AttachStreamingMessageSubscriptions(IEnumerable<AgentMessageViewModel> messages)
+    {
+        foreach (var message in messages)
+        {
+            if (_streamingMessageSubscriptions.Add(message))
+            {
+                message.PropertyChanged += OnStreamingMessagePropertyChanged;
+            }
+        }
+    }
+
+    private void DetachStreamingMessageSubscriptions(IEnumerable<AgentMessageViewModel>? messages = null)
+    {
+        var targets = messages?.ToList() ?? _streamingMessageSubscriptions.ToList();
+        foreach (var message in targets)
+        {
+            if (_streamingMessageSubscriptions.Remove(message))
+            {
+                message.PropertyChanged -= OnStreamingMessagePropertyChanged;
+            }
+        }
     }
 
     private void ScrollChatToEnd(bool force = false)

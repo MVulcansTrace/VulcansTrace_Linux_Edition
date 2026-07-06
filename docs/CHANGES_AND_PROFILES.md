@@ -5,7 +5,43 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-06-25
+Last updated: 2026-07-06
+
+### Agent Chat — Phase 1 Hardening (Regression-Proofing)
+
+Hardening pass over the shipped agent-chat features: chat search/history, pinned findings, streaming replies, and audit progress indicators.
+
+- **Chat search and filter composition** — added VM tests covering the empty state with and without active filters, severity + category + search composition, and the correct empty-state text.
+- **Query history navigation** — added VM tests for empty history, wrap-around at both ends, and editing a recalled query without corrupting the history list.
+- **Streaming reply cancellation** — added a VM test asserting that cancelling an active streamer flushes the remaining text and clears the active-streamer list.
+- **Pinned findings smoke coverage** — `scripts_report/agent_findings_pin_smoke.json` navigates to the Findings view, selects a row, and asserts the "Pinned only" filter/pin UI is present.
+- **Progress indicator smoke coverage** — `scripts_report/agent_fullaudit_progress_smoke.json` runs `/fullaudit`, asserts the "Scanning system" progress label, clicks Cancel, and asserts the "Query cancelled." message. Because real audits complete too quickly to reliably catch the transient progress UI, `SecurityAgent.RunAuditCoreAsync` honors an optional `VT_UI_TEST_AUDIT_DELAY_MS` environment variable that injects a short, cancelable delay only when the test harness sets it.
+- **Clear and search smoke coverage** — `scripts_report/agent_chat_clear_smoke.json` and `scripts_report/agent_chat_search_smoke.json` cover `/clear` and chat search end-to-end.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `AgentResultPresenter.cs`, `AgentMessageStreamer.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Avalonia/AgentViewModelTests.cs`
+  - Smoke scripts: `VulcansTrace-Computer-Use/scripts_report/agent_chat_clear_smoke.json`, `agent_chat_search_smoke.json`, `agent_findings_pin_smoke.json`, `agent_fullaudit_progress_smoke.json`
+  - Test harness helper: `VulcansTrace-Computer-Use/launch_vulcans_delayed.sh`
+
+### Agent Chat — Phase 2 Hardening (Slash-Command Discoverability)
+
+Hardening pass over the searchable slash-command help popup (? button, Ctrl+K, `/help`).
+
+- **Help popup keyboard navigation** — added VM tests for `SelectNextSlashHelpCommand` and `SelectPreviousSlashHelpCommand` wrap-around behavior, plus a no-match search clearing the selection.
+- **Help popup lifecycle** — added VM tests asserting that closing the popup clears the filtered list and selection, and reopening restores the full command list.
+- **Help popup smoke coverage** — `scripts_report/agent_slash_help_smoke.json` opens the popup with Ctrl+K, asserts "Available commands", types "firewall" to filter, asserts "Check firewall configuration" is shown, asserts "/ports" is hidden, closes with Escape, and asserts the welcome overlay returns.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `Views/AgentView.axaml`, `Views/AgentView.axaml.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Avalonia/AgentViewModelTests.cs`
+  - Smoke script: `VulcansTrace-Computer-Use/scripts_report/agent_slash_help_smoke.json`
+
+### Agent Chat — Streaming Typewriter Replies
+
+- **Presentation-layer typewriter effect** — the agent still returns a complete `AgentResult`; prose messages (the lead summary and narrative) are revealed character-by-character after the result arrives, while structured findings, command rows, and suggestion chips appear in bulk. This keeps the agent's response readable and immediate without changing any backend contracts.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/AgentMessageViewModel.cs`, `AgentMessageStreamer.cs`, `AgentResultPresenter.cs`, `AgentViewModel.cs`, `Views/AgentView.axaml`, `Views/AgentView.axaml.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Avalonia/AgentMessageStreamerTests.cs`, `AgentMessageViewModelTests.cs`, `AgentViewModelTests.cs`
+
+- **Pluggable scheduling** — `ITypewriterScheduler` lets unit tests drive the animation deterministically with `ManualTypewriterScheduler`, while production uses `DispatcherTypewriterScheduler`. `AgentMessageStreamer` supports cancellation and disposal and always flushes the full final text so screen readers and copy/paste never see truncated content.
+
+- **Accessibility preserved** — `AutomationProperties.Name` exposes the complete final text immediately; the visible streaming text is purely visual.
 
 ### Persistence and Validation Hardening
 

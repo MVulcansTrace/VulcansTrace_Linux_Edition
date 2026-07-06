@@ -433,7 +433,7 @@
           <DataTemplate DataType="vm:AgentMessageViewModel">
             <Grid ColumnDefinitions="Auto,*"
                   HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
-                  IsVisible="{Binding IsVisible}"
+                  IsVisible="{Binding IsRowVisible}"
                   AutomationProperties.Name="{Binding AutomationName}"
                   AutomationProperties.AutomationId="{Binding Text, StringFormat='AgentMessage_{0}'}">
                 <!-- Avatar -->
@@ -451,7 +451,8 @@
                         BorderThickness="1"
                         CornerRadius="{StaticResource VtRadiusLg}"
                         Padding="16">
-                  <StackPanel Orientation="Vertical" Spacing="12">
+                  <Grid>
+                    <StackPanel Orientation="Vertical" Spacing="12" IsVisible="{Binding !IsStreaming}">
 
                     <!-- Timestamp -->
                     <TextBlock Text="{Binding FormattedTimestamp}"
@@ -950,7 +951,48 @@
                       </ItemsControl>
                     </WrapPanel>
 
-                  </StackPanel>
+                    </StackPanel>
+
+                    <!-- Streaming/typewriter state: plain text + blinking cursor -->
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="4"
+                          VerticalAlignment="Top"
+                          IsVisible="{Binding IsStreaming}"
+                          AutomationProperties.AutomationId="AgentStreamingMessage"
+                          AutomationProperties.Name="{Binding AutomationName}">
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding StreamingText}"
+                                 TextWrapping="Wrap"
+                                 FontSize="{StaticResource VtFontSizeMd}"
+                                 LineHeight="30"
+                                 Foreground="{Binding Converter={StaticResource MessageBubbleForeground}}" />
+                      <Border Grid.Column="1"
+                              Width="2"
+                              Height="16"
+                              Background="{StaticResource VtPrimaryBrush}"
+                              VerticalAlignment="Bottom"
+                              Margin="0,0,0,4"
+                              Classes="streamingCursor">
+                        <Border.Styles>
+                          <Style Selector="Border.streamingCursor">
+                            <Style.Animations>
+                              <Animation Duration="0:0:0.8" IterationCount="Infinite">
+                                <KeyFrame Cue="0%">
+                                  <Setter Property="Opacity" Value="0" />
+                                </KeyFrame>
+                                <KeyFrame Cue="50%">
+                                  <Setter Property="Opacity" Value="1" />
+                                </KeyFrame>
+                                <KeyFrame Cue="100%">
+                                  <Setter Property="Opacity" Value="0" />
+                                </KeyFrame>
+                              </Animation>
+                            </Style.Animations>
+                          </Style>
+                        </Border.Styles>
+                      </Border>
+                    </Grid>
+                  </Grid>
                 </Border>
               </Grid>
             </DataTemplate>

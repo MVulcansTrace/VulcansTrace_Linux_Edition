@@ -28,6 +28,17 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// </summary>
 public sealed class AgentViewModel : ViewModelBase, IDisposable
 {
+    private CancellationTokenSource? _streamingCts;
+    private List<AgentMessageViewModel>? _currentStreamingBatch;
+    private ITypewriterScheduler _typewriterScheduler;
+
+    /// <summary>Gets or sets the scheduler used for typewriter/streaming animation. Exposed for tests.</summary>
+    internal ITypewriterScheduler TypewriterScheduler
+    {
+        get => _typewriterScheduler;
+        set => _typewriterScheduler = value;
+    }
+
     private IAgent _agent;
     private readonly AgentResultPresenter _presenter;
     private readonly AgentHistoryCoordinator _historyCoordinator;
@@ -739,6 +750,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _threatIntelStore = threatIntelStore;
         _dialogService = dialogService;
         _memoryStore = memoryStore;
+        _typewriterScheduler = new DispatcherTypewriterScheduler();
         _presenter = new AgentResultPresenter(
             Messages,
             ChatCategoryFilters,
@@ -1125,6 +1137,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private Task ClearChatAsync()
     {
+        CancelActiveStreamers();
         Messages.Clear();
         SelectedChatSeverityFilter = ChatSeverityFilters[0];
         SelectedChatCategoryFilter = null;
@@ -1264,7 +1277,45 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void CancelQuery()
     {
+        CancelActiveStreamers();
         _operationRunner.Cancel();
+    }
+
+    private void CancelActiveStreamers()
+    {
+        // Cancelling the streaming token synchronously disposes each active streamer via its
+        // registration, which flushes its message without advancing the queue (see
+        // AgentMessageStreamer.Complete vs Dispose).
+        if (_streamingCts is not null)
+        {
+            _streamingCts.Cancel();
+            _streamingCts.Dispose();
+            _streamingCts = null;
+        }
+
+        // Reveal any messages still queued for their streaming turn so a completed result
+        // stays readable after cancel/new-query/dispose.
+        var batch = _currentStreamingBatch;
+        _currentStreamingBatch = null;
+        if (batch is not null)
+        {
+            foreach (var message in batch)
+            {
+                message.IsStreamingPending = false;
+            }
+        }
+    }
+
+    private void BeginChatAction()
+    {
+        CancelActiveStreamers();
+        MarkChatInteracted();
+    }
+
+    private void AddUserActionMessage(string text)
+    {
+        BeginChatAction();
+        AddUserMessage(text);
     }
 
     private async Task SendQueryAsync()
@@ -1286,13 +1337,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 c.CommandText.StartsWith(query, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
             {
-                // Mark interaction only for commands that actually post to the chat. /help only opens
-                // the popup and should not hide the welcome overlay.
-                if (match.CommandText != "/help")
-                {
-                    MarkChatInteracted();
-                }
-
                 IsSlashPaletteOpen = false;
                 UserQuery = string.Empty;
                 await match.Handler!();
@@ -1300,8 +1344,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             }
         }
 
-        MarkChatInteracted();
-        AddUserMessage(query);
+        AddUserActionMessage(query);
         UserQuery = string.Empty;
 
         await _operationRunner.RunAsync(async (progress, token) =>
@@ -1325,8 +1368,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task RunQuickAuditAsync(AgentIntent intent, string displayQuery)
     {
-        MarkChatInteracted();
-        AddUserMessage(displayQuery);
+        AddUserActionMessage(displayQuery);
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
@@ -1341,7 +1383,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ExplainSelectedAsync()
     {
-        MarkChatInteracted();
+        BeginChatAction();
         var selected = SelectedFindingProvider?.Invoke();
         if (selected == null)
         {
@@ -1363,6 +1405,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         });
     }
 
+    private const int TypewriterCharsPerTick = 3;
+    private static readonly TimeSpan TypewriterTickInterval = TimeSpan.FromMilliseconds(30);
+
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
         // Reset chat filters when a new audit result arrives so findings from the current
@@ -1373,7 +1418,71 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             SelectedChatCategoryFilter = null;
         }
 
-        _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
+        var created = _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
+        var proseMessages = created.Where(m => m.IsProse && !m.IsUser).ToList();
+        StreamMessagesSequentially(proseMessages);
+    }
+
+    private void StreamMessagesSequentially(IReadOnlyList<AgentMessageViewModel> proseMessages)
+    {
+        // Only prose with actual text participates in the typewriter sequence. Empty bubbles
+        // are not hidden; hiding them would either strand them invisible or flash a blank row.
+        var streamableMessages = proseMessages.Where(m => !string.IsNullOrEmpty(m.Text)).ToList();
+        if (streamableMessages.Count == 0)
+            return;
+
+        // Cancel any in-flight sequence first (e.g. a quick-audit or explain flow that did not
+        // pre-cancel) so two sequences never stream at once, and reveal its queued messages.
+        CancelActiveStreamers();
+
+        // Hide every streamable prose bubble until its turn; only the active one is shown streaming.
+        foreach (var message in streamableMessages)
+        {
+            message.StreamingText = string.Empty;
+            message.IsStreaming = false;
+            message.IsStreamingPending = true;
+        }
+
+        // Streaming owns its own lifetime: the operation token is already dead by the time the
+        // result is presented, so this dedicated source is what cancel/new-query/dispose cancel.
+        _streamingCts = new CancellationTokenSource();
+        var token = _streamingCts.Token;
+        _currentStreamingBatch = streamableMessages;
+
+        var queue = new Queue<AgentMessageViewModel>(streamableMessages);
+
+        void StartNext()
+        {
+            while (queue.Count > 0)
+            {
+                if (token.IsCancellationRequested)
+                    return;
+
+                var message = queue.Dequeue();
+
+                AgentMessageStreamer? streamer = null;
+                streamer = new AgentMessageStreamer(
+                    message,
+                    message.Text,
+                    TypewriterCharsPerTick,
+                    TypewriterTickInterval,
+                    _typewriterScheduler,
+                    onCompleted: () => StartNext(),
+                    cancellationToken: token);
+                streamer.Start();
+                return;
+            }
+
+            // Everything streamed naturally; nothing left to cancel.
+            _currentStreamingBatch = null;
+            if (_streamingCts is not null)
+            {
+                _streamingCts.Dispose();
+                _streamingCts = null;
+            }
+        }
+
+        StartNext();
     }
 
     private void AddUserMessage(string text) => _presenter.AddUserMessage(text);
@@ -1429,11 +1538,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         if (_resultState.LastResult == null)
         {
+            BeginChatAction();
             AddAgentMessage("Run an audit first, then save it as a baseline.", true);
             return;
         }
 
-        AddUserMessage("Set baseline");
+        AddUserActionMessage("Set baseline");
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
@@ -1452,7 +1562,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private async Task CheckDriftAsync()
     {
         var intent = _resultState.LastAuditIntent;
-        AddUserMessage($"Check drift ({intent})");
+        AddUserActionMessage($"Check drift ({intent})");
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
@@ -1466,7 +1576,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private async Task ShowBaselineAsync()
     {
         var intent = _resultState.LastAuditIntent;
-        AddUserMessage("Show baseline");
+        AddUserActionMessage("Show baseline");
 
         await _operationRunner.RunAsync(async token =>
         {
@@ -1479,7 +1589,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task VerifySessionAsync(string sessionId)
     {
-        AddUserMessage($"Verify remediation session {sessionId}");
+        AddUserActionMessage($"Verify remediation session {sessionId}");
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
@@ -1624,8 +1734,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private async Task ListSessionsAsync()
     {
-        MarkChatInteracted();
-        AddUserMessage("List sessions");
+        AddUserActionMessage("List sessions");
 
         await _operationRunner.RunAsync(async token =>
         {
@@ -1649,7 +1758,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        AddUserMessage($"Resume session {session.SessionId}");
+        AddUserActionMessage($"Resume session {session.SessionId}");
 
         await _operationRunner.RunAsync(async token =>
         {
@@ -1673,6 +1782,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        BeginChatAction();
+
         await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.DeleteRemediationSessionAsync(session.SessionId, token);
@@ -1694,6 +1805,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             AddAgentMessage("No active remediation session to add a note to.", true);
             return;
         }
+
+        BeginChatAction();
 
         await _operationRunner.RunAsync(async token =>
         {
@@ -1731,6 +1844,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         var ruleId = parts[0].Trim();
         var text = parts[1].Trim();
+
+        BeginChatAction();
 
         await _operationRunner.RunAsync(async token =>
         {
@@ -1991,6 +2106,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        CancelActiveStreamers();
         _operationRunner.Dispose();
     }
 }

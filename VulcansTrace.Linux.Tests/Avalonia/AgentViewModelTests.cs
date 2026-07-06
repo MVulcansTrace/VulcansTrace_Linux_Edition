@@ -2,6 +2,7 @@ using System;
 using Avalonia.Media;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
@@ -534,6 +535,107 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public void SlashHelp_SelectNextSlashHelpCommand_WrapsToTop()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        var first = vm.SelectedSlashHelpCommand;
+        Assert.NotNull(first);
+        var count = vm.FilteredSlashHelpCommands.Count;
+        Assert.True(count > 2, "Test requires at least three slash-help commands.");
+
+        vm.SelectNextSlashHelpCommand();
+        var second = vm.SelectedSlashHelpCommand;
+        Assert.NotNull(second);
+        Assert.NotEqual(first, second);
+
+        // Advance through the remaining items so selection wraps back to the first item.
+        for (var i = 0; i < count - 1; i++)
+        {
+            vm.SelectNextSlashHelpCommand();
+        }
+
+        Assert.Equal(first, vm.SelectedSlashHelpCommand);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_SelectPreviousSlashHelpCommand_WrapsToBottom()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        var first = vm.SelectedSlashHelpCommand;
+        Assert.NotNull(first);
+        var count = vm.FilteredSlashHelpCommands.Count;
+        Assert.True(count > 2, "Test requires at least three slash-help commands.");
+
+        vm.SelectPreviousSlashHelpCommand();
+        var last = vm.SelectedSlashHelpCommand;
+        Assert.NotNull(last);
+        Assert.NotEqual(first, last);
+        Assert.Equal(vm.FilteredSlashHelpCommands[^1], last);
+
+        // Moving backward from the last item should reach the penultimate item, not wrap again.
+        vm.SelectPreviousSlashHelpCommand();
+        Assert.Equal(vm.FilteredSlashHelpCommands[^2], vm.SelectedSlashHelpCommand);
+
+        // Wrap all the way back around to the first item.
+        for (var i = 0; i < count - 2; i++)
+        {
+            vm.SelectPreviousSlashHelpCommand();
+        }
+        Assert.Equal(first, vm.SelectedSlashHelpCommand);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelpQuery_NoMatches_ClearsSelectedCommand()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        Assert.NotNull(vm.SelectedSlashHelpCommand);
+
+        vm.SlashHelpQuery = "zzzznomatch";
+
+        Assert.Empty(vm.FilteredSlashHelpCommands);
+        Assert.Null(vm.SelectedSlashHelpCommand);
+    }
+
+    [AvaloniaFact]
+    public void SlashHelp_CloseSlashHelpCommand_ThenReopen_RestoresAllCommands()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.OpenSlashHelpCommand.Execute(null);
+        var allCount = vm.FilteredSlashHelpCommands.Count;
+        vm.SlashHelpQuery = "firewall";
+        Assert.Single(vm.FilteredSlashHelpCommands);
+
+        vm.CloseSlashHelpCommand.Execute(null);
+        Assert.False(vm.IsSlashHelpOpen);
+        Assert.Empty(vm.FilteredSlashHelpCommands);
+
+        vm.OpenSlashHelpCommand.Execute(null);
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.Equal(allCount, vm.FilteredSlashHelpCommands.Count);
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/firewall");
+        Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/ports");
+    }
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_HelpSlashCommand_KeepsWelcomeOverlayVisible()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "/help"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.IsSlashHelpOpen);
+        Assert.True(vm.HasOnlyWelcomeMessage);
+    }
+
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_MarksMessageAsError()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -582,6 +684,123 @@ public class AgentViewModelTests
 
         var userMessage = vm.Messages.First(m => m.IsUser);
         Assert.False(userMessage.IsError);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_EmptyState_WhenNoMatches()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+
+        vm.ChatSearchQuery = "network";
+
+        Assert.True(vm.HasNoSearchMatches);
+        Assert.Equal("No messages match your search.", vm.ChatSearchEmptyStateText);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_EmptyState_WithActiveFilters()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.ChatCategoryFilters.Add("Network");
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", Category = "Firewall", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "network port open", Category = "Network", IsVisible = true });
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+        vm.ChatSearchQuery = "network";
+
+        Assert.True(vm.HasNoSearchMatches);
+        Assert.Equal("No visible messages match your search and active filters.", vm.ChatSearchEmptyStateText);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_ComposesWithSeverityFilter()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "critical finding", Severity = Severity.Critical, Category = "Firewall", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "medium finding", Severity = Severity.Medium, Category = "Firewall", IsVisible = true });
+
+        vm.SelectedChatSeverityFilter = vm.ChatSeverityFilters[2]; // Critical only
+        vm.ChatSearchQuery = "finding";
+
+        Assert.True(vm.Messages[0].IsVisible);
+        Assert.False(vm.Messages[1].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_ComposesWithSeverityAndCategoryFilters()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.ChatCategoryFilters.Add("Network");
+        vm.Messages.Add(new AgentMessageViewModel { Text = "critical firewall", Severity = Severity.Critical, Category = "Firewall", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "medium firewall", Severity = Severity.Medium, Category = "Firewall", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "critical network", Severity = Severity.Critical, Category = "Network", IsVisible = true });
+
+        vm.SelectedChatSeverityFilter = vm.ChatSeverityFilters[2]; // Critical only
+        vm.SelectedChatCategoryFilter = "Firewall";
+        vm.ChatSearchQuery = "firewall";
+
+        Assert.True(vm.Messages[0].IsVisible);
+        Assert.False(vm.Messages[1].IsVisible);
+        Assert.False(vm.Messages[2].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_DownFromEmpty_KeepsEmpty()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.RecallNextQuery();
+
+        Assert.Empty(vm.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_UpDown_ResetsIndexToEmpty()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "first";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("first", vm.UserQuery);
+
+        vm.RecallNextQuery();
+        Assert.Empty(vm.UserQuery);
+
+        // Recalling next again from empty state should remain empty.
+        vm.RecallNextQuery();
+        Assert.Empty(vm.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_EditingRecalled_DoesNotAddUntilSent()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "first";
+        vm.SendQueryCommand.Execute(null);
+        vm.UserQuery = "second";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("second", vm.UserQuery);
+
+        // Modify without sending - history should not change yet.
+        vm.UserQuery = "modified";
+        vm.RecallNextQuery();
+        Assert.Empty(vm.UserQuery);
+        vm.RecallPreviousQuery();
+        Assert.Equal("second", vm.UserQuery);
     }
 
     [AvaloniaFact]
@@ -1465,6 +1684,17 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public void AgentViewXaml_StreamingTextUsesConstrainedGridForWrapping()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains("AutomationProperties.AutomationId=\"AgentStreamingMessage\"", xaml);
+        Assert.Contains("<Grid ColumnDefinitions=\"*,Auto\"", xaml);
+        Assert.Contains("<TextBlock Grid.Column=\"0\"\n                                 Text=\"{Binding StreamingText}\"\n                                 TextWrapping=\"Wrap\"", xaml);
+        Assert.Contains("<Border Grid.Column=\"1\"\n                              Width=\"2\"", xaml);
+    }
+
+    [AvaloniaFact]
     public void ClearSearchCommand_CanExecute_UpdatesWhenQueryChanges()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -1514,7 +1744,373 @@ public class AgentViewModelTests
         Assert.Equal("No visible messages match your search and active filters.", vm.ChatSearchEmptyStateText);
     }
 
+    [AvaloniaFact]
+    public async Task SendQueryCommand_ProseMessage_StreamsText()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("Summary line.", "Narrative paragraph one. Narrative paragraph two.");
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "audit",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var proseMessages = vm.Messages.Where(m => m.IsProse).ToList();
+        Assert.Equal(2, proseMessages.Count);
+
+        var summary = proseMessages[0];
+        var narrative = proseMessages[1];
+        Assert.True(summary.IsStreaming);
+        Assert.Equal("Summary line.", summary.StreamingFinalText);
+        Assert.Equal(string.Empty, summary.StreamingText);
+
+        scheduler.Tick();
+        Assert.Equal("Sum", summary.StreamingText);
+
+        scheduler.Tick();
+        Assert.Equal("Summar", summary.StreamingText);
+
+        scheduler.Tick();
+        Assert.Equal("Summary l", summary.StreamingText);
+
+        scheduler.Tick();
+        Assert.Equal("Summary line", summary.StreamingText);
+
+        scheduler.Tick();
+        Assert.Equal("Summary line.", summary.Text);
+        Assert.False(summary.IsStreaming);
+
+        // Narrative should now be streaming.
+        Assert.True(narrative.IsStreaming);
+        scheduler.Tick();
+        Assert.Equal("Nar", narrative.StreamingText);
+    }
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_Cancel_FlushesStreamingText()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("Summary line.", narrative: null);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "audit",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var prose = Assert.Single(vm.Messages, m => m.IsProse);
+        Assert.True(prose.IsStreaming);
+
+        scheduler.Tick();
+        Assert.Equal("Sum", prose.StreamingText);
+
+        vm.CancelQueryCommand.Execute(null);
+        FlushDispatcher();
+
+        Assert.Equal("Summary line.", prose.Text);
+        Assert.False(prose.IsStreaming);
+    }
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_NewQuery_CancelsPreviousStreamer()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("First reply.", narrative: null);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "first",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var first = Assert.Single(vm.Messages, m => m.IsProse);
+        scheduler.Tick();
+        Assert.Equal("Fir", first.StreamingText);
+
+        vm.UserQuery = "second";
+        agent.NextSummary = "Second reply.";
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal("First reply.", first.Text);
+        Assert.False(first.IsStreaming);
+
+        var second = vm.Messages.Last(m => m.IsProse);
+        Assert.True(second.IsStreaming);
+        Assert.Equal("Second reply.", second.StreamingFinalText);
+    }
+
+    [AvaloniaFact]
+    public async Task FullAuditCommand_WhileStreaming_FlushesPreviousTextBeforeAuditCompletes()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("First reply.", narrative: null);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "first",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var first = Assert.Single(vm.Messages, m => m.IsProse);
+        scheduler.Tick();
+        Assert.Equal("Fir", first.StreamingText);
+
+        var pendingAudit = new TaskCompletionSource<AgentResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        agent.NextRunAuditResult = pendingAudit;
+
+        vm.FullAuditCommand.Execute(null);
+        FlushDispatcher();
+
+        Assert.Equal("First reply.", first.Text);
+        Assert.False(first.IsStreaming);
+        Assert.Equal("Run a full audit", vm.Messages.Last(m => m.IsUser).Text);
+
+        pendingAudit.SetResult(new AgentResult { Intent = AgentIntent.FullAudit, Summary = "Second reply." });
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var second = vm.Messages.Last(m => m.IsProse);
+        Assert.True(second.IsStreaming);
+        Assert.Equal("Second reply.", second.StreamingFinalText);
+    }
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_SlashQuickAudit_WhileStreaming_FlushesPreviousTextBeforeAuditCompletes()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("First reply.", narrative: null);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "first",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var first = Assert.Single(vm.Messages, m => m.IsProse);
+        scheduler.Tick();
+        Assert.Equal("Fir", first.StreamingText);
+
+        var pendingAudit = new TaskCompletionSource<AgentResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        agent.NextRunAuditResult = pendingAudit;
+
+        vm.UserQuery = "/fullaudit";
+        vm.SendQueryCommand.Execute(null);
+        FlushDispatcher();
+
+        Assert.Equal("First reply.", first.Text);
+        Assert.False(first.IsStreaming);
+        Assert.Equal("Run a full audit", vm.Messages.Last(m => m.IsUser).Text);
+
+        pendingAudit.SetResult(new AgentResult { Intent = AgentIntent.FullAudit, Summary = "Second reply." });
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var second = vm.Messages.Last(m => m.IsProse);
+        Assert.True(second.IsStreaming);
+        Assert.Equal("Second reply.", second.StreamingFinalText);
+    }
+
+    private sealed class ManualTypewriterScheduler : ITypewriterScheduler
+    {
+        private Action? _tick;
+
+        public IDisposable Start(TimeSpan interval, Action tick)
+        {
+            _tick = tick;
+            return new ActionDisposable(() => _tick = null);
+        }
+
+        public void Tick() => _tick?.Invoke();
+    }
+
+    private sealed class StreamingAgent : IAgent
+    {
+        public StreamingAgent(string summary, string? narrative)
+        {
+            NextSummary = summary;
+            NextNarrative = narrative;
+        }
+
+        public string NextSummary { get; set; }
+        public string? NextNarrative { get; set; }
+        public TaskCompletionSource<AgentResult>? NextRunAuditResult { get; set; }
+
+        public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(CreateResult());
+
+        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            NextRunAuditResult?.Task ?? Task.FromResult(CreateResult());
+
+        public Task<AgentResult> ExplainFindingAsync(Finding finding, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(CreateResult());
+
+        public Task<AgentResult> SetBaselineAsync(string name, string? description, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.SetBaseline, Summary = "baseline set" });
+
+        public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.CheckDrift, Summary = "drift checked" });
+
+        public Task<AgentResult> GetBaselineAsync(AgentIntent intent, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ShowBaseline, Summary = "baseline shown" });
+
+        public Task<AgentResult> StartRemediationAsync(string findingReference, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "remediation started" });
+
+        public Task<AgentResult> VerifyRemediationAsync(string sessionId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.VerifyRemediation, Summary = "remediation verified" });
+
+        public Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.StartRemediation, Summary = "exported" });
+
+        public Task<AgentResult> ListRemediationSessionsAsync(CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ListRemediationSessions, Summary = "sessions" });
+
+        public Task<AgentResult> LoadRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ResumeRemediation, Summary = "loaded" });
+
+        public Task<AgentResult> DeleteRemediationSessionAsync(string sessionId, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.ListRemediationSessions, Summary = "deleted" });
+
+        public Task<AgentResult> AddSessionNoteAsync(string sessionId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddSessionNote, Summary = "note added" });
+
+        public Task<AgentResult> AddStepNoteAsync(string sessionId, string ruleId, string text, IReadOnlyList<string>? evidenceLinks, CancellationToken ct) =>
+            Task.FromResult(new AgentResult { Intent = AgentIntent.AddStepNote, Summary = "step note added" });
+
+        private AgentResult CreateResult() =>
+            new()
+            {
+                Intent = AgentIntent.FullAudit,
+                Summary = NextSummary,
+                Narrative = string.IsNullOrWhiteSpace(NextNarrative) ? null : new Narrative { Summary = NextNarrative }
+            };
+    }
+
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_ProseReveal_HidesQueuedUntilItsTurn()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("Summary line.", "Narrative body.");
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "audit",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var prose = vm.Messages.Where(m => m.IsProse).ToList();
+        var summary = prose[0];
+        var narrative = prose[1];
+
+        // Summary is the active streamer; narrative is queued and therefore hidden.
+        Assert.True(summary.IsStreaming);
+        Assert.False(summary.IsStreamingPending);
+        Assert.False(narrative.IsStreaming);
+        Assert.True(narrative.IsStreamingPending);
+
+        // Finishing the summary must promote the narrative to active (no full-text flash first).
+        while (summary.IsStreaming)
+            scheduler.Tick();
+        FlushDispatcher();
+
+        Assert.False(summary.IsStreaming);
+        Assert.True(narrative.IsStreaming);
+        Assert.False(narrative.IsStreamingPending);
+
+        // Finish the narrative; everything is revealed with nothing left streaming or pending.
+        while (narrative.IsStreaming)
+            scheduler.Tick();
+        FlushDispatcher();
+
+        Assert.False(summary.IsStreaming);
+        Assert.False(summary.IsStreamingPending);
+        Assert.False(narrative.IsStreaming);
+        Assert.False(narrative.IsStreamingPending);
+        Assert.Equal("Summary line.", summary.Text);
+        Assert.Equal("Narrative body.", narrative.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task SendQueryCommand_Cancel_MidStream_RevealsQueueWithoutAdvancing()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("Summary line.", "Narrative body.");
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "audit",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var prose = vm.Messages.Where(m => m.IsProse).ToList();
+        var summary = prose[0];
+        var narrative = prose[1];
+        scheduler.Tick(); // partial summary
+        Assert.True(summary.IsStreaming);
+
+        vm.CancelQueryCommand.Execute(null);
+        FlushDispatcher();
+
+        // Cancel stops the typewriter and reveals the whole result; it must not start the next bubble.
+        Assert.False(summary.IsStreaming);
+        Assert.Equal("Summary line.", summary.Text);
+        Assert.False(narrative.IsStreaming);
+        Assert.False(narrative.IsStreamingPending);
+    }
+
+    [AvaloniaFact]
+    public async Task Dispose_WhileStreaming_FlushesAndRevealsQueue()
+    {
+        var scheduler = new ManualTypewriterScheduler();
+        var agent = new StreamingAgent("Summary line.", "Narrative body.");
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "audit",
+            TypewriterScheduler = scheduler
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
+        FlushDispatcher();
+
+        var prose = vm.Messages.Where(m => m.IsProse).ToList();
+        scheduler.Tick(); // start the summary
+
+        vm.Dispose(); // must flush and reveal, without advancing or leaking a running timer
+
+        Assert.False(prose[0].IsStreaming);
+        Assert.False(prose[0].IsStreamingPending);
+        Assert.False(prose[1].IsStreaming);
+        Assert.False(prose[1].IsStreamingPending);
+    }
+
+
 
     private static string ReadAgentViewXaml()
     {

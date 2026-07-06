@@ -29,6 +29,9 @@ internal sealed class AgentOperationRunner : IDisposable
 
     public bool CanCancel => _cts != null && !_cts.IsCancellationRequested;
 
+    /// <summary>Gets the cancellation token for the current operation, or <see cref="CancellationToken.None"/> if no operation is running.</summary>
+    public CancellationToken Token => _cts?.Token ?? CancellationToken.None;
+
     /// <summary>
     /// Gets whether the most recent operation completed without throwing or being cancelled.
     /// </summary>

@@ -91,14 +91,16 @@ internal sealed class AgentResultPresenter
         public void Dispose() => _presenter._suppressChatFilters--;
     }
 
-    public void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
+    public IReadOnlyList<AgentMessageViewModel> PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
+        var created = new List<AgentMessageViewModel>();
+
         using (SuppressChatFilters())
         {
             AgentMessageViewModel? suggestionAnchor = null;
 
             if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true)));
 
             // Interpret warnings once, up front. IntentSummaryBuilder.BuildMissingToolLead uses the
             // MissingTool classification to lead with a friendly "I ran a … <tool> is missing" sentence,
@@ -119,39 +121,39 @@ internal sealed class AgentResultPresenter
                 && result.Warnings.Count == 0
                 && result.RemediationPlan?.Sections.Count == 1)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddInteractiveRemediationMessage(result));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddInteractiveRemediationMessage(result)));
             }
             else if (result.Intent == AgentIntent.StartRemediation && result.RemediationSession != null)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result)));
             }
             else if (result.Intent == AgentIntent.ResumeRemediation && result.RemediationSession != null)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result)));
             }
             else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddVerificationResultMessage(result));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddVerificationResultMessage(result)));
             }
             else if (result.Intent == AgentIntent.ListRemediationSessions)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0)));
             }
             else if ((result.Intent == AgentIntent.AddSessionNote || result.Intent == AgentIntent.AddStepNote)
                 && result.RemediationSession != null)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddNoteConfirmationMessage(result));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddNoteConfirmationMessage(result)));
             }
             else
             {
                 var lead = useBuilderLead
                     ? _intentSummaryBuilder.BuildMissingToolLead(result.Intent, result.AgentFindings, result.PassedCount, missingToolWarning!)
                     : result.Summary;
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0));
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0, isProse: true)));
 
                 if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
                 {
-                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false));
+                    created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false, isProse: true)));
                 }
 
                 // Every audit result's lead already states the passed-checks count — either the
@@ -160,12 +162,12 @@ internal sealed class AgentResultPresenter
                 if (showPassedCount && result.PassedCount > 0 && !AgentResultStateCoordinator.IsAuditIntent(result.Intent))
                 {
                     var checkWord = result.PassedCount == 1 ? "check" : "checks";
-                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} {checkWord} passed", true));
+                    created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} {checkWord} passed", true)));
                 }
 
                 if (result.AgentFindings.Count > 0)
                 {
-                    AddAgentFindingGroupSummary(result.AgentFindings);
+                    created.Add(AddAgentFindingGroupSummary(result.AgentFindings));
 
                     _categoryFilters.Clear();
                     _categoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
@@ -182,7 +184,7 @@ internal sealed class AgentResultPresenter
 
                     foreach (var group in grouped)
                     {
-                        AddAgentFindingGroup(group.Category, group.Findings);
+                        created.Add(AddAgentFindingGroup(group.Category, group.Findings));
                     }
                 }
             }
@@ -206,7 +208,7 @@ internal sealed class AgentResultPresenter
                             ? $"{warning.Message} {warning.Suggestion}"
                             : warning.Message;
                     }
-                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(text, true));
+                    created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(text, true)));
                 }
 
                 DetectPrivilegeWarning(result.Warnings);
@@ -217,14 +219,16 @@ internal sealed class AgentResultPresenter
 
         ApplyCurrentFilter();
         _onFiltersApplied();
+        return created;
     }
 
-    private static void TrackSuggestionAnchor(ref AgentMessageViewModel? anchor, AgentMessageViewModel? candidate)
+    private static AgentMessageViewModel TrackSuggestionAnchor(ref AgentMessageViewModel? anchor, AgentMessageViewModel candidate)
     {
         // Anchor chips to the first substantive agent message, skipping info-only
         // messages such as the capability report so the chips stay near the summary/findings.
         if (anchor == null && candidate is { IsUser: false, IsInfo: false })
             anchor = candidate;
+        return candidate;
     }
 
     private void AttachSuggestions(AgentResult result, AgentMessageViewModel? anchor)
@@ -250,7 +254,7 @@ internal sealed class AgentResultPresenter
         });
     }
 
-    public AgentMessageViewModel AddAgentMessage(string text, bool isInfo, bool isError = false)
+    public AgentMessageViewModel AddAgentMessage(string text, bool isInfo, bool isError = false, bool isProse = false)
     {
         var message = new AgentMessageViewModel
         {
@@ -258,6 +262,7 @@ internal sealed class AgentResultPresenter
             IsUser = false,
             IsInfo = isInfo,
             IsError = isError || (!isInfo && IsErrorText(text)),
+            IsProse = isProse,
             Timestamp = DateTime.Now
         };
         _messages.Add(message);
@@ -295,7 +300,7 @@ internal sealed class AgentResultPresenter
         });
     }
 
-    private void AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
+    private AgentMessageViewModel AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
     {
         var critical = findings.Where(f => f.Severity == Severity.Critical).Sum(GetRawFindingCount);
         var high = findings.Where(f => f.Severity == Severity.High).Sum(GetRawFindingCount);
@@ -317,16 +322,18 @@ internal sealed class AgentResultPresenter
             ? $"{findings.Count} total"
             : $"{findings.Count} {groupWord}, {rawTotal} {rawFindingWord}";
         var summary = $"Findings: {string.Join(", ", parts)} ({totalLabel})";
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = summary,
             IsUser = false,
             IsInfo = true,
             Timestamp = DateTime.Now
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
-    private void AddAgentFindingGroup(string category, IReadOnlyList<Finding> findings)
+    private AgentMessageViewModel AddAgentFindingGroup(string category, IReadOnlyList<Finding> findings)
     {
         var rawTotal = findings.Sum(GetRawFindingCount);
         var highCritical = findings.Where(f => f.Severity >= Severity.High).Sum(GetRawFindingCount);
@@ -352,7 +359,7 @@ internal sealed class AgentResultPresenter
             details.AppendLine($"• {ruleIdPrefix}[{finding.Severity}{confidence}] {finding.ShortDescription}{FormatGroupBadge(finding)}{signalText}");
         }
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = header,
             Details = details.ToString().TrimEnd(),
@@ -363,7 +370,9 @@ internal sealed class AgentResultPresenter
             EvidenceSignalsDisplay = FormatEvidenceSignals(findings.SelectMany(f => f.EvidenceSignals).DistinctBy(s => s.Name).ToList()),
             Timestamp = DateTime.Now,
             Category = category
-        });
+        };
+        _messages.Add(message);
+        return message;
     }
 
     private static string FormatGroupBadge(Finding finding) =>

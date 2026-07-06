@@ -423,6 +423,15 @@ public sealed class SecurityAgent : IAgent
         // not a hand-maintained intent map, so targeted audits can't be silently data-starved.
         var requiredScanners = _ruleEvaluationService.GetRequiredScannerNames(intent);
         ReportProgress(progress, ref phaseIndex, TotalPhases, "Scanning system", requiredScanners is null ? null : string.Join(", ", requiredScanners));
+
+        // Optional UI-test delay: gives the progress indicator enough screen time to be asserted by
+        // automated smoke tests without changing real-user behavior. Only active when the environment
+        // variable is explicitly set by the test harness.
+        if (int.TryParse(Environment.GetEnvironmentVariable("VT_UI_TEST_AUDIT_DELAY_MS"), out var testDelayMs) && testDelayMs > 0)
+        {
+            await Task.Delay(testDelayMs, ct);
+        }
+
         var scannerResult = await _scannerCoordinator.RunAsync(ct, requiredScanners);
         var scanData = scannerResult.ScanData;
         var warnings = scannerResult.Warnings.ToList();

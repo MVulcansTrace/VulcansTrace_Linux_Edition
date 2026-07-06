@@ -36,6 +36,11 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private RemediationSection? _remediationSection;
 
     private bool _isError;
+    private bool _isProse;
+    private bool _isStreaming;
+    private bool _isStreamingPending;
+    private string _streamingText = "";
+    private string _streamingFinalText = "";
     private IReadOnlyList<AgentMessageBlock> _formattedBlocks = Array.Empty<AgentMessageBlock>();
 
     /// <summary>Gets or sets the message text shown to the user.</summary>
@@ -54,6 +59,80 @@ public sealed class AgentMessageViewModel : ViewModelBase
 
     /// <summary>Gets the parsed rich-content blocks for the message bubble.</summary>
     public IReadOnlyList<AgentMessageBlock> FormattedBlocks => _formattedBlocks;
+
+    /// <summary>Gets or sets whether this message is currently streaming/typewriting its text.</summary>
+    public bool IsStreaming
+    {
+        get => _isStreaming;
+        set
+        {
+            if (SetField(ref _isStreaming, value))
+            {
+                OnPropertyChanged(nameof(AutomationName));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the partial text revealed while streaming.</summary>
+    public string StreamingText
+    {
+        get => _streamingText;
+        set => SetField(ref _streamingText, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether this prose message is queued for streaming and should stay
+    /// hidden until its turn. Cleared when the message becomes the active streamer and
+    /// again when streaming ends, so the row only stays hidden while genuinely waiting.
+    /// </summary>
+    public bool IsStreamingPending
+    {
+        get => _isStreamingPending;
+        set
+        {
+            if (SetField(ref _isStreamingPending, value))
+            {
+                OnPropertyChanged(nameof(IsRowVisible));
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the full final text, exposed immediately for accessibility.</summary>
+    public string StreamingFinalText
+    {
+        get => _streamingFinalText;
+        set
+        {
+            if (SetField(ref _streamingFinalText, value))
+            {
+                OnPropertyChanged(nameof(AutomationName));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ends streaming by committing the final text, rebuilding formatted blocks once,
+    /// and clearing streaming state.
+    /// </summary>
+    public void FlushStreaming(string? finalText = null)
+    {
+        var text = finalText ?? _streamingText;
+        StreamingText = "";
+        StreamingFinalText = "";
+        IsStreaming = false;
+        IsStreamingPending = false;
+        if (!string.IsNullOrEmpty(text))
+        {
+            Text = text;
+        }
+    }
+
+    /// <summary>Gets or sets whether this message is prose that should be revealed with a typewriter effect.</summary>
+    public bool IsProse
+    {
+        get => _isProse;
+        set => SetField(ref _isProse, value);
+    }
 
     /// <summary>Gets or sets whether this message represents an error.</summary>
     public bool IsError
@@ -93,8 +172,21 @@ public sealed class AgentMessageViewModel : ViewModelBase
     public bool IsVisible
     {
         get => _isVisible;
-        set => SetField(ref _isVisible, value);
+        set
+        {
+            if (SetField(ref _isVisible, value))
+            {
+                OnPropertyChanged(nameof(IsRowVisible));
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets whether the message row should render: visible per the current chat filters and
+    /// not still queued for its streaming turn. Bound by the message row so a pending prose
+    /// bubble stays hidden until it is actually revealed.
+    /// </summary>
+    public bool IsRowVisible => _isVisible && !_isStreamingPending;
 
     /// <summary>Gets or sets the finding category label for this message.</summary>
     public string Category
@@ -164,7 +256,16 @@ public sealed class AgentMessageViewModel : ViewModelBase
     public bool ShowTimestamp => _timestamp != DateTime.MinValue;
 
     /// <summary>Gets a screen-reader-friendly name for this message bubble.</summary>
-    public string AutomationName => $"{(IsUser ? "You" : "VulcansTrace")}{(ShowTimestamp ? $" at {FormattedTimestamp}" : "")}: {Text}";
+    public string AutomationName
+    {
+        get
+        {
+            var text = _isStreaming && !string.IsNullOrEmpty(_streamingFinalText)
+                ? _streamingFinalText
+                : _text;
+            return $"{(IsUser ? "You" : "VulcansTrace")}{(ShowTimestamp ? $" at {FormattedTimestamp}" : "")}: {text}";
+        }
+    }
 
     /// <summary>Gets or sets the verification commands that can be copied from this message.</summary>
     public IReadOnlyList<CopyableCommand> VerificationCommands

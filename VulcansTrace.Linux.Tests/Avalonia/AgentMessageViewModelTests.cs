@@ -351,23 +351,100 @@ public class AgentMessageViewModelTests
     }
 
     [AvaloniaFact]
-    public void ComputedProperties_RaisePropertyChanged_WhenSourceChanges()
+    public void StreamingText_DoesNotRebuildFormattedBlocks()
     {
-        var msg = new AgentMessageViewModel();
+        var msg = new AgentMessageViewModel { Text = "initial" };
         var changed = new List<string?>();
         msg.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
 
-        msg.Text = "hello";
-        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
-        changed.Clear();
+        msg.IsStreaming = true;
+        msg.StreamingFinalText = "final";
+        msg.StreamingText = "fin";
 
-        msg.IsUser = true;
-        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
-        changed.Clear();
+        Assert.Contains(nameof(AgentMessageViewModel.StreamingText), changed);
+        Assert.DoesNotContain(nameof(AgentMessageViewModel.FormattedBlocks), changed);
+        Assert.Equal("initial", msg.Text);
+    }
 
-        msg.Timestamp = new DateTime(2026, 7, 2, 14, 30, 0);
-        Assert.Contains(nameof(AgentMessageViewModel.FormattedTimestamp), changed);
-        Assert.Contains(nameof(AgentMessageViewModel.ShowTimestamp), changed);
-        Assert.Contains(nameof(AgentMessageViewModel.AutomationName), changed);
+    [AvaloniaFact]
+    public void FlushStreaming_CommitsTextAndClearsStreamingState()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            IsStreaming = true,
+            StreamingFinalText = "final text",
+            StreamingText = "final"
+        };
+
+        msg.FlushStreaming();
+
+        Assert.False(msg.IsStreaming);
+        Assert.Equal(string.Empty, msg.StreamingText);
+        Assert.Equal(string.Empty, msg.StreamingFinalText);
+        Assert.Equal("final", msg.Text);
+    }
+
+    [AvaloniaFact]
+    public void FlushStreaming_WithFinalText_UsesProvidedText()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            IsStreaming = true,
+            StreamingText = "partial"
+        };
+
+        msg.FlushStreaming("full final text");
+
+        Assert.False(msg.IsStreaming);
+        Assert.Equal("full final text", msg.Text);
+    }
+
+    [AvaloniaFact]
+    public void AutomationName_WhenStreaming_UsesFinalText()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            IsStreaming = true,
+            StreamingFinalText = "the full answer",
+            StreamingText = "the",
+            Timestamp = new DateTime(2026, 7, 2, 14, 30, 0)
+        };
+
+        Assert.Equal("VulcansTrace at 14:30: the full answer", msg.AutomationName);
+    }
+
+    [AvaloniaFact]
+    public void IsRowVisible_CombinesFilterVisibilityAndStreamingPending()
+    {
+        var msg = new AgentMessageViewModel { Text = "x" };
+        Assert.True(msg.IsRowVisible);
+
+        msg.IsStreamingPending = true;
+        Assert.False(msg.IsRowVisible);
+
+        msg.IsVisible = false;
+        Assert.False(msg.IsRowVisible);
+
+        // Still hidden by the filter even once its streaming turn arrives.
+        msg.IsStreamingPending = false;
+        Assert.False(msg.IsRowVisible);
+
+        msg.IsVisible = true;
+        Assert.True(msg.IsRowVisible);
+    }
+
+    [AvaloniaFact]
+    public void IsRowVisible_RaisesWhenSourcesChange()
+    {
+        var msg = new AgentMessageViewModel { Text = "x" };
+        var changed = new List<string?>();
+        msg.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
+
+        msg.IsStreamingPending = true;
+        Assert.Contains(nameof(AgentMessageViewModel.IsRowVisible), changed);
+
+        changed.Clear();
+        msg.IsVisible = false;
+        Assert.Contains(nameof(AgentMessageViewModel.IsRowVisible), changed);
     }
 }
