@@ -51,7 +51,7 @@ public class AgentResultPresenterTests
         Assert.Equal("[SSH] 1 finding", sshGroup.Text);
         Assert.Equal(Severity.Medium, sshGroup.Severity);
 
-        Assert.Equal(new[] { "All categories", "Firewall", "SSH" }, harness.CategoryFilters.ToArray());
+        Assert.Equal(new[] { ChatFilterConstants.AllCategoriesFilter, "Firewall", "SSH" }, harness.CategoryFilters.ToArray());
         Assert.Contains(harness.Messages, m => m.Text.Contains("blocked by permissions", StringComparison.OrdinalIgnoreCase) && m.IsInfo);
         Assert.True(harness.HasPrivilegeWarning);
         Assert.Contains("elevated privileges", harness.PrivilegeWarningText);
@@ -85,7 +85,7 @@ public class AgentResultPresenterTests
         Assert.True(harness.Messages.Single(m => m.Text.StartsWith("Findings:")).IsVisible);
 
         harness.SeverityFilter = new SeverityFilterOption("Critical only", Severity.Critical);
-        harness.CategoryFilter = "All categories";
+        harness.CategoryFilter = ChatFilterConstants.AllCategoriesFilter;
         harness.Presenter.ApplyChatFilters();
 
         Assert.False(harness.Messages.Single(m => m.Category == "Firewall").IsVisible);
@@ -594,6 +594,95 @@ public class AgentResultPresenterTests
         Assert.Single(harness.Messages, m => m.Text.Contains("couldn't inspect active firewall rules", StringComparison.OrdinalIgnoreCase));
     }
 
+    [AvaloniaFact]
+    public void AddUserMessage_WhileSearchActive_RespectsSearchWithoutFlash()
+    {
+        var harness = new PresenterHarness();
+        harness.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        harness.Presenter.SetSearchQuery("firewall");
+
+        harness.Presenter.AddUserMessage("network port open");
+
+        Assert.False(harness.Messages[1].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void AddAgentMessage_WhileSearchActive_RespectsSearchWithoutFlash()
+    {
+        var harness = new PresenterHarness();
+        harness.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        harness.Presenter.SetSearchQuery("firewall");
+
+        harness.Presenter.AddAgentMessage("network port open", isInfo: true);
+
+        Assert.False(harness.Messages[1].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void DirectMessagesAdd_WhileSearchActive_IsFilteredByPresenter()
+    {
+        var harness = new PresenterHarness();
+        harness.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        harness.Presenter.SetSearchQuery("firewall");
+
+        harness.Messages.Add(new AgentMessageViewModel
+        {
+            Text = "Critical chain detected — ssh exposed",
+            Details = "Risk note",
+            IsUser = false,
+            IsInfo = false,
+            Severity = Severity.Critical,
+            Timestamp = DateTime.Now
+        });
+
+        Assert.False(harness.Messages[1].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void PresentFindings_BulkAdd_AppliesFiltersOnceAtEnd()
+    {
+        var spy = new PresenterHarness.CountingChatFilter();
+        var harness = new PresenterHarness(spy);
+        harness.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        harness.Presenter.SetSearchQuery("firewall");
+
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            Summary = "Audit complete",
+            AgentFindings = new[]
+            {
+                CreateFinding("SSH-001", "SSH", Severity.High, "Root login enabled"),
+                CreateFinding("NET-001", "Network", Severity.Critical, "Promiscuous interface")
+            }
+        };
+
+        var filterCountBefore = spy.ApplyCount;
+
+        harness.Presenter.PresentFindings(result);
+
+        // The bulk presentation must apply filters exactly once (at the end), not on every add.
+        Assert.Equal(filterCountBefore + 1, spy.ApplyCount);
+
+        // The bulk-added audit messages (summary, group summary, SSH/Network group headers) contain
+        // no "firewall" token, so the active search must hide every one of them after the terminal pass.
+        Assert.All(harness.Messages.Where(m => !m.Text.Contains("firewall", StringComparison.OrdinalIgnoreCase)), m => Assert.False(m.IsVisible));
+        // The original matching message should remain visible.
+        Assert.True(harness.Messages[0].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void AddAgentFinding_WhileSearchActive_IsFilteredByPresenter()
+    {
+        var harness = new PresenterHarness();
+        harness.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        harness.Presenter.SetSearchQuery("firewall");
+
+        harness.Presenter.AddAgentFinding(CreateFinding("SSH-001", "SSH", Severity.High, "Root login enabled"));
+
+        Assert.False(harness.Messages[1].IsVisible);
+    }
+
     private sealed class PresenterHarness
     {
         public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
@@ -604,7 +693,7 @@ public class AgentResultPresenterTests
         public string PrivilegeWarningText { get; private set; } = string.Empty;
         public AgentResultPresenter Presenter { get; }
 
-        public PresenterHarness()
+        public PresenterHarness(IChatFilter? chatFilter = null)
         {
             Presenter = new AgentResultPresenter(
                 Messages,
@@ -613,7 +702,29 @@ public class AgentResultPresenterTests
                 () => CategoryFilter,
                 value => HasPrivilegeWarning = value,
                 text => PrivilegeWarningText = text,
-                _ => Task.CompletedTask);
+                _ => Task.CompletedTask,
+                chatFilter: chatFilter);
+        }
+
+        // A counting decorator over the real DefaultChatFilter: it records how many times Apply ran
+        // AND applies the real filter, so a test can assert both the call count and the resulting
+        // visibility in one harness. (A pure counter that force-sets IsVisible=true would make any
+        // correctness assertion vacuous.)
+        public sealed class CountingChatFilter : IChatFilter
+        {
+            private readonly DefaultChatFilter _inner = new();
+
+            public int ApplyCount { get; private set; }
+
+            public void Apply(
+                IReadOnlyList<AgentMessageViewModel> messages,
+                SeverityFilterOption? severityFilter,
+                string? categoryFilter,
+                string? searchQuery)
+            {
+                ApplyCount++;
+                _inner.Apply(messages, severityFilter, categoryFilter, searchQuery);
+            }
         }
     }
 }

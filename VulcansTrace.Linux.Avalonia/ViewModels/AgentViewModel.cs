@@ -60,6 +60,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private SlashCommandItem? _selectedSlashHelpCommand;
     private readonly List<SlashCommandItem> _allSlashCommands = new();
 
+    private readonly List<string> _queryHistory = new();
+    private int _queryHistoryIndex = -1;
+    private string _chatSearchQuery = "";
+    private bool _hasNoSearchMatches;
+
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
 
@@ -131,6 +136,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 _presenter.ApplyChatFilters();
                 RefreshActiveFilterChips();
+                UpdateHasNoSearchMatches();
             }
         }
     }
@@ -148,6 +154,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             {
                 _presenter.ApplyChatFilters();
                 RefreshActiveFilterChips();
+                UpdateHasNoSearchMatches();
             }
         }
     }
@@ -270,10 +277,98 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         private set => SetField(ref _hasNoVisibleMessages, value);
     }
 
-    /// <summary>Re-evaluates <see cref="HasNoVisibleMessages"/u003e and raises change notification if it changed.</summary>
+    /// <summary>Re-evaluates <see cref="HasNoVisibleMessages"/> and raises change notification if it changed.</summary>
     public void RefreshHasNoVisibleMessages()
     {
-        HasNoVisibleMessages = Messages.Count > 0 && Messages.All(m => !m.IsVisible);
+        if (SetField(ref _hasNoVisibleMessages, Messages.Count > 0 && Messages.All(m => !m.IsVisible), nameof(HasNoVisibleMessages)))
+        {
+            OnPropertyChanged(nameof(HasNoVisibleFilterMessages));
+        }
+    }
+
+    /// <summary>Gets or sets the chat transcript search text.</summary>
+    public string ChatSearchQuery
+    {
+        get => _chatSearchQuery;
+        set
+        {
+            if (SetField(ref _chatSearchQuery, value))
+            {
+                _presenter.SetSearchQuery(value);
+                ClearChatSearchCommand.RaiseCanExecuteChanged();
+                UpdateHasNoSearchMatches();
+            }
+        }
+    }
+
+    /// <summary>Gets whether messages exist but none match the current search query.</summary>
+    public bool HasNoSearchMatches
+    {
+        get => _hasNoSearchMatches;
+        private set => SetField(ref _hasNoSearchMatches, value);
+    }
+
+    /// <summary>Gets whether non-search chat filters hide every message.</summary>
+    public bool HasNoVisibleFilterMessages => string.IsNullOrWhiteSpace(_chatSearchQuery) && HasNoVisibleMessages;
+
+    /// <summary>Gets the empty-state text for a chat search with no visible matches.</summary>
+    public string ChatSearchEmptyStateText => HasActiveChatFilters
+        ? "No visible messages match your search and active filters."
+        : "No messages match your search.";
+
+    private void UpdateHasNoSearchMatches()
+    {
+        HasNoSearchMatches = !string.IsNullOrWhiteSpace(_chatSearchQuery)
+            && Messages.Count > 0
+            && Messages.All(m => !m.IsVisible);
+        OnPropertyChanged(nameof(HasNoVisibleFilterMessages));
+        OnPropertyChanged(nameof(ChatSearchEmptyStateText));
+    }
+
+    private bool HasActiveChatFilters
+    {
+        get
+        {
+            var hasSeverityFilter = _selectedChatSeverityFilter != null
+                && ChatSeverityFilters.Count > 0
+                && _selectedChatSeverityFilter != ChatSeverityFilters[0];
+            var hasCategoryFilter = !string.IsNullOrWhiteSpace(_selectedChatCategoryFilter)
+                && !_selectedChatCategoryFilter.Equals(ChatFilterConstants.AllCategoriesFilter, StringComparison.OrdinalIgnoreCase);
+
+            return hasSeverityFilter || hasCategoryFilter;
+        }
+    }
+
+    /// <summary>Moves to the previous query in history (Up arrow behavior).</summary>
+    public void RecallPreviousQuery()
+    {
+        if (_queryHistory.Count == 0)
+            return;
+
+        if (_queryHistoryIndex < 0)
+            _queryHistoryIndex = _queryHistory.Count - 1;
+        else if (_queryHistoryIndex > 0)
+            _queryHistoryIndex--;
+
+        UserQuery = _queryHistory[_queryHistoryIndex];
+    }
+
+    /// <summary>Moves to the next query in history (Down arrow behavior).</summary>
+    public void RecallNextQuery()
+    {
+        if (_queryHistory.Count == 0 || _queryHistoryIndex < 0)
+            return;
+
+        _queryHistoryIndex++;
+        if (_queryHistoryIndex >= _queryHistory.Count)
+        {
+            _queryHistoryIndex = -1;
+            UserQuery = string.Empty;
+        }
+        else
+        {
+            UserQuery = _queryHistory[_queryHistoryIndex];
+        }
     }
 
     private SlashCommandItem? _selectedSlashCommand;
@@ -517,6 +612,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to clear chat filters.</summary>
     public RelayCommand ClearChatFiltersCommand { get; }
 
+    /// <summary>Gets the command to clear the chat transcript search.</summary>
+    public RelayCommand ClearChatSearchCommand { get; }
+
     /// <summary>Gets the command to export a remediation plan for the last audit.</summary>
     public RelayCommand ExportRemediationCommand { get; }
 
@@ -743,6 +841,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 SelectedChatCategoryFilter = null;
             },
             _ => ActiveChatFilterChips.Count > 0);
+
+        ClearChatSearchCommand = new RelayCommand(
+            _ => ClearChatSearch(),
+            _ => !string.IsNullOrWhiteSpace(_chatSearchQuery));
 
         SetBaselineCommand = new AsyncRelayCommand(
             async _ => await SetBaselineAsync(),
@@ -991,10 +1093,25 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         Messages.Clear();
         SelectedChatSeverityFilter = ChatSeverityFilters[0];
         SelectedChatCategoryFilter = null;
+        ClearChatSearch();
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
         HasOnlyWelcomeMessage = true;
         RefreshActiveFilterChips();
         return Task.CompletedTask;
+    }
+
+    private void ClearChatSearch()
+    {
+        ChatSearchQuery = string.Empty;
+    }
+
+    private void AddToQueryHistory(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return;
+
+        _queryHistory.Add(query);
+        _queryHistoryIndex = -1;
     }
 
     private Task ShowSlashHelpAsync()
@@ -1120,6 +1237,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         var query = _userQuery.Trim();
         if (string.IsNullOrWhiteSpace(query))
             return;
+
+        AddToQueryHistory(query);
 
         // Slash-command dispatch: prefer an exact command-text match, then a prefix match — the
         // same predicate the palette filters by — so Enter always runs a command the palette
@@ -1771,7 +1890,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
 
         var category = _selectedChatCategoryFilter;
-        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All categories", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals(ChatFilterConstants.AllCategoriesFilter, StringComparison.OrdinalIgnoreCase))
         {
             ActiveChatFilterChips.Add(new ChatFilterChipViewModel
             {
@@ -1782,6 +1901,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         ClearChatFiltersCommand.RaiseCanExecuteChanged();
         RefreshHasNoVisibleMessages();
+        UpdateHasNoSearchMatches();
     }
 
     private void WireMessagesCollectionChanged()
@@ -1805,6 +1925,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             }
 
             RefreshHasNoVisibleMessages();
+            UpdateHasNoSearchMatches();
         };
     }
 
@@ -1813,6 +1934,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(AgentMessageViewModel.IsVisible))
         {
             RefreshHasNoVisibleMessages();
+            UpdateHasNoSearchMatches();
         }
     }
 

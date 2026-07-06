@@ -296,7 +296,7 @@
             Theme="{StaticResource VtCard}"
             Padding="0"
             Margin="0,0,0,12">
-      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
         <Border Grid.Row="0"
                 Background="{StaticResource VtWarningMutedBrush}"
                 BorderBrush="{StaticResource VtWarningBrush}"
@@ -379,8 +379,45 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
 
+        <!-- Chat search -->
+        <Grid Grid.Row="3"
+              RowDefinitions="Auto,Auto"
+              ColumnDefinitions="*,Auto"
+              Margin="16,0,16,12"
+              IsVisible="{Binding !HasOnlyWelcomeMessage}">
+          <TextBox Grid.Row="0"
+                   Grid.Column="0"
+                   x:Name="ChatSearchBox"
+                   Theme="{StaticResource VtInput}"
+                   Text="{Binding ChatSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                   PlaceholderText="Search chat..."
+                   KeyDown="OnChatSearchKeyDown"
+                   AutomationProperties.AutomationId="AgentChatSearchInput"
+                   AutomationProperties.Name="Search chat messages" />
+          <Button Grid.Row="0"
+                  Grid.Column="1"
+                  Theme="{StaticResource VtGhostButton}"
+                  Command="{Binding ClearChatSearchCommand}"
+                  Margin="8,0,0,0"
+                  AutomationProperties.AutomationId="AgentChatSearchClearButton"
+                  AutomationProperties.Name="Clear chat search">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <i:Icon Value="mdi-close-circle-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" />
+              <TextBlock Text="Clear" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <TextBlock Grid.Row="1"
+                     Grid.Column="0"
+                     Grid.ColumnSpan="2"
+                     Text="{Binding ChatSearchEmptyStateText}"
+                     FontSize="{StaticResource VtFontSizeSm}"
+                     Foreground="{StaticResource VtTextSecondaryBrush}"
+                     IsVisible="{Binding HasNoSearchMatches}"
+                     Margin="0,6,0,0" />
+        </Grid>
+
       <ListBox x:Name="ChatListBox"
-               Grid.Row="3"
+               Grid.Row="4"
                Classes="VtChatList"
                ItemsSource="{Binding Messages}"
                ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -922,7 +959,7 @@
 
         <!-- Welcome suggestions overlay -->
         <!-- Intentionally stretches to fill the chat cell so the list's own welcome bubble cannot show through. -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="{StaticResource VtBackground900Brush}"
                 BorderBrush="{StaticResource VtBorderDefaultBrush}"
                 BorderThickness="1"
@@ -963,17 +1000,17 @@
         </Border>
 
         <!-- Filter empty state -->
-        <controls:FilterEmptyStateView Grid.Row="3"
+        <controls:FilterEmptyStateView Grid.Row="4"
                                        Icon="mdi-filter-remove-outline"
                                        Headline="No matching messages"
                                        Description="Try clearing the filters to see all results."
-                                       IsVisible="{Binding HasNoVisibleMessages}"
+                                       IsVisible="{Binding HasNoVisibleFilterMessages}"
                                        VerticalAlignment="Center"
                                        HorizontalAlignment="Stretch"
                                        Margin="16,0,16,16" />
 
         <!-- Agent typing indicator -->
-        <Grid Grid.Row="4"
+        <Grid Grid.Row="5"
               ColumnDefinitions="Auto,*"
               HorizontalAlignment="Left"
               Margin="16,8,16,16"

@@ -21,6 +21,7 @@ public partial class AgentView : UserControl
     private ScrollViewer? _scrollViewer;
     private TextBox? _queryInput;
     private TextBox? _slashHelpSearchBox;
+    private TextBox? _chatSearchBox;
 
     public AgentView()
     {
@@ -28,6 +29,7 @@ public partial class AgentView : UserControl
         _chatListBox = this.FindControl<ListBox>("ChatListBox");
         _queryInput = this.FindControl<TextBox>("AgentQueryInput");
         _slashHelpSearchBox = this.FindControl<TextBox>("SlashHelpSearchBox");
+        _chatSearchBox = this.FindControl<TextBox>("ChatSearchBox");
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -136,6 +138,25 @@ public partial class AgentView : UserControl
         {
             vm.SendQueryCommand.Execute(null);
             e.Handled = true;
+            return;
+        }
+
+        // Query history recall when no command surface is open.
+        if (!vm.IsSlashPaletteOpen && !vm.IsSlashHelpOpen)
+        {
+            if (e.Key == Key.Up)
+            {
+                vm.RecallPreviousQuery();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Down)
+            {
+                vm.RecallNextQuery();
+                e.Handled = true;
+                return;
+            }
         }
     }
 
@@ -176,6 +197,21 @@ public partial class AgentView : UserControl
         if (e.Key == Key.Enter && vm.SelectedSlashHelpCommand is not null)
         {
             vm.ExecuteSlashCommandCommand.Execute(vm.SelectedSlashHelpCommand);
+            e.Handled = true;
+        }
+    }
+
+    private void OnChatSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            if (DataContext is AgentViewModel vm)
+            {
+                vm.ClearChatSearchCommand.Execute(null);
+            }
+
+            // Return focus to the query input so the user can keep typing.
+            Dispatcher.UIThread.Post(() => _queryInput?.Focus(), DispatcherPriority.Background);
             e.Handled = true;
         }
     }

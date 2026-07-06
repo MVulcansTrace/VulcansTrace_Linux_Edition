@@ -65,7 +65,7 @@ public class AgentViewModelTests
         };
         vm.Messages.Add(firewallMessage);
         vm.Messages.Add(networkMessage);
-        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
         vm.ChatCategoryFilters.Add("Firewall");
         vm.ChatCategoryFilters.Add("Network");
 
@@ -74,7 +74,7 @@ public class AgentViewModelTests
         Assert.True(firewallMessage.IsVisible);
         Assert.False(networkMessage.IsVisible);
 
-        vm.SelectedChatCategoryFilter = "All categories";
+        vm.SelectedChatCategoryFilter = ChatFilterConstants.AllCategoriesFilter;
 
         Assert.True(firewallMessage.IsVisible);
         Assert.True(networkMessage.IsVisible);
@@ -775,7 +775,7 @@ public class AgentViewModelTests
     public void SelectedChatCategoryFilter_NonAll_CreatesActiveChip()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
         vm.ChatCategoryFilters.Add("Firewall");
 
         vm.SelectedChatCategoryFilter = "Firewall";
@@ -789,7 +789,7 @@ public class AgentViewModelTests
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         vm.Messages.Clear(); // remove welcome message so the property reflects filtered content only
-        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
         vm.ChatCategoryFilters.Add("Firewall");
         vm.Messages.Add(new AgentMessageViewModel { Text = "Network finding", Category = "Network", IsVisible = true });
 
@@ -805,7 +805,7 @@ public class AgentViewModelTests
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         vm.Messages.Clear();
-        vm.ChatCategoryFilters.Add("All categories");
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
         vm.ChatCategoryFilters.Add("Firewall");
         vm.SelectedChatCategoryFilter = "Firewall";
 
@@ -825,8 +825,9 @@ public class AgentViewModelTests
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         vm.Messages.Clear();
 
-        var message = new AgentMessageViewModel { Text = "Hidden finding", Category = "Network", IsVisible = false };
+        var message = new AgentMessageViewModel { Text = "Hidden finding", Category = "Network", IsVisible = true };
         vm.Messages.Add(message);
+        vm.ChatSearchQuery = "xyz";
         Assert.True(vm.HasNoVisibleMessages);
 
         vm.Messages.Remove(message);
@@ -1273,6 +1274,222 @@ public class AgentViewModelTests
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), memoryStore: memoryStore);
 
         Assert.Contains(vm.Messages, m => m.IsInfo && m.Text.Contains("Memory persistence is unavailable"));
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_UpDown_RecallsSentQueries()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "first query";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.UserQuery = "second query";
+        vm.SendQueryCommand.Execute(null);
+
+        Assert.Empty(vm.UserQuery);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("second query", vm.UserQuery);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("first query", vm.UserQuery);
+
+        vm.RecallNextQuery();
+        Assert.Equal("second query", vm.UserQuery);
+
+        vm.RecallNextQuery();
+        Assert.Empty(vm.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_UpAtTop_KeepsOldest()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "only query";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("only query", vm.UserQuery);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("only query", vm.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void QueryHistory_NewQueryAfterRecall_ResetsIndex()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "first";
+        vm.SendQueryCommand.Execute(null);
+        vm.UserQuery = "second";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("second", vm.UserQuery);
+
+        vm.UserQuery = "third";
+        vm.SendQueryCommand.Execute(null);
+
+        vm.RecallPreviousQuery();
+        Assert.Equal("third", vm.UserQuery);
+        vm.RecallPreviousQuery();
+        Assert.Equal("second", vm.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_FiltersMessagesByText()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "network port open", IsVisible = true });
+
+        vm.ChatSearchQuery = "firewall";
+
+        Assert.True(vm.Messages[0].IsVisible);
+        Assert.False(vm.Messages[1].IsVisible);
+        Assert.False(vm.HasNoSearchMatches);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_FiltersMessagesByDetails()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "finding", Details = "ssh exposed", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "finding", Details = "password aging", IsVisible = true });
+
+        vm.ChatSearchQuery = "ssh";
+
+        Assert.True(vm.Messages[0].IsVisible);
+        Assert.False(vm.Messages[1].IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_ComposesWithCategoryFilter()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.ChatCategoryFilters.Add("Network");
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall finding", Category = "Firewall", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "network finding", Category = "Network", IsVisible = true });
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+        vm.ChatSearchQuery = "network";
+
+        Assert.False(vm.Messages[0].IsVisible);
+        Assert.False(vm.Messages[1].IsVisible);
+        Assert.True(vm.HasNoSearchMatches);
+        Assert.Equal("No visible messages match your search and active filters.", vm.ChatSearchEmptyStateText);
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_Clear_RestoresVisibility()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        vm.Messages.Add(new AgentMessageViewModel { Text = "network port open", IsVisible = true });
+
+        vm.ChatSearchQuery = "firewall";
+        Assert.False(vm.Messages[1].IsVisible);
+
+        vm.ClearChatSearchCommand.Execute(null);
+
+        Assert.True(vm.Messages[0].IsVisible);
+        Assert.True(vm.Messages[1].IsVisible);
+        Assert.False(vm.HasNoSearchMatches);
+    }
+
+    [AvaloniaFact]
+    public void ClearCommand_ClearsSearchQueryAndHistoryIndex()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.UserQuery = "hello";
+        vm.SendQueryCommand.Execute(null);
+        vm.ChatSearchQuery = "hello";
+
+        vm.UserQuery = "/clear";
+        vm.SendQueryCommand.Execute(null);
+
+        Assert.Empty(vm.ChatSearchQuery);
+        Assert.False(vm.HasNoSearchMatches);
+    }
+
+    [AvaloniaFact]
+    public void AgentViewXaml_ExposesSearchControls()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains("AutomationProperties.AutomationId=\"AgentChatSearchInput\"", xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"AgentChatSearchClearButton\"", xaml);
+        Assert.Contains("Text=\"{Binding ChatSearchEmptyStateText}\"", xaml);
+    }
+
+    [AvaloniaFact]
+    public void AgentViewXaml_OverlaysShareTranscriptRowAfterSearchRow()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains("<ListBox x:Name=\"ChatListBox\"\n               Grid.Row=\"4\"", xaml);
+        Assert.Contains("<!-- Welcome suggestions overlay -->\n        <!-- Intentionally stretches to fill the chat cell so the list's own welcome bubble cannot show through. -->\n        <Border Grid.Row=\"4\"", xaml);
+        Assert.Contains("<controls:FilterEmptyStateView Grid.Row=\"4\"", xaml);
+        Assert.Contains("IsVisible=\"{Binding HasNoVisibleFilterMessages}\"", xaml);
+    }
+
+    [AvaloniaFact]
+    public void ClearSearchCommand_CanExecute_UpdatesWhenQueryChanges()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.ClearChatSearchCommand.CanExecute(null));
+
+        vm.ChatSearchQuery = "firewall";
+
+        Assert.True(vm.ClearChatSearchCommand.CanExecute(null));
+
+        vm.ChatSearchQuery = string.Empty;
+
+        Assert.False(vm.ClearChatSearchCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void ChatSearch_NoSearchMatches_MessageSearchMatchesSearchWording()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        vm.ChatSearchQuery = "network";
+
+        Assert.True(vm.HasNoSearchMatches);
+        Assert.Equal("No messages match your search.", vm.ChatSearchEmptyStateText);
+        Assert.False(vm.HasNoVisibleFilterMessages);
+    }
+
+    [AvaloniaFact]
+    public void FilterEmptyState_IsHiddenWhileSearchEmptyStateIsActive()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.ChatCategoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+        vm.ChatCategoryFilters.Add("Firewall");
+        vm.Messages.Add(new AgentMessageViewModel { Text = "network finding", Category = "Network", IsVisible = true });
+
+        vm.SelectedChatCategoryFilter = "Firewall";
+
+        Assert.True(vm.HasNoVisibleFilterMessages);
+        Assert.True(vm.HasNoVisibleMessages);
+
+        vm.ChatSearchQuery = "network";
+
+        Assert.False(vm.HasNoVisibleFilterMessages);
+        Assert.True(vm.HasNoSearchMatches);
+        Assert.Equal("No visible messages match your search and active filters.", vm.ChatSearchEmptyStateText);
     }
 
     private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
@@ -1804,6 +2021,27 @@ public class AgentViewModelTests
         vm.AddCountermeasureMessage(section);
 
         Assert.Single(vm.Messages, message => message.RemediationSection?.RuleId == "COUNTERMEASURE");
+    }
+
+    [AvaloniaFact]
+    public void AddCountermeasureMessage_RespectsActiveSearch()
+    {
+        var section = new RemediationSection
+        {
+            RuleId = "COUNTERMEASURE",
+            FindingSummary = "[Critical] Incident response",
+            RiskNote = "Active defense countermeasures.",
+            CountermeasureCommands = Array.Empty<CountermeasureCommand>()
+        };
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Clear();
+        vm.Messages.Add(new AgentMessageViewModel { Text = "firewall rule found", IsVisible = true });
+        vm.ChatSearchQuery = "firewall";
+
+        vm.AddCountermeasureMessage(section);
+
+        var countermeasureMessage = Assert.Single(vm.Messages, message => message.RemediationSection?.RuleId == "COUNTERMEASURE");
+        Assert.False(countermeasureMessage.IsVisible);
     }
 
     private sealed class DriftResultAgent : StubAgent

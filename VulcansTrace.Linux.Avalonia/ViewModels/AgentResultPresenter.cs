@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,8 +18,6 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
 internal sealed class AgentResultPresenter
 {
-    private const string AllCategoriesFilter = "All categories";
-
     private readonly ObservableCollection<AgentMessageViewModel> _messages;
     private readonly ObservableCollection<string> _categoryFilters;
     private readonly Func<SeverityFilterOption?> _getSeverityFilter;
@@ -28,8 +27,16 @@ internal sealed class AgentResultPresenter
     private readonly Func<SuggestedFollowUp, Task> _executeSuggestion;
     private readonly WarningInterpreter _warningInterpreter;
     private readonly IntentSummaryBuilder _intentSummaryBuilder;
+    private readonly IChatFilter _chatFilter;
 
     private readonly Action _onFiltersApplied;
+    private string? _searchQuery;
+
+    // ObservableCollection events fire synchronously on the mutating thread, and all
+    // presenter mutation in this Avalonia view-model stack runs on the UI thread. A
+    // plain int counter is sufficient; nested PresentFindings scopes are the only
+    // source of re-entrancy here.
+    private int _suppressChatFilters;
 
     public AgentResultPresenter(
         ObservableCollection<AgentMessageViewModel> messages,
@@ -41,7 +48,8 @@ internal sealed class AgentResultPresenter
         Func<SuggestedFollowUp, Task> executeSuggestion,
         Action? onFiltersApplied = null,
         WarningInterpreter? warningInterpreter = null,
-        IntentSummaryBuilder? intentSummaryBuilder = null)
+        IntentSummaryBuilder? intentSummaryBuilder = null,
+        IChatFilter? chatFilter = null)
     {
         _messages = messages ?? throw new ArgumentNullException(nameof(messages));
         _categoryFilters = categoryFilters ?? throw new ArgumentNullException(nameof(categoryFilters));
@@ -53,129 +61,161 @@ internal sealed class AgentResultPresenter
         _onFiltersApplied = onFiltersApplied ?? (() => { });
         _warningInterpreter = warningInterpreter ?? new WarningInterpreter();
         _intentSummaryBuilder = intentSummaryBuilder ?? new IntentSummaryBuilder();
+        _chatFilter = chatFilter ?? new DefaultChatFilter();
+        _messages.CollectionChanged += OnMessagesCollectionChanged;
+    }
+
+    /// <summary>
+    /// Suppresses automatic chat-filter re-evaluation while messages are being added in bulk.
+    /// Dispose the returned object to re-enable filtering. Scopes may be nested.
+    /// </summary>
+    private IDisposable SuppressChatFilters()
+    {
+        _suppressChatFilters++;
+        return new SuppressScope(this);
+    }
+
+    private void OnMessagesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_suppressChatFilters != 0)
+            return;
+
+        if (e.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Remove or NotifyCollectionChangedAction.Reset)
+            ApplyCurrentFilter();
+    }
+
+    private sealed class SuppressScope : IDisposable
+    {
+        private readonly AgentResultPresenter _presenter;
+        public SuppressScope(AgentResultPresenter presenter) => _presenter = presenter;
+        public void Dispose() => _presenter._suppressChatFilters--;
     }
 
     public void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
-        AgentMessageViewModel? suggestionAnchor = null;
+        using (SuppressChatFilters())
+        {
+            AgentMessageViewModel? suggestionAnchor = null;
 
-        if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
-            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true));
+            if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true));
 
-        // Interpret warnings once, up front. IntentSummaryBuilder.BuildMissingToolLead uses the
-        // MissingTool classification to lead with a friendly "I ran a … <tool> is missing" sentence,
-        // and the warning-display loop below reuses this same interpreted set (no double interpretation).
-        var interpreted = result.Warnings.Count > 0
-            ? _warningInterpreter.Interpret(result.Intent, result.Warnings, result.DataSourceCapabilities)
-            : Array.Empty<UserFriendlyWarning>();
+            // Interpret warnings once, up front. IntentSummaryBuilder.BuildMissingToolLead uses the
+            // MissingTool classification to lead with a friendly "I ran a … <tool> is missing" sentence,
+            // and the warning-display loop below reuses this same interpreted set (no double interpretation).
+            var interpreted = result.Warnings.Count > 0
+                ? _warningInterpreter.Interpret(result.Intent, result.Warnings, result.DataSourceCapabilities)
+                : Array.Empty<UserFriendlyWarning>();
 
-        // For an audit whose primary tool is missing, IntentSummaryBuilder produces a friendlier lead
-        // than the denser AgentResultComposer summary (result.Summary), which has no concept of
-        // interpreted warnings. In every other case result.Summary is richer (it carries suppressed /
-        // crashed / not-applicable counts), so it is kept. Scoped to audit intents so non-audit
-        // intents (ExplainFinding, SetBaseline, …) keep their own summary.
-        var missingToolWarning = interpreted.FirstOrDefault(w => w.Category == WarningCategory.MissingTool);
-        var useBuilderLead = missingToolWarning != null && AgentResultStateCoordinator.IsAuditIntent(result.Intent);
+            // For an audit whose primary tool is missing, IntentSummaryBuilder produces a friendlier lead
+            // than the denser AgentResultComposer summary (result.Summary), which has no concept of
+            // interpreted warnings. In every other case result.Summary is richer (it carries suppressed /
+            // crashed / not-applicable counts), so it is kept. Scoped to audit intents so non-audit
+            // intents (ExplainFinding, SetBaseline, …) keep their own summary.
+            var missingToolWarning = interpreted.FirstOrDefault(w => w.Category == WarningCategory.MissingTool);
+            var useBuilderLead = missingToolWarning != null && AgentResultStateCoordinator.IsAuditIntent(result.Intent);
 
-        if (result.Intent == AgentIntent.FixFinding
-            && result.Warnings.Count == 0
-            && result.RemediationPlan?.Sections.Count == 1)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddInteractiveRemediationMessage(result));
-        }
-        else if (result.Intent == AgentIntent.StartRemediation && result.RemediationSession != null)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
-        }
-        else if (result.Intent == AgentIntent.ResumeRemediation && result.RemediationSession != null)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
-        }
-        else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddVerificationResultMessage(result));
-        }
-        else if (result.Intent == AgentIntent.ListRemediationSessions)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0));
-        }
-        else if ((result.Intent == AgentIntent.AddSessionNote || result.Intent == AgentIntent.AddStepNote)
-            && result.RemediationSession != null)
-        {
-            TrackSuggestionAnchor(ref suggestionAnchor, AddNoteConfirmationMessage(result));
-        }
-        else
-        {
-            var lead = useBuilderLead
-                ? _intentSummaryBuilder.BuildMissingToolLead(result.Intent, result.AgentFindings, result.PassedCount, missingToolWarning!)
-                : result.Summary;
-            TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0));
-
-            if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
+            if (result.Intent == AgentIntent.FixFinding
+                && result.Warnings.Count == 0
+                && result.RemediationPlan?.Sections.Count == 1)
             {
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false));
+                TrackSuggestionAnchor(ref suggestionAnchor, AddInteractiveRemediationMessage(result));
             }
-
-            // Every audit result's lead already states the passed-checks count — either the
-            // missing-tool lead above or the composer summary (result.Summary) — so only emit the
-            // standalone line for non-audit results, otherwise the count appears twice.
-            if (showPassedCount && result.PassedCount > 0 && !AgentResultStateCoordinator.IsAuditIntent(result.Intent))
+            else if (result.Intent == AgentIntent.StartRemediation && result.RemediationSession != null)
             {
-                var checkWord = result.PassedCount == 1 ? "check" : "checks";
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} {checkWord} passed", true));
+                TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
             }
-
-            if (result.AgentFindings.Count > 0)
+            else if (result.Intent == AgentIntent.ResumeRemediation && result.RemediationSession != null)
             {
-                AddAgentFindingGroupSummary(result.AgentFindings);
+                TrackSuggestionAnchor(ref suggestionAnchor, AddSessionMessage(result));
+            }
+            else if (result.Intent == AgentIntent.VerifyRemediation && result.RemediationSession != null)
+            {
+                TrackSuggestionAnchor(ref suggestionAnchor, AddVerificationResultMessage(result));
+            }
+            else if (result.Intent == AgentIntent.ListRemediationSessions)
+            {
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Summary, result.RemediationSessions.Count == 0));
+            }
+            else if ((result.Intent == AgentIntent.AddSessionNote || result.Intent == AgentIntent.AddStepNote)
+                && result.RemediationSession != null)
+            {
+                TrackSuggestionAnchor(ref suggestionAnchor, AddNoteConfirmationMessage(result));
+            }
+            else
+            {
+                var lead = useBuilderLead
+                    ? _intentSummaryBuilder.BuildMissingToolLead(result.Intent, result.AgentFindings, result.PassedCount, missingToolWarning!)
+                    : result.Summary;
+                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0));
 
-                _categoryFilters.Clear();
-                _categoryFilters.Add(AllCategoriesFilter);
-                foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
                 {
-                    _categoryFilters.Add(cat);
+                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false));
                 }
 
-                var grouped = result.AgentFindings
-                    .GroupBy(f => f.Category)
-                    .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                    .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                    .ToList();
-
-                foreach (var group in grouped)
+                // Every audit result's lead already states the passed-checks count — either the
+                // missing-tool lead above or the composer summary (result.Summary) — so only emit the
+                // standalone line for non-audit results, otherwise the count appears twice.
+                if (showPassedCount && result.PassedCount > 0 && !AgentResultStateCoordinator.IsAuditIntent(result.Intent))
                 {
-                    AddAgentFindingGroup(group.Category, group.Findings);
+                    var checkWord = result.PassedCount == 1 ? "check" : "checks";
+                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage($"✓ {result.PassedCount} {checkWord} passed", true));
+                }
+
+                if (result.AgentFindings.Count > 0)
+                {
+                    AddAgentFindingGroupSummary(result.AgentFindings);
+
+                    _categoryFilters.Clear();
+                    _categoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    {
+                        _categoryFilters.Add(cat);
+                    }
+
+                    var grouped = result.AgentFindings
+                        .GroupBy(f => f.Category)
+                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
+                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
+                        .ToList();
+
+                    foreach (var group in grouped)
+                    {
+                        AddAgentFindingGroup(group.Category, group.Findings);
+                    }
                 }
             }
-        }
 
-        if (showWarnings && result.Warnings.Count > 0)
-        {
-            foreach (var warning in interpreted)
+            if (showWarnings && result.Warnings.Count > 0)
             {
-                string text;
-                if (useBuilderLead && warning.Category == WarningCategory.MissingTool)
+                foreach (var warning in interpreted)
                 {
-                    // The message is already embedded in the missing-tool lead; keep only its actionable
-                    // suggestion (e.g. install guidance) so nothing is duplicated or dropped.
-                    if (string.IsNullOrEmpty(warning.Suggestion))
-                        continue;
-                    text = warning.Suggestion;
+                    string text;
+                    if (useBuilderLead && warning.Category == WarningCategory.MissingTool)
+                    {
+                        // The message is already embedded in the missing-tool lead; keep only its actionable
+                        // suggestion (e.g. install guidance) so nothing is duplicated or dropped.
+                        if (string.IsNullOrEmpty(warning.Suggestion))
+                            continue;
+                        text = warning.Suggestion;
+                    }
+                    else
+                    {
+                        text = warning.Suggestion != null
+                            ? $"{warning.Message} {warning.Suggestion}"
+                            : warning.Message;
+                    }
+                    TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(text, true));
                 }
-                else
-                {
-                    text = warning.Suggestion != null
-                        ? $"{warning.Message} {warning.Suggestion}"
-                        : warning.Message;
-                }
-                TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(text, true));
+
+                DetectPrivilegeWarning(result.Warnings);
             }
 
-            DetectPrivilegeWarning(result.Warnings);
+            AttachSuggestions(result, suggestionAnchor);
         }
 
-        AttachSuggestions(result, suggestionAnchor);
-        ApplyChatFilters();
+        ApplyCurrentFilter();
         _onFiltersApplied();
     }
 
@@ -460,41 +500,20 @@ internal sealed class AgentResultPresenter
         return message;
     }
 
+    public void SetSearchQuery(string? query)
+    {
+        _searchQuery = query;
+        ApplyCurrentFilter();
+    }
+
     public void ApplyChatFilters()
     {
-        var severityFilter = _getSeverityFilter();
-        var categoryFilter = _getCategoryFilter();
+        ApplyCurrentFilter();
+    }
 
-        // Snapshot the collection so a concurrent/re-entrant modification (e.g. another
-        // dispatcher job adding messages while a filter change is being applied) cannot
-        // invalidate the enumerator.
-        foreach (var msg in _messages.ToList())
-        {
-            if (msg == null)
-                continue;
-
-            if (msg.IsUser || msg.IsInfo || string.IsNullOrEmpty(msg.Category))
-            {
-                msg.IsVisible = true;
-                continue;
-            }
-
-            var severityOk = true;
-            var categoryOk = true;
-
-            if (severityFilter != null)
-            {
-                if (severityFilter.MinSeverity == Severity.High && msg.Severity < Severity.High)
-                    severityOk = false;
-                if (severityFilter.MinSeverity == Severity.Critical && msg.Severity < Severity.Critical)
-                    severityOk = false;
-            }
-
-            if (!IsAllCategoryFilter(categoryFilter) && !msg.Category.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase))
-                categoryOk = false;
-
-            msg.IsVisible = severityOk && categoryOk;
-        }
+    private void ApplyCurrentFilter()
+    {
+        _chatFilter.Apply(_messages.ToList(), _getSeverityFilter(), _getCategoryFilter(), _searchQuery);
     }
 
     private void DetectPrivilegeWarning(IReadOnlyList<string> warnings)
@@ -533,8 +552,4 @@ internal sealed class AgentResultPresenter
 
         return string.Join(", ", signals.Select(s => s.Name));
     }
-
-    private static bool IsAllCategoryFilter(string? categoryFilter) =>
-        string.IsNullOrWhiteSpace(categoryFilter)
-            || categoryFilter.Equals(AllCategoriesFilter, StringComparison.OrdinalIgnoreCase);
 }
