@@ -14,7 +14,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+        <WrapPanel Grid.Row="0" Margin="0,0,0,8" VerticalAlignment="Center">
             <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <TextBox Text="{Binding SearchText}"
                      Width="320"
@@ -23,10 +23,27 @@
                      AutomationProperties.AutomationId="RulesSearchTextBox"/>
             <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextMutedBrush}"/>
             <TextBlock Text="{Binding TotalRules}" VerticalAlignment="Center" Foreground="{StaticResource VtTextPrimaryBrush}" FontWeight="Bold"/>
-        </StackPanel>
+            <Button Content="Edit Policy"
+                    Command="{Binding EditPolicyCommand}"
+                    VerticalAlignment="Center"
+                    Margin="16,0,0,0"
+                    MinWidth="100"
+                    Theme="{StaticResource VtPrimaryButton}"
+                    AutomationProperties.AutomationId="EditRulePolicyButton"/>
+            <TextBlock Text="{Binding PolicyStatusMessage}"
+                       IsVisible="{Binding HasPolicyStatusMessage}"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       MaxWidth="460"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       AutomationProperties.AutomationId="RulePolicyStatusMessage"/>
+        </WrapPanel>
 
         <DataGrid Grid.Row="1"
                   ItemsSource="{Binding FilteredItems}"
+                  SelectedItem="{Binding SelectedItem}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
 
@@ -52,6 +69,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="80" MinWidth="80" />
+                <DataGridTextColumn Header="Policy" Binding="{Binding PolicyOverrideDisplay}" Width="120" MinWidth="100" />
                 <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" MinWidth="110" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" MinWidth="180" />
                 <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="2*" MinWidth="180" />

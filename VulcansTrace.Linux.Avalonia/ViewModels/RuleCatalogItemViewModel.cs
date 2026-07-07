@@ -9,8 +9,9 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// <summary>
 /// ViewModel that adapts a <see cref="RuleCatalogItem"/> for UI display.
 /// </summary>
-public sealed class RuleCatalogItemViewModel
+public sealed class RuleCatalogItemViewModel : ViewModelBase
 {
+    private string _policyOverrideDisplay = "";
     /// <summary>Gets the rule identifier.</summary>
     public string Id { get; }
 
@@ -37,6 +38,16 @@ public sealed class RuleCatalogItemViewModel
 
     /// <summary>Gets the underlying catalog item.</summary>
     public RuleCatalogItem Item { get; }
+
+    /// <summary>
+    /// Gets or sets a short summary of the per-role override applied to this rule for the active
+    /// machine role (e.g. "Disabled", "Sev: High"), or empty when no override is in effect.
+    /// </summary>
+    public string PolicyOverrideDisplay
+    {
+        get => _policyOverrideDisplay;
+        set => SetField(ref _policyOverrideDisplay, value);
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RuleCatalogItemViewModel"/> class.

@@ -10,13 +10,17 @@ namespace VulcansTrace.Linux.Agent.Rules;
 /// <summary>
 /// A rule policy store that persists per-role overrides to a JSON file.
 /// </summary>
-public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
+public sealed class JsonRulePolicyStore : IRulePolicyStore, IDisposable
 {
     private readonly JsonFilePersistence<Dictionary<string, Dictionary<string, RulePolicy>>> _persistence;
     private readonly IValidator<RulePolicy> _validator = new RulePolicyValidator();
     private readonly ReaderWriterLockSlim _lock = new();
     private Dictionary<string, Dictionary<string, RulePolicy>> _policies = new(StringComparer.OrdinalIgnoreCase);
     private string? _persistenceWarning;
+    // True when the on-disk file is presumed valid but could not be read at startup (transient
+    // I/O / sharing violation). While set, CommitCandidate must not write the file: doing so would
+    // overwrite data we never managed to read with our partial in-memory state (silent data loss).
+    private bool _loadIncomplete;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JsonRulePolicyStore"/> class.
@@ -53,7 +57,7 @@ public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
     /// <param name="role">The machine role.</param>
     /// <param name="ruleId">The rule identifier.</param>
     /// <param name="policy">The policy to store.</param>
-    public void SetPolicy(MachineRole role, string ruleId, RulePolicy policy)
+    public RulePolicySaveResult SetPolicy(MachineRole role, string ruleId, RulePolicy policy)
     {
         var roleKey = role.ToString();
         _lock.EnterWriteLock();
@@ -67,13 +71,17 @@ public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
             }
 
             roleDict[ruleId] = policy;
-            CommitCandidate(candidate);
+            return CommitCandidate(candidate);
         }
         finally
         {
             _lock.ExitWriteLock();
         }
     }
+
+    /// <inheritdoc />
+    RulePolicySaveResult IRulePolicyStore.SetPolicy(string ruleId, MachineRole role, RulePolicy policy)
+        => SetPolicy(role, ruleId, policy);
 
     /// <inheritdoc />
     public RulePolicy? GetPolicy(string ruleId, MachineRole role)
@@ -109,19 +117,25 @@ public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
                 _validator.ValidateAllAndThrow(deserialized);
                 _policies = NormalizePolicies(deserialized);
             }
+            // A missing file or a clean load both leave the live state consistent with disk.
+            _loadIncomplete = false;
         }
         catch (Exception ex) when (ex is JsonException or ValidationException)
         {
             // Corrupt or semantically invalid JSON — move it aside so we don't retry a known-bad file.
+            // The live file no longer exists, so the (now empty) in-memory state is consistent with disk.
             _persistence.Quarantine();
             _persistenceWarning = $"Could not load saved policy; the file has been quarantined. {ex.Message}";
             _policies = new Dictionary<string, Dictionary<string, RulePolicy>>(StringComparer.OrdinalIgnoreCase);
+            _loadIncomplete = false;
         }
         catch (Exception ex)
         {
-            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next start.
+            // Transient failure (e.g. I/O or sharing violation) — leave the file in place to retry next
+            // start, and mark the load incomplete so a later save cannot overwrite data we never read.
             _persistenceWarning = $"Could not load saved policy (will retry next start): {ex.Message}";
             _policies = new Dictionary<string, Dictionary<string, RulePolicy>>(StringComparer.OrdinalIgnoreCase);
+            _loadIncomplete = true;
         }
     }
 
@@ -140,23 +154,40 @@ public sealed class JsonRulePolicyStore : IRulePolicyProvider, IDisposable
     private static Dictionary<string, Dictionary<string, RulePolicy>> ClonePolicies(Dictionary<string, Dictionary<string, RulePolicy>> policies)
         => NormalizePolicies(policies);
 
-    private void CommitCandidate(Dictionary<string, Dictionary<string, RulePolicy>> candidate)
+    private RulePolicySaveResult CommitCandidate(Dictionary<string, Dictionary<string, RulePolicy>> candidate)
     {
-        var committed = false;
+        // Validate before touching memory: an invalid candidate must not corrupt the live state.
         try
         {
             _validator.ValidateAllAndThrow(candidate);
-            _policies = NormalizePolicies(candidate);
-
-            committed = true;
-            _persistence.Save(_policies);
-            _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = committed
-                ? $"Could not save policy to disk: {ex.Message}. Policy changes will last only for this session."
-                : $"Could not save policy to disk: {ex.Message}. Invalid policy changes were not saved.";
+            _persistenceWarning = $"Could not save policy to disk: {ex.Message}. Invalid policy changes were not saved.";
+            return RulePolicySaveResult.Rejected(_persistenceWarning);
+        }
+
+        // Apply to in-memory state so the session reflects the edit even if the disk write fails.
+        _policies = NormalizePolicies(candidate);
+
+        // If startup could not read the (presumed-valid) file, writing now would replace data we
+        // never loaded with our partial state — silent data loss. Keep the edit session-scoped.
+        if (_loadIncomplete)
+        {
+            _persistenceWarning = "Policy saved for this session only — the policy file could not be read at startup, so the change was not written to disk. Restart to retry the load.";
+            return RulePolicySaveResult.SavedForSession(_persistenceWarning);
+        }
+
+        try
+        {
+            _persistence.Save(_policies);
+            _persistenceWarning = null;
+            return RulePolicySaveResult.SavedDurably();
+        }
+        catch (Exception ex)
+        {
+            _persistenceWarning = $"Could not save policy to disk: {ex.Message}. Policy changes will last only for this session.";
+            return RulePolicySaveResult.SavedForSession(_persistenceWarning);
         }
     }
 

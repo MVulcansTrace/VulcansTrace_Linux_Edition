@@ -273,15 +273,18 @@ public static class AgentFactory
             suppressionStore = new InMemorySuppressionStore("Suppression persistence is unavailable. Accepted risks will last only for this session.");
         }
 
+        IRulePolicyStore? policyStore = null;
         IRulePolicyProvider? policyProvider;
         try
         {
             var jsonPolicyStore = JsonRulePolicyStore.CreateDefault(configDirectory, logSink);
+            policyStore = jsonPolicyStore;
             policyProvider = new DefaultRulePolicyProvider(jsonPolicyStore);
         }
         catch
         {
-            policyProvider = new DefaultRulePolicyProvider();
+            policyStore = new InMemoryRulePolicyStore("Rule policy persistence is unavailable. Policy changes will last only for this session.");
+            policyProvider = new DefaultRulePolicyProvider(policyStore);
         }
 
         IAuditHistoryStore auditHistoryStore;
@@ -402,6 +405,7 @@ public static class AgentFactory
             AuditHistoryStore = auditHistoryStore,
             BaselineStore = baselineStore,
             PolicyProvider = policyProvider,
+            PolicyStore = policyStore,
             ProfileProvider = profileProvider,
             ScheduleStore = scheduleStore,
             NotificationService = notificationService,
@@ -490,6 +494,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Provider for per-role rule policies.</summary>
     public required IRulePolicyProvider PolicyProvider { get; init; }
 
+    /// <summary>Mutable store for per-role rule policies, falling back to session-only storage if persistence is unavailable.</summary>
+    public required IRulePolicyStore? PolicyStore { get; init; }
+
     /// <summary>Provider for analysis intensity profiles.</summary>
     public required AnalysisProfileProvider ProfileProvider { get; init; }
 
@@ -541,6 +548,9 @@ public sealed record AgentServices : IDisposable
         (SuppressionStore as IDisposable)?.Dispose();
         (AuditHistoryStore as IDisposable)?.Dispose();
         (BaselineStore as IDisposable)?.Dispose();
+        // DefaultRulePolicyProvider is not IDisposable (no-op above); the mutable JsonRulePolicyStore
+        // owns the ReaderWriterLockSlim and is the instance that actually needs releasing.
+        (PolicyStore as IDisposable)?.Dispose();
         (PolicyProvider as IDisposable)?.Dispose();
         (ScheduleStore as IDisposable)?.Dispose();
         (NotificationService as IDisposable)?.Dispose();

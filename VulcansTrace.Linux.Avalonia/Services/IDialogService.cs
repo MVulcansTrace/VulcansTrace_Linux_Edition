@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Avalonia.Services;
 
@@ -49,6 +50,13 @@ public interface IDialogService
     /// <param name="defaultText">The default text in the input box.</param>
     /// <returns>The entered text, or null if cancelled.</returns>
     Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "");
+
+    /// <summary>
+    /// Shows a modal dialog for editing a rule's per-role policy.
+    /// </summary>
+    /// <param name="viewModel">The policy editor view model.</param>
+    /// <returns>True if the user saved; otherwise, false.</returns>
+    Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel);
 
     /// <summary>
     /// Shows a modal selection dialog with a dropdown of predefined options.

@@ -363,6 +363,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RemediationExecutor remediationExecutor,
         TraceMapCorrelator traceMapCorrelator,
         LiveStreamAnalyzer liveStreamAnalyzer,
+        IRulePolicyStore? policyStore = null,
         IScheduleStore? scheduleStore = null,
         INotificationService? notificationService = null,
         ISessionStore? sessionStore = null,
@@ -415,7 +416,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => Agent.MarkLatestAuditExported());
         Evidence.ExportCompleted += _evidenceExportCompletedHandler;
 
-        RuleCatalog = new RuleCatalogViewModel();
+        RuleCatalog = new RuleCatalogViewModel(policyStore, dialogService);
         Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
         RuleCoverage = new RuleCoverageViewModel();

@@ -1,7 +1,9 @@
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Scanners;
+using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Tests.Agent;
 
@@ -98,6 +100,28 @@ public class VulcansTraceConfigTests
         {
             try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); }
             catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
+    public void AgentFactory_PolicyStoreFallsBackToSessionOnlyStore_WhenPolicyPersistenceUnavailable()
+    {
+        var blockingFile = Path.GetTempFileName();
+        try
+        {
+            using var services = AgentFactory.Create(configDirectory: blockingFile);
+
+            Assert.NotNull(services.PolicyStore);
+
+            var save = services.PolicyStore.SetPolicy("TEST-001", MachineRole.Server, new RulePolicy { Enabled = false });
+
+            Assert.Equal(RulePolicySaveOutcome.SessionOnly, save.Outcome);
+            Assert.Contains("session", save.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(services.PolicyProvider.GetPolicy("TEST-001", MachineRole.Server)!.Enabled);
+        }
+        finally
+        {
+            try { File.Delete(blockingFile); } catch { }
         }
     }
 }

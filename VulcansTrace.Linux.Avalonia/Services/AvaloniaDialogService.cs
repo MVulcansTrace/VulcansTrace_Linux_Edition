@@ -8,6 +8,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using VulcansTrace.Linux.Avalonia.ViewModels;
+using VulcansTrace.Linux.Avalonia.Views;
 
 namespace VulcansTrace.Linux.Avalonia.Services;
 
@@ -321,6 +323,21 @@ public sealed class AvaloniaDialogService : IDialogService
 
             await dialog.ShowDialog<bool?>(_owner);
             return result;
+        });
+    }
+
+    /// <summary>
+    /// Shows a modal dialog for editing a rule's per-role policy.
+    /// </summary>
+    public async Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel)
+    {
+        return await RunOnUiThreadAsync(async () =>
+        {
+            var dialog = new RulePolicyEditWindow
+            {
+                DataContext = viewModel
+            };
+            return await dialog.ShowDialog<bool?>(_owner);
         });
     }
 

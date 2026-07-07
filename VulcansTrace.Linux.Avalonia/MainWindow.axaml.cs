@@ -24,14 +24,17 @@ public partial class MainWindow : Window
 {
     private ContentControl? _mainContent;
     private CancellationTokenSource? _transitionCts;
+    private AgentServices? _rootServices;
+    private AgentServices? _activeRoleServices;
 
     public MainWindow()
     {
         InitializeComponent();
 
         var services = AgentFactory.Create(MachineRole.Workstation);
+        _rootServices = services;
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.PinnedFindingStore, services.PinnedMessageStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService, services.MemoryStore);
+        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.PinnedFindingStore, services.PinnedMessageStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.PolicyStore, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService, services.MemoryStore);
         viewModel.RuleCatalog.LoadCatalog(services.RuleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {
@@ -66,8 +69,26 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(MainViewModel.SelectedMachineRole) && DataContext is MainViewModel vm)
         {
+            var previousRoleServices = _activeRoleServices;
             var newServices = AgentFactory.Create(vm.SelectedMachineRole);
-            vm.Agent.SetAgent(newServices.Agent, newServices.SessionStore);
+            try
+            {
+                vm.Agent.SetAgent(newServices.Agent, newServices.SessionStore);
+
+                // AgentFactory rebuilds the policy store for the new agent's provider. The catalog
+                // editor must write to that same store instance or saved overrides would be invisible
+                // to the active agent for the rest of the session. Track the new role and store here.
+                vm.RuleCatalog.CurrentMachineRole = vm.SelectedMachineRole;
+                vm.RuleCatalog.UpdatePolicyStore(newServices.PolicyStore);
+
+                _activeRoleServices = newServices;
+                previousRoleServices?.Dispose();
+            }
+            catch
+            {
+                newServices.Dispose();
+                throw;
+            }
         }
 
         if (e.PropertyName == nameof(MainViewModel.SelectedContent))
@@ -154,6 +175,11 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        var activeRoleServices = _activeRoleServices;
+        var rootServices = _rootServices;
+        _activeRoleServices = null;
+        _rootServices = null;
+
         if (DataContext is MainViewModel vm)
         {
             vm.PropertyChanged -= OnViewModelPropertyChanged;
@@ -162,5 +188,7 @@ public partial class MainWindow : Window
 
         _transitionCts?.Cancel();
         _transitionCts = null;
+        activeRoleServices?.Dispose();
+        rootServices?.Dispose();
     }
 }
