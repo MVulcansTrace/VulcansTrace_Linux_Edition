@@ -17,8 +17,8 @@ Use one of the sample logs from the test data:
 
 Sample iptables log snippet:
 ```
-kernel: Jan 19 10:15:32 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=192.168.1.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 DF PROTO=TCP SPT=54321 DPT=22 WINDOW=64240 RES=0x00 SYN
-kernel: Jan 19 10:15:33 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=192.168.1.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12346 DF PROTO=TCP SPT=54321 DPT=23 WINDOW=64240 RES=0x00 SYN
+kernel: Jan 19 10:15:32 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=10.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 DF PROTO=TCP SPT=54321 DPT=22 WINDOW=64240 RES=0x00 SYN
+kernel: Jan 19 10:15:33 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.100 DST=10.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12346 DF PROTO=TCP SPT=54321 DPT=23 WINDOW=64240 RES=0x00 SYN
 ```
 
 ## Select Analysis Intensity
@@ -40,7 +40,7 @@ Click the "Analyze" button to process the log and detect security findings.
 - Toggle **Trace Map** to reveal directed correlation edges between related findings (dashed lines). Click any bar to highlight its connected attack chain — other findings dim. A narrative panel appears below the timeline describing the attack story
 - Toggle **Group by Host** to re-group the timeline Y-axis by source host instead of category
 - Review **Parse Errors** and **Warnings** tabs if needed
-- The top panel shows total findings, high/critical alerts, warnings, parse errors, skipped lines, and advisor tips
+- The top panel shows total findings, high/critical alerts, warnings, parse errors, and skipped lines in a five-card KPI grid. Advisor tips appear in a separate banner below the grid.
 
 ## Export Evidence
 
@@ -126,7 +126,7 @@ For logs that trigger other detectors, use the integration test fixtures or craf
 
 The Security Agent audits kernel and system hardening parameters without pasting a log:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my kernel hardening`
 3. The agent runs `KernelHardeningScanner` and evaluates rules for:
    - ASLR (`kernel.randomize_va_space`)
@@ -143,7 +143,7 @@ The Security Agent audits kernel and system hardening parameters without pasting
 
 The Security Agent can audit sensitive file and directory permissions without pasting a log:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check file permissions`
 3. The agent runs `FilePermissionScanner` and evaluates rules for:
    - `/etc/shadow`, `/etc/passwd`
@@ -157,7 +157,7 @@ The Security Agent can audit sensitive file and directory permissions without pa
 
 The Security Agent can audit the broader filesystem for dangerous permission patterns without pasting a log:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my filesystem`
 3. The agent runs `FilesystemAuditScanner` and evaluates rules for:
    - World-writable files outside `/tmp`, `/var/tmp`, `/dev/shm`, and other expected paths (`FSYS-001`)
@@ -172,7 +172,7 @@ The Security Agent can audit the broader filesystem for dangerous permission pat
 
 The Security Agent audits local user accounts, password aging, and PAM configuration without pasting a log:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my user accounts`
 3. The agent runs `UserAccountScanner` and evaluates rules for:
    - UID 0 accounts beyond root
@@ -189,7 +189,7 @@ The Security Agent audits local user accounts, password aging, and PAM configura
 
 The Security Agent audits scheduled cron jobs for suspicious entries, dangerous script permissions, and privilege misuse without pasting a log:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my cron jobs`
 3. The agent runs `CronJobScanner` and evaluates rules for:
    - Suspicious cron commands (reverse shells, network downloaders, temp paths, encoded payloads) (`CRON-001`)
@@ -202,7 +202,7 @@ The Security Agent audits scheduled cron jobs for suspicious entries, dangerous 
 
 The Security Agent audits local container runtime state without making network calls:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my containers`
 3. The agent runs `ContainerScanner` and evaluates rules for:
    - Privileged containers running on the host (`CTR-001`)
@@ -217,7 +217,7 @@ The Security Agent audits local container runtime state without making network c
 
 The Security Agent audits Kubernetes pod security posture via `kubectl` when a kubeconfig is present. `kubectl` uses the configured cluster context, so this may contact that cluster API:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type: `Check my kubernetes` or `Check my pods`
 3. The agent runs `KubernetesScanner` and evaluates rules for:
    - Pods running privileged containers (`K8S-001`)
@@ -231,7 +231,7 @@ The Security Agent audits Kubernetes pod security posture via `kubectl` when a k
 
 The agent persists all guided remediation sessions so you can review and resume them later:
 
-1. Open the **Security Agent** view in the UI.
+1. Open the **Agent** view in the sidebar (the view header reads "Security Agent").
 2. Type in chat:
    - `List my sessions` or `Show sessions` — lists every persisted session with its ID, status, rule ID, and creation time
    - `Resume session abc12345` — reloads a specific session into the chat view for review or verification
@@ -321,7 +321,7 @@ The Security Agent now composes analyst-style narrative responses and flags dang
 
 ### Narrative Response
 
-1. Open the **Security Agent** view.
+1. Open the **Agent** view in the sidebar.
 2. Type: `Is my system secure?`
 3. The agent runs a full audit and returns a multi-paragraph narrative:
    - **Summary** — total findings and severity breakdown.
@@ -396,7 +396,7 @@ Scorecard rules:
 After any agent audit, view the aggregate risk scorecard:
 
 1. Run an audit: `Is my system secure?`
-2. Switch to the **Risk Score** tab.
+2. Switch to the **Risk** tab (the view header reads "Risk Score").
 3. Review the grade badge:
    - **A** (green) — score ≥90, Low risk
    - **B** (blue) — score ≥80, Moderate risk
@@ -484,10 +484,13 @@ vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-restart --allow-p
 VulcansTrace can capture and analyze live network events in real time:
 
 1. Open the **Live Stream** tab in the Avalonia UI.
-2. Select a source:
-   - **Synthetic Demo Stream** — works without root; generates realistic port scans, beaconing, and floods.
-   - **Kernel Packet Capture** — requires root or `CAP_NET_RAW`; captures all IPv4 TCP/UDP packets via `AF_PACKET` + classic BPF.
-   - **NFLOG Netlink** — requires root or `CAP_NET_ADMIN`; reads structured firewall events from netfilter NFLOG.
+2. Select a source from the dropdown:
+   - **Demo: Random Mix** — works without root; probabilistic blend of port scans, beaconing, and floods.
+   - **Demo: C2 Beaconing** — works without root; periodic beaconing to an external destination; recommended **150 s** at High intensity.
+   - **Demo: SSH Brute Force** — works without root; high-volume SYN flood targeted at TCP/22; recommended **60 s** at High intensity.
+   - **Demo: Privilege Escalation** — works without root; controlled sweep across admin ports; recommended **60 s** at High intensity.
+   - **Kernel Packet Capture (AF_PACKET + BPF)** — requires root or `CAP_NET_RAW`; captures all IPv4 TCP/UDP packets.
+   - **NFLOG Netlink (AF_NETLINK)** — requires root or `CAP_NET_ADMIN`; reads structured firewall events from netfilter NFLOG.
 3. Select an analysis intensity (Low, Medium, High).
 4. Click **Start**.
 5. Watch the metrics panel (events/sec, window size, analysis runs, delta findings).
@@ -549,11 +552,10 @@ vulcanstrace doctor --output-json /tmp/vt-doctor.json
 Example output:
 
 ```
-Firewall (iptables)        Available
-Port (ss)                  PermissionLimited  ss requires elevated privileges for process names
-Service (systemctl)        Available
-...
-```
+iptables                 available
+ss                       permission-limited  ss requires elevated privileges for process names
+systemctl                available
+...```
 
 Exit codes:
 - `0` — all reachable.
@@ -565,7 +567,7 @@ Exit codes:
 
 1. Launch the app: `dotnet run --project VulcansTrace.Linux.Avalonia`
 2. Open the **Doctor** tab.
-3. Click **Run Diagnostic**.
+3. Click **Run Diagnostics**.
 4. The summary banner turns:
    - **Green** if every scanner is `Available`.
    - **Yellow** if some scanners are `PermissionLimited`.

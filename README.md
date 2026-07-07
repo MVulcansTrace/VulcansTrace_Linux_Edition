@@ -3,9 +3,9 @@
 [![CI](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MVulcansTrace/VulcansTrace_Linux_Edition/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 ![.NET 10.0](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
-![Avalonia 11.3.17](https://img.shields.io/badge/Avalonia-11.3.17-8B44AC)
+![Avalonia 12.0.5](https://img.shields.io/badge/Avalonia-12.0.5-8B44AC)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black)
-![Tests: 3247 passing](https://img.shields.io/badge/Tests-3247%20passing-2E7D32)
+![Tests: 3519 passing](https://img.shields.io/badge/Tests-3519%20passing-2E7D32)
 ![Offline: 100% local](https://img.shields.io/badge/Offline-100%25%20local-2E7D32)
 ![Evidence: HMAC-SHA256](https://img.shields.io/badge/Evidence-HMAC--SHA256-0B7285)
 
@@ -326,7 +326,7 @@ Recommended review paths:
 
 ## Portfolio Deep Dives
 
-The `docs/portfolio` folder contains 16 implementation-focused case studies. Each topic includes a `README.md`, concise summary material, and deeper technical notes such as algorithms, design decisions, evasion limits, MITRE ATT&CK mapping where relevant, and code-pattern walkthroughs.
+The `docs/portfolio` folder contains 18 implementation-focused case studies. Each topic includes a `README.md`, concise summary material, and deeper technical notes such as algorithms, design decisions, evasion limits, MITRE ATT&CK mapping where relevant, and code-pattern walkthroughs.
 
 | Topic | Description |
 | --- | --- |
@@ -346,6 +346,8 @@ The `docs/portfolio` folder contains 16 implementation-focused case studies. Eac
 | [14 - Privilege Escalation Detection](docs/portfolio/14-Privilege-Escalation-Detection/README.md) | Admin-port spikes and sweeps as privilege-escalation indicators |
 | [15 - Linux Deep Inspection](docs/portfolio/15-Linux-Deep-Inspection/README.md) | Linux-specific signals including flags, MACs, kernel modules, interfaces, and packet sizes |
 | [16 - Security Agent](docs/portfolio/16-Security-Agent/README.md) | Local rule-based assistant for live Linux posture questions, role-aware policy, scanner orchestration, explanations, on-demand provenance, audit-history slimming, interactive remediation, and configuration baseline / drift detection |
+| [17 - Live Stream](docs/portfolio/17-Live-Stream/README.md) | Real-time kernel telemetry capture via AF_PACKET and NFLOG, rolling-window analysis, and synthetic demo scenarios |
+| [18 - Runtime Process Threat Hunting](docs/portfolio/18-Runtime-Process-Threat-Hunting/README.md) | Live /proc DFIR scanning for injection, persistence, and anti-forensics indicators |
 
 ## Development
 
@@ -357,7 +359,7 @@ dotnet build VulcansTrace.Linux.sln --configuration Release
 dotnet test VulcansTrace.Linux.sln --configuration Release
 ```
 
-GitHub Actions runs restore, Release build, and the deterministic test set (2 143 tests). Tests marked `Category=Performance` or `Category=Timing` are kept out of hosted CI because benchmark thresholds and millisecond cancellation races are runner-sensitive; run the full suite locally when validating performance changes.
+GitHub Actions runs restore, Release build, and the deterministic test set. Tests marked `Category=Performance` or `Category=Timing` are kept out of hosted CI because benchmark thresholds and millisecond cancellation races are runner-sensitive; run the full suite locally when validating performance changes. The full solution currently contains 3 519 tests.
 
 To add a detector, implement `IDetector`, register it with the analyzer composition root, add focused detector tests, update profile thresholds if needed, and document the behavior in the relevant portfolio section. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the detailed checklist.
 

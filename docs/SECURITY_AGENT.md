@@ -593,7 +593,7 @@ Scanner failures are reported as warnings instead of crashing the agent. Scanner
 20. `AgentFollowUpService`, `FindingExplanationService`, and `SingleRuleExplanationService` answer deterministic follow-up questions and explanation requests without making `SecurityAgent` own those workflows directly.
 21. `BaselineDriftService` saves baseline snapshots from audit results and compares live state against the active intent-scoped baseline through `AuditDiffCalculator`. Each baseline stores lightweight `AuditSnapshotFinding` records for diff calculations and preserves the original `Finding` objects for lossless display.
 22. `ComplianceScorecardBuilder` produces a formal CIS Compliance Scorecard from rule results: per-family pass/fail/warn scores, overall percentage, and trend over time. The scorecard is surfaced in the Avalonia UI Compliance tab and exported as `compliance-scorecard.html` and `compliance-scorecard.md` in evidence bundles.
-23. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI Risk Score tab, available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
+23. `RiskScorecardBuilder` produces an aggregate Risk Scorecard from agent findings: numeric score (0-100), letter grade (A-F), summary status, and per-category breakdown ordered by total deduction. It weights each finding by the average `ControlWeight` of its CIS mappings (default 1.0, with guards against zero, negative, NaN, Infinity, and excessive weights). The scorecard is surfaced in the Avalonia UI **Risk** tab (view header "Risk Score"), available via agent chat (`what's my risk grade?`), and exported as `risk-scorecard.html` and `risk-scorecard.md` in evidence bundles.
 24. `AgentReportGenerator` can merge agent findings and log findings into an `AnalysisResult`; exported CSV, JSON, Markdown, HTML, and STIX evidence preserves agent rule IDs, fingerprints, data-source capability reports, active suppression notes, and risk scorecard data when present.
 
 ## Rule Tuning
@@ -602,7 +602,7 @@ The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`
 
 The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, `SSH-007`, `KERN-005`, and `LOG-005`.
 
-The Avalonia composition currently runs the agent as `Workstation`; other roles are available through the agent API and policy provider wiring until a role selector is added.
+The Avalonia UI already exposes a **Machine role** dropdown that hot-swaps the agent role without code changes; the CLI uses the `--role` flag.
 
 ## Explanation Behavior
 
@@ -639,7 +639,7 @@ The Avalonia application exposes the agent as a first-class **Security Agent** v
 
 - Chat-style natural-language questions with **markdown rendering** — `**bold**` and `*italic*` markup in agent messages is rendered as styled inlines.
 - **Slash commands** — type `/` in the query box to open a palette of quick intents: `/firewall`, `/network`, `/ports`, `/services`, `/ssh`, `/filesystem`, `/kernel`, `/users`, `/logging`, `/cron`, `/packages`, `/containers`, `/kubernetes`, `/threatintel`, `/yara`, `/processes`, `/full`, `/fullaudit`, `/baseline`, `/drift`, `/baseline show`, `/show baseline`, `/sessions`, `/risk`, `/help`, `/clear`. Selecting a command runs the corresponding audit or follow-up.
-- **Quick-action chips** — clickable chips above the query box for common audits (`Full audit`, `Firewall`, `Ports`, `Services`, `Network`, `Containers`, `Kubernetes`, `YARA`, `Processes`) and follow-ups (`Set baseline`, `Check drift`, `Show baseline`, `Export audit`).
+- **Quick-action chips** — clickable chips inside the **Agent Tools** panel for common audits (`Full audit`, `Firewall`, `Ports`, `Services`, `Network`, `Containers`, `Kubernetes`, `YARA`, `Processes`) and follow-ups (`Set baseline`, `Check drift`, `Show baseline`, `Export audit`).
 - **Pinned chat messages** — any completed transcript message can be pinned from the chat bubble and reviewed later in the Agent Tools panel. Pins are persisted in the user config directory when available; if persistence falls back, the Agent Tools panel shows that pins are session-only.
 - **Scanner selection by rule dependency** — targeted audits run only the scanners that feed the rules for that intent. Rule cross-category data dependencies (e.g., a network rule that also reads `OpenPorts`) are declared via `IRule.RequiredDataFields` and resolved automatically, so targeted audits cannot be silently data-starved.
 - **User-friendly warnings** — scanner warnings are classified as missing tools, permission limits, configuration gaps, or scanner errors and surfaced in plain language. Missing primary tools (e.g., `iptables` for a firewall check) produce a friendly lead sentence explaining which tool was absent and that results are partial.
@@ -648,9 +648,9 @@ The Avalonia application exposes the agent as a first-class **Security Agent** v
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.
 - Agent findings grouped by category with compact severity summaries. Similar repeated findings are also collapsed by the shared noise-budget pipeline, preserving `GroupedCount`, representative targets, and risk drivers in chat, the findings grid, history, drift, and exports.
 - Chat filters for severity and category that hide/show finding groups without changing the underlying audit result.
-- A Coverage tab after agent audits with totals and category breakdowns for passed, active failed, suppressed, and crashed rule checks.
+- A Coverage tab after agent audits with totals and category breakdowns for passed, failed, suppressed, and crashed rule checks.
 - A Compliance tab showing the CIS Compliance Scorecard with an overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid with score and status, and a mini bar-chart trend visualization of previous audits.
-- A Risk Score tab showing the aggregate Risk Scorecard with a color-coded grade badge (A–F), numeric score, summary status, and a per-category breakdown ordered by total deduction.
+- A Risk tab (view header "Risk Score") showing the aggregate Risk Scorecard with a color-coded grade badge (A–F), numeric score, summary status, and a per-category breakdown ordered by total deduction.
 - Two-way selection tracking from the findings grid for selected-finding explanations; the Explain Selected action is only enabled when a finding is selected.
 - Agent audit results are loaded into the shared findings grid so they can be selected, explained, exported, or suppressed. This includes quick-action audits and typed audit intents such as SSH, file permission, kernel hardening, cron job, package vulnerability, container, and Kubernetes checks.
 - An elevated-privilege warning banner when scanner output indicates permission-limited visibility.

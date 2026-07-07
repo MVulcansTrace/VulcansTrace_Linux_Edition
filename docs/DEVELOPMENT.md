@@ -23,7 +23,7 @@ Run all tests:
 dotnet test
 ```
 
-The test suite contains **2 804 tests** covering unit, integration, detector, evidence, UI, live stream, demo mode, and performance scenarios.
+The test suite contains **3 519 tests** covering unit, integration, detector, evidence, UI, live stream, demo mode, and performance scenarios.
 
 Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Tests/Data/Real/Samples`
@@ -35,7 +35,7 @@ Sample logs used by integration tests live in:
 - `VulcansTrace.Linux.Evidence`: evidence packaging and report formatting.
 - `VulcansTrace.Linux.Agent`: Security Agent, scanners, rules, policy, scheduling, and notifications.
 - `VulcansTrace.Linux.Avalonia`: Avalonia UI, ViewModels, and services.
-- `VulcansTrace.Linux.Cli`: headless CLI for audits and schedule management.
+- `VulcansTrace.Linux.Cli`: headless CLI for audits, schedule management, demo runs, log diff, doctor, sessions, threat-intel, and verify-finding.
 - `VulcansTrace.Linux.Tests`: xUnit tests.
 - `VulcansTrace.Linux.Performance`: performance benchmarks.
 - `VulcansTrace.Linux.PerformanceConsole`: console runner for benchmarks.
@@ -111,11 +111,11 @@ for the step-by-step HMAC signing key flow.
 Auto-fix support is driven by the explanation template. If a rule's explanation includes `BackupCommands`, `ApplyCommands`, `RollbackCommands`, and `VerificationCommands`, the rule automatically becomes eligible for `--auto-fix` and `--dry-run`.
 
 - **ReadOnly** (`CommandSafety.ReadOnly`) commands are always permitted.
-- **ConfigChange** (`CommandSafety.ConfigChange`) commands are permitted under the `Standard` and `Aggressive` policies.
-- **ServiceRestart** and **PackageInstall** commands require `--allow-restart` / `--allow-packages` and the `Aggressive` policy.
+- **ConfigChange** (`CommandSafety.ConfigChange`) commands are permitted under the default `Standard` policy.
+- **ServiceRestart** and **PackageInstall** commands require `--allow-restart` / `--allow-packages`; they expand the `Standard` policy. There is no separate `Aggressive` CLI policy option.
 - **Destructive** and **Unknown** commands are never auto-executed.
 
-If `RollbackCommands` are missing for a risky command (`ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`), the section is skipped with exit code `2` and a clear warning. Always include rollback guidance for any state-mutating command.
+If `RollbackCommands` are missing for a risky command (`ConfigChange`, `ServiceRestart`, `PackageInstall`, `Destructive`, or `Unknown`), the section is skipped with a clear warning. Skipped sections do not change the auto-fix exit code; the audit still returns `2` when critical findings are present and `3` only when a live remediation command actually fails. Always include rollback guidance for any state-mutating command.
 
 ## Packaging
 
@@ -125,7 +125,7 @@ Build a self-contained CLI binary for distribution:
 ./scripts/publish-cli.sh
 ```
 
-This produces `artifacts/publish/vulcanstrace` as a self-contained `linux-x64` executable.
+This produces `publish/vulcanstrace` as a self-contained `linux-x64` executable.
 
 ## Build Policies
 

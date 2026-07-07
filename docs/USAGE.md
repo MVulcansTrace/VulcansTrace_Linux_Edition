@@ -17,7 +17,7 @@
    - **Parse Errors tab** — lines that could not be parsed.
    - **Warnings tab** — analysis notices (truncation, caps, etc.).
    - **Compliance tab** — CIS Compliance Scorecard showing overall pass/warn/fail status, per-control-family breakdown, score percentage, and a trend chart of previous audits.
-   - **Risk Score tab** — aggregate Risk Scorecard showing a color-coded grade badge (A–F), numeric score (0–100), summary status, and a per-category breakdown ordered by total deduction.
+   - **Risk tab** — aggregate Risk Scorecard showing a color-coded grade badge (A–F), numeric score (0–100), summary status, and a per-category breakdown ordered by total deduction. (The view header reads "Risk Score".)
    - **Doctor tab** — self-diagnostic view that probes every local Security Agent scanner and lists which data sources are available, unavailable, permission-limited, or not checked. Shows a summary status banner and a warnings banner when scanners encounter command failures or permission limits.
 7. Use **Export Evidence** to save a cryptographically-signed ZIP bundle.
 
@@ -110,7 +110,7 @@ After an audit, you can also ask follow-up questions without re-running scans:
 - `Verify remediation abc12345` — before/after verification for an active remediation session; blocked or failed verification is recorded in the session timeline
 - `List my sessions` / `Show sessions` — lists all persisted remediation sessions with ID, status, rule ID, and creation time
 - `Resume session abc12345` — reloads a previously saved remediation session into the chat panel for review or continued verification
-- `Verify finding FW-001` — re-run the original audit intent and verify whether a specific rule is still failing
+- *(CLI only)* `vulcanstrace verify-finding FW-001` — re-run the original audit intent and verify whether a specific rule is still failing
 - `Which findings are suppressed?`
 - `What's my risk grade?` — returns the aggregate Risk Scorecard after an audit
 - `Risk score` — alias for the above
@@ -119,13 +119,13 @@ After an audit, you can also ask follow-up questions without re-running scans:
 
 The agent can snapshot a "known good" baseline and continuously monitor for drift:
 
-- **`Set baseline`** — saves the last audit as a named baseline for its intent (e.g., FullAudit, FirewallCheck). Baselines are persisted to `~/.config/VulcansTrace/baselines.json` when available, with an in-memory fallback.
+- **`Set baseline`** — saves the last audit as a named baseline for its intent (e.g., FullAudit, FirewallCheck). Baselines are persisted to `~/.config/VulcansTrace/baselines.json` (or `$XDG_CONFIG_HOME/VulcansTrace/baselines.json` if `XDG_CONFIG_HOME` is set) when available, with an in-memory fallback.
 - **`Check drift`** — re-runs the audit for the baseline's intent and compares live findings against the saved snapshot. Drift results show new and worsened findings as actionable `Drift` entries, with a narrative summary. The user's previous audit context is preserved so follow-up questions still work. Support-only `Low` ↔ `Medium` confidence transitions are treated as unchanged (they typically reflect scanner-availability churn, such as `ss` becoming permission-limited), while contradiction-driven confidence drops still surface.
 - **`Show baseline`** — displays the saved baseline findings with their original details, categories, and fingerprints preserved.
 
 Baselines are intent-scoped: you can have one active baseline per intent (FullAudit, FirewallCheck, SSHCheck, FilePermissionCheck, FilesystemAuditCheck, KernelCheck, UserAccountCheck, LoggingAuditCheck, CronJobCheck, PackageVulnerabilityCheck, ContainerCheck, KubernetesCheck, ThreatIntelCheck, YaraCheck, etc.). Setting a new baseline for an intent automatically activates it and deactivates any previous baseline for that same intent. Baseline names default to `Intent-Timestamp` but can be customized when set via chat (`set baseline MyName`).
 
-The panel also includes quick-action buttons for common audits (full audit, firewall, ports, services, network, containers, kubernetes), selected-finding explanation, exporting the latest agent audit through the shared evidence ZIP workflow, exporting a review-only remediation plan, exporting the latest guided remediation session report, comparing either the latest two audits or two selected history entries, and viewing the Risk Scorecard. Remediation exports include an impact preview block, preconditions, backup commands, apply commands, rollback commands or hints, and verification commands; risky or unclassified apply/backup commands must have explicit rollback guidance before the plan can be exported. Session exports include session ID, step state, blocked reasons, before snapshot, remediation plan, verification diff when present, and a chronological timeline of session events. The session timeline records successful exports only after the markdown file is written; cancelling the save dialog or hitting a write error leaves the timeline unchanged. Audit comparisons open with a deterministic narrative summary of what changed before the detailed counts and match findings by stable fingerprint, with rule-ID/target fallback for older history entries. Audit history is persisted when possible and keeps the latest 50 lightweight snapshots by default; the newest 5 are fully detailed and older retained entries are slimmed to counts, findings, and scorecards to keep the file bounded. Agent audit findings are loaded into the main findings grid, where they can be selected for explanation or marked as accepted risk. The Coverage tab shows passed, active failed, suppressed, and crashed rule checks by category after an agent audit. The Compliance tab shows the CIS Compliance Scorecard with an overall score badge, per-family DataGrid, and a mini bar-chart trend visualization. The Risk Score tab shows the aggregate Risk Scorecard with a grade badge, numeric score, summary status, and per-category breakdown. The chat shows a data-source capability report for local scanner inputs such as iptables, nftables, ss, netstat, ip, systemctl, sshd, docker, crictl, ctr, and kubectl, including permission-limited sources. Accepted-risk suppressions are fingerprint-scoped when possible and can be set for 7, 30, or 90 days, or permanently; expired suppressions stop applying immediately, remain visible in the suppression review queue for 30 days, and are then pruned during audits. Legacy suppressions without fingerprints still match by rule ID and target. Suppressions are persisted when possible; if persistence is unavailable, the UI reports that suppressions are session-only.
+The **Agent Tools** panel also includes quick-action buttons for common audits (full audit, firewall, ports, services, network, containers, kubernetes, YARA, processes), selected-finding explanation, importing threat intelligence, exporting the latest agent audit through the shared evidence ZIP workflow, exporting a review-only remediation plan, exporting the latest guided remediation session report, comparing either the latest two audits or two selected history entries, and setting/checking/showing baselines. (There is no dedicated "view Risk Scorecard" quick-action; the scorecard is available from the sidebar **Risk** tab.) Remediation exports include an impact preview block, preconditions, backup commands, apply commands, rollback commands or hints, and verification commands; risky or unclassified apply/backup commands must have explicit rollback guidance before the plan can be exported. Session exports include session ID, step state, blocked reasons, before snapshot, remediation plan, verification diff when present, and a chronological timeline of session events. The session timeline records successful exports only after the markdown file is written; cancelling the save dialog or hitting a write error leaves the timeline unchanged. Audit comparisons open with a deterministic narrative summary of what changed before the detailed counts and match findings by stable fingerprint, with rule-ID/target fallback for older history entries. Audit history is persisted when possible and keeps the latest 50 lightweight snapshots by default; the newest 5 are fully detailed and older retained entries are slimmed to counts, findings, and scorecards to keep the file bounded. Agent audit findings are loaded into the main findings grid, where they can be selected for explanation or marked as accepted risk. The Coverage tab shows passed, failed, suppressed, and crashed rule checks by category after an agent audit. The Compliance tab shows the CIS Compliance Scorecard with an overall score badge, per-family DataGrid, and a mini bar-chart trend visualization. The Risk tab shows the aggregate Risk Scorecard with a grade badge, numeric score, summary status, and per-category breakdown.e Risk Scorecard with a grade badge, numeric score, summary status, and per-category breakdown. The chat shows a data-source capability report for local scanner inputs such as iptables, nftables, ss, netstat, ip, systemctl, sshd, docker, crictl, ctr, and kubectl, including permission-limited sources. Accepted-risk suppressions are fingerprint-scoped when possible and can be set for 7, 30, or 90 days, or permanently; expired suppressions stop applying immediately, remain visible in the suppression review queue for 30 days, and are then pruned during audits. Legacy suppressions without fingerprints still match by rule ID and target. Suppressions are persisted when possible; if persistence is unavailable, the UI reports that suppressions are session-only.
 
 The right-side Suppressions tab shows entries needing review, including items expiring soon, recently expired suppressions, permanent suppressions, and stale permanent suppressions. From that queue you can renew, convert duration, edit the reason, or remove the suppression.
 
@@ -143,7 +143,7 @@ Agent chat findings can be filtered by severity and category without changing th
 - `step 2 failed with permission denied`
 - `step 1 failed because service auditd is not installed`
 
-You can reference the step by ordinal (`step 2`), rule ID (`FW-001 failed`), or session ID (`step 1 worked in session abc12345`). On success, the agent marks the step complete and either prompts for the next step or suggests verification. On failure, it classifies the failure category (permission issue, missing dependency, missing service, malformed command, already configured/conflicting setting, or unknown) and returns adaptive, rule-aware guidance — for example, retrying with `sudo`, installing a prerequisite package, enabling a missing service, or reviewing a conflicting setting. These responses are deterministic; no external model is consulted.
+You can reference the step by ordinal (`step 2`) or session ID (`step 1 worked in session abc12345`). Rule-ID references (e.g. `FW-001 failed`) are parsed if they appear inside an already-triggered step-outcome message, but a standalone rule-ID message is not currently routed as a step outcome. On success, the agent marks the step complete and either prompts for the next step or suggests verification. On failure, it classifies the failure category (permission issue, missing dependency, missing service, malformed command, already configured/conflicting setting, or unknown) and returns adaptive, rule-aware guidance — for example, retrying with `sudo`, installing a prerequisite package, enabling a missing service, or reviewing a conflicting setting. These responses are deterministic; no external model is consulted.
 
 **Session Notes** — During an existing remediation session, you can append free-text notes for audit traceability:
 - `add note to session abc12345 <text>` — adds a session-level note.
@@ -175,7 +175,7 @@ For the full capability list and limitations, see [Security Agent](SECURITY_AGEN
 
 ## Recurring Audit Scheduling
 
-VulcansTrace supports automatic recurring audits through the system `crontab`. Schedules can be created and managed from both the GUI and the headless CLI. Every CLI command also accepts the global flag `--config-dir <dir>` to override the default `~/.config/VulcansTrace` directory.
+VulcansTrace supports automatic recurring audits through the system `crontab`. Schedules can be created and managed from both the GUI and the headless CLI. Every CLI command also accepts the global flag `--config-dir <dir>` to override the default config directory (resolved from `XDG_CONFIG_HOME` or `~/.config/VulcansTrace`).
 
 ### GUI Schedule Editor
 
@@ -199,14 +199,14 @@ The Avalonia UI includes a **Schedules** tab:
    - **Allow remediation packages** — permits remediation commands that install or remove packages (requires Allow remediation).
    - **Remediation rule prefixes** — comma-separated rule-id prefixes (e.g., `FW, KERN`) that remediation may target. Empty means all rules.
    - **Enabled** — whether the schedule is active.
-4. Click **Save**. The schedule is persisted to `~/.config/VulcansTrace/schedules.json`.
+4. Click **Save**. The schedule is persisted to `~/.config/VulcansTrace/schedules.json` (or `$XDG_CONFIG_HOME/VulcansTrace/schedules.json` if `XDG_CONFIG_HOME` is set).
 5. Select a schedule and click **Install in Cron** to register it with the system crontab. The schedule must be enabled to install.
 6. Click **Run Now** to execute a schedule on demand. The result is persisted to the audit history store.
 7. The grid shows whether each schedule is currently installed in cron.
 
 ### CLI Schedule Management
 
-The headless CLI provides full schedule management:
+The headless CLI provides full schedule management (every command also accepts the global `--config-dir <dir>` flag):
 
 ```bash
 # List all schedules
@@ -264,7 +264,7 @@ vulcanstrace session show --id <session-id>
 vulcanstrace session delete --id <session-id>
 ```
 
-Sessions are persisted to `~/.config/VulcansTrace/remediation-sessions.json` when available, with an in-memory fallback.
+Sessions are persisted to `~/.config/VulcansTrace/remediation-sessions.json` (or `$XDG_CONFIG_HOME/VulcansTrace/remediation-sessions.json` if `XDG_CONFIG_HOME` is set) when available, with an in-memory fallback.
 
 ### Cron Expression Format
 
@@ -328,6 +328,16 @@ Run audits without launching the desktop UI:
 vulcanstrace audit --intent FullAudit --role Server --notify-on-critical
 ```
 
+### Ask a Natural-Language Question
+
+The CLI can run a single agent query and print the response:
+
+```bash
+vulcanstrace ask "Is my system secure?" --role Server
+vulcanstrace ask "Check my firewall" --audit-intent FirewallCheck --role Server
+vulcanstrace ask "Explain FW-001" --log-file /var/log/kern.log
+```
+
 ### Verify a Specific Finding
 
 After manually remediating a finding, verify whether it is still detected:
@@ -363,7 +373,7 @@ The JSON output contains normalized `capabilities` entries (`sourceName`, string
 ### Avalonia UI Doctor Tab
 
 1. Open the **Doctor** tab.
-2. Click **Run Diagnostic**.
+2. Click **Run Diagnostics**.
 3. Review the summary banner:
    - Green — every normalized data source reported `Available`.
    - Yellow — one or more scanners are `PermissionLimited`.
@@ -373,7 +383,7 @@ The JSON output contains normalized `capabilities` entries (`sourceName`, string
 
 ## Threat Intel Import (STIX / MISP)
 
-VulcansTrace can import offline threat intelligence from STIX 2.1 bundles and MISP event JSON for correlation during audits and live stream analysis. Imported IOCs are persisted to `~/.config/VulcansTrace/threat-intel.json` (with an in-memory fallback) and checked against firewall logs, active connections, open ports, and file hashes.
+VulcansTrace can import offline threat intelligence from STIX 2.1 bundles and MISP event JSON for correlation during audits and live stream analysis. Imported IOCs are persisted to `~/.config/VulcansTrace/threat-intel.json` (or `$XDG_CONFIG_HOME/VulcansTrace/threat-intel.json` if `XDG_CONFIG_HOME` is set), with an in-memory fallback, and checked against firewall logs, active connections, open ports, and file hashes.
 
 ### CLI Threat Intel Management
 
@@ -532,7 +542,7 @@ Rules can be stricter or looser depending on the role. For example:
 - `PORT-002` (wide-open services) allows extra ports such as `8080` on **DevMachine**.
 - `SRV-005` (unnecessary services) ignores `nfs` and `smb` on **DevMachine**.
 
-Policies are stored in `~/.config/VulcansTrace/policy.json` and can override:
+Policies are stored in `~/.config/VulcansTrace/policy.json` (or `$XDG_CONFIG_HOME/VulcansTrace/policy.json` if `XDG_CONFIG_HOME` is set) and can override:
 - `enabled` — skip a rule entirely.
 - `severityOverride` — change the severity when a rule fails.
 - `autoPass` — treat a failure as passed (looser).
@@ -609,10 +619,13 @@ See `docs/HMAC_EVIDENCE.md` for the step-by-step HMAC signing key flow.
 The Avalonia UI includes a **Live Stream** tab for real-time kernel telemetry analysis.
 
 1. Open the **Live Stream** tab.
-2. Select a source:
-   - **Demo scenarios** — no privileges required; choose from C2 Beaconing, SSH Brute Force, Privilege Escalation, or Random Mix. Duration auto-adjusts per scenario (C2 Beaconing defaults to 150 s; others to 60 s). Named scenarios isolate synthetic traffic so completed evidence reflects the selected scenario.
-   - **Kernel Packet Capture** — requires root or `CAP_NET_RAW`; captures IPv4 TCP/UDP via `AF_PACKET`.
-   - **NFLOG Netlink** — requires root or `CAP_NET_ADMIN`; reads structured events from netfilter NFLOG.
+2. Select a source from the dropdown:
+   - **Demo: Random Mix** — probabilistic blend of port scans, beaconing, and floods; no privileges required.
+   - **Demo: C2 Beaconing** — periodic beaconing to an external destination; recommended **150 s** at High intensity; no privileges required.
+   - **Demo: SSH Brute Force** — high-volume SYN flood targeted at TCP/22; recommended **60 s** at High intensity; no privileges required.
+   - **Demo: Privilege Escalation** — controlled sweep across admin ports; recommended **60 s** at High intensity; no privileges required.
+   - **Kernel Packet Capture (AF_PACKET + BPF)** — requires root or `CAP_NET_RAW`; captures all IPv4 TCP/UDP packets.
+   - **NFLOG Netlink (AF_NETLINK)** — requires root or `CAP_NET_ADMIN`; reads structured events from netfilter NFLOG.
 3. Select an analysis intensity.
 4. Click **Start**.
 5. Watch live metrics (events/sec, window size, analysis runs, delta findings).
@@ -665,4 +678,4 @@ dotnet run --project tools/TestAnalysis -- --verify /tmp/vulcan-evidence/iptable
 ./scripts/publish-cli.sh
 ```
 
-This produces a self-contained `linux-x64` binary at `artifacts/publish/vulcanstrace` that can be copied to target systems without requiring the .NET runtime.
+This produces a self-contained `linux-x64` binary at `publish/vulcanstrace` that can be copied to target systems without requiring the .NET runtime.

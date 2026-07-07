@@ -171,8 +171,8 @@ User query
 | Message list | Displays severity summaries, category-grouped findings, warnings, explanation details, and passed-check counts |
 | Data-source report | Shows scanner command visibility such as available, unavailable, permission-limited, or unknown |
 | Chat filters | Hide/show finding groups by severity and category without changing the underlying audit result |
-| Coverage tab | Groups agent rule results by category and shows passed, active failed, suppressed, crashed, and not-applicable check totals |
-| Risk Score tab | Shows aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score, summary status, and per-category breakdown |
+| Coverage tab | Groups agent rule results by category and shows passed, failed, suppressed, crashed, and not-applicable check totals |
+| Risk tab | Shows aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score, summary status, and per-category breakdown (view header reads "Risk Score") |
 | Verification commands | Shows copy buttons, safety badges, and SUDO/CHAIN/PIPE/REDIR/DL-EXEC structural badges only for commands from the `How to verify` explanation section |
 | Adaptive explanation depth | Explanation cards add **History**, **Root cause**, and **What changed** sections when the rule's persisted history meets the depth thresholds; first-time findings stay concise |
 | Local policy | Applies built-in role defaults and JSON overrides for enabled state, auto-pass, severity, and contextual parameters |

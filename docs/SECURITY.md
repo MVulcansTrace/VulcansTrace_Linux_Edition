@@ -30,7 +30,7 @@ Recurring audits use the standard Linux `crontab` command. VulcansTrace:
 - Uses a unique marker prefix (`# VT-SCH-7a3f9e2d schedule-id=`) to avoid interfering with non-VulcansTrace entries.
 - Validates cron expressions before installation.
 - Rejects installation of disabled schedules.
-- Atomic file writes (temp file + move) are used for all JSON persistence to prevent corruption on power loss.
+- Atomic file writes (temp file + move) are used for schedules and agent-memory persistence to prevent corruption on power loss. Other persisted JSON files are written directly; the same directory is created and validated before each save.
 
 ## Notifications
 
@@ -41,13 +41,13 @@ Notifications are sent only when **new** critical findings are detected, using f
 - **Webhook notifications** POST to a user-configured URL. No telemetry or analytics payloads are included.
 - **Drift alerts** are sent when a scheduled audit has autonomous drift response enabled and baseline drift at or above the configured threshold is detected.
 
-All notification failures are caught and logged to `stderr`; they do not affect audit execution or exit codes.
+All notification failures are caught; email and webhook failures are logged to `stderr`. Desktop notification failures are silently degraded if `notify-send` is unavailable. None of these failures affect audit execution or exit codes.
 
 ## Drift Alert Signing
 
 Autonomous drift alerts can be HMAC-SHA256 signed so recipients can verify authenticity and detect tampering.
 
-- Set `VT_ALERT_SIGNING_KEY` to a 64-character hex key. The same key must be available to the verifier.
+- Set `VT_ALERT_SIGNING_KEY` to a hex-encoded key (for example, a 64-character hex string representing 32 bytes). The same key must be available to the verifier. The CLI parses any valid hex string and does not enforce a fixed length.
 - Each signed alert includes a per-alert `Nonce` and the `ScheduleId` in the signed canonical JSON form.
 - `SignedAlertVerifier` uses constant-time comparison (`CryptographicOperations.FixedTimeEquals`) to resist timing attacks.
 - Alerts sent without a signing key carry the explicit `UNSIGNED` sentinel value so recipients cannot mistake them for authenticated alerts.
@@ -77,7 +77,7 @@ The Security Agent never autonomously applies remediation. Every automatic syste
 
 Sensitive data is stored in the user's config directory (`~/.config/VulcansTrace/`):
 - `schedules.json` — recurring audit schedules.
-- `audithistory.json` — lightweight audit history snapshots.
+- `audit-history.json` — lightweight audit history snapshots.
 - `baselines.json` — configuration baselines.
 - `policy.json` — local rule policy overrides.
 - `suppressions.json` — accepted-risk suppressions.

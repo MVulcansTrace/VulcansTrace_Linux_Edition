@@ -30,7 +30,7 @@ Documentation is organized for two audiences:
 - **Platform-agnostic dialog abstraction** — IDialogService interface backed by AvaloniaDialogService adapter, enabling test-time substitution with no UI dependency
 - **Severity color scheme** — Critical (#ef4444), High (#f97316), Medium (#eab308), Low (#22c55e), Unknown (#64748b)
 - **Compliance tab** — CIS Compliance Scorecard with overall score badge (Pass ≥90%, Warn ≥80%, Fail <80%), per-family DataGrid, and mini bar-chart trend visualization
-- **Risk Score tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid
+- **Risk tab** — aggregate Risk Scorecard with color-coded grade badge (A–F), numeric score (0–100), summary status, and per-category breakdown DataGrid (view header reads "Risk Score")
 - **Schedule management tab** — DataGrid of recurring audit schedules with Add/Edit/Delete/Run Now/Install Cron actions, cron status indicators, and selection preservation across refreshes
 - **Security Agent view** — first-class navigation view for the local Security Agent with chat-style questions, `/` slash-command palette, quick-action chips, markdown-rendered messages, copyable command rows, and user-friendly scanner warnings (replaced the previous collapsible bottom panel)
 - **Design-token theme system** — centralized `VtDesignTokens.axaml` resource dictionary with colors, typography, radii, and reusable `ControlTheme`s, replacing the previous `DarkTheme.axaml`/`ThemeStyles.axaml` split

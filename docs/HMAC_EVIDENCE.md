@@ -18,7 +18,7 @@ key is generated, the button enables so you can copy the key.
 
 ## Notes
 
-- The key shown is the full HMAC key for the session.
+- The key displayed in the UI is masked (asterisks). The full hex key is placed on the clipboard when you click **Copy signing key**.
 - If you re-run analysis and export again, a new key is generated for that analysis session.
 
 ## Verify a bundle from the CLI

@@ -14,6 +14,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `VulcansTrace.Linux.Performance`: performance benchmarks and metrics.
 - `VulcansTrace.Linux.PerformanceConsole`: console runner for performance tests.
 - `tools/TestAnalysis`: sample CLI analysis runner (not part of the solution file).
+- `tools/agent-demo`: small demo/helper tool project (also not part of the solution file).
 
 ## Live Stream Components
 
@@ -32,7 +33,7 @@ VulcansTrace Linux Edition is structured as layered projects that keep parsing, 
 - `DoctorResult` — immutable diagnostic result containing normalized `Capabilities` (`DataSourceCapability` records), `Warnings` (scanner failure or permission messages), and computed aggregate availability counts for available, unavailable, permission-limited, and not-checked sources.
 - `DoctorCommand` (CLI) — `vulcanstrace doctor [--output-json <file>]`, prints a color-coded summary and exits `0` (all normalized sources available), `1` (at least one unavailable source or runtime error), `2` (permission-limited or not-checked sources only), or `130` (cancelled).
 - `DoctorViewModel` / `DoctorCapabilityViewModel` — Avalonia bindings for the Doctor tab: busy state, summary color/background, warnings banner, and capability grid.
-- `DoctorView` — Avalonia tab UI with **Run Diagnostic**, summary banner, warnings banner, and normalized capability list; empty-state prompt shown before the first probe.
+- `DoctorView` — Avalonia tab UI with **Run Diagnostics**, summary banner, warnings banner, and normalized capability list; empty-state prompt shown before the first probe.
 
 ## Demo Mode Components
 
@@ -65,7 +66,7 @@ The **Live Stream** provides a parallel real-time analysis path:
 2. `LiveStreamWindow` buffers events with dual eviction: 60-second time window and 10 000 event count cap.
 3. A dedicated `SentryAnalyzer` instance runs on the window every 5 seconds or 500 events.
 4. Completed `LiveAnalysisResult` records flow through a bounded `DropOldest` channel so stale UI updates do not stall analysis.
-5. Findings are deduplicated by fingerprint (5-minute TTL) and stored in `LiveFindings` with FIFO eviction at 1 000 entries.
+5. Findings are deduplicated by fingerprint (5-minute TTL) in the analyzer and stored in the UI-layer `LiveFindings` collection with FIFO eviction at 1 000 entries.
 6. `LiveResultReceived` surfaces new findings to the UI, which adds them to the shared findings grid.
 7. `StopAsync()` signals cancellation, closes the native socket (unblocking `recv()`), and awaits clean pipeline shutdown.
 
