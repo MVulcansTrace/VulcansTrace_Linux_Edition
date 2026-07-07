@@ -1,10 +1,12 @@
 using System;
+using System.Linq;
 using Avalonia.Media;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -2902,4 +2904,301 @@ public class AgentViewModelTests
             });
         }
     }
+
+    [AvaloniaFact]
+    public void Constructor_WithPinnedMessageStore_LoadsPinnedMessages()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        var message = new AgentMessageViewModel
+        {
+            Text = "saved message",
+            Timestamp = new DateTime(2026, 7, 2, 14, 30, 0, DateTimeKind.Utc)
+        };
+        store.Pin(message.ToPinnedMessage());
+
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+
+        Assert.Single(vm.PinnedMessages);
+        Assert.Equal("saved message", vm.PinnedMessages[0].Text);
+        Assert.True(vm.PinnedMessages[0].IsPinned);
+        Assert.Equal(1, vm.PinnedMessageCount);
+        Assert.True(vm.HasPinnedMessages);
+    }
+
+    [AvaloniaFact]
+    public async Task TogglePinMessageCommand_PinsAndUnpinsMessage()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0]; // welcome message
+
+        Assert.True(vm.TogglePinMessageCommand.CanExecute(message));
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.True(message.IsPinned);
+        Assert.Single(vm.PinnedMessages);
+        Assert.True(store.IsPinned(message.MessageId));
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+        Assert.False(store.IsPinned(message.MessageId));
+    }
+
+    [AvaloniaFact]
+    public async Task TogglePinMessageCommand_DoesNothingWhenStoreUnavailable()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+    }
+
+    [AvaloniaFact]
+    public async Task PinMessage_WithStoreWarning_SurfacesStatus()
+    {
+        var store = new WarningPinnedMessageStore("Could not save pinned messages to disk: boom. Pins will last only for this session.");
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.True(message.IsPinned);
+        Assert.True(vm.HasPinMessageStatusMessage);
+        Assert.Contains("Pins will last only for this session", vm.PinMessageStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task PinMessage_WhenStoreRejectsPin_DoesNotMarkPinned()
+    {
+        // A persistent store can reject a pin (e.g. validation failure on oversized text) without
+        // throwing. The VM must treat the store as the source of truth: no pin bubble, no clone,
+        // no count bump — while still surfacing the persistence warning.
+        var store = new RejectingPinnedMessageStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+        Assert.Equal(0, vm.PinnedMessageCount);
+        Assert.True(vm.HasPinMessageStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task UnpinFromPinnedPanelClone_AlsoUnpinsTranscriptMessage()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+        Assert.True(message.IsPinned);
+
+        // Unpin via the clone rendered in the Pinned-messages panel, not the transcript bubble,
+        // and verify the transcript twin is kept in sync.
+        var clone = Assert.Single(vm.PinnedMessages);
+        var unpinCommand = clone.TogglePinCommand;
+        Assert.NotNull(unpinCommand);
+        unpinCommand.Execute(clone);
+        await ((AsyncRelayCommand<AgentMessageViewModel>)unpinCommand).ExecutionTask;
+
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+        Assert.False(store.IsPinned(message.MessageId));
+    }
+
+    [AvaloniaFact]
+    public async Task PinMessage_WhenStoreThrows_ReconcilesToStoreState()
+    {
+        // If the store throws, the VM must not crash and must not optimistically show pinned.
+        // SafeIsPinned falls back to false when even the read path throws.
+        var store = new ThrowingPinnedMessageStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+        Assert.Equal(0, vm.PinnedMessageCount);
+        Assert.Contains("Could not pin message", vm.PinMessageStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task PinMessage_CommittedButNotPersisted_SurfacesWarningAndKeepsPin()
+    {
+        // JsonFilePinnedMessageStore can successfully commit to memory but fail the file write.
+        // The pin is real for this session, so the UI should show it pinned and surface the warning.
+        var store = new CommittedButNotPersistedStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        Assert.True(message.IsPinned);
+        Assert.Single(vm.PinnedMessages);
+        Assert.Equal(1, vm.PinnedMessageCount);
+        Assert.Contains("Pins will last only for this session", vm.PinMessageStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task UnpinMessage_WhenStoreThrows_ReconcilesToStoreState()
+    {
+        // Start with a healthy pinned message, then swap in a throwing store for unpin.
+        var healthyStore = new InMemoryPinnedMessageStore();
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: healthyStore);
+        var message = vm.Messages[0];
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+        Assert.True(message.IsPinned);
+
+        var throwingStore = new ThrowingPinnedMessageStore();
+        // Use reflection to swap the store so we can test the unpin throw path without exposing it publicly.
+        var field = typeof(AgentViewModel).GetField("_pinnedMessageStore", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        field?.SetValue(vm, throwingStore);
+
+        vm.TogglePinMessageCommand.Execute(message);
+        await vm.TogglePinMessageCommand.ExecutionTask;
+
+        // IsPinned read throws, so SafeIsPinned returns false; UI should remove the pin and clone.
+        Assert.False(message.IsPinned);
+        Assert.Empty(vm.PinnedMessages);
+        Assert.Equal(0, vm.PinnedMessageCount);
+        Assert.Contains("Could not unpin message", vm.PinMessageStatusMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task LoadedPinnedMessage_PreservesOrFallsBackSeverity()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        store.Pin(new PinnedMessage
+        {
+            MessageId = "valid-sev",
+            Text = "msg",
+            Severity = "Critical",
+            TimestampUtc = DateTime.UtcNow,
+            PinnedAtUtc = DateTime.UtcNow
+        });
+        store.Pin(new PinnedMessage
+        {
+            MessageId = "bad-sev",
+            Text = "msg",
+            Severity = "not-a-real-severity",
+            TimestampUtc = DateTime.UtcNow,
+            PinnedAtUtc = DateTime.UtcNow
+        });
+
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: store);
+
+        var byId = vm.PinnedMessages.ToDictionary(m => m.MessageId);
+        Assert.Equal(Severity.Critical, byId["valid-sev"].Severity);
+        Assert.Equal(Severity.Info, byId["bad-sev"].Severity);
+    }
+
+    private sealed class WarningPinnedMessageStore : IPinnedMessageStore
+    {
+        private readonly Dictionary<string, PinnedMessage> _entries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly string _warning;
+
+        public WarningPinnedMessageStore(string warning)
+        {
+            _warning = warning;
+        }
+
+        public string? PersistenceWarning { get; private set; }
+
+        public void Pin(PinnedMessage message)
+        {
+            _entries[message.MessageId] = message;
+            PersistenceWarning = _warning;
+        }
+
+        public void Unpin(string messageId)
+        {
+            _entries.Remove(messageId);
+            PersistenceWarning = _warning;
+        }
+
+        public bool IsPinned(string messageId) => _entries.ContainsKey(messageId);
+
+        public IReadOnlyList<PinnedMessage> GetAll() => _entries.Values.ToList();
+    }
+
+    /// <summary>
+    /// A store that simulates a persistent store rejecting pins (e.g. a validation failure) without
+    /// throwing: entries are never retained (so IsPinned always reports false) and a persistence
+    /// warning is recorded only after a Pin attempt, mirroring JsonFilePinnedMessageStore's
+    /// CommitCandidate failure path.
+    /// </summary>
+    private sealed class RejectingPinnedMessageStore : IPinnedMessageStore
+    {
+        public string? PersistenceWarning { get; private set; }
+
+        public void Pin(PinnedMessage message)
+        {
+            PersistenceWarning = "Could not save pinned messages to disk: validation failed. Invalid pins were not saved.";
+        }
+
+        public void Unpin(string messageId)
+        {
+        }
+
+        public bool IsPinned(string messageId) => false;
+
+        public IReadOnlyList<PinnedMessage> GetAll() => Array.Empty<PinnedMessage>();
+    }
+
+    /// <summary>
+    /// A store that keeps the pin in memory but reports a persistence warning, matching
+    /// JsonFilePinnedMessageStore's committed-but-not-saved-to-disk path.
+    /// </summary>
+    private sealed class CommittedButNotPersistedStore : IPinnedMessageStore
+    {
+        private readonly Dictionary<string, PinnedMessage> _entries = new(StringComparer.OrdinalIgnoreCase);
+
+        public string? PersistenceWarning { get; private set; }
+
+        public void Pin(PinnedMessage message)
+        {
+            _entries[message.MessageId] = message;
+            PersistenceWarning = "Could not save pinned messages to disk: disk full. Pins will last only for this session.";
+        }
+
+        public void Unpin(string messageId)
+        {
+            _entries.Remove(messageId);
+        }
+
+        public bool IsPinned(string messageId) => _entries.ContainsKey(messageId);
+
+        public IReadOnlyList<PinnedMessage> GetAll() => _entries.Values.ToList();
+    }
+}
+
+public class ThrowingPinnedMessageStore : IPinnedMessageStore
+{
+    public string? PersistenceWarning { get; }
+
+    public void Pin(PinnedMessage message) => throw new InvalidOperationException("Pin threw");
+
+    public void Unpin(string messageId) => throw new InvalidOperationException("Unpin threw");
+
+    public bool IsPinned(string messageId) => throw new InvalidOperationException("IsPinned threw");
+
+    public IReadOnlyList<PinnedMessage> GetAll() => throw new InvalidOperationException("GetAll threw");
 }

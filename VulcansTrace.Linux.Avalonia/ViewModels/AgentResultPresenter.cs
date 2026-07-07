@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -28,6 +29,7 @@ internal sealed class AgentResultPresenter
     private readonly WarningInterpreter _warningInterpreter;
     private readonly IntentSummaryBuilder _intentSummaryBuilder;
     private readonly IChatFilter _chatFilter;
+    private readonly IPinnedMessageStore? _pinnedMessageStore;
 
     private readonly Action _onFiltersApplied;
     private string? _searchQuery;
@@ -49,7 +51,8 @@ internal sealed class AgentResultPresenter
         Action? onFiltersApplied = null,
         WarningInterpreter? warningInterpreter = null,
         IntentSummaryBuilder? intentSummaryBuilder = null,
-        IChatFilter? chatFilter = null)
+        IChatFilter? chatFilter = null,
+        IPinnedMessageStore? pinnedMessageStore = null)
     {
         _messages = messages ?? throw new ArgumentNullException(nameof(messages));
         _categoryFilters = categoryFilters ?? throw new ArgumentNullException(nameof(categoryFilters));
@@ -62,6 +65,7 @@ internal sealed class AgentResultPresenter
         _warningInterpreter = warningInterpreter ?? new WarningInterpreter();
         _intentSummaryBuilder = intentSummaryBuilder ?? new IntentSummaryBuilder();
         _chatFilter = chatFilter ?? new DefaultChatFilter();
+        _pinnedMessageStore = pinnedMessageStore;
         _messages.CollectionChanged += OnMessagesCollectionChanged;
     }
 
@@ -244,14 +248,55 @@ internal sealed class AgentResultPresenter
         });
     }
 
+    private void ConfigureMessage(AgentMessageViewModel message)
+    {
+        if (string.IsNullOrWhiteSpace(message.MessageId))
+        {
+            message.MessageId = AgentMessageFingerprint.NewId();
+        }
+
+        if (_pinnedMessageStore != null)
+        {
+            try
+            {
+                message.IsPinned = _pinnedMessageStore.IsPinned(message.MessageId);
+            }
+            catch
+            {
+                message.IsPinned = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-evaluates the pinned state of a message against the store. Used when a message's
+    /// identifier is restored from persisted state (e.g. reloading a pinned message into the transcript).
+    /// </summary>
+    public void RefreshPinnedState(AgentMessageViewModel message)
+    {
+        if (_pinnedMessageStore != null && !string.IsNullOrWhiteSpace(message.MessageId))
+        {
+            try
+            {
+                message.IsPinned = _pinnedMessageStore.IsPinned(message.MessageId);
+            }
+            catch
+            {
+                message.IsPinned = false;
+            }
+        }
+    }
+
     public void AddUserMessage(string text)
     {
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = text,
             IsUser = true,
             Timestamp = DateTime.Now
-        });
+        };
+        ConfigureMessage(message);
+        _messages.Add(message);
     }
 
     public AgentMessageViewModel AddAgentMessage(string text, bool isInfo, bool isError = false, bool isProse = false)
@@ -265,6 +310,7 @@ internal sealed class AgentResultPresenter
             IsProse = isProse,
             Timestamp = DateTime.Now
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -286,7 +332,7 @@ internal sealed class AgentResultPresenter
         var groupBadge = FormatGroupBadge(finding);
         var details = FormatFindingDetails(finding);
 
-        _messages.Add(new AgentMessageViewModel
+        var message = new AgentMessageViewModel
         {
             Text = $"{ruleIdPrefix}[{finding.Severity}] {finding.ShortDescription}{groupBadge}",
             Details = details,
@@ -297,7 +343,9 @@ internal sealed class AgentResultPresenter
             EvidenceSignalsDisplay = FormatEvidenceSignals(finding.EvidenceSignals),
             Timestamp = DateTime.Now,
             VerificationCommands = verificationCommands
-        });
+        };
+        ConfigureMessage(message);
+        _messages.Add(message);
     }
 
     private AgentMessageViewModel AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
@@ -329,6 +377,7 @@ internal sealed class AgentResultPresenter
             IsInfo = true,
             Timestamp = DateTime.Now
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -371,6 +420,7 @@ internal sealed class AgentResultPresenter
             Timestamp = DateTime.Now,
             Category = category
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -429,6 +479,7 @@ internal sealed class AgentResultPresenter
             Timestamp = DateTime.Now,
             RemediationSection = section
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -455,6 +506,7 @@ internal sealed class AgentResultPresenter
             SessionStatus = session.Status,
             SessionTimeline = session.Timeline
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -475,6 +527,7 @@ internal sealed class AgentResultPresenter
             IsVerificationResult = true,
             SessionTimeline = session.Timeline
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }
@@ -505,6 +558,7 @@ internal sealed class AgentResultPresenter
             SessionStatus = session.Status,
             SessionTimeline = session.Timeline
         };
+        ConfigureMessage(message);
         _messages.Add(message);
         return message;
     }

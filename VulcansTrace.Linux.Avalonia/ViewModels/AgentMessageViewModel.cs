@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
@@ -42,6 +43,20 @@ public sealed class AgentMessageViewModel : ViewModelBase
     private string _streamingText = "";
     private string _streamingFinalText = "";
     private IReadOnlyList<AgentMessageBlock> _formattedBlocks = Array.Empty<AgentMessageBlock>();
+    private string _messageId = AgentMessageFingerprint.NewId();
+    private bool _isPinned;
+    private ICommand? _togglePinCommand;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AgentMessageViewModel"/u003e class
+    /// with a unique message identifier.
+    /// </summary>
+    public AgentMessageViewModel()
+    {
+    }
+
+    /// <summary>Gets the parsed rich-content blocks for the message bubble.</summary>
+    public IReadOnlyList<AgentMessageBlock> FormattedBlocks => _formattedBlocks;
 
     /// <summary>Gets or sets the message text shown to the user.</summary>
     public string Text
@@ -53,12 +68,70 @@ public sealed class AgentMessageViewModel : ViewModelBase
             {
                 RebuildFormattedBlocks();
                 OnPropertyChanged(nameof(AutomationName));
+                OnPropertyChanged(nameof(CanBePinned));
             }
         }
     }
 
-    /// <summary>Gets the parsed rich-content blocks for the message bubble.</summary>
-    public IReadOnlyList<AgentMessageBlock> FormattedBlocks => _formattedBlocks;
+    /// <summary>Gets or sets the unique identifier for this message instance. Used as the pin primary key.</summary>
+    public string MessageId
+    {
+        get => _messageId;
+        set => SetField(ref _messageId, value);
+    }
+
+    /// <summary>Gets or sets whether this message is pinned.</summary>
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set
+        {
+            if (SetField(ref _isPinned, value))
+            {
+                OnPropertyChanged(nameof(PinIcon));
+                OnPropertyChanged(nameof(PinTooltip));
+            }
+        }
+    }
+
+    /// <summary>Gets the icon name for the pin action button.</summary>
+    public string PinIcon => IsPinned ? "mdi-pin-off" : "mdi-pin-outline";
+
+    /// <summary>Gets the tooltip for the pin action button.</summary>
+    public string PinTooltip => IsPinned ? "Unpin message" : "Pin message";
+
+    /// <summary>
+    /// Gets whether this message can be pinned: it must have text and must not still be
+    /// streaming or queued for streaming.
+    /// </summary>
+    public bool CanBePinned => !string.IsNullOrWhiteSpace(_text) && !_isStreaming && !_isStreamingPending;
+
+    /// <summary>Gets or sets the command invoked when the pin/unpin button is clicked.</summary>
+    public ICommand? TogglePinCommand
+    {
+        get => _togglePinCommand;
+        set => SetField(ref _togglePinCommand, value);
+    }
+
+    /// <summary>
+    /// Builds a <see cref="PinnedMessage"/> record from the current message state.
+    /// </summary>
+    public PinnedMessage ToPinnedMessage()
+    {
+        return new PinnedMessage
+        {
+            MessageId = _messageId,
+            IsUser = _isUser,
+            Text = _text,
+            Details = _details,
+            Category = _category,
+            Severity = _severity.ToString(),
+            IsInfo = _isInfo,
+            IsError = _isError,
+            IsProse = _isProse,
+            TimestampUtc = _timestamp == DateTime.MinValue ? DateTime.UtcNow : _timestamp.ToUniversalTime()
+        };
+    }
 
     /// <summary>Gets or sets whether this message is currently streaming/typewriting its text.</summary>
     public bool IsStreaming
@@ -69,6 +142,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
             if (SetField(ref _isStreaming, value))
             {
                 OnPropertyChanged(nameof(AutomationName));
+                OnPropertyChanged(nameof(CanBePinned));
             }
         }
     }
@@ -93,6 +167,7 @@ public sealed class AgentMessageViewModel : ViewModelBase
             if (SetField(ref _isStreamingPending, value))
             {
                 OnPropertyChanged(nameof(IsRowVisible));
+                OnPropertyChanged(nameof(CanBePinned));
             }
         }
     }

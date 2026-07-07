@@ -57,6 +57,7 @@ The view also provides faster paths for common actions:
 
 - **Slash commands** — type `/` in the query box to open a palette of quick intents. Examples: `/firewall`, `/network`, `/ports`, `/services`, `/ssh`, `/filesystem`, `/kernel`, `/users`, `/logging`, `/cron`, `/packages`, `/containers`, `/kubernetes`, `/threatintel`, `/yara`, `/processes`, `/full`, `/fullaudit`, `/baseline`, `/drift`, `/baseline show`, `/show baseline`, `/sessions`, `/risk`, `/help`, `/clear`. Selecting a command immediately runs the corresponding audit or follow-up.
 - **Quick-action chips** — clickable chips above the query box for common audits (`Full audit`, `Firewall`, `Ports`, `Services`, `Network`, `Containers`, `Kubernetes`, `YARA`, `Processes`) and follow-ups (`Set baseline`, `Check drift`, `Show baseline`, `Export audit`).
+- **Pinned chat messages** — pin any completed transcript message from its chat bubble and review saved pins in the Agent Tools panel. Pins persist when the user config directory is writable; otherwise the panel shows that pins are session-only.
 - **Markdown rendering** — `**bold**` and `*italic*` markup in agent messages is rendered as styled inlines.
 - **User-friendly warnings** — scanner warnings are classified and surfaced in plain language (missing tool, permission denied, configuration missing, scanner error) instead of raw strings.
 - **Copyable command rows** — verification, backup, apply, rollback, and verification commands render in rows with one-click copy and safety/structure badges.

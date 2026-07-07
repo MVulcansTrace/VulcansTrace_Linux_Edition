@@ -3,6 +3,7 @@ using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Findings;
 using VulcansTrace.Linux.Agent.Memory;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -324,6 +325,16 @@ public static class AgentFactory
             pinnedFindingStore = new InMemoryPinnedFindingStore("Pinned findings persistence is unavailable. Pins will last only for this session.");
         }
 
+        IPinnedMessageStore pinnedMessageStore;
+        try
+        {
+            pinnedMessageStore = JsonFilePinnedMessageStore.CreateDefault(configDirectory, logSink);
+        }
+        catch
+        {
+            pinnedMessageStore = new InMemoryPinnedMessageStore("Pinned messages persistence is unavailable. Pins will last only for this session.");
+        }
+
         var scorecardBuilder = new ComplianceScorecardBuilder();
         var riskScorecardBuilder = new RiskScorecardBuilder();
 
@@ -381,6 +392,7 @@ public static class AgentFactory
             SessionStore = sessionStore,
             MemoryStore = memoryStore,
             PinnedFindingStore = pinnedFindingStore,
+            PinnedMessageStore = pinnedMessageStore,
             LiveStreamAnalyzer = liveStreamAnalyzer,
             TraceMapCorrelator = traceMapCorrelator,
             ThreatIntelStore = threatIntelStore,
@@ -486,6 +498,9 @@ public sealed record AgentServices : IDisposable
     /// <summary>Store for pinned findings.</summary>
     public required IPinnedFindingStore PinnedFindingStore { get; init; }
 
+    /// <summary>Store for pinned agent chat messages.</summary>
+    public required IPinnedMessageStore PinnedMessageStore { get; init; }
+
     /// <summary>Orchestrates live kernel stream analysis.</summary>
     public required LiveStreamAnalyzer LiveStreamAnalyzer { get; init; }
 
@@ -514,6 +529,7 @@ public sealed record AgentServices : IDisposable
         (SessionStore as IDisposable)?.Dispose();
         (MemoryStore as IDisposable)?.Dispose();
         (PinnedFindingStore as IDisposable)?.Dispose();
+        (PinnedMessageStore as IDisposable)?.Dispose();
         (LiveStreamAnalyzer as IDisposable)?.Dispose();
         (ThreatIntelStore as IDisposable)?.Dispose();
     }

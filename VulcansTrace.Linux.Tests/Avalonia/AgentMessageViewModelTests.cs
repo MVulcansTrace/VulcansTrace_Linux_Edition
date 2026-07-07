@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using Xunit;
 
@@ -446,5 +448,114 @@ public class AgentMessageViewModelTests
         changed.Clear();
         msg.IsVisible = false;
         Assert.Contains(nameof(AgentMessageViewModel.IsRowVisible), changed);
+    }
+
+    [AvaloniaFact]
+    public void MessageId_IsGenerated()
+    {
+        var msg = new AgentMessageViewModel { Text = "hello" };
+
+        Assert.False(string.IsNullOrWhiteSpace(msg.MessageId));
+        Assert.True(Guid.TryParseExact(msg.MessageId, "N", out _));
+    }
+
+    [AvaloniaFact]
+    public void PinProperties_DefaultToUnpinned()
+    {
+        var msg = new AgentMessageViewModel { Text = "hello" };
+
+        Assert.False(msg.IsPinned);
+        Assert.Equal("mdi-pin-outline", msg.PinIcon);
+        Assert.Equal("Pin message", msg.PinTooltip);
+        Assert.True(msg.CanBePinned);
+    }
+    [AvaloniaFact]
+    public void MessageId_IsUniquePerInstance()
+    {
+        var msg1 = new AgentMessageViewModel { Text = "hello" };
+        var msg2 = new AgentMessageViewModel { Text = "hello" };
+
+        Assert.NotEqual(msg1.MessageId, msg2.MessageId);
+    }
+
+    [AvaloniaFact]
+    public void IsPinned_Change_RaisesPinIconAndTooltip()
+    {
+        var msg = new AgentMessageViewModel { Text = "hello" };
+        var changed = new List<string?>();
+        msg.PropertyChanged += (s, e) => changed.Add(e.PropertyName);
+
+        msg.IsPinned = true;
+
+        Assert.Contains(nameof(AgentMessageViewModel.PinIcon), changed);
+        Assert.Contains(nameof(AgentMessageViewModel.PinTooltip), changed);
+        Assert.Equal("mdi-pin-off", msg.PinIcon);
+        Assert.Equal("Unpin message", msg.PinTooltip);
+    }
+
+    [AvaloniaFact]
+    public void CanBePinned_FalseWhileStreaming()
+    {
+        var msg = new AgentMessageViewModel { Text = "streaming..." };
+        Assert.True(msg.CanBePinned);
+
+        msg.IsStreaming = true;
+        Assert.False(msg.CanBePinned);
+
+        msg.IsStreaming = false;
+        msg.IsStreamingPending = true;
+        Assert.False(msg.CanBePinned);
+    }
+
+    [AvaloniaFact]
+    public void CanBePinned_FalseForEmptyText()
+    {
+        var msg = new AgentMessageViewModel();
+        Assert.False(msg.CanBePinned);
+    }
+
+    [AvaloniaFact]
+    public void ToPinnedMessage_BuildsRecordFromMessageState()
+    {
+        var msg = new AgentMessageViewModel
+        {
+            Text = "hello",
+            Details = "details",
+            Category = "Firewall",
+            Severity = Severity.High,
+            IsUser = false,
+            IsInfo = true,
+            IsError = false,
+            IsProse = true,
+            Timestamp = new DateTime(2026, 7, 2, 14, 30, 0, DateTimeKind.Utc)
+        };
+
+        var pinned = msg.ToPinnedMessage();
+
+        Assert.Equal(msg.MessageId, pinned.MessageId);
+        Assert.Equal("hello", pinned.Text);
+        Assert.Equal("details", pinned.Details);
+        Assert.Equal("Firewall", pinned.Category);
+        Assert.Equal("High", pinned.Severity);
+        Assert.False(pinned.IsUser);
+        Assert.True(pinned.IsInfo);
+        Assert.True(pinned.IsProse);
+        Assert.Equal(DateTimeKind.Utc, pinned.TimestampUtc.Kind);
+    }
+
+    [AvaloniaFact]
+    public void ToPinnedMessage_DefaultTimestamp_SubstitutesUtcNow()
+    {
+        // A message whose Timestamp was never assigned is DateTime.MinValue (Unspecified kind).
+        // ToPinnedMessage must substitute UtcNow rather than call ToUniversalTime() on MinValue,
+        // which throws ArgumentOutOfRangeException in UTC+offset timezones, and the result must be
+        // UTC-typed so it satisfies the MustBeUtc validator.
+        var msg = new AgentMessageViewModel { Text = "hello" };
+        Assert.Equal(DateTime.MinValue, msg.Timestamp);
+
+        var pinned = msg.ToPinnedMessage();
+
+        Assert.Equal(DateTimeKind.Utc, pinned.TimestampUtc.Kind);
+        Assert.NotEqual(DateTime.MinValue, pinned.TimestampUtc);
     }
 }

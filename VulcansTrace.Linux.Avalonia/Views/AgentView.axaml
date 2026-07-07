@@ -287,6 +287,90 @@
               </Expander>
             </Grid>
           </StackPanel>
+
+          <!-- Pinned messages -->
+          <StackPanel Orientation="Vertical" Spacing="8" MinWidth="900" MaxWidth="1200" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="Pinned messages"
+                         FontSize="{StaticResource VtFontSizeXs}"
+                         Foreground="{StaticResource VtTextMutedBrush}"
+                         FontWeight="SemiBold"
+                         VerticalAlignment="Center" />
+              <TextBlock Text="{Binding PinnedMessageCountLabel}"
+                         FontSize="{StaticResource VtFontSizeXs}"
+                         Foreground="{StaticResource VtTextMutedBrush}"
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding HasPinnedMessages}" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding PinMessageStatusMessage}"
+                       MaxWidth="600"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding PinMessageStatusMessage}"
+                       Foreground="{StaticResource VtSeverityMediumBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding HasPinMessageStatusMessage}" />
+
+            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" IsVisible="{Binding HasPinnedMessages}">
+              <ItemsControl ItemsSource="{Binding PinnedMessages}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:AgentMessageViewModel">
+                    <Border Background="{StaticResource VtBackground700Brush}"
+                            BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource VtRadiusMd}"
+                            Padding="8,6">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                        <i:Icon Grid.Column="0"
+                                Value="{Binding PinIcon}"
+                                FontSize="{StaticResource VtIconSizeXs}"
+                                Foreground="{StaticResource VtPrimaryBrush}"
+                                VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Text}"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeSm}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding FormattedTimestamp}"
+                                   Foreground="{StaticResource VtTextMutedBrush}"
+                                   FontSize="{StaticResource VtFontSizeXs}"
+                                   VerticalAlignment="Center" />
+
+                        <Button Grid.Column="3"
+                                Theme="{StaticResource VtGhostButton}"
+                                Padding="4,2"
+                                ToolTip.Tip="{Binding PinTooltip}"
+                                Command="{Binding TogglePinCommand}"
+                                CommandParameter="{Binding}">
+                          <i:Icon Value="{Binding PinIcon}"
+                                  FontSize="{StaticResource VtIconSizeXs}"
+                                  VerticalAlignment="Center"
+                                  Foreground="{StaticResource VtPrimaryBrush}" />
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No pinned messages yet. Pin a message from the chat transcript to save it here."
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       MaxWidth="600"
+                       IsVisible="{Binding !HasPinnedMessages}" />
+          </StackPanel>
+
         </WrapPanel>
       </ScrollViewer>
     </Border>
@@ -454,12 +538,29 @@
                   <Grid>
                     <StackPanel Orientation="Vertical" Spacing="12" IsVisible="{Binding !IsStreaming}">
 
-                    <!-- Timestamp -->
-                    <TextBlock Text="{Binding FormattedTimestamp}"
-                               TextAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
-                               FontSize="{StaticResource VtFontSizeXs}"
-                               Foreground="{StaticResource VtTextMutedBrush}"
-                               IsVisible="{Binding ShowTimestamp}" />
+                    <!-- Timestamp + pin action -->
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowTimestamp}">
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding FormattedTimestamp}"
+                                 TextAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
+                                 FontSize="{StaticResource VtFontSizeXs}"
+                                 Foreground="{StaticResource VtTextMutedBrush}"
+                                 VerticalAlignment="Center" />
+                      <Button Grid.Column="1"
+                              Theme="{StaticResource VtGhostButton}"
+                              Padding="4,2"
+                              Margin="8,0,0,0"
+                              ToolTip.Tip="{Binding PinTooltip}"
+                              Command="{Binding TogglePinCommand}"
+                              CommandParameter="{Binding}"
+                              IsVisible="{Binding CanBePinned}"
+                              AutomationProperties.AutomationId="AgentMessagePinButton">
+                        <i:Icon Value="{Binding PinIcon}"
+                                FontSize="{StaticResource VtIconSizeXs}"
+                                VerticalAlignment="Center"
+                                Foreground="{StaticResource VtPrimaryBrush}" />
+                      </Button>
+                    </Grid>
 
                     <!-- Rich text blocks: paragraphs, inline formatting, code blocks with copy buttons -->
                     <ItemsControl ItemsSource="{Binding FormattedBlocks}">

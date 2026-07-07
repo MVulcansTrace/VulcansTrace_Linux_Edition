@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using VulcansTrace.Linux.Agent.Explanations;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Sessions;
@@ -693,7 +694,7 @@ public class AgentResultPresenterTests
         public string PrivilegeWarningText { get; private set; } = string.Empty;
         public AgentResultPresenter Presenter { get; }
 
-        public PresenterHarness(IChatFilter? chatFilter = null)
+        public PresenterHarness(IChatFilter? chatFilter = null, IPinnedMessageStore? pinnedMessageStore = null)
         {
             Presenter = new AgentResultPresenter(
                 Messages,
@@ -703,7 +704,8 @@ public class AgentResultPresenterTests
                 value => HasPrivilegeWarning = value,
                 text => PrivilegeWarningText = text,
                 _ => Task.CompletedTask,
-                chatFilter: chatFilter);
+                chatFilter: chatFilter,
+                pinnedMessageStore: pinnedMessageStore);
         }
 
         // A counting decorator over the real DefaultChatFilter: it records how many times Apply ran
@@ -726,5 +728,63 @@ public class AgentResultPresenterTests
                 _inner.Apply(messages, severityFilter, categoryFilter, searchQuery);
             }
         }
+    }
+
+    [AvaloniaFact]
+    public void AddAgentMessage_SetsMessageId()
+    {
+        var harness = new PresenterHarness();
+
+        harness.Presenter.AddAgentMessage("hello", true);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.False(string.IsNullOrWhiteSpace(message.MessageId));
+    }
+
+    [AvaloniaFact]
+    public void AddAgentMessage_NewInstanceSameContent_DoesNotInheritPin()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        var harness = new PresenterHarness(pinnedMessageStore: store);
+        var message = harness.Presenter.AddAgentMessage("hello", true);
+        store.Pin(message.ToPinnedMessage());
+
+        // Each AddAgentMessage gets a fresh MessageId, so a second message with identical content
+        // is a distinct instance and must NOT inherit the original's pin.
+        var harness2 = new PresenterHarness(pinnedMessageStore: store);
+        var replay = harness2.Presenter.AddAgentMessage("hello", true);
+
+        Assert.False(replay.IsPinned);
+        Assert.NotEqual(message.MessageId, replay.MessageId);
+    }
+
+    [AvaloniaFact]
+    public void AddAgentMessage_WhenMessageIdExplicitlyRestored_MarksPinned()
+    {
+        var store = new InMemoryPinnedMessageStore();
+        var harness = new PresenterHarness(pinnedMessageStore: store);
+        var message = harness.Presenter.AddAgentMessage("hello", true);
+        var savedId = message.MessageId;
+        store.Pin(message.ToPinnedMessage());
+
+        // Restoring the same GUID (e.g. from persisted state) must restore the pin.
+        var harness2 = new PresenterHarness(pinnedMessageStore: store);
+        var replay = harness2.Presenter.AddAgentMessage("hello", true);
+        replay.MessageId = savedId;
+        harness2.Presenter.RefreshPinnedState(replay);
+
+        Assert.True(replay.IsPinned);
+        Assert.Equal(savedId, replay.MessageId);
+    }
+
+    [AvaloniaFact]
+    public void AddUserMessage_SetsMessageId()
+    {
+        var harness = new PresenterHarness();
+
+        harness.Presenter.AddUserMessage("user question");
+
+        var message = Assert.Single(harness.Messages);
+        Assert.False(string.IsNullOrWhiteSpace(message.MessageId));
     }
 }

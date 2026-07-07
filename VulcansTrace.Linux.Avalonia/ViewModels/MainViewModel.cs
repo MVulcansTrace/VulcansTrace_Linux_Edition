@@ -17,6 +17,7 @@ using VulcansTrace.Linux.Agent.Scheduling;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Findings;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
 using VulcansTrace.Linux.Core.ThreatIntel;
@@ -40,6 +41,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly ISuppressionStore _suppressionStore;
     private readonly IPinnedFindingStore _pinnedFindingStore;
+    private readonly IPinnedMessageStore _pinnedMessageStore;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
     private readonly TraceMapCorrelator _traceMapCorrelator;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -355,6 +357,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         IAgent agent,
         ISuppressionStore suppressionStore,
         IPinnedFindingStore pinnedFindingStore,
+        IPinnedMessageStore pinnedMessageStore,
         IAuditHistoryStore auditHistoryStore,
         RemediationPlanBuilder remediationPlanBuilder,
         RemediationExecutor remediationExecutor,
@@ -372,6 +375,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _dialogService = dialogService;
         _suppressionStore = suppressionStore;
         _pinnedFindingStore = pinnedFindingStore;
+        _pinnedMessageStore = pinnedMessageStore;
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
         _traceMapCorrelator = traceMapCorrelator;
 
@@ -392,7 +396,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline = new TimelineViewModel();
         IncidentStory = new IncidentStoryViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore, _pinnedMessageStore)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),

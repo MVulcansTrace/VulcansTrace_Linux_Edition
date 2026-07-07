@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -50,6 +51,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly IThreatIntelStore? _threatIntelStore;
     private readonly IDialogService? _dialogService;
     private readonly IAgentMemoryStore? _memoryStore;
+    private readonly IPinnedMessageStore? _pinnedMessageStore;
     private ISessionStore? _sessionStore;
     private string? _lastShownMemoryWarning;
 
@@ -78,9 +80,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private double _auditProgressPercent;
     private string _auditProgressMessage = string.Empty;
     private bool _auditProgressIsIndeterminate;
+    private int _pinnedMessageCount;
+    private string _pinMessageStatusMessage = string.Empty;
+    private readonly Dictionary<string, AgentMessageViewModel> _messagesById = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
+
+    /// <summary>Gets the collection of pinned messages shown in Agent Tools.</summary>
+    public ObservableCollection<AgentMessageViewModel> PinnedMessages { get; } = new();
 
     /// <summary>Gets quick-check actions for the "Run checks" group.</summary>
     public ObservableCollection<AgentQuickAction> QuickActionsChecks { get; } = new();
@@ -300,6 +308,42 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets whether to show the determinate audit progress UI.</summary>
     public bool ShowAuditProgress => IsBusy && !string.IsNullOrEmpty(AuditProgressMessage);
+
+    /// <summary>Gets the number of pinned messages currently saved.</summary>
+    public int PinnedMessageCount
+    {
+        get => _pinnedMessageCount;
+        private set
+        {
+            if (SetField(ref _pinnedMessageCount, value))
+            {
+                OnPropertyChanged(nameof(HasPinnedMessages));
+                OnPropertyChanged(nameof(PinnedMessageCountLabel));
+            }
+        }
+    }
+
+    /// <summary>Gets whether there are any pinned messages.</summary>
+    public bool HasPinnedMessages => PinnedMessageCount > 0;
+
+    /// <summary>Gets the formatted pinned message count label for the Agent Tools panel.</summary>
+    public string PinnedMessageCountLabel => PinnedMessageCount > 0 ? $"({PinnedMessageCount})" : string.Empty;
+
+    /// <summary>Gets the latest pinned-message persistence warning, if any.</summary>
+    public string PinMessageStatusMessage
+    {
+        get => _pinMessageStatusMessage;
+        private set
+        {
+            if (SetField(ref _pinMessageStatusMessage, value))
+            {
+                OnPropertyChanged(nameof(HasPinMessageStatusMessage));
+            }
+        }
+    }
+
+    /// <summary>Gets whether the pinned-message status message should be shown.</summary>
+    public bool HasPinMessageStatusMessage => !string.IsNullOrWhiteSpace(PinMessageStatusMessage);
 
     /// <summary>Gets whether only the initial welcome message is shown.</summary>
     public bool HasOnlyWelcomeMessage
@@ -684,6 +728,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to toggle the agent tools panel.</summary>
     public RelayCommand ToggleAgentToolsPanelCommand { get; }
 
+    /// <summary>Gets the command to pin or unpin a chat message.</summary>
+    public AsyncRelayCommand<AgentMessageViewModel> TogglePinMessageCommand { get; }
+
     /// <summary>Gets the command to add a note to the active remediation session.</summary>
     public AsyncRelayCommand AddSessionNoteCommand { get; }
 
@@ -740,7 +787,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <param name="remediationPlanBuilder">The plan builder for remediation exports.</param>
     /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
     /// <param name="memoryStore">Optional store for cross-session conversation memory.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null, IAgentMemoryStore? memoryStore = null)
+    /// <param name="pinnedMessageStore">Optional store for pinned chat messages.</param>
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null, IAgentMemoryStore? memoryStore = null, IPinnedMessageStore? pinnedMessageStore = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
@@ -750,6 +798,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _threatIntelStore = threatIntelStore;
         _dialogService = dialogService;
         _memoryStore = memoryStore;
+        _pinnedMessageStore = pinnedMessageStore;
         _typewriterScheduler = new DispatcherTypewriterScheduler();
         _presenter = new AgentResultPresenter(
             Messages,
@@ -759,7 +808,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             v => HasPrivilegeWarning = v,
             t => PrivilegeWarningText = t,
             ExecuteSuggestionAsync,
-            RefreshHasNoVisibleMessages);
+            RefreshHasNoVisibleMessages,
+            pinnedMessageStore: _pinnedMessageStore);
         _operationRunner = new AgentOperationRunner(
             value => IsBusy = value,
             ClearPrivilegeWarning,
@@ -955,6 +1005,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => IsAgentToolsPanelOpen = !IsAgentToolsPanelOpen,
             _ => true);
 
+        TogglePinMessageCommand = new AsyncRelayCommand<AgentMessageViewModel>(
+            async msg => await TogglePinMessageAsync(msg),
+            msg => msg != null,
+            ex => AddAgentMessage($"Error toggling pin: {ex.Message}", true, isError: true));
+
         AddSessionNoteCommand = new AsyncRelayCommand(
             async param => await AddSessionNoteAsync((param as string) ?? ""),
             param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
@@ -981,6 +1036,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         // Welcome message
         AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
+        RefreshPinnedMessages();
         _historyCoordinator.ShowPersistenceWarningIfAny();
         ShowMemoryPersistenceWarningIfAny();
     }
@@ -1512,6 +1568,175 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         _lastShownMemoryWarning = warning;
         AddAgentMessage($"Note: {warning}", true);
+    }
+
+    private async Task TogglePinMessageAsync(AgentMessageViewModel? message)
+    {
+        if (message == null)
+            return;
+
+        if (message.IsPinned)
+        {
+            await UnpinMessageAsync(message);
+        }
+        else
+        {
+            await PinMessageAsync(message);
+        }
+    }
+
+    private async Task PinMessageAsync(AgentMessageViewModel message)
+    {
+        if (_pinnedMessageStore == null || !message.CanBePinned)
+            return;
+
+        // Move the durable store work off the UI thread so file I/O and validation do not
+        // freeze the chat interface. The store is the source of truth; after the write we
+        // re-read IsPinned and mirror that state into the UI.
+        bool accepted;
+        try
+        {
+            await Task.Run(() => _pinnedMessageStore.Pin(message.ToPinnedMessage()));
+            accepted = SafeIsPinned(message.MessageId);
+            RefreshPinnedMessageStatus();
+        }
+        catch (Exception ex)
+        {
+            // If the store throws, we cannot assume the pin succeeded. Re-read if possible,
+            // otherwise treat it as rejected and surface the failure.
+            accepted = SafeIsPinned(message.MessageId);
+            PinMessageStatusMessage = $"Could not pin message: {ex.Message}";
+        }
+
+        ApplyPinnedState(message, accepted);
+        if (accepted)
+        {
+            AddOrRefreshPinnedMessage(message);
+        }
+    }
+
+    private async Task UnpinMessageAsync(AgentMessageViewModel message)
+    {
+        if (_pinnedMessageStore == null)
+            return;
+
+        bool stillPinned;
+        try
+        {
+            await Task.Run(() => _pinnedMessageStore.Unpin(message.MessageId));
+            stillPinned = SafeIsPinned(message.MessageId);
+            RefreshPinnedMessageStatus();
+        }
+        catch (Exception ex)
+        {
+            stillPinned = SafeIsPinned(message.MessageId);
+            PinMessageStatusMessage = $"Could not unpin message: {ex.Message}";
+        }
+
+        ApplyPinnedState(message, stillPinned);
+        if (!stillPinned)
+        {
+            RemovePinnedMessageById(message.MessageId);
+        }
+    }
+
+    private bool SafeIsPinned(string messageId)
+    {
+        try
+        {
+            return _pinnedMessageStore?.IsPinned(messageId) ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void ApplyPinnedState(AgentMessageViewModel source, bool isPinned)
+    {
+        source.IsPinned = isPinned;
+        if (_messagesById.TryGetValue(source.MessageId, out var twin) && twin != source)
+        {
+            twin.IsPinned = isPinned;
+        }
+    }
+
+    private void AddOrRefreshPinnedMessage(AgentMessageViewModel message)
+    {
+        var existing = PinnedMessages.FirstOrDefault(m => m.MessageId == message.MessageId);
+        if (existing != null)
+        {
+            existing.IsPinned = true;
+            return;
+        }
+
+        var clone = CreatePinnedMessageViewModel(message.ToPinnedMessage());
+        clone.TogglePinCommand = TogglePinMessageCommand;
+        PinnedMessages.Add(clone);
+        PinnedMessageCount = PinnedMessages.Count;
+    }
+
+    private void RemovePinnedMessageById(string messageId)
+    {
+        var existing = PinnedMessages.FirstOrDefault(m => m.MessageId == messageId);
+        if (existing != null)
+        {
+            PinnedMessages.Remove(existing);
+        }
+        PinnedMessageCount = PinnedMessages.Count;
+    }
+
+    private void RefreshPinnedMessages()
+    {
+        PinnedMessages.Clear();
+        if (_pinnedMessageStore == null)
+        {
+            PinnedMessageCount = 0;
+            RefreshPinnedMessageStatus();
+            return;
+        }
+
+        try
+        {
+            foreach (var pinned in _pinnedMessageStore.GetAll())
+            {
+                var vm = CreatePinnedMessageViewModel(pinned);
+                vm.TogglePinCommand = TogglePinMessageCommand;
+                PinnedMessages.Add(vm);
+            }
+
+            PinnedMessageCount = PinnedMessages.Count;
+            RefreshPinnedMessageStatus();
+        }
+        catch (Exception ex)
+        {
+            PinnedMessages.Clear();
+            PinnedMessageCount = 0;
+            PinMessageStatusMessage = $"Could not load pinned messages: {ex.Message}";
+        }
+    }
+
+    private static AgentMessageViewModel CreatePinnedMessageViewModel(PinnedMessage pinned)
+    {
+        return new AgentMessageViewModel
+        {
+            MessageId = pinned.MessageId,
+            Text = pinned.Text,
+            Details = pinned.Details,
+            IsUser = pinned.IsUser,
+            IsInfo = pinned.IsInfo,
+            IsError = pinned.IsError,
+            IsProse = pinned.IsProse,
+            Category = pinned.Category,
+            Severity = Enum.TryParse<Severity>(pinned.Severity, out var severity) ? severity : Severity.Info,
+            Timestamp = pinned.TimestampUtc == DateTime.MinValue ? DateTime.MinValue : pinned.TimestampUtc.ToLocalTime(),
+            IsPinned = true
+        };
+    }
+
+    private void RefreshPinnedMessageStatus()
+    {
+        PinMessageStatusMessage = _pinnedMessageStore?.PersistenceWarning ?? string.Empty;
     }
 
     private void RefreshResultCommands()
@@ -2063,6 +2288,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 foreach (AgentMessageViewModel message in e.OldItems)
                 {
                     message.PropertyChanged -= OnMessagePropertyChanged;
+                    _messagesById.Remove(message.MessageId);
                 }
             }
 
@@ -2071,6 +2297,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 foreach (AgentMessageViewModel message in e.NewItems)
                 {
                     message.PropertyChanged += OnMessagePropertyChanged;
+                    message.TogglePinCommand = TogglePinMessageCommand;
+                    _messagesById[message.MessageId] = message;
                 }
             }
 

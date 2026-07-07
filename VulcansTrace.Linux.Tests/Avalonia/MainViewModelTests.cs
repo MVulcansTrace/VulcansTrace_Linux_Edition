@@ -5,6 +5,7 @@ using System.Reflection;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Findings;
+using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
@@ -339,6 +340,7 @@ also not a firewall line";
             agent ?? new MockAgent(),
             suppressionStore ?? new InMemorySuppressionStore(),
             new InMemoryPinnedFindingStore(),
+            new InMemoryPinnedMessageStore(),
             new InMemoryAuditHistoryStore(),
             new RemediationPlanBuilder(new ExplanationProvider()),
             remediationExecutor,
