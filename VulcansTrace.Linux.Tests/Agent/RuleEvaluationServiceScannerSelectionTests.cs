@@ -74,4 +74,43 @@ public class RuleEvaluationServiceScannerSelectionTests
         Assert.NotNull(names);
         Assert.Equal("Firewall", Assert.Single(names!));
     }
+
+    [Fact]
+    public void SudoersCheck_DerivesSudoersScanner()
+    {
+        var svc = With(new SudoersFilePermissionRule(), new SudoersNoPasswordlessFullSudoRule());
+
+        var names = svc.GetRequiredScannerNames(AgentIntent.SudoersCheck);
+
+        Assert.NotNull(names);
+        Assert.Equal("Sudoers", Assert.Single(names!));
+    }
+
+    [Fact]
+    public void SystemdTimerSocketCheck_DerivesSystemdTimerSocketScanner()
+    {
+        var svc = With(new SystemdShortTimerIntervalRule(), new SystemdPublicSocketRule());
+
+        var names = svc.GetRequiredScannerNames(AgentIntent.SystemdTimerSocketCheck);
+
+        Assert.NotNull(names);
+        Assert.Equal("SystemdTimerSocket", Assert.Single(names!));
+    }
+
+    [Fact]
+    public void SystemdTimerSocketCheck_IncludesServiceScanner_WhenRedundantSocketRulePresent()
+    {
+        // SYS-003 reads RunningServices (Service scanner); without declaring RequiredDataFields
+        // a targeted /systemd audit would starve it and the rule could never fire.
+        var svc = With(
+            new SystemdShortTimerIntervalRule(),
+            new SystemdPublicSocketRule(),
+            new SystemdRedundantSocketServiceRule());
+
+        var names = svc.GetRequiredScannerNames(AgentIntent.SystemdTimerSocketCheck);
+
+        Assert.NotNull(names);
+        Assert.Contains("SystemdTimerSocket", names!, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Service", names!, StringComparer.OrdinalIgnoreCase);
+    }
 }

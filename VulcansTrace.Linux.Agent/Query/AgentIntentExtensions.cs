@@ -25,6 +25,10 @@ public static class AgentIntentExtensions
             or AgentIntent.KernelCheck
             or AgentIntent.UserAccountCheck
             or AgentIntent.LoggingAuditCheck
+            or AgentIntent.SudoersCheck
+            or AgentIntent.SystemdTimerSocketCheck
+            or AgentIntent.MacCheck
+            or AgentIntent.BootloaderCheck
             or AgentIntent.CronJobCheck
             or AgentIntent.PackageVulnerabilityCheck
             or AgentIntent.ContainerCheck
@@ -56,6 +60,10 @@ public static class AgentIntentExtensions
                 or AgentIntent.KernelCheck
                 or AgentIntent.UserAccountCheck
                 or AgentIntent.LoggingAuditCheck
+                or AgentIntent.SudoersCheck
+                or AgentIntent.SystemdTimerSocketCheck
+                or AgentIntent.MacCheck
+                or AgentIntent.BootloaderCheck
                 or AgentIntent.CronJobCheck
                 or AgentIntent.PackageVulnerabilityCheck
                 or AgentIntent.ContainerCheck

@@ -38,6 +38,18 @@ public enum AgentIntent
     /// <summary>Focus on logging and auditing configuration (rsyslog, journald, auditd, logrotate, forwarding).</summary>
     LoggingAuditCheck,
 
+    /// <summary>Focus on sudoers configuration, privilege escalation paths, and NOPASSWD grants.</summary>
+    SudoersCheck,
+
+    /// <summary>Focus on systemd timer and socket units.</summary>
+    SystemdTimerSocketCheck,
+
+    /// <summary>Focus on mandatory access control: AppArmor and SELinux status.</summary>
+    MacCheck,
+
+    /// <summary>Focus on boot loader configuration: GRUB defaults, kernel cmdline, Secure Boot.</summary>
+    BootloaderCheck,
+
     /// <summary>Focus on cron job entries, permissions, and suspicious scheduled tasks.</summary>
     CronJobCheck,
 

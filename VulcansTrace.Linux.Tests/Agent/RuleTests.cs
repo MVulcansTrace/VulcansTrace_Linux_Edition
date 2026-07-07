@@ -1991,7 +1991,6 @@ public class RuleTests
         {
             LoggingAudit = new LoggingAuditConfig
             {
-                
                 AuditdActive = true,
                 AuditdRulesConfigured = true,
                 AuditdRules = new[] { "-a always,exit -F arch=b64 -S setuid,setgid -k privilege_escalation" }
@@ -2011,7 +2010,6 @@ public class RuleTests
         {
             LoggingAudit = new LoggingAuditConfig
             {
-                
                 AuditdActive = true,
                 AuditdRulesConfigured = true,
                 AuditdRules = new[] { "-w /etc/passwd -p wa -k identity" }
@@ -2032,7 +2030,6 @@ public class RuleTests
         {
             LoggingAudit = new LoggingAuditConfig
             {
-                
                 CentralForwardingConfigured = true,
                 ForwardingTargets = new[] { "@@192.168.1.10:514", "@@logs.example.com" }
             }
@@ -2051,7 +2048,6 @@ public class RuleTests
         {
             LoggingAudit = new LoggingAuditConfig
             {
-                
                 CentralForwardingConfigured = true,
                 ForwardingTargets = new[] { "@@192.168.1.10:514", "@192.168.1.11" }
             }
@@ -2071,7 +2067,6 @@ public class RuleTests
         {
             LoggingAudit = new LoggingAuditConfig
             {
-                
                 CentralForwardingConfigured = false,
                 ForwardingTargets = Array.Empty<string>()
             }
@@ -3715,5 +3710,481 @@ public class RuleTests
         Assert.True(new K8sHostNamespaceRule().Evaluate(data).Passed);
         Assert.True(new K8sRunAsRootRule().Evaluate(data).Passed);
         Assert.True(new K8sSecurityContextRule().Evaluate(data).Passed);
+    }
+
+    [Fact]
+    public void SudoersFilePermissionRule_PermissiveMode_Fails()
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = "0644",
+                MainFileOwner = "root"
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Theory]
+    [InlineData("abc")]      // not numeric
+    [InlineData("999")]      // valid digits, but not octal (8/9)
+    [InlineData("100440")]   // raw st_mode (S_IFREG|0440); value 0o100440 exceeds %a's 0o7777 max
+    public void SudoersFilePermissionRule_UnparseableMode_Fails(string mode)
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = mode,
+                MainFileOwner = "root"
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersFilePermissionRule_NonRootOwner_Fails()
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = "0440",
+                MainFileOwner = "admin"
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersFilePermissionRule_Hardened_Passes()
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = "0440",
+                MainFileOwner = "root"
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Theory]
+    [InlineData("660")]   // group-writable
+    [InlineData("770")]   // group-writable
+    [InlineData("666")]   // group- and other-writable
+    [InlineData("646")]   // other-writable
+    [InlineData("777")]   // world-writable
+    [InlineData("1777")]  // sticky world-writable
+    [InlineData("4755")]  // setuid but world-readable
+    [InlineData("0660")]
+    [InlineData("0770")]
+    public void SudoersFilePermissionRule_WritableBits_Fails(string mode)
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = mode,
+                MainFileOwner = "root"
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Theory]
+    [InlineData("0440")]  // canonical
+    [InlineData("0400")]  // stricter: root read-only
+    [InlineData("440")]
+    [InlineData("400")]
+    [InlineData("0")]     // zero bits: no writes
+    [InlineData("04000")] // setuid only
+    [InlineData("04440")] // setuid + owner/group read, no writes
+    public void SudoersFilePermissionRule_SafeModes_Pass(string mode)
+    {
+        var rule = new SudoersFilePermissionRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                MainFileMode = mode,
+                MainFileOwner = "root"
+            }
+        };
+
+        Assert.True(rule.Evaluate(data).Passed);
+    }
+
+    [Fact]
+    public void SudoersNoPasswordlessFullSudoRule_PasswordlessFullSudo_Fails()
+    {
+        var rule = new SudoersNoPasswordlessFullSudoRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasPasswordlessFullSudo = true,
+                Entries = new[]
+                {
+                    new SudoersEntry
+                    {
+                        Principal = "admin",
+                        Hosts = "ALL",
+                        RunAs = "(ALL:ALL)",
+                        Commands = "ALL",
+                        NoPasswd = true
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersNoPasswordlessFullSudoRule_NoPasswordless_Passes()
+    {
+        var rule = new SudoersNoPasswordlessFullSudoRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasPasswordlessFullSudo = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SudoersFullSudoRule_FullSudo_Fails()
+    {
+        var rule = new SudoersFullSudoRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasFullSudo = true,
+                Entries = new[]
+                {
+                    new SudoersEntry
+                    {
+                        Principal = "%wheel",
+                        Hosts = "ALL",
+                        RunAs = "(ALL:ALL)",
+                        Commands = "ALL",
+                        NoPasswd = false
+                    }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersFullSudoRule_NoFullSudo_Passes()
+    {
+        var rule = new SudoersFullSudoRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasFullSudo = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SudoersNoAuthenticateRule_NoAuthenticate_Fails()
+    {
+        var rule = new SudoersNoAuthenticateRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasNoAuthenticate = true
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersNoAuthenticateRule_Authenticate_Passes()
+    {
+        var rule = new SudoersNoAuthenticateRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasNoAuthenticate = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SudoersSecurePathRule_MissingSecurePath_Fails()
+    {
+        var rule = new SudoersSecurePathRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasSecurePath = false
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SudoersSecurePathRule_HasSecurePath_Passes()
+    {
+        var rule = new SudoersSecurePathRule();
+        var data = new ScanData
+        {
+            SudoersConfig = new SudoersConfig
+            {
+                ConfigReadable = true,
+                HasSecurePath = true
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SystemdShortTimerIntervalRule_ShortInterval_Fails()
+    {
+        var rule = new SystemdShortTimerIntervalRule();
+        var data = new ScanData
+        {
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Timers = new[]
+                {
+                    new SystemdTimer { Name = "rapid.timer", Active = true, Interval = "30s" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Medium, result.Severity);
+    }
+
+    [Fact]
+    public void SystemdShortTimerIntervalRule_LongInterval_Passes()
+    {
+        var rule = new SystemdShortTimerIntervalRule();
+        var data = new ScanData
+        {
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Timers = new[]
+                {
+                    new SystemdTimer { Name = "daily.timer", Active = true, Interval = "1h" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SystemdPublicSocketRule_PublicSocket_Fails()
+    {
+        var rule = new SystemdPublicSocketRule();
+        var data = new ScanData
+        {
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Sockets = new[]
+                {
+                    new SystemdSocket { Name = "ssh.socket", Listening = true, ListenAddress = "0.0.0.0:22" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void SystemdPublicSocketRule_LocalSocket_Passes()
+    {
+        var rule = new SystemdPublicSocketRule();
+        var data = new ScanData
+        {
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Sockets = new[]
+                {
+                    new SystemdSocket { Name = "syslog.socket", Listening = true, ListenAddress = "/run/systemd/journal/syslog" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SystemdRedundantSocketServiceRule_RedundantPair_Fails()
+    {
+        var rule = new SystemdRedundantSocketServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[]
+            {
+                new RunningService { Name = "ssh.service", State = "running" }
+            },
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Sockets = new[]
+                {
+                    new SystemdSocket { Name = "ssh.socket", Listening = true, TriggerUnit = "ssh.service" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Low, result.Severity);
+    }
+
+    [Fact]
+    public void SystemdRedundantSocketServiceRule_NoRedundancy_Passes()
+    {
+        var rule = new SystemdRedundantSocketServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = Array.Empty<RunningService>(),
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Sockets = new[]
+                {
+                    new SystemdSocket { Name = "ssh.socket", Listening = true, TriggerUnit = "ssh.service" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SystemdRedundantSocketServiceRule_InactiveSocket_Passes()
+    {
+        var rule = new SystemdRedundantSocketServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[]
+            {
+                new RunningService { Name = "ssh.service", State = "running" }
+            },
+            SystemdTimerSocketConfig = new SystemdTimerSocketConfig
+            {
+                ConfigReadable = true,
+                Sockets = new[]
+                {
+                    new SystemdSocket { Name = "ssh.socket", Listening = false, TriggerUnit = "ssh.service" }
+                }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void SudoersRules_MissingData_Passes()
+    {
+        var data = new ScanData { SudoersConfig = null };
+
+        Assert.True(new SudoersFilePermissionRule().Evaluate(data).Passed);
+        Assert.True(new SudoersNoPasswordlessFullSudoRule().Evaluate(data).Passed);
+        Assert.True(new SudoersFullSudoRule().Evaluate(data).Passed);
+        Assert.True(new SudoersNoAuthenticateRule().Evaluate(data).Passed);
+        Assert.True(new SudoersSecurePathRule().Evaluate(data).Passed);
     }
 }

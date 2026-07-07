@@ -40,6 +40,10 @@ public sealed class QueryParser : IQueryParser
         (new[] { "kernel", "sysctl", "hardening", "aslr", "secure boot", "module loading", "ip forward", "icmp redirect" }, AgentIntent.KernelCheck, 2),
         (new[] { "user", "account", "password", "passwd", "shadow", "uid", "pam", "login.defs", "pwquality", "faillock", "lockout" }, AgentIntent.UserAccountCheck, 2),
         (new[] { "logging", "log", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "syslog" }, AgentIntent.LoggingAuditCheck, 2),
+        (new[] { "sudo", "sudoers", "nopasswd", "passwordless sudo" }, AgentIntent.SudoersCheck, 3),
+        (new[] { "systemd timer", "systemd socket", "timer", "socket", "socket activation", "list timers", "list sockets" }, AgentIntent.SystemdTimerSocketCheck, 3),
+        (new[] { "mac", "apparmor", "selinux", "mandatory access control" }, AgentIntent.MacCheck, 3),
+        (new[] { "boot", "bootloader", "grub", "secure boot", "kernel cmdline", "cmdline", "mokutil" }, AgentIntent.BootloaderCheck, 3),
         (new[] { "cron", "crontab", "scheduled job", "cron job" }, AgentIntent.CronJobCheck, 2),
         (new[] { "package", "vulnerability", "cve", "security update", "apt", "upgradeable", "patch" }, AgentIntent.PackageVulnerabilityCheck, 2),
         (new[] { "container", "docker", "privileged container", "crictl", "containerd", "docker.sock", "image tag" }, AgentIntent.ContainerCheck, 2),
@@ -88,7 +92,7 @@ public sealed class QueryParser : IQueryParser
 
     internal static readonly string[] CategoryKeywords =
     {
-        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara", "processruntime", "process", "runtime", "ld_preload", "injection", "deleted binary", "proc"
+        "firewall", "ssh", "port", "network", "service", "icmp", "iptables", "nftables", "file", "permission", "filepermission", "filesystem", "suid", "world-writable", "kernel", "boot", "bootloader", "grub", "secure boot", "cmdline", "user", "account", "password", "uid", "pam", "logging", "rsyslog", "journald", "auditd", "logrotate", "forwarding", "sudo", "sudoers", "systemd", "timer", "socket", "mac", "apparmor", "selinux", "package", "cve", "container", "docker", "kubernetes", "k8s", "pod", "threat intel", "threatintel", "ioc", "indicator", "yara", "processruntime", "process", "runtime", "ld_preload", "injection", "deleted binary", "proc"
     };
 
     /// <inheritdoc />
@@ -172,6 +176,10 @@ public sealed class QueryParser : IQueryParser
             or AgentIntent.KernelCheck
             or AgentIntent.UserAccountCheck
             or AgentIntent.LoggingAuditCheck
+            or AgentIntent.SudoersCheck
+            or AgentIntent.SystemdTimerSocketCheck
+            or AgentIntent.MacCheck
+            or AgentIntent.BootloaderCheck
             or AgentIntent.CronJobCheck
             or AgentIntent.PackageVulnerabilityCheck
             or AgentIntent.ContainerCheck

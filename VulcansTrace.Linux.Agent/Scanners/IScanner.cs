@@ -52,6 +52,10 @@ public sealed class ScanDataBuilder
     private LoginDefs? _loginDefs;
     private PamConfig? _pamConfig;
     private LoggingAuditConfig? _loggingAuditConfig;
+    private SudoersConfig? _sudoersConfig;
+    private SystemdTimerSocketConfig? _systemdTimerSocketConfig;
+    private MacConfig? _macConfig;
+    private BootloaderConfig? _bootloaderConfig;
     private PackageVulnerabilityStatus? _packageVulnerabilityStatus;
     private ContainerRuntimeInfo? _containerRuntime;
 
@@ -167,6 +171,26 @@ public sealed class ScanDataBuilder
         lock (_lock) { _loggingAuditConfig = config; }
     }
 
+    public void SetSudoersConfig(SudoersConfig config)
+    {
+        lock (_lock) { _sudoersConfig = config; }
+    }
+
+    public void SetSystemdTimerSocketConfig(SystemdTimerSocketConfig config)
+    {
+        lock (_lock) { _systemdTimerSocketConfig = config; }
+    }
+
+    public void SetMacConfig(MacConfig config)
+    {
+        lock (_lock) { _macConfig = config; }
+    }
+
+    public void SetBootloaderConfig(BootloaderConfig config)
+    {
+        lock (_lock) { _bootloaderConfig = config; }
+    }
+
     public void AddCronJob(CronJobEntry entry)
     {
         lock (_lock) { _cronJobs.Add(entry); }
@@ -230,6 +254,10 @@ public sealed class ScanDataBuilder
                 LoginDefs = _loginDefs,
                 PamConfig = _pamConfig,
                 LoggingAudit = _loggingAuditConfig,
+                SudoersConfig = _sudoersConfig,
+                SystemdTimerSocketConfig = _systemdTimerSocketConfig,
+                MacConfig = _macConfig,
+                BootloaderConfig = _bootloaderConfig,
                 CronJobs = _cronJobs.ToArray(),
                 PackageVulnerabilities = _packageVulnerabilityStatus,
                 ContainerRuntime = _containerRuntime,

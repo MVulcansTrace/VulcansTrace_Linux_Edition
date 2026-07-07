@@ -38,6 +38,9 @@ public sealed record ScanData
     /// <summary>Capabilities of each data source checked during scanning.</summary>
     public IReadOnlyList<DataSourceCapability> Capabilities { get; init; } = Array.Empty<DataSourceCapability>();
 
+    /// <summary>Parsed sudoers configuration from /etc/sudoers and /etc/sudoers.d.</summary>
+    public SudoersConfig? SudoersConfig { get; init; }
+
     /// <summary>SSH daemon configuration settings.</summary>
     public SshConfig? SshConfig { get; init; }
 
@@ -94,6 +97,15 @@ public sealed record ScanData
 
     /// <summary>Runtime process snapshots from /proc inspection.</summary>
     public IReadOnlyList<ProcessRuntimeEntry> ProcessRuntimes { get; init; } = Array.Empty<ProcessRuntimeEntry>();
+
+    /// <summary>Systemd timer and socket unit configuration.</summary>
+    public SystemdTimerSocketConfig? SystemdTimerSocketConfig { get; init; }
+
+    /// <summary>Boot loader configuration (GRUB defaults, kernel cmdline, Secure Boot).</summary>
+    public BootloaderConfig? BootloaderConfig { get; init; }
+
+    /// <summary>Mandatory access control (AppArmor/SELinux) status.</summary>
+    public MacConfig? MacConfig { get; init; }
 }
 
 /// <summary>An installed package parsed from dpkg-query.</summary>
@@ -268,6 +280,68 @@ public sealed record SshConfig
 
     /// <summary>Raw configuration lines that were parsed.</summary>
     public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>Parsed sudoers configuration from /etc/sudoers and included files.</summary>
+public sealed record SudoersConfig
+{
+    /// <summary>Whether the sudoers configuration could be read.</summary>
+    public bool ConfigReadable { get; init; }
+
+    /// <summary>Octal permission mode of /etc/sudoers (e.g. "0440").</summary>
+    public string? MainFileMode { get; init; }
+
+    /// <summary>Owner of /etc/sudoers.</summary>
+    public string? MainFileOwner { get; init; }
+
+    /// <summary>Group of /etc/sudoers.</summary>
+    public string? MainFileGroup { get; init; }
+
+    /// <summary>Whether the configuration contains a line granting full passwordless sudo.</summary>
+    public bool HasPasswordlessFullSudo { get; init; }
+
+    /// <summary>Whether the configuration grants any user or group full sudo (ALL=(ALL:ALL) ALL).</summary>
+    public bool HasFullSudo { get; init; }
+
+    /// <summary>Whether the configuration disables authentication via !authenticate.</summary>
+    public bool HasNoAuthenticate { get; init; }
+
+    /// <summary>Whether a secure_path is configured.</summary>
+    public bool HasSecurePath { get; init; }
+
+    /// <summary>Entries that grant sudo privileges (user/group, host, runas, command).</summary>
+    public IReadOnlyList<SudoersEntry> Entries { get; init; } = Array.Empty<SudoersEntry>();
+
+    /// <summary>Raw configuration lines that were parsed.</summary>
+    public IReadOnlyList<string> RawLines { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>A single privilege-granting entry parsed from sudoers.</summary>
+public sealed record SudoersEntry
+{
+    /// <summary>Source file path.</summary>
+    public string SourceFile { get; init; } = string.Empty;
+
+    /// <summary>User or group name (groups prefixed with %).</summary>
+    public string Principal { get; init; } = string.Empty;
+
+    /// <summary>True if the principal is a group.</summary>
+    public bool IsGroup { get; init; }
+
+    /// <summary>Host list (e.g. "ALL" or "localhost").</summary>
+    public string Hosts { get; init; } = string.Empty;
+
+    /// <summary>RunAs specification (e.g. "(ALL:ALL)").</summary>
+    public string RunAs { get; init; } = string.Empty;
+
+    /// <summary>Command list (e.g. "ALL" or "/bin/ls").</summary>
+    public string Commands { get; init; } = string.Empty;
+
+    /// <summary>Whether NOPASSWD is set for this entry.</summary>
+    public bool NoPasswd { get; init; }
+
+    /// <summary>Raw line text.</summary>
+    public string RawLine { get; init; } = string.Empty;
 }
 
 /// <summary>A parsed firewall rule entry.</summary>
@@ -554,4 +628,86 @@ public sealed record K8sContainerInfo
 
     /// <summary>Seccomp profile type (e.g. RuntimeDefault, Unconfined, or custom).</summary>
     public string SeccompProfile { get; init; } = string.Empty;
+}
+
+/// <summary>Systemd timer and socket unit configuration.</summary>
+public sealed record SystemdTimerSocketConfig
+{
+    /// <summary>Whether the timer/socket data could be read.</summary>
+    public bool ConfigReadable { get; init; }
+
+    /// <summary>Timer units found on the system.</summary>
+    public IReadOnlyList<SystemdTimer> Timers { get; init; } = Array.Empty<SystemdTimer>();
+
+    /// <summary>Socket units found on the system.</summary>
+    public IReadOnlyList<SystemdSocket> Sockets { get; init; } = Array.Empty<SystemdSocket>();
+
+    /// <summary>Warning or detail message if reading failed.</summary>
+    public string? ReadWarning { get; init; }
+}
+
+/// <summary>A systemd timer unit.</summary>
+public sealed record SystemdTimer
+{
+    /// <summary>Unit name (e.g. logrotate.timer).</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Whether the timer is currently active.</summary>
+    public bool Active { get; init; }
+
+    /// <summary>Service unit activated by this timer, if known.</summary>
+    public string? TriggerUnit { get; init; }
+
+    /// <summary>Human-readable next trigger time or "n/a".</summary>
+    public string NextTrigger { get; init; } = string.Empty;
+
+    /// <summary>Human-readable interval or left blank if unknown.</summary>
+    public string Interval { get; init; } = string.Empty;
+}
+
+/// <summary>A systemd socket unit.</summary>
+public sealed record SystemdSocket
+{
+    /// <summary>Unit name (e.g. ssh.socket).</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Whether the socket is currently listening.</summary>
+    public bool Listening { get; init; }
+
+    /// <summary>Service unit activated by this socket, if known.</summary>
+    public string? TriggerUnit { get; init; }
+
+    /// <summary>Listen address, path, or "unknown".</summary>
+    public string ListenAddress { get; init; } = string.Empty;
+}
+
+/// <summary>Mandatory access control (AppArmor/SELinux) status.</summary>
+public sealed record MacConfig
+{
+    /// <summary>Whether the MAC data could be read.</summary>
+    public bool ConfigReadable { get; init; }
+
+    /// <summary>Whether AppArmor is installed.</summary>
+    public bool AppArmorInstalled { get; init; }
+
+    /// <summary>Whether AppArmor is enforcing.</summary>
+    public bool AppArmorEnforcing { get; init; }
+
+    /// <summary>AppArmor profiles in complain mode.</summary>
+    public IReadOnlyList<string> AppArmorComplainProfiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>AppArmor profiles in enforce mode.</summary>
+    public IReadOnlyList<string> AppArmorEnforceProfiles { get; init; } = Array.Empty<string>();
+
+    /// <summary>AppArmor unconfined processes or profiles.</summary>
+    public IReadOnlyList<string> AppArmorUnconfined { get; init; } = Array.Empty<string>();
+
+    /// <summary>Whether SELinux is installed.</summary>
+    public bool SelinuxInstalled { get; init; }
+
+    /// <summary>SELinux mode: enforcing, permissive, or disabled.</summary>
+    public string SelinuxMode { get; init; } = string.Empty;
+
+    /// <summary>Warning or detail message if reading failed.</summary>
+    public string? ReadWarning { get; init; }
 }

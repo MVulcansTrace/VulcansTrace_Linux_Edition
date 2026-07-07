@@ -388,6 +388,10 @@ public sealed class IntentInferenceEngine
             or AgentIntent.KernelCheck
             or AgentIntent.UserAccountCheck
             or AgentIntent.LoggingAuditCheck
+            or AgentIntent.SudoersCheck
+            or AgentIntent.SystemdTimerSocketCheck
+            or AgentIntent.MacCheck
+            or AgentIntent.BootloaderCheck
             or AgentIntent.CronJobCheck
             or AgentIntent.PackageVulnerabilityCheck
             or AgentIntent.ContainerCheck
@@ -410,6 +414,10 @@ public sealed class IntentInferenceEngine
         "kernel" => AgentIntent.KernelCheck,
         "user" or "useraccount" or "account" or "password" or "shadow" or "uid" or "pam" => AgentIntent.UserAccountCheck,
         "logging" or "rsyslog" or "journald" or "audit" or "auditd" or "logrotate" or "forwarding" or "syslog" => AgentIntent.LoggingAuditCheck,
+        "sudo" or "sudoers" or "nopasswd" => AgentIntent.SudoersCheck,
+        "systemd" or "timer" or "socket" or "socket activation" => AgentIntent.SystemdTimerSocketCheck,
+        "mac" or "apparmor" or "selinux" or "mandatory access control" => AgentIntent.MacCheck,
+        "boot" or "bootloader" or "grub" or "secure boot" or "cmdline" => AgentIntent.BootloaderCheck,
         "cron" or "crontab" or "scheduled" => AgentIntent.CronJobCheck,
         "packagevulnerability" or "package" or "cve" => AgentIntent.PackageVulnerabilityCheck,
         "container" or "docker" => AgentIntent.ContainerCheck,
