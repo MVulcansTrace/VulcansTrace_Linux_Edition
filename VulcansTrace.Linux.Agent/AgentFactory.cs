@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -259,7 +260,8 @@ public static class AgentFactory
             mitreLayerBuilder,
             mitreCoverageSources,
             logDiffMarkdownFormatter,
-            logDiffHtmlFormatter);
+            logDiffHtmlFormatter,
+            new MispFormatter());
 
         var explanationProvider = new ExplanationProvider();
 
@@ -296,6 +298,18 @@ public static class AgentFactory
         {
             auditHistoryStore = new InMemoryAuditHistoryStore("Audit history persistence is unavailable. History will last only for this session.");
         }
+
+        IAnalystActionStore analystActionStore;
+        try
+        {
+            analystActionStore = JsonFileAnalystActionStore.CreateDefault(configDirectory, logSink: logSink);
+        }
+        catch
+        {
+            analystActionStore = new InMemoryAnalystActionStore("Analyst action log persistence is unavailable. Actions will last only for this session.");
+        }
+
+        var analystActionLogger = new AnalystActionLogger(analystActionStore, logSink);
 
         IBaselineStore baselineStore;
         try
@@ -377,7 +391,18 @@ public static class AgentFactory
             memoryStore: memoryStore);
 
         var ruleCatalog = new RuleCatalog(rules);
-        var notificationService = new NotifySendNotificationService();
+
+        INotificationSettingsStore notificationSettingsStore;
+        try
+        {
+            notificationSettingsStore = JsonFileNotificationSettingsStore.CreateDefault(configDirectory, logSink);
+        }
+        catch
+        {
+            notificationSettingsStore = new InMemoryNotificationSettingsStore("Notification settings persistence is unavailable. Settings will last only for this session.");
+        }
+
+        var notificationService = notificationSettingsStore.Settings.CreateNotificationService();
         var processRunner = new ProcessRunner();
         var remediationExecutor = new RemediationExecutor(processRunner);
         var remediationPlanBuilder = new RemediationPlanBuilder(explanationProvider);
@@ -403,11 +428,14 @@ public static class AgentFactory
             RuleCatalog = ruleCatalog,
             SuppressionStore = suppressionStore,
             AuditHistoryStore = auditHistoryStore,
+            AnalystActionStore = analystActionStore,
+            AnalystActionLogger = analystActionLogger,
             BaselineStore = baselineStore,
             PolicyProvider = policyProvider,
             PolicyStore = policyStore,
             ProfileProvider = profileProvider,
             ScheduleStore = scheduleStore,
+            NotificationSettingsStore = notificationSettingsStore,
             NotificationService = notificationService,
             ProcessRunner = processRunner,
             RemediationExecutor = remediationExecutor,
@@ -488,6 +516,12 @@ public sealed record AgentServices : IDisposable
     /// <summary>Store for audit history snapshots.</summary>
     public required IAuditHistoryStore AuditHistoryStore { get; init; }
 
+    /// <summary>Store for analyst action audit log entries.</summary>
+    public required IAnalystActionStore AnalystActionStore { get; init; }
+
+    /// <summary>Logger for analyst actions backed by <see cref="AnalystActionStore"/>.</summary>
+    public required AnalystActionLogger AnalystActionLogger { get; init; }
+
     /// <summary>Store for configuration baselines.</summary>
     public required IBaselineStore BaselineStore { get; init; }
 
@@ -502,6 +536,9 @@ public sealed record AgentServices : IDisposable
 
     /// <summary>Store for recurring audit schedules.</summary>
     public required IScheduleStore ScheduleStore { get; init; }
+
+    /// <summary>Store for global notification settings.</summary>
+    public required INotificationSettingsStore NotificationSettingsStore { get; init; }
 
     /// <summary>Service for out-of-band notifications.</summary>
     public required INotificationService NotificationService { get; init; }
@@ -547,12 +584,14 @@ public sealed record AgentServices : IDisposable
 
         (SuppressionStore as IDisposable)?.Dispose();
         (AuditHistoryStore as IDisposable)?.Dispose();
+        (AnalystActionStore as IDisposable)?.Dispose();
         (BaselineStore as IDisposable)?.Dispose();
         // DefaultRulePolicyProvider is not IDisposable (no-op above); the mutable JsonRulePolicyStore
         // owns the ReaderWriterLockSlim and is the instance that actually needs releasing.
         (PolicyStore as IDisposable)?.Dispose();
         (PolicyProvider as IDisposable)?.Dispose();
         (ScheduleStore as IDisposable)?.Dispose();
+        (NotificationSettingsStore as IDisposable)?.Dispose();
         (NotificationService as IDisposable)?.Dispose();
         (ProcessRunner as IDisposable)?.Dispose();
         (SessionStore as IDisposable)?.Dispose();

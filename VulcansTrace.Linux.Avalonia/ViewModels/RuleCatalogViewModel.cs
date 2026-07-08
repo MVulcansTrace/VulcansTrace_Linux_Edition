@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Core;
@@ -23,6 +24,7 @@ public sealed class RuleCatalogViewModel : ViewModelBase
     // keep writing to the same store instance the active agent reads from. See UpdatePolicyStore.
     private IRulePolicyStore? _policyStore;
     private readonly IDialogService? _dialogService;
+    private readonly AnalystActionLogger? _analystActionLogger;
     private MachineRole _currentMachineRole = MachineRole.Workstation;
     private string _policyStatusMessage = "";
 
@@ -106,10 +108,11 @@ public sealed class RuleCatalogViewModel : ViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="RuleCatalogViewModel"/> class with policy editing support.
     /// </summary>
-    public RuleCatalogViewModel(IRulePolicyStore? policyStore, IDialogService? dialogService)
+    public RuleCatalogViewModel(IRulePolicyStore? policyStore, IDialogService? dialogService, AnalystActionLogger? analystActionLogger = null)
     {
         _policyStore = policyStore;
         _dialogService = dialogService;
+        _analystActionLogger = analystActionLogger;
         EditPolicyCommand = new AsyncRelayCommand(
             async _ => await EditPolicyAsync(),
             _ => CanEditPolicy(),
@@ -212,6 +215,10 @@ public sealed class RuleCatalogViewModel : ViewModelBase
         {
             RefreshPolicyOverride(SelectedItem);
             PolicyStatusMessage = DescribeSaveResult(editVm);
+            if (_analystActionLogger is { } actionLogger)
+            {
+                await actionLogger.LogRulePolicyEditedAsync("avalonia", SelectedItem.Id);
+            }
         }
     }
 

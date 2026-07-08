@@ -7,10 +7,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scheduling;
@@ -26,6 +28,7 @@ using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
+using VulcansTrace.Linux.Evidence.Formatters;
 using VulcansTrace.Linux.Avalonia.Models;
 using VulcansTrace.Linux.Avalonia.Services;
 
@@ -42,6 +45,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly ISuppressionStore _suppressionStore;
     private readonly IPinnedFindingStore _pinnedFindingStore;
     private readonly IPinnedMessageStore _pinnedMessageStore;
+    private readonly IAnalystActionStore _analystActionStore;
+    private readonly AnalystActionLogger _analystActionLogger;
     private readonly RemediationPlanBuilder _remediationPlanBuilder;
     private readonly TraceMapCorrelator _traceMapCorrelator;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -108,8 +113,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for schedule management.</summary>
     public ScheduleViewModel Schedules { get; }
 
+    /// <summary>Gets the child ViewModel for threat-intel management.</summary>
+    public ThreatIntelViewModel ThreatIntel { get; }
+
     /// <summary>Gets the child ViewModel for CIS compliance scorecard.</summary>
     public ComplianceScorecardViewModel ComplianceScorecard { get; }
+
+    /// <summary>Gets the child ViewModel for notification channel settings.</summary>
+    public NotificationSettingsViewModel NotificationSettings { get; }
 
     /// <summary>Gets the child ViewModel for risk scorecard.</summary>
     public RiskScorecardViewModel RiskScorecard { get; }
@@ -119,6 +130,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the child ViewModel for doctor diagnostics.</summary>
     public DoctorViewModel Doctor { get; }
+
+    /// <summary>Gets the child ViewModel for the analyst action audit log.</summary>
+    public AnalystActionLogViewModel AnalystActionLog { get; }
 
     /// <summary>Gets the sidebar navigation items.</summary>
     public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
@@ -204,7 +218,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         private set => SetField(ref _hasAdvisorMessage, value);
     }
 
-    /// <summary>Gets or sets whether an analysis is in progress.</summary>
+    /// <summary>Gets whether an analysis is in progress.</summary>
     public bool IsBusy
     {
         get => _isBusy;
@@ -214,9 +228,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             {
                 AnalyzeCommand.RaiseCanExecuteChanged();
                 CancelCommand.RaiseCanExecuteChanged();
+                CompareLogsCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(IsNotBusy));
             }
         }
     }
+
+    /// <summary>Gets whether the UI is not busy.</summary>
+    public bool IsNotBusy => !_isBusy;
 
     /// <summary>Gets or sets the selected intensity option.</summary>
     public IntensityOption? SelectedIntensity
@@ -340,6 +359,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the resolve (generate remediation plan) command.</summary>
     public AsyncRelayCommand ResolveCommand { get; }
 
+    /// <summary>Gets the verify-finding remediation command.</summary>
+    public AsyncRelayCommand VerifyFindingCommand { get; }
+
     /// <summary>Gets the compare logs command.</summary>
     public AsyncRelayCommand CompareLogsCommand { get; }
 
@@ -369,7 +391,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ISessionStore? sessionStore = null,
         IThreatIntelStore? threatIntelStore = null,
         DoctorService? doctorService = null,
-        IAgentMemoryStore? memoryStore = null)
+        IAgentMemoryStore? memoryStore = null,
+        INotificationSettingsStore? notificationSettingsStore = null,
+        IAnalystActionStore? analystActionStore = null,
+        AnalystActionLogger? analystActionLogger = null)
     {
         _analyzer = analyzer;
         _profileProvider = profileProvider;
@@ -379,6 +404,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _pinnedMessageStore = pinnedMessageStore;
         _remediationPlanBuilder = remediationPlanBuilder ?? throw new ArgumentNullException(nameof(remediationPlanBuilder));
         _traceMapCorrelator = traceMapCorrelator;
+        _analystActionStore = analystActionStore ?? new InMemoryAnalystActionStore();
+        _analystActionLogger = analystActionLogger ?? new AnalystActionLogger(_analystActionStore);
 
         // Initialize commands first (before setting properties that trigger RaiseCanExecuteChanged)
         AnalyzeCommand = new AsyncRelayCommand(
@@ -397,12 +424,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline = new TimelineViewModel();
         IncidentStory = new IncidentStoryViewModel();
         Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
-        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore, _pinnedMessageStore)
+        Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore, _pinnedMessageStore, _analystActionLogger)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),
             RequestExportRemediation = async markdown => await ExportRemediationPlanAsync(markdown),
-            RequestExportSession = async markdown => await ExportSessionReportAsync(markdown)
+            RequestExportSession = async markdown => await ExportSessionReportAsync(markdown),
+            RequestExportThreatIntel = async () => await ExportThreatIntelAsync()
         };
         Agent.AuditCompleted += OnAgentAuditCompleted;
         _agentPropertyChangedHandler = OnAgentPropertyChanged;
@@ -416,7 +444,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => Agent.MarkLatestAuditExported());
         Evidence.ExportCompleted += _evidenceExportCompletedHandler;
 
-        RuleCatalog = new RuleCatalogViewModel(policyStore, dialogService);
+        RuleCatalog = new RuleCatalogViewModel(policyStore, dialogService, _analystActionLogger);
         Suppressions = new SuppressionViewModel(suppressionStore, dialogService);
         Suppressions.Refresh();
         RuleCoverage = new RuleCoverageViewModel();
@@ -425,10 +453,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Schedules = new ScheduleViewModel(
             scheduleStore ?? new InMemoryScheduleStore(),
             auditHistoryStore,
+            notificationSettingsStore ?? new InMemoryNotificationSettingsStore(),
             notificationService ?? new NotifySendNotificationService(),
-            dialogService);
+            dialogService,
+            _analystActionLogger);
+        ThreatIntel = new ThreatIntelViewModel(
+            threatIntelStore ?? new InMemoryThreatIntelStore(),
+            dialogService,
+            _analystActionLogger);
+        NotificationSettings = new NotificationSettingsViewModel(
+            notificationSettingsStore ?? new InMemoryNotificationSettingsStore(),
+            dialogService,
+            _analystActionLogger);
+
         LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
         Doctor = new DoctorViewModel(doctorService ?? new DoctorService(System.Array.Empty<IScanner>()));
+        AnalystActionLog = new AnalystActionLogViewModel(_analystActionStore, dialogService);
 
         // Wire empty-state action commands
         Findings.EmptyStateActionCommand = AnalyzeCommand;
@@ -456,13 +496,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog, Group = "MANAGEMENT" });
+        NavigationItems.Add(new NavigationItem { Label = "Threat Intel", Icon = "mdi-forest-fire", Content = ThreatIntel, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Suppressions", Icon = "mdi-volume-off", Content = Suppressions, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Coverage", Icon = "mdi-bullseye-arrow", Content = RuleCoverage, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Compliance", Icon = "mdi-clipboard-check", Content = ComplianceScorecard, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Risk", Icon = "mdi-alert-decagram", Content = RiskScorecard, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Schedules", Icon = "mdi-calendar-clock", Content = Schedules, Group = "OPERATIONS" });
+        NavigationItems.Add(new NavigationItem { Label = "Notifications", Icon = "mdi-bell", Content = NotificationSettings, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "ACCOUNTABILITY" });
         NavigationItems.Add(new NavigationItem { Label = "Parse Errors", Icon = "mdi-alert-circle", Content = Findings, Group = "SYSTEM" });
         NavigationItems.Add(new NavigationItem { Label = "Warnings", Icon = "mdi-alert", Content = Findings, Group = "" });
 
@@ -495,9 +538,18 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 SummaryText = $"Resolve failed: {ex.Message}";
             });
 
+        VerifyFindingCommand = new AsyncRelayCommand(
+            async parameter => await VerifyFindingAsync(parameter),
+            parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId) && !Agent.IsBusy,
+            ex =>
+            {
+                SummaryText = $"Verify failed: {ex.Message}";
+            });
+
         Findings.InvestigateCommand = InvestigateCommand;
         Findings.SuppressCommand = SuppressCommand;
         Findings.ResolveCommand = ResolveCommand;
+        Findings.VerifyFindingCommand = VerifyFindingCommand;
 
         CompareLogsCommand = new AsyncRelayCommand(
             async _ => await RunLogDiffAsync(),
@@ -525,6 +577,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         PacketSizeLargeThreshold = 0;
         PacketSizeSmallThreshold = 0;
         InterfaceHoppingWindowMinutes = 0;
+
+        CompareLogsCommand.RaiseCanExecuteChanged();
     }
 
     private bool CanAnalyze() =>
@@ -645,6 +699,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         UpdateAdvisorMessage(result, highOrCritical, total);
 
+        await _analystActionLogger.LogAuditAsync("avalonia", "LogAnalysis", _selectedMachineRole.ToString(), result.Findings.Count);
+
         BotIntroText = _selectedIntensity.Level switch
         {
             IntensityLevel.Low =>
@@ -692,14 +748,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 IncidentLabel = incidentPath
             };
 
-            var viewModel = new LogDiffViewModel();
+            var viewModel = new LogDiffViewModel(_dialogService);
             viewModel.LoadDiff(diffResult);
 
             var window = new Views.LogDiffWindow(viewModel);
             window.Show();
+            window.Activate();
 
             SummaryText = $"Diff complete: {diffResult.Narrative}";
             AdvisorMessage = "Log comparison finished.";
+
+            await _analystActionLogger.LogDiffAsync("avalonia", baselinePath, incidentPath);
         }
         catch (OperationCanceledException)
         {
@@ -717,6 +776,102 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _cancellationTokenSource = null;
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Builds a <see cref="LogDiffResult"/> from two small synthetic logs.
+    /// Used by the /logdiffdemo slash command and automation smoke tests.
+    /// </summary>
+    public async Task<LogDiffResult> BuildLogDiffDemoResultAsync(CancellationToken cancellationToken = default)
+    {
+        var baselineLog = BuildDemoBaselineLog();
+        var incidentLog = BuildDemoIncidentLog();
+
+        var baselineResult = await Task.Run(() => _analyzer.Analyze(baselineLog, _selectedIntensity?.Level ?? IntensityLevel.Medium, cancellationToken), cancellationToken);
+        var incidentResult = await Task.Run(() => _analyzer.Analyze(incidentLog, _selectedIntensity?.Level ?? IntensityLevel.Medium, cancellationToken), cancellationToken);
+
+        var diffAnalyzer = new LogDiffAnalyzer();
+        return diffAnalyzer.Compare(baselineResult, incidentResult) with
+        {
+            BaselineLabel = "Demo baseline log",
+            IncidentLabel = "Demo incident log"
+        };
+    }
+
+    /// <summary>
+    /// Opens the Log Diff window with two small synthetic logs.
+    /// Used by the /logdiffdemo slash command and automation smoke tests.
+    /// </summary>
+    public async Task ShowLogDiffDemoAsync()
+    {
+        IsBusy = true;
+        SummaryText = "Comparing demo logs...";
+        AdvisorMessage = "Running log diff demo...";
+
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = new CancellationTokenSource();
+        var token = _cancellationTokenSource.Token;
+
+        try
+        {
+            var diffResult = await BuildLogDiffDemoResultAsync(token);
+
+            var viewModel = new LogDiffViewModel(_dialogService);
+            viewModel.LoadDiff(diffResult);
+
+            var window = new Views.LogDiffWindow(viewModel);
+            var owner = (global::Avalonia.Application.Current?.ApplicationLifetime as global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (owner != null)
+            {
+                await window.ShowDialog<object?>(owner);
+            }
+            else
+            {
+                window.Show();
+            }
+
+            SummaryText = $"Demo diff complete: {diffResult.Narrative}";
+            AdvisorMessage = "Log diff demo finished.";
+        }
+        catch (OperationCanceledException)
+        {
+            SummaryText = "Log diff demo cancelled.";
+            AdvisorMessage = "Log diff demo cancelled.";
+        }
+        catch (Exception ex)
+        {
+            SummaryText = $"Log diff demo failed: {ex.Message}";
+            AdvisorMessage = "Log diff demo failed.";
+        }
+        finally
+        {
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+            IsBusy = false;
+        }
+    }
+
+    private static string BuildDemoBaselineLog()
+    {
+        return """
+            kernel: Jan 19 10:00:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.10 DST=10.0.0.5 PROTO=TCP SPT=12345 DPT=80
+            kernel: Jan 19 10:01:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.11 DST=10.0.0.6 PROTO=TCP SPT=12346 DPT=443
+            kernel: Jan 19 10:02:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.12 DST=10.0.0.5 PROTO=UDP SPT=12347 DPT=53
+            """;
+    }
+
+    private static string BuildDemoIncidentLog()
+    {
+        return """
+            kernel: Jan 19 10:00:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.10 DST=10.0.0.5 PROTO=TCP SPT=12345 DPT=80
+            kernel: Jan 19 10:01:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.11 DST=10.0.0.6 PROTO=TCP SPT=12346 DPT=443
+            kernel: Jan 19 10:02:00 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=192.168.1.12 DST=10.0.0.5 PROTO=UDP SPT=12347 DPT=53
+            kernel: Jan 19 10:15:32 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.99.99.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=22
+            kernel: Jan 19 10:15:33 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.99.99.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=23
+            kernel: Jan 19 10:15:34 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.99.99.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=25
+            kernel: Jan 19 10:15:35 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.99.99.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=53
+            kernel: Jan 19 10:15:36 server IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.99.99.100 DST=10.0.0.5 PROTO=TCP SPT=54321 DPT=80
+            """;
     }
 
     private void InvalidateAnalysisContext(string? summaryText = null)
@@ -758,6 +913,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
 
         var agentTraceMap = _traceMapCorrelator.Correlate(analysisResult.Findings);
+        _lastResult = analysisResult;
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown, agentTraceMap);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
@@ -767,6 +923,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RuleCoverage.LoadResults(agentResult);
         ComplianceScorecard.LoadScorecard(agentResult.Scorecard);
         RiskScorecard.LoadScorecard(agentResult.RiskScorecard);
+        ThreatIntel.Refresh();
         SummaryText = agentResult.Summary;
     }
 
@@ -823,6 +980,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             await File.WriteAllTextAsync(path, markdown);
             SummaryText = $"Remediation plan exported to {path}";
+
+            await _analystActionLogger.LogRemediationAsync("avalonia", path);
         }
         catch (Exception ex)
         {
@@ -844,11 +1003,63 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             await File.WriteAllTextAsync(path, markdown);
             SummaryText = $"Session report exported to {path}";
+
+            await _analystActionLogger.LogSessionReportAsync("avalonia", path);
             return true;
         }
         catch (Exception ex)
         {
             SummaryText = $"Failed to export session report: {ex.Message}";
+            return false;
+        }
+    }
+
+    private async Task<bool> ExportThreatIntelAsync()
+    {
+        if (_lastResult == null)
+        {
+            SummaryText = "Run an analysis first to export threat intelligence.";
+            return false;
+        }
+
+        var formatOptions = new[] { "STIX 2.1", "MISP JSON" };
+        var formatIndex = await _dialogService.ShowSelectionDialogAsync(
+            "Export Threat Intelligence",
+            "Choose export format:",
+            formatOptions,
+            defaultIndex: 0);
+
+        if (formatIndex == null)
+            return false;
+
+        var format = formatIndex.Value == 0 ? "stix" : "misp";
+        var extension = format == "stix" ? ".stix.json" : ".misp.json";
+        var defaultFileName = $"vulcanstrace-threat-intel-{DateTime.UtcNow:yyyyMMdd-HHmmss}{extension}";
+
+        var path = await _dialogService.ShowSaveFileDialogAsync(
+            "Export Threat Intelligence",
+            "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            defaultFileName);
+
+        if (path == null)
+            return false;
+
+        try
+        {
+            IEvidenceFormatter formatter = format == "stix"
+                ? new StixFormatter()
+                : new MispFormatter();
+
+            var json = formatter.Format(_lastResult, _logText);
+            await File.WriteAllTextAsync(path, json);
+            SummaryText = $"Threat intelligence exported to {path}";
+
+            await _analystActionLogger.LogThreatIntelExportedAsync("avalonia", format, path);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SummaryText = $"Failed to export threat intelligence: {ex.Message}";
             return false;
         }
     }
@@ -922,6 +1133,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         Suppressions.AddSuppression(selected.RuleId, selected.Target, reason, duration, selected.Fingerprint);
         SummaryText = $"Suppressed: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
+
+        await _analystActionLogger.LogSuppressionAsync("avalonia", selected.RuleId, selected.Target);
     }
 
     private async Task InvestigateFindingAsync(object? parameter)
@@ -953,6 +1166,41 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SummaryText = Agent.LastOperationSucceeded
             ? $"Investigation of {selected.Category} ready in the Agent tab."
             : $"Investigation of {selected.Category} did not complete — see the Agent tab.";
+    }
+
+    private async Task VerifyFindingAsync(object? parameter)
+    {
+        if (parameter is FindingItemViewModel item)
+        {
+            Findings.SelectedItem = item;
+        }
+
+        var selected = Findings.SelectedItem?.Finding;
+        if (selected == null || string.IsNullOrEmpty(selected.RuleId))
+        {
+            SummaryText = "Select a finding with a rule ID to verify.";
+            return;
+        }
+
+        if (!Agent.VerifySelectedCommand.CanExecute(null))
+        {
+            SummaryText = "Agent is busy or the selected finding cannot be verified. Wait for the current operation to finish.";
+            return;
+        }
+
+        SummaryText = $"Verifying {selected.RuleId}…";
+        SelectedNavigationItem = NavigationItems[0]; // Agent tab
+        Agent.VerifySelectedCommand.Execute(null);
+
+        await Agent.VerifySelectedCommand.ExecutionTask;
+        SummaryText = Agent.LastOperationSucceeded
+            ? $"Verification of {selected.RuleId} ready in the Agent tab."
+            : $"Verification of {selected.RuleId} did not complete — see the Agent tab.";
+
+        if (Agent.LastOperationSucceeded)
+        {
+            await _analystActionLogger.LogFindingVerifiedAsync("avalonia", selected.RuleId);
+        }
     }
 
     private async Task ResolveFindingAsync(object? parameter)

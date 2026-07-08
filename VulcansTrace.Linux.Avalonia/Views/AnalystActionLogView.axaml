@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.AnalystActionLogView"
+             x:DataType="vm:AnalystActionLogViewModel">
+
+  <Design.DataContext>
+    <vm:AnalystActionLogViewModel/>
+  </Design.DataContext>
+
+  <Grid RowDefinitions="Auto,Auto,*" Margin="0,0,0,8">
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Button Content="Refresh"
+               Theme="{StaticResource VtSecondaryButton}"
+               Command="{Binding RefreshCommand}"
+               AutomationProperties.AutomationId="AnalystActionLogRefreshButton"/>
+      <Button Content="Export JSON"
+               Theme="{StaticResource VtSecondaryButton}"
+               Command="{Binding ExportCommand}"
+               AutomationProperties.AutomationId="AnalystActionLogExportButton"/>
+      <Button Content="Clear"
+               Theme="{StaticResource VtGhostButton}"
+               Command="{Binding ClearCommand}"
+               AutomationProperties.AutomationId="AnalystActionLogClearButton"/>
+      <TextBlock Text="{Binding StatusMessage}"
+                 VerticalAlignment="Center"
+                 Foreground="{StaticResource VtTextSecondaryBrush}"
+                 FontSize="{StaticResource VtFontSizeSm}"
+                 TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <TextBlock Grid.Row="1"
+                Text="No analyst actions recorded yet."
+                IsVisible="{Binding !HasEntries}"
+                Foreground="{StaticResource VtTextMutedBrush}"
+                FontSize="{StaticResource VtFontSizeMd}"
+                Margin="0,16,0,0"/>
+
+    <DataGrid Grid.Row="2"
+              ItemsSource="{Binding Entries}"
+              AutoGenerateColumns="False"
+              IsReadOnly="True"
+              CanUserResizeColumns="True"
+              IsVisible="{Binding HasEntries}"
+              AutomationProperties.AutomationId="AnalystActionLogDataGrid"
+              AutomationProperties.Name="Analyst Action Log">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="160" />
+        <DataGridTextColumn Header="Actor" Binding="{Binding Actor}" Width="90" />
+        <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="180" />
+        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="*" />
+        <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*" />
+        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </Grid>
+</UserControl>

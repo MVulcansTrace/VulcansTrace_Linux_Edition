@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Autonomous;
 using VulcansTrace.Linux.Agent.Diagnostics;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -26,6 +27,7 @@ using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.LogDiff;
 using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
+using VulcansTrace.Linux.Evidence.Formatters;
 
 [assembly: InternalsVisibleTo("VulcansTrace.Linux.Tests")]
 
@@ -69,6 +71,9 @@ public static class Program
                 "schedule" => await RunScheduleAsync(args),
                 "session" => await RunSessionAsync(args),
                 "threat-intel" => await RunThreatIntelAsync(args),
+                "export-threat-intel" => await RunExportThreatIntelAsync(args),
+                "countermeasure" => await RunCountermeasureAsync(args),
+                "analyst-action-log" => await RunAnalystActionLogAsync(args),
                 _ => PrintError($"Unknown command: {args[0]}")
             };
         }
@@ -180,6 +185,8 @@ public static class Program
             Console.WriteLine("  Notification sent.");
         }
 
+        await services.AnalystActionLogger.LogAuditAsync("cli", agentIntent.ToString(), machineRole.ToString(), result.AgentFindings.Count);
+
         var autoFixExitCode = await HandleAutoFixAsync(args, result, services, cts.Token);
         var auditExitCode = criticalCount > 0 ? 2 : 0;
         return Math.Max(auditExitCode, autoFixExitCode);
@@ -222,6 +229,8 @@ public static class Program
 
         var stillFailing = result.AgentFindings.Any(f => !string.IsNullOrWhiteSpace(f.RuleId)
             && f.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
+
+        await services.AnalystActionLogger.LogFindingVerifiedAsync("cli", ruleId);
 
         return stillFailing ? 2 : 0;
     }
@@ -458,6 +467,7 @@ public static class Program
 
             await File.WriteAllBytesAsync(outputEvidence, evidenceBytes, cts.Token);
             Console.WriteLine($"  Evidence package written to: {outputEvidence}");
+            await services.AnalystActionLogger.LogEvidenceExportedAsync("cli", outputEvidence);
         }
 
         // Export JSON
@@ -658,10 +668,13 @@ public static class Program
 
             await File.WriteAllBytesAsync(outputEvidence, evidenceBytes, cts.Token);
             Console.WriteLine($"  Evidence package written to: {outputEvidence}");
+            await services.AnalystActionLogger.LogEvidenceExportedAsync("cli", outputEvidence);
         }
 
         var hasDiff = diffResult.AddedCount > 0 || diffResult.RemovedCount > 0 || diffResult.ChangedCount > 0
             || diffResult.AddedFindingsCount > 0 || diffResult.RemovedFindingsCount > 0 || diffResult.ChangedFindingsCount > 0;
+
+        await services.AnalystActionLogger.LogDiffAsync("cli", baselinePath, incidentPath);
 
         return hasDiff ? 2 : 0;
     }
@@ -894,6 +907,12 @@ public static class Program
         var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
         Console.WriteLine(output);
 
+        await services.AnalystActionLogger.LogBatchAutoFixAsync(
+            "cli",
+            plan.TotalSections,
+            executionResult.AllSucceeded,
+            executionResult.TotalCommandsFailed);
+
         if (!executionResult.AllSucceeded)
         {
             Console.WriteLine("⚠️  Some remediation commands failed. Review the output above.");
@@ -977,11 +996,11 @@ public static class Program
                 return sub switch
                 {
                     "list" => ListSchedules(services.ScheduleStore),
-                    "add" => AddSchedule(args, services.ScheduleStore),
-                    "edit" => EditSchedule(args, services.ScheduleStore),
-                    "delete" => DeleteSchedule(args, services.ScheduleStore),
-                    "enable" => ToggleSchedule(args, services.ScheduleStore, enabled: true),
-                    "disable" => ToggleSchedule(args, services.ScheduleStore, enabled: false),
+                    "add" => AddSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "edit" => EditSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "delete" => DeleteSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "enable" => ToggleSchedule(args, services.ScheduleStore, services.AnalystActionLogger, enabled: true),
+                    "disable" => ToggleSchedule(args, services.ScheduleStore, services.AnalystActionLogger, enabled: false),
                     _ => PrintError($"Unknown schedule subcommand: {sub}")
                 };
             }
@@ -1013,7 +1032,7 @@ public static class Program
         return 0;
     }
 
-    private static int AddSchedule(string[] args, IScheduleStore store)
+    private static int AddSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var name = ParseArg(args, "--name", null);
         var intentStr = ParseArg(args, "--intent", null);
@@ -1093,10 +1112,12 @@ public static class Program
             Console.WriteLine($"  Remediation rule prefixes: {string.Join(", ", schedule.AllowedRemediationRulePrefixes)}");
         if (!string.IsNullOrWhiteSpace(schedule.OutputDirectory))
             Console.WriteLine($"  Output directory: {schedule.OutputDirectory}");
+
+        logger.LogScheduleAddedAsync("cli", schedule.Id).GetAwaiter().GetResult();
         return 0;
     }
 
-    private static int EditSchedule(string[] args, IScheduleStore store)
+    private static int EditSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1201,10 +1222,12 @@ public static class Program
 
         store.Save(updated);
         Console.WriteLine($"Schedule updated: {updated.Id}");
+
+        logger.LogScheduleEditedAsync("cli", updated.Id).GetAwaiter().GetResult();
         return 0;
     }
 
-    private static int DeleteSchedule(string[] args, IScheduleStore store)
+    private static int DeleteSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1216,10 +1239,12 @@ public static class Program
 
         store.Delete(id);
         Console.WriteLine($"Schedule deleted: {schedule.Name} ({id})");
+
+        logger.LogScheduleDeletedAsync("cli", schedule.Id).GetAwaiter().GetResult();
         return 0;
     }
 
-    private static int ToggleSchedule(string[] args, IScheduleStore store, bool enabled)
+    private static int ToggleSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger, bool enabled)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1231,6 +1256,11 @@ public static class Program
 
         store.Save(schedule with { Enabled = enabled });
         Console.WriteLine($"Schedule {(enabled ? "enabled" : "disabled")}: {schedule.Name} ({id})");
+
+        if (enabled)
+            logger.LogScheduleEnabledAsync("cli", schedule.Id).GetAwaiter().GetResult();
+        else
+            logger.LogScheduleDisabledAsync("cli", schedule.Id).GetAwaiter().GetResult();
         return 0;
     }
 
@@ -1559,6 +1589,149 @@ public static class Program
         RequireRollbackGuidance = true
     };
 
+    internal static async Task<int> RunCountermeasureAsync(string[] args, AgentServices? services = null)
+    {
+        var logFile = ParseArg(args, "--log-file", null);
+        var baselinePath = ParseArg(args, "--baseline", null);
+        var dryRun = HasFlag(args, "--dry-run");
+        var yes = HasFlag(args, "--yes");
+        var role = ParseArg(args, "--role", "Workstation")!;
+
+        if (!Enum.TryParse<MachineRole>(role, true, out var machineRole))
+        {
+            return PrintError($"Unknown role: {role}");
+        }
+
+        if (string.IsNullOrWhiteSpace(logFile))
+        {
+            return PrintError("--log-file is required");
+        }
+
+        if (!File.Exists(logFile))
+        {
+            return PrintError($"Log file not found: {logFile}");
+        }
+
+        if (string.IsNullOrWhiteSpace(baselinePath))
+        {
+            return PrintError("--baseline is required");
+        }
+
+        if (!File.Exists(baselinePath))
+        {
+            return PrintError($"Baseline file not found: {baselinePath}");
+        }
+
+        using var ownedServices = services == null ? AgentFactory.Create(machineRole) : null;
+        var actualServices = services ?? ownedServices!;
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var baselineLog = await File.ReadAllTextAsync(baselinePath, cts.Token);
+        var incidentLog = await File.ReadAllTextAsync(logFile, cts.Token);
+
+        var intensityArg = ParseArg(args, "--intensity", "Medium")!;
+        if (!Enum.TryParse<IntensityLevel>(intensityArg, true, out var intensity))
+        {
+            return PrintError($"Unknown intensity: {intensityArg}. Use Low, Medium, or High.");
+        }
+
+        var profile = actualServices.ProfileProvider.GetProfile(intensity);
+        var baselineResult = actualServices.Analyzer.Analyze(baselineLog, intensity, cts.Token);
+        var incidentResult = actualServices.Analyzer.Analyze(incidentLog, intensity, cts.Token);
+
+        var diffAnalyzer = new LogDiffAnalyzer();
+        var diffResult = diffAnalyzer.Compare(baselineResult, incidentResult) with
+        {
+            BaselineLabel = baselinePath,
+            IncidentLabel = logFile
+        };
+
+        var allFindings = diffResult.Findings
+            .Where(f => f.State == LogDiffState.Added || f.State == LogDiffState.Changed)
+            .Select(f => f.Finding)
+            .ToList();
+        if (allFindings.Count == 0)
+        {
+            Console.WriteLine("No new or increased findings detected. No countermeasures required.");
+            return 0;
+        }
+
+        var traceMap = actualServices.TraceMapCorrelator.Correlate(allFindings);
+        var plan = actualServices.RemediationPlanBuilder.BuildCountermeasures(traceMap);
+
+        if (plan.Sections.Count == 0)
+        {
+            Console.WriteLine("No actionable countermeasure chains detected. Review findings manually.");
+            return 0;
+        }
+
+        var policy = new AutoFixPolicy
+        {
+            AllowConfigChange = true,
+            RequireRollbackGuidance = true
+        };
+
+        Console.WriteLine();
+        Console.WriteLine("============================================");
+        Console.WriteLine("  INCIDENT-RESPONSE COUNTERMEASURES");
+        Console.WriteLine("============================================");
+        Console.WriteLine($"New/increased findings: {allFindings.Count}");
+        Console.WriteLine($"Critical chains: {plan.Sections.Count}");
+        Console.WriteLine();
+
+        var preview = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+        Console.WriteLine(preview);
+
+        if (dryRun)
+        {
+            Console.WriteLine("Dry-run complete. No changes were made.");
+            return 0;
+        }
+
+        if (!yes)
+        {
+            Console.Write("Type 'yes' to deploy countermeasures live, or anything else to cancel: ");
+            var response = Console.ReadLine()?.Trim();
+            if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Countermeasure deployment cancelled.");
+                return 0;
+            }
+        }
+        else
+        {
+            Console.WriteLine("--yes flag set. Proceeding without interactive confirmation.");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Deploying countermeasures...");
+
+        var executionResult = await actualServices.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, cts.Token);
+        var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
+        Console.WriteLine(output);
+
+        await actualServices.AnalystActionLogger.LogCountermeasureDeployedAsync(
+            "cli",
+            $"{allFindings.Count} new/increased findings, {plan.Sections.Count} critical chains",
+            executionResult.AllSucceeded,
+            executionResult.TotalCommandsFailed);
+
+        if (!executionResult.AllSucceeded)
+        {
+            Console.WriteLine("⚠️  Some countermeasure commands failed. Review the output above.");
+            return 3;
+        }
+
+        Console.WriteLine("✅ All countermeasure commands completed successfully.");
+
+        return 0;
+    }
+
     private static async Task<int> RunSessionAsync(string[] args)
     {
         await Task.CompletedTask;
@@ -1773,6 +1946,204 @@ public static class Program
         return 1;
     }
 
+    private static async Task<int> RunAnalystActionLogAsync(string[] args)
+    {
+        var sub = GetAnalystActionLogSubcommand(args);
+
+        using var services = AgentFactory.Create();
+        var store = services.AnalystActionStore;
+
+        return sub switch
+        {
+            "list" => await ListAnalystActionsAsync(args, store),
+            "export" => await ExportAnalystActionsAsync(args, store),
+            "clear" => ClearAnalystActions(args, store),
+            _ => PrintError($"Unknown analyst-action-log subcommand: {sub}")
+        };
+    }
+
+    private static string GetAnalystActionLogSubcommand(string[] args)
+    {
+        // The subcommand is the first bare token after `analyst-action-log`. Global flags may precede
+        // or follow it: --config-dir/--json/--output each take a value, --yes is boolean. We must not
+        // consume the subcommand as a flag value (e.g. `--yes clear` must resolve to "clear", not "list").
+        var valueFlags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "--config-dir", "--json", "--output" };
+
+        for (var i = 1; i < args.Length; i++)
+        {
+            var a = args[i];
+            if (!a.StartsWith("--", StringComparison.Ordinal))
+                return a.ToLowerInvariant();
+
+            if (valueFlags.Contains(a) && i + 1 < args.Length)
+                i++; // skip the flag's value; the loop's own i++ then advances past it
+        }
+
+        return "list";
+    }
+
+    private static async Task<int> ListAnalystActionsAsync(string[] args, IAnalystActionStore store)
+    {
+        var actions = store.GetAll();
+        var jsonPath = ParseArg(args, "--json", null);
+        var warning = store.PersistenceWarning;
+
+        if (!string.IsNullOrWhiteSpace(jsonPath))
+        {
+            if (Directory.Exists(jsonPath))
+            {
+                Console.WriteLine($"  Error: --json path is a directory: {jsonPath}");
+                return 1;
+            }
+
+            await WriteActionsJsonAsync(actions, jsonPath);
+            Console.WriteLine($"  JSON output written to: {jsonPath}");
+
+            if (!string.IsNullOrWhiteSpace(warning))
+                Console.WriteLine($"  Note: {warning}");
+
+            return 0;
+        }
+
+        if (actions.Count == 0)
+        {
+            Console.WriteLine("No analyst actions recorded.");
+        }
+        else
+        {
+            Console.WriteLine(string.Format("{0,-24} {1,-10} {2,-24} {3,-30} {4}", "Timestamp", "Actor", "Action", "Target", "Details"));
+            Console.WriteLine(new string('-', 130));
+            foreach (var a in actions)
+            {
+                var target = a.Target ?? "";
+                var details = a.Details ?? "";
+                Console.WriteLine(string.Format("{0:u}  {1,-10} {2,-24} {3,-30} {4}", a.TimestampUtc, a.Actor, a.ActionType, Truncate(target, 30), Truncate(details, 60)));
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(warning))
+            Console.WriteLine($"  Note: {warning}");
+
+        return 0;
+    }
+
+    private static async Task<int> ExportAnalystActionsAsync(string[] args, IAnalystActionStore store)
+    {
+        var output = ParseArg(args, "--output", null);
+        if (string.IsNullOrWhiteSpace(output))
+            return PrintError("--output is required");
+        if (Directory.Exists(output))
+            return PrintError($"--output path is a directory: {output}");
+
+        var actions = store.GetAll();
+        await WriteActionsJsonAsync(actions, output);
+        var warning = store.PersistenceWarning;
+        Console.WriteLine($"Exported {actions.Count} analyst action(s) to: {output}");
+
+        if (!string.IsNullOrWhiteSpace(warning))
+            Console.WriteLine($"  Note: {warning}");
+
+        return 0;
+    }
+
+    private static int ClearAnalystActions(string[] args, IAnalystActionStore store)
+    {
+        var yes = HasFlag(args, "--yes");
+
+        if (!yes)
+        {
+            Console.Write($"Clear all {store.GetAll().Count} analyst action log entries? Type 'yes' to confirm: ");
+            var response = Console.ReadLine()?.Trim();
+            if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Cancelled.");
+                return 0;
+            }
+        }
+
+        store.Clear();
+        var warning = store.PersistenceWarning;
+        Console.WriteLine("Analyst action log cleared.");
+
+        if (!string.IsNullOrWhiteSpace(warning))
+            Console.WriteLine($"  Note: {warning}");
+
+        return 0;
+    }
+
+    private static async Task WriteActionsJsonAsync(IReadOnlyList<AnalystActionEntry> actions, string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+
+        var json = JsonSerializer.Serialize(actions, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+
+        await File.WriteAllTextAsync(path, json);
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+            return value;
+
+        return value[..maxLength] + "...";
+    }
+
+    private static async Task<int> RunExportThreatIntelAsync(string[] args)
+    {
+        var logFile = ParseArg(args, "--log-file", null);
+        var format = ParseArg(args, "--format", null)?.ToLowerInvariant();
+        var output = ParseArg(args, "--output", null);
+        var intensityArg = ParseArg(args, "--intensity", "Medium")!;
+
+        if (string.IsNullOrWhiteSpace(logFile))
+            return PrintError("--log-file is required");
+        if (!File.Exists(logFile))
+            return PrintError($"Log file not found: {logFile}");
+        if (string.IsNullOrWhiteSpace(format) || (format != "stix" && format != "misp"))
+            return PrintError("--format is required. Use stix or misp.");
+        if (string.IsNullOrWhiteSpace(output))
+            return PrintError("--output is required");
+        if (!Enum.TryParse<IntensityLevel>(intensityArg, true, out var intensity))
+            return PrintError($"Unknown intensity: {intensityArg}. Use Low, Medium, or High.");
+        if (Directory.Exists(output))
+            return PrintError($"--output path is a directory: {output}");
+
+        using var services = AgentFactory.Create();
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var rawLog = await File.ReadAllTextAsync(logFile, cts.Token);
+        var result = services.Analyzer.Analyze(rawLog, intensity, cts.Token);
+
+        var formatter = format == "stix"
+            ? (IEvidenceFormatter)new StixFormatter()
+            : new MispFormatter();
+
+        var json = formatter.Format(result, rawLog);
+
+        var directory = Path.GetDirectoryName(output);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+
+        await File.WriteAllTextAsync(output, json, cts.Token);
+
+        await services.AnalystActionLogger.LogThreatIntelExportedAsync("cli", format, output);
+
+        Console.WriteLine($"Exported {format.ToUpperInvariant()} threat intelligence to: {output}");
+        Console.WriteLine($"  Findings: {result.Findings.Count}, Critical: {result.Findings.Count(f => f.Severity == Severity.Critical)}");
+
+        return result.Findings.Any(f => f.Severity == Severity.Critical) ? 2 : 0;
+    }
+
     private static async Task<int> RunThreatIntelAsync(string[] args)
     {
         await Task.CompletedTask;
@@ -1788,14 +2159,14 @@ public static class Program
 
         return sub switch
         {
-            "import" => RunThreatIntelImport(args, store),
+            "import" => RunThreatIntelImport(args, store, services.AnalystActionLogger),
             "status" => RunThreatIntelStatus(store),
-            "clear" => RunThreatIntelClear(args, store),
+            "clear" => RunThreatIntelClear(args, store, services.AnalystActionLogger),
             _ => PrintError($"Unknown threat-intel subcommand: {sub}")
         };
     }
 
-    private static int RunThreatIntelImport(string[] args, IThreatIntelStore store)
+    private static int RunThreatIntelImport(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
     {
         var filePath = ParseArg(args, "--file", null);
         var format = ParseArg(args, "--format", "auto")!.ToLowerInvariant();
@@ -1848,6 +2219,7 @@ public static class Program
         if (!string.IsNullOrWhiteSpace(store.PersistenceWarning))
             Console.WriteLine($"  Note: {store.PersistenceWarning}");
 
+        logger.LogThreatIntelImportedAsync("cli", format, result.ImportedCount).GetAwaiter().GetResult();
         return 0;
     }
 
@@ -1874,13 +2246,14 @@ public static class Program
         return 0;
     }
 
-    private static int RunThreatIntelClear(string[] args, IThreatIntelStore store)
+    private static int RunThreatIntelClear(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
     {
         var yes = HasFlag(args, "--yes");
+        var previousCount = store.Count;
 
         if (!yes)
         {
-            Console.Write($"Clear all {store.Count} imported IOCs? Type 'yes' to confirm: ");
+            Console.Write($"Clear all {previousCount} imported IOCs? Type 'yes' to confirm: ");
             var response = Console.ReadLine()?.Trim();
             if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
             {
@@ -1891,6 +2264,8 @@ public static class Program
 
         store.Clear();
         Console.WriteLine("All threat intelligence IOCs cleared.");
+
+        logger.LogThreatIntelClearedAsync("cli", previousCount).GetAwaiter().GetResult();
         return 0;
     }
 
@@ -1936,12 +2311,17 @@ public static class Program
         Console.WriteLine("  vulcanstrace schedule uninstall-cron --id <id>");
         Console.WriteLine("  vulcanstrace schedule run --id <id>");
         Console.WriteLine("  vulcanstrace schedule remediate --id <id> [--dry-run] [--yes]");
+        Console.WriteLine("  vulcanstrace countermeasure --log-file <file> --baseline <file> [--dry-run] [--yes] [--role <role>] [--intensity <level>]");
         Console.WriteLine("  vulcanstrace session list");
         Console.WriteLine("  vulcanstrace session show --id <id>");
         Console.WriteLine("  vulcanstrace session delete --id <id>");
         Console.WriteLine("  vulcanstrace threat-intel import --file <path> [--format stix|misp|auto]");
         Console.WriteLine("  vulcanstrace threat-intel status");
         Console.WriteLine("  vulcanstrace threat-intel clear [--yes]");
+        Console.WriteLine("  vulcanstrace export-threat-intel --log-file <path> --format stix|misp --output <file> [--intensity <level>]");
+        Console.WriteLine("  vulcanstrace analyst-action-log [list] [--json <file>]");
+        Console.WriteLine("  vulcanstrace analyst-action-log export --output <file>");
+        Console.WriteLine("  vulcanstrace analyst-action-log clear [--yes]");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --config-dir <dir>         [global] Base config directory for all stores (overrides XDG_CONFIG_HOME)");
@@ -1959,6 +2339,8 @@ public static class Program
         Console.WriteLine("  --output-evidence <zip>    Write a signed evidence ZIP including the diff report");
         Console.WriteLine("  --signing-key <hex>        Hex-encoded HMAC signing key for evidence packages");
         Console.WriteLine("  --output-mitre <file>      Write the MITRE ATT&CK Navigator layer JSON");
+        Console.WriteLine("  --format stix|misp         Threat intelligence export format");
+        Console.WriteLine("  --output <file>           Write STIX/MISP threat intelligence JSON");
         Console.WriteLine("  --notify-on-critical       Send a notification if critical findings are found");
         Console.WriteLine("  --no-notify-on-critical    Disable critical notifications (edit only)");
         Console.WriteLine("  --role <role>              Machine role: Workstation, Server, LabBox, Router, DevMachine");
@@ -1996,6 +2378,6 @@ public static class Program
         Console.WriteLine("  0  Success (no critical findings / no diff detected)");
         Console.WriteLine("  1  Error");
         Console.WriteLine("  2  Success with critical findings / diff detected / ask returned critical findings");
-        Console.WriteLine("  3  Auto-fix or 'schedule remediate' executed but some commands failed");
+        Console.WriteLine("  3  Auto-fix, 'schedule remediate', or 'countermeasure' executed but some commands failed");
     }
 }

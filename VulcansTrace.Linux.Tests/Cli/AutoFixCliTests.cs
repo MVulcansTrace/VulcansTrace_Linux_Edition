@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
@@ -216,6 +217,10 @@ public class AutoFixCliTests : IDisposable
             new[] { "audit", "--auto-fix", "--yes" }, result, services, default);
 
         Assert.Equal(3, exitCode);
+        var entry = Assert.Single(services.AnalystActionStore.GetAll(), a => a.ActionType == AnalystActionType.BatchAutoFixRan);
+        Assert.Contains("sections=1", entry.Details);
+        Assert.Contains("success=False", entry.Details);
+        Assert.Contains("failed=1", entry.Details);
     }
 
     [Fact]

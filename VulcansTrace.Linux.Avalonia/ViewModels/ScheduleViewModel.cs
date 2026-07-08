@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Autonomous;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Notifications;
@@ -29,8 +30,10 @@ public sealed class ScheduleViewModel : ViewModelBase
 {
     private readonly IScheduleStore _store;
     private readonly IAuditHistoryStore _historyStore;
+    private readonly INotificationSettingsStore _notificationSettingsStore;
     private readonly INotificationService _fallbackNotificationService;
     private readonly IDialogService _dialogService;
+    private readonly AnalystActionLogger? _analystActionLogger;
     private ScheduleRowViewModel? _selectedRow;
     private string _statusMessage = "";
 
@@ -104,12 +107,14 @@ public sealed class ScheduleViewModel : ViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="ScheduleViewModel"/> class.
     /// </summary>
-    public ScheduleViewModel(IScheduleStore store, IAuditHistoryStore historyStore, INotificationService fallbackNotificationService, IDialogService dialogService)
+    public ScheduleViewModel(IScheduleStore store, IAuditHistoryStore historyStore, INotificationSettingsStore notificationSettingsStore, INotificationService fallbackNotificationService, IDialogService dialogService, AnalystActionLogger? analystActionLogger = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
+        _notificationSettingsStore = notificationSettingsStore ?? throw new ArgumentNullException(nameof(notificationSettingsStore));
         _fallbackNotificationService = fallbackNotificationService ?? throw new ArgumentNullException(nameof(fallbackNotificationService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _analystActionLogger = analystActionLogger;
 
         AddCommand = new AsyncRelayCommand(
             async _ => await AddAsync(),
@@ -210,6 +215,7 @@ public sealed class ScheduleViewModel : ViewModelBase
         _store.Save(schedule);
         Refresh();
         StatusMessage = $"Schedule '{schedule.Name}' created.";
+        await (_analystActionLogger?.LogScheduleAddedAsync("avalonia", schedule.Id) ?? Task.CompletedTask);
     }
 
     private async Task EditAsync()
@@ -238,28 +244,34 @@ public sealed class ScheduleViewModel : ViewModelBase
         _store.Save(updated);
         Refresh();
         StatusMessage = $"Schedule '{updated.Name}' updated.";
+        await (_analystActionLogger?.LogScheduleEditedAsync("avalonia", updated.Id) ?? Task.CompletedTask);
     }
 
-    private Task DeleteAsync()
+    private async Task DeleteAsync()
     {
         if (SelectedRow == null)
-            return Task.CompletedTask;
+            return;
 
-        _store.Delete(SelectedRow.Schedule.Id);
+        var schedule = SelectedRow.Schedule;
+        _store.Delete(schedule.Id);
         Refresh();
-        StatusMessage = $"Schedule '{SelectedRow.Schedule.Name}' deleted.";
-        return Task.CompletedTask;
+        StatusMessage = $"Schedule '{schedule.Name}' deleted.";
+        await (_analystActionLogger?.LogScheduleDeletedAsync("avalonia", schedule.Id) ?? Task.CompletedTask);
     }
 
-    private Task ToggleAsync(bool enabled)
+    private async Task ToggleAsync(bool enabled)
     {
         if (SelectedRow == null)
-            return Task.CompletedTask;
+            return;
 
-        _store.Save(SelectedRow.Schedule with { Enabled = enabled });
+        var schedule = SelectedRow.Schedule;
+        _store.Save(schedule with { Enabled = enabled });
         Refresh();
-        StatusMessage = $"Schedule '{SelectedRow.Schedule.Name}' {(enabled ? "enabled" : "disabled")}.";
-        return Task.CompletedTask;
+        StatusMessage = $"Schedule '{schedule.Name}' {(enabled ? "enabled" : "disabled")}.";
+        if (enabled)
+            await (_analystActionLogger?.LogScheduleEnabledAsync("avalonia", schedule.Id) ?? Task.CompletedTask);
+        else
+            await (_analystActionLogger?.LogScheduleDisabledAsync("avalonia", schedule.Id) ?? Task.CompletedTask);
     }
 
     private async Task RunNowAsync()
@@ -565,34 +577,26 @@ public sealed class ScheduleViewModel : ViewModelBase
 
     private INotificationService CreateNotificationService(NotificationChannel channel)
     {
+        if (_notificationSettingsStore?.Settings is { Enabled: false })
+            return new NullNotificationService();
+
+        var settings = _notificationSettingsStore?.Settings ?? new NotificationSettings { Channel = channel };
         return channel switch
         {
-            NotificationChannel.Email => CreateEmailService(),
-            NotificationChannel.Webhook => CreateWebhookService(),
+            NotificationChannel.Email => new EmailNotificationService(settings with { Channel = NotificationChannel.Email }),
+            NotificationChannel.Webhook => new WebhookNotificationService(settings with { Channel = NotificationChannel.Webhook }),
             _ => _fallbackNotificationService
         };
     }
 
-    private static INotificationService CreateEmailService()
+    private static INotificationService CreateEmailService(NotificationSettings settings)
     {
-        var host = Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_HOST") ?? "localhost";
-        var port = int.TryParse(Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_PORT"), out var p) ? p : 587;
-        var fromAddr = Environment.GetEnvironmentVariable("VT_EMAIL_FROM") ?? "vulcanstrace@localhost";
-        var toAddr = Environment.GetEnvironmentVariable("VT_EMAIL_TO") ?? "admin@localhost";
-        var user = Environment.GetEnvironmentVariable("VT_EMAIL_USER");
-        var pass = Environment.GetEnvironmentVariable("VT_EMAIL_PASS");
-        var noSsl = Environment.GetEnvironmentVariable("VT_EMAIL_NO_SSL");
-        var disableSsl = noSsl?.Equals("1", StringComparison.OrdinalIgnoreCase) == true
-            || noSsl?.Equals("true", StringComparison.OrdinalIgnoreCase) == true
-            || noSsl?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
-        var enableSsl = !disableSsl;
-        return new EmailNotificationService(host, port, fromAddr, toAddr, user, pass, enableSsl);
+        return new EmailNotificationService(settings);
     }
 
-    private static INotificationService CreateWebhookService()
+    private static INotificationService CreateWebhookService(NotificationSettings settings)
     {
-        var url = Environment.GetEnvironmentVariable("VT_WEBHOOK_URL") ?? "http://localhost:8080/webhook";
-        return new WebhookNotificationService(url);
+        return new WebhookNotificationService(settings);
     }
 
     private static Window? GetOwnerWindow()
