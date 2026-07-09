@@ -12,10 +12,12 @@ using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
+using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Converters;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
+using VulcansTrace.Linux.Core.ThreatIntel;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -48,6 +50,27 @@ public class AgentViewModelTests
 
         Assert.False(vm.CanExplainSelected);
         Assert.False(vm.ExplainSelectedCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void NotifySelectedFindingChanged_RefreshesVerifySelectedState()
+    {
+        var withRuleId = CreateFinding();
+        var withoutRuleId = CreateFinding() with { RuleId = "" };
+        var current = withRuleId;
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            SelectedFindingProvider = () => current
+        };
+
+        Assert.True(vm.CanVerifySelected);
+        Assert.True(vm.VerifySelectedCommand.CanExecute(null));
+
+        current = withoutRuleId;
+        vm.NotifySelectedFindingChanged();
+
+        Assert.False(vm.CanVerifySelected);
+        Assert.False(vm.VerifySelectedCommand.CanExecute(null));
     }
 
     [AvaloniaFact]
@@ -132,6 +155,85 @@ public class AgentViewModelTests
         FlushDispatcher();
 
         Assert.Equal(1, vm.Messages.Count(message => message.Text == capabilityReport));
+    }
+
+    [AvaloniaFact]
+    public async Task FullAuditCommand_EnablesExportThreatIntelCommand()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.CanExportThreatIntel);
+        Assert.False(vm.ExportThreatIntelCommand.CanExecute(null));
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.CanExportThreatIntel);
+        Assert.True(vm.ExportThreatIntelCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task ExportThreatIntelCommand_InvokesParentCallback()
+    {
+        var invoked = false;
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            RequestExportThreatIntel = async () =>
+            {
+                invoked = true;
+                return await Task.FromResult(true);
+            }
+        };
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        vm.ExportThreatIntelCommand.Execute(null);
+        await vm.ExportThreatIntelCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(invoked);
+    }
+
+    [AvaloniaFact]
+    public async Task ImportThreatIntelCommand_ShowsStorePersistenceWarning()
+    {
+        var json = @"{
+            ""type"": ""bundle"",
+            ""objects"": [
+                { ""type"": ""ipv4-addr"", ""value"": ""10.0.0.99"" }
+            ]
+        }";
+        var tempFile = Path.GetTempFileName() + ".json";
+        await File.WriteAllTextAsync(tempFile, json);
+
+        try
+        {
+            var store = new WarningThreatIntelStore("Threat intel persistence is unavailable. IOCs will last only for this session.");
+            var vm = new AgentViewModel(
+                new StubAgent(),
+                new InMemoryAuditHistoryStore(),
+                PlanBuilder,
+                new RemediationExecutor(new ProcessRunner()),
+                threatIntelStore: store,
+                dialogService: new FakeDialogService(confirmIndex: 1, openFileResult: tempFile));
+
+            vm.ImportThreatIntelCommand.Execute(null);
+            await vm.ImportThreatIntelCommand.ExecutionTask;
+
+            Assert.Contains(vm.Messages, message =>
+                message.Text.Contains("Imported 1 IOC", StringComparison.Ordinal) &&
+                !message.IsError);
+            Assert.Contains(vm.Messages, message =>
+                message.Text.Contains("IOCs will last only for this session", StringComparison.Ordinal) &&
+                message.IsInfo);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
     [AvaloniaFact]
@@ -230,7 +332,7 @@ public class AgentViewModelTests
             "/firewall", "/network", "/ports", "/services", "/ssh", "/filesystem", "/kernel",
             "/users", "/logging", "/cron", "/packages", "/containers", "/kubernetes",
             "/threatintel", "/yara", "/processes", "/full", "/fullaudit", "/baseline",
-            "/drift", "/show baseline", "/baseline show", "/sessions", "/risk", "/help", "/clear"
+            "/drift", "/show baseline", "/baseline show", "/logdiffdemo", "/sessions", "/risk", "/help", "/clear"
         })
         {
             Assert.Contains(expected, commands);
@@ -251,6 +353,17 @@ public class AgentViewModelTests
         Assert.Contains("Check drift", baselineLabels);
         Assert.Contains("Show baseline", baselineLabels);
         Assert.Contains("Export audit", exportLabels);
+    }
+
+    [AvaloniaFact]
+    public void SlashPalette_LogDiffDemoPrefix_ShowsCommand()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.UserQuery = "/logdiffdemo";
+
+        Assert.True(vm.IsSlashPaletteOpen);
+        Assert.Contains(vm.FilteredSlashCommands, c => c.CommandText == "/logdiffdemo");
     }
 
     [AvaloniaFact]
@@ -1358,6 +1471,60 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task VerifySelectedCommand_VerifiesFindingAndAddsMessages()
+    {
+        var finding = CreateFinding();
+        var agent = new VerifyFindingAgent(finding.RuleId!);
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            SelectedFindingProvider = () => finding
+        };
+
+        Assert.True(vm.VerifySelectedCommand.CanExecute(null));
+
+        vm.VerifySelectedCommand.Execute(null);
+        await vm.VerifySelectedCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == $"Verify {finding.RuleId}" && m.IsUser);
+        Assert.Contains(vm.Messages, m => m.Text == $"verified {finding.RuleId}");
+        Assert.False(vm.IsBusy);
+    }
+
+    [AvaloniaFact]
+    public async Task VerifySelectedCommand_NoRuleId_AddsGuidanceMessage()
+    {
+        var finding = CreateFinding() with { RuleId = "" };
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            SelectedFindingProvider = () => finding
+        };
+
+        vm.VerifySelectedCommand.Execute(null);
+        await vm.VerifySelectedCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == "Select a finding with a rule ID to verify remediation." && m.IsInfo);
+        Assert.False(vm.IsBusy);
+    }
+
+    [AvaloniaFact]
+    public async Task VerifySelectedCommand_NoSelection_AddsGuidanceMessage()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            SelectedFindingProvider = () => null
+        };
+
+        vm.VerifySelectedCommand.Execute(null);
+        await vm.VerifySelectedCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Contains(vm.Messages, m => m.Text == "Select a finding with a rule ID to verify remediation." && m.IsInfo);
+        Assert.False(vm.IsBusy);
+    }
+
+    [AvaloniaFact]
     public async Task SetBaselineCommand_AfterAudit_DisplaysBaselineSummary()
     {
         var vm = new AgentViewModel(new SetBaselineSuccessAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -2201,6 +2368,14 @@ public class AgentViewModelTests
                 Summary = "stub"
             });
 
+        public virtual Task<AgentResult> VerifyFindingAsync(string ruleId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = $"stub verify {ruleId}",
+                AgentFindings = Array.Empty<Finding>()
+            });
+
         public virtual Task<AgentResult> MarkSessionExportedAsync(string sessionId, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {
@@ -2547,6 +2722,24 @@ public class AgentViewModelTests
             });
     }
 
+    private sealed class VerifyFindingAgent : StubAgent
+    {
+        private readonly string _ruleId;
+
+        public VerifyFindingAgent(string ruleId)
+        {
+            _ruleId = ruleId;
+        }
+
+        public override Task<AgentResult> VerifyFindingAsync(string ruleId, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = $"verified {ruleId}",
+                AgentFindings = Array.Empty<Finding>()
+            });
+    }
+
     private sealed class SetBaselineSuccessAgent : StubAgent
     {
         public override Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
@@ -2792,20 +2985,103 @@ public class AgentViewModelTests
         Assert.True(fakeRunner.WasCalled);
     }
 
+    [AvaloniaFact]
+    public void BatchAutoFixCommand_NoFindings_IsDisabled()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.False(vm.CanBatchAutoFix);
+        Assert.False(vm.BatchAutoFixCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task BatchAutoFixCommand_AfterAuditWithFindings_RunsDryRun()
+    {
+        var agent = new FindingAuditAgent(CreateFinding());
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask!;
+
+        Assert.True(vm.CanBatchAutoFix);
+
+        vm.BatchAutoFixCommand.Execute(null);
+        await vm.BatchAutoFixCommand.ExecutionTask!;
+
+        Assert.Contains(vm.Messages, m => m.Text.Contains("batch auto-fix dry-run"));
+        Assert.Contains(vm.Messages, m => m.Text.Contains("[DRY-RUN]"));
+        Assert.Contains(vm.Messages, m => m.Text.Contains("Dialog service unavailable"));
+    }
+
+    [AvaloniaFact]
+    public async Task BatchAutoFixCommand_LiveRun_WithConfirmation_Executes()
+    {
+        var agent = new FindingAuditAgent(CreateFindingWithFix());
+        var fakeRunner = new FakeProcessRunner();
+        var dialog = new FakeDialogService(confirmIndex: 0); // "Deploy Live"
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(fakeRunner), dialogService: dialog);
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask!;
+
+        Assert.True(vm.CanBatchAutoFix);
+
+        vm.BatchAutoFixCommand.Execute(null);
+        await vm.BatchAutoFixCommand.ExecutionTask!;
+
+        Assert.Contains(vm.Messages, m => m.Text.Contains("[DRY-RUN]"));
+        Assert.Contains(vm.Messages, m => m.Text.Contains("[LIVE]"));
+        Assert.True(fakeRunner.WasCalled);
+    }
+
+    private static Finding CreateFindingWithFix() => new()
+    {
+        Category = "Firewall",
+        Severity = Severity.High,
+        SourceHost = "localhost",
+        Target = "22/tcp",
+        TimeRangeStart = DateTime.UnixEpoch,
+        TimeRangeEnd = DateTime.UnixEpoch,
+        ShortDescription = "SSH exposed",
+        Details = "**Suggested next action:**\n1. Inspect exposure with `cat /etc/passwd`",
+        RuleId = "FW-001"
+    };
+
+    private sealed class FindingAuditAgent : StubAgent
+    {
+        private readonly Finding _finding;
+
+        public FindingAuditAgent(Finding finding)
+        {
+            _finding = finding;
+        }
+
+        public override Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
+            Task.FromResult(new AgentResult
+            {
+                Intent = intent,
+                Summary = "audit",
+                AgentFindings = new[] { _finding }
+            });
+    }
+
     private sealed class FakeDialogService : IDialogService
     {
         private readonly int? _confirmIndex;
+        private readonly string? _openFileResult;
 
-        public FakeDialogService(int? confirmIndex = null)
+        public FakeDialogService(int? confirmIndex = null, string? openFileResult = null)
         {
             _confirmIndex = confirmIndex;
+            _openFileResult = openFileResult;
         }
 
         public void ShowMessage(string message, string title) { }
         public void ShowError(string message, string title) { }
         public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName) => Task.FromResult<string?>(null);
-        public Task<string?> ShowOpenFileDialogAsync(string title, string filter) => Task.FromResult<string?>(null);
+        public Task<string?> ShowOpenFileDialogAsync(string title, string filter) => Task.FromResult(_openFileResult);
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "") => Task.FromResult<string?>(null);
+        public Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel) => Task.FromResult<bool?>(null);
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0) => Task.FromResult<int?>(_confirmIndex);
     }
 
@@ -3137,6 +3413,47 @@ public class AgentViewModelTests
         public bool IsPinned(string messageId) => _entries.ContainsKey(messageId);
 
         public IReadOnlyList<PinnedMessage> GetAll() => _entries.Values.ToList();
+    }
+
+    private sealed class WarningThreatIntelStore : IThreatIntelStore
+    {
+        private readonly InMemoryThreatIntelStore _inner = new();
+        private readonly string _warning;
+
+        public WarningThreatIntelStore(string warning)
+        {
+            _warning = warning;
+        }
+
+        public string? PersistenceWarning { get; private set; }
+
+        public int Count => _inner.Count;
+
+        public void Import(IEnumerable<IocEntry> entries)
+        {
+            _inner.Import(entries);
+            PersistenceWarning = _warning;
+        }
+
+        public void Clear()
+        {
+            _inner.Clear();
+            PersistenceWarning = _warning;
+        }
+
+        public bool Remove(string storageKey)
+        {
+            var removed = _inner.Remove(storageKey);
+            if (removed)
+                PersistenceWarning = _warning;
+            return removed;
+        }
+
+        public int CountByType(IocType type) => _inner.CountByType(type);
+
+        public IReadOnlyList<IocEntry> GetByType(IocType type) => _inner.GetByType(type);
+
+        public IReadOnlyList<IocEntry> GetAll() => _inner.GetAll();
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Threading;
+using System.Runtime.Versioning;
 using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Persistence;
@@ -15,6 +16,7 @@ internal sealed class JsonFilePersistence<T>
     private readonly string _filePath;
     private readonly JsonSerializerOptions _options;
     private readonly bool _useAtomicWrite;
+    private readonly UnixFileMode? _unixFileMode;
     private readonly ILogSink? _logSink;
 
     /// <summary>
@@ -23,12 +25,19 @@ internal sealed class JsonFilePersistence<T>
     /// <param name="filePath">The full path to the JSON file.</param>
     /// <param name="options">Serialization options. Defaults to <see cref="JsonOptionsProvider.Default"/>.</param>
     /// <param name="useAtomicWrite">If true, writes to a temp file and moves it into place.</param>
+    /// <param name="unixFileMode">Optional Unix file mode to enforce for files containing sensitive data.</param>
     /// <param name="logSink">Optional log sink for persistence diagnostics such as quarantine failures.</param>
-    public JsonFilePersistence(string filePath, JsonSerializerOptions? options = null, bool useAtomicWrite = false, ILogSink? logSink = null)
+    public JsonFilePersistence(
+        string filePath,
+        JsonSerializerOptions? options = null,
+        bool useAtomicWrite = false,
+        UnixFileMode? unixFileMode = null,
+        ILogSink? logSink = null)
     {
         _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
         _options = options ?? JsonOptionsProvider.Default;
         _useAtomicWrite = useAtomicWrite;
+        _unixFileMode = unixFileMode;
         _logSink = logSink;
     }
 
@@ -131,12 +140,13 @@ internal sealed class JsonFilePersistence<T>
         if (_useAtomicWrite)
         {
             var tempPath = _filePath + ".tmp";
-            File.WriteAllText(tempPath, json);
+            WriteFile(tempPath, json);
             File.Move(tempPath, _filePath, overwrite: true);
+            ApplyUnixFileMode(_filePath);
         }
         else
         {
-            File.WriteAllText(_filePath, json);
+            WriteFile(_filePath, json);
         }
     }
 
@@ -145,12 +155,63 @@ internal sealed class JsonFilePersistence<T>
         if (_useAtomicWrite)
         {
             var tempPath = _filePath + ".tmp";
-            await File.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+            await WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, _filePath, overwrite: true);
+            ApplyUnixFileMode(_filePath);
         }
         else
         {
-            await File.WriteAllTextAsync(_filePath, json, cancellationToken).ConfigureAwait(false);
+            await WriteFileAsync(_filePath, json, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private void WriteFile(string path, string json)
+    {
+        if (_unixFileMode is not { } unixFileMode || OperatingSystem.IsWindows())
+        {
+            File.WriteAllText(path, json);
+            return;
+        }
+
+        ApplyUnixFileMode(path);
+        var options = CreateSecureFileStreamOptions(unixFileMode);
+        using var stream = new FileStream(path, options);
+        using var writer = new StreamWriter(stream);
+        writer.Write(json);
+        ApplyUnixFileMode(path);
+    }
+
+    private async Task WriteFileAsync(string path, string json, CancellationToken cancellationToken)
+    {
+        if (_unixFileMode is not { } unixFileMode || OperatingSystem.IsWindows())
+        {
+            await File.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        ApplyUnixFileMode(path);
+        var options = CreateSecureFileStreamOptions(unixFileMode);
+        await using var stream = new FileStream(path, options);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
+        ApplyUnixFileMode(path);
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    private static FileStreamOptions CreateSecureFileStreamOptions(UnixFileMode unixFileMode)
+        => new()
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            UnixCreateMode = unixFileMode
+        };
+
+    private void ApplyUnixFileMode(string path)
+    {
+        if (_unixFileMode is not { } unixFileMode || OperatingSystem.IsWindows() || !File.Exists(path))
+            return;
+
+        File.SetUnixFileMode(path, unixFileMode);
     }
 }

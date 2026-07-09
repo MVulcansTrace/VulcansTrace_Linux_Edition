@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Messages;
@@ -52,6 +53,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private readonly IDialogService? _dialogService;
     private readonly IAgentMemoryStore? _memoryStore;
     private readonly IPinnedMessageStore? _pinnedMessageStore;
+    private readonly AnalystActionLogger? _analystActionLogger;
     private ISessionStore? _sessionStore;
     private string? _lastShownMemoryWarning;
 
@@ -265,14 +267,20 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 YaraCommand.RaiseCanExecuteChanged();
                 ProcessRuntimeCommand.RaiseCanExecuteChanged();
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
+                VerifySelectedCommand.RaiseCanExecuteChanged();
                 ExportAuditCommand.RaiseCanExecuteChanged();
                 ExportRemediationCommand.RaiseCanExecuteChanged();
                 VerifySessionCommand.RaiseCanExecuteChanged();
                 ExportSessionCommand.RaiseCanExecuteChanged();
+                ExportThreatIntelCommand.RaiseCanExecuteChanged();
                 CompareAuditsCommand.RaiseCanExecuteChanged();
+                BatchAutoFixCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanExplainSelected));
+                OnPropertyChanged(nameof(CanVerifySelected));
                 OnPropertyChanged(nameof(CanExportAudit));
                 OnPropertyChanged(nameof(CanExportSession));
+                OnPropertyChanged(nameof(CanExportThreatIntel));
+                OnPropertyChanged(nameof(CanBatchAutoFix));
                 OnPropertyChanged(nameof(CanCompareAudits));
             }
         }
@@ -600,11 +608,20 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets whether the selected UI finding can be explained now.</summary>
     public bool CanExplainSelected => !_isBusy && SelectedFindingProvider?.Invoke() != null;
 
+    /// <summary>Gets whether the selected UI finding can be verified now.</summary>
+    public bool CanVerifySelected => !_isBusy && SelectedFindingProvider?.Invoke() is Finding f && !string.IsNullOrWhiteSpace(f.RuleId);
+
     /// <summary>Gets whether the latest agent result is an audit that can be exported.</summary>
     public bool CanExportAudit => !_isBusy && _resultState.IsExportableAudit;
 
     /// <summary>Gets whether the latest agent result has a remediation session report to export.</summary>
     public bool CanExportSession => !_isBusy && _resultState.LastResult?.RemediationSession != null;
+
+    /// <summary>Gets whether the latest agent result can be exported as STIX/MISP threat intelligence.</summary>
+    public bool CanExportThreatIntel => !_isBusy && _resultState.IsExportableAudit;
+
+    /// <summary>Gets whether a batch auto-fix can run over the latest audit findings.</summary>
+    public bool CanBatchAutoFix => !_isBusy && _resultState.LastResult?.AgentFindings.Count > 0;
 
     /// <summary>Gets whether two audit snapshots are available for comparison.</summary>
     public bool CanCompareAudits => History.Count >= 2;
@@ -671,6 +688,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to explain the selected finding.</summary>
     public AsyncRelayCommand ExplainSelectedCommand { get; }
 
+    /// <summary>Gets the command to verify the selected finding has been remediated.</summary>
+    public AsyncRelayCommand VerifySelectedCommand { get; }
+
     /// <summary>Gets the command to export the last agent audit.</summary>
     public RelayCommand ExportAuditCommand { get; }
 
@@ -713,6 +733,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to export the current remediation session report.</summary>
     public AsyncRelayCommand ExportSessionCommand { get; }
 
+    /// <summary>Gets the command to export findings as STIX or MISP threat intelligence.</summary>
+    public AsyncRelayCommand ExportThreatIntelCommand { get; }
+
     /// <summary>Gets the command to list persisted remediation sessions.</summary>
     public AsyncRelayCommand ListSessionsCommand { get; }
 
@@ -740,6 +763,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to deploy active countermeasures for a critical chain.</summary>
     public AsyncRelayCommand DeployCountermeasuresCommand { get; }
 
+    /// <summary>Gets the command to run a batch auto-fix over the latest audit findings.</summary>
+    public AsyncRelayCommand BatchAutoFixCommand { get; }
+
     /// <summary>
     /// Callback invoked when the user requests an audit export from the agent panel.
     /// Set by the parent ViewModel to bridge to the shared evidence export logic.
@@ -759,10 +785,28 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public Func<string, Task<bool>>? RequestExportSession { get; set; }
 
     /// <summary>
+    /// Callback invoked when the user requests to export findings as STIX/MISP threat intelligence.
+    /// Set by the parent ViewModel to handle the format selection and save dialog.
+    /// </summary>
+    public Func<Task<bool>>? RequestExportThreatIntel { get; set; }
+
+    /// <summary>
     /// Callback invoked when the user requests to show an audit diff.
     /// Set by the parent ViewModel to open the diff window.
     /// </summary>
     public Action<AuditDiff>? ShowAuditDiffAction { get; set; }
+
+    /// <summary>
+    /// Callback invoked when the user requests the log-diff demo.
+    /// Set by the parent ViewModel to open a pre-loaded Log Diff window.
+    /// </summary>
+    public Func<Task>? ShowLogDiffDemoAction { get; set; }
+
+    /// <summary>
+    /// Callback invoked to navigate to the Threat Intel management view.
+    /// Set by the parent window to switch the selected sidebar item.
+    /// </summary>
+    public Action? NavigateToThreatIntelAction { get; set; }
 
     /// <summary>
     /// Swaps the underlying agent implementation (used when machine role changes)
@@ -788,7 +832,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <param name="sessionStore">Optional store for browsing and managing remediation sessions.</param>
     /// <param name="memoryStore">Optional store for cross-session conversation memory.</param>
     /// <param name="pinnedMessageStore">Optional store for pinned chat messages.</param>
-    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null, IAgentMemoryStore? memoryStore = null, IPinnedMessageStore? pinnedMessageStore = null)
+    public AgentViewModel(IAgent agent, IAuditHistoryStore historyStore, RemediationPlanBuilder remediationPlanBuilder, RemediationExecutor remediationExecutor, ISessionStore? sessionStore = null, IThreatIntelStore? threatIntelStore = null, IDialogService? dialogService = null, IAgentMemoryStore? memoryStore = null, IPinnedMessageStore? pinnedMessageStore = null, AnalystActionLogger? analystActionLogger = null)
     {
         _agent = agent ?? throw new ArgumentNullException(nameof(agent));
         ArgumentNullException.ThrowIfNull(historyStore);
@@ -799,6 +843,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         _dialogService = dialogService;
         _memoryStore = memoryStore;
         _pinnedMessageStore = pinnedMessageStore;
+        _analystActionLogger = analystActionLogger;
         _typewriterScheduler = new DispatcherTypewriterScheduler();
         _presenter = new AgentResultPresenter(
             Messages,
@@ -915,6 +960,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => CanExplainSelected,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
+        VerifySelectedCommand = new AsyncRelayCommand(
+            async _ => await VerifySelectedAsync(),
+            _ => CanVerifySelected,
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
         ExportAuditCommand = new RelayCommand(
             _ => RequestExportAudit?.Invoke(),
             _ => CanExportAudit);
@@ -981,6 +1031,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => !_isBusy && _resultState.LastResult?.RemediationSession != null,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
+        ExportThreatIntelCommand = new AsyncRelayCommand(
+            async _ => await ExportThreatIntelAsync(),
+            _ => CanExportThreatIntel,
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
         ListSessionsCommand = new AsyncRelayCommand(
             async _ => await ListSessionsAsync(),
             _ => !_isBusy,
@@ -1023,6 +1078,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         DeployCountermeasuresCommand = new AsyncRelayCommand(
             async param => await DeployCountermeasuresAsync(param as RemediationSection),
             param => !_isBusy && param is RemediationSection section && section.CountermeasureCommands.Count > 0,
+            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
+        BatchAutoFixCommand = new AsyncRelayCommand(
+            async _ => await BatchAutoFixAsync(),
+            _ => CanBatchAutoFix,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
         _selectedChatSeverityFilter = ChatSeverityFilters[0];
@@ -1106,6 +1166,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             Command = CompareSelectedAuditsCommand,
             AutomationIdOverride = "AgentCompareSelectedButton"
         });
+        AddAnalysis(new AgentQuickAction
+        {
+            Label = "Batch Auto-Fix",
+            Icon = "mdi-wrench",
+            Group = "Analysis",
+            Command = BatchAutoFixCommand,
+            AutomationIdOverride = "AgentBatchAutoFixButton"
+        });
 
         AddRunCheck(new AgentQuickAction { Label = "Full audit", Icon = "mdi-magnify", Group = "Run checks", Command = FullAuditCommand });
         AddRunCheck(new AgentQuickAction { Label = "Firewall", Icon = "mdi-shield", Group = "Run checks", Command = FirewallCommand });
@@ -1138,6 +1206,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             Command = ExportSessionCommand,
             AutomationIdOverride = "AgentExportSessionButton"
         });
+        AddExport(new AgentQuickAction
+        {
+            Label = "Export STIX/MISP",
+            Icon = "mdi-share-variant",
+            Group = "Export",
+            Command = ExportThreatIntelCommand,
+            AutomationIdOverride = "AgentExportThreatIntelButton"
+        });
     }
 
     private void InitializeSlashCommands()
@@ -1164,6 +1240,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         AddSlashCommand("/drift", "Check drift", "Compare against baseline", () => CheckDriftAsync());
         AddSlashCommand("/baseline show", "Show baseline", "Display saved baseline", () => ShowBaselineAsync());
         AddSlashCommand("/show baseline", "Show baseline", "Display saved baseline", () => ShowBaselineAsync());
+        AddSlashCommand("/logdiffdemo", "Log diff demo", "Open the log diff window with sample data", () => ShowLogDiffDemoAsync());
+        AddSlashCommand("/threatinteldemo", "Threat intel demo", "Import sample threat intelligence IOCs", () => ImportThreatIntelDemoAsync());
         AddSlashCommand("/sessions", "Sessions", "List remediation sessions", () => ListSessionsAsync());
         AddSlashCommand("/risk", "Risk score", "Show the current risk score", () => RunQueryShortcutAsync("risk score"));
         AddSlashCommand("/clear", "Clear chat", "Clear the visible agent conversation", ClearChatAsync);
@@ -1329,6 +1407,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         ExplainSelectedCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanExplainSelected));
+        VerifySelectedCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(CanVerifySelected));
     }
 
     private void CancelQuery()
@@ -1452,6 +1532,30 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         await _operationRunner.RunAsync(async token =>
         {
             var result = await _agent.ExplainFindingAsync(selected, token);
+            SetLastResult(result);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
+            });
+        });
+    }
+
+    private async Task VerifySelectedAsync()
+    {
+        BeginChatAction();
+        var selected = SelectedFindingProvider?.Invoke();
+        if (selected == null || string.IsNullOrWhiteSpace(selected.RuleId))
+        {
+            AddAgentMessage("Select a finding with a rule ID to verify remediation.", true);
+            return;
+        }
+
+        AddUserMessage($"Verify {selected.RuleId}");
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            var result = await _agent.VerifyFindingAsync(selected.RuleId, token);
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() =>
@@ -1744,8 +1848,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         ExportAuditCommand.RaiseCanExecuteChanged();
         ExportRemediationCommand.RaiseCanExecuteChanged();
         ExportSessionCommand.RaiseCanExecuteChanged();
+        ExportThreatIntelCommand.RaiseCanExecuteChanged();
         SetBaselineCommand.RaiseCanExecuteChanged();
+        BatchAutoFixCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanExportSession));
+        OnPropertyChanged(nameof(CanExportThreatIntel));
+        OnPropertyChanged(nameof(CanBatchAutoFix));
     }
 
     private void PublishAuditCompleted(AgentResult result)
@@ -1782,6 +1890,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 PresentFindings(result, showCapabilityReport: false, showPassedCount: false);
             });
         });
+
+        await (_analystActionLogger?.LogBaselineSetAsync("avalonia", _resultState.LastAuditIntent.ToString()) ?? Task.CompletedTask);
     }
 
     private async Task CheckDriftAsync()
@@ -1796,6 +1906,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false));
         });
+
+        await (_analystActionLogger?.LogDriftCheckedAsync("avalonia", intent.ToString()) ?? Task.CompletedTask);
     }
 
     private async Task ShowBaselineAsync()
@@ -1809,6 +1921,56 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             SetLastResult(result);
 
             Dispatcher.UIThread.Post(() => PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false));
+        });
+    }
+
+    private async Task ShowLogDiffDemoAsync()
+    {
+        AddUserActionMessage("Log diff demo");
+
+        if (ShowLogDiffDemoAction == null)
+        {
+            AddAgentMessage("Log diff demo is not available in this configuration.", isInfo: true);
+            return;
+        }
+
+        await _operationRunner.RunAsync(async token =>
+        {
+            await ShowLogDiffDemoAction();
+        });
+    }
+
+    private async Task ImportThreatIntelDemoAsync()
+    {
+        AddUserActionMessage("Threat intel demo");
+
+        if (_threatIntelStore == null)
+        {
+            AddAgentMessage("Threat intel store is not available in this configuration.", isInfo: true);
+            return;
+        }
+
+        var json = @"{
+            ""type"": ""bundle"",
+            ""objects"": [
+                { ""type"": ""ipv4-addr"", ""value"": ""10.99.99.100"" },
+                { ""type"": ""ipv4-addr"", ""value"": ""10.99.99.101"" },
+                { ""type"": ""indicator"", ""pattern"": ""[network-traffic:dst_port = 4444]"" },
+                { ""type"": ""indicator"", ""pattern"": ""[domain-name:value = 'evil.example.com']"" }
+            ]
+        }";
+
+        await _operationRunner.RunAsync(token =>
+        {
+            var result = StixParser.Parse(json);
+            _threatIntelStore.Import(result.Entries);
+            var msg = $"Imported {result.ImportedCount} demo IOC(s). Open the Threat Intel view to review.";
+            Dispatcher.UIThread.Post(() =>
+            {
+                AddAgentMessage(msg, isInfo: false);
+                NavigateToThreatIntelAction?.Invoke();
+            });
+            return Task.CompletedTask;
         });
     }
 
@@ -1899,6 +2061,25 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     UpdateSessionTimeline(result.RemediationSession);
                     RefreshSessions();
                 });
+            }
+        });
+    }
+
+    private async Task ExportThreatIntelAsync()
+    {
+        var exportCallback = RequestExportThreatIntel;
+        if (exportCallback == null)
+        {
+            AddAgentMessage("STIX/MISP export is not available in this view.", true);
+            return;
+        }
+
+        await _operationRunner.RunAsync(async _ =>
+        {
+            var exported = await exportCallback();
+            if (exported)
+            {
+                Dispatcher.UIThread.Post(() => AddAgentMessage("Threat intelligence exported.", false));
             }
         });
     }
@@ -2162,6 +2343,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             msg += $" Skipped: {result.SkippedCount}.";
         AddAgentMessage(msg, false);
 
+        if (!string.IsNullOrWhiteSpace(_threatIntelStore.PersistenceWarning))
+            AddAgentMessage($"Warning: {_threatIntelStore.PersistenceWarning}", true);
+
+        await (_analystActionLogger?.LogThreatIntelImportedAsync("avalonia", format, result.ImportedCount) ?? Task.CompletedTask);
+
         foreach (var warning in result.Warnings)
             AddAgentMessage($"Warning: {warning}", true);
     }
@@ -2194,6 +2380,73 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         var existingCommands = existing.CountermeasureCommands.Select(command => command.Command);
         var candidateCommands = candidate.CountermeasureCommands.Select(command => command.Command);
         return existingCommands.SequenceEqual(candidateCommands, StringComparer.Ordinal);
+    }
+
+    private async Task BatchAutoFixAsync()
+    {
+        var lastResult = _resultState.LastResult;
+        if (lastResult == null || lastResult.AgentFindings.Count == 0)
+        {
+            AddAgentMessage("No audit findings are available to auto-fix. Run an audit first.", true);
+            return;
+        }
+
+        var plan = _remediationPlanBuilder.Build(lastResult.AgentFindings);
+        if (plan.Sections.Count == 0)
+        {
+            AddAgentMessage("No auto-fixable findings were found in the latest audit.", true);
+            return;
+        }
+
+        var policy = AutoFixPolicy.Standard();
+
+        try
+        {
+            IsBusy = true;
+
+            AddAgentMessage($"Running batch auto-fix dry-run for {plan.Sections.Count} finding(s)...", true);
+            var dryRunResult = await _remediationExecutor.ExecuteAsync(plan, policy, dryRun: true);
+            AddAgentMessage($"[DRY-RUN] {dryRunResult.Summary}", true);
+
+            if (dryRunResult.Sections.Any(s => s.Skipped))
+            {
+                AddAgentMessage("Batch auto-fix blocked by safety policy. Review the dry-run output above.", true);
+                return;
+            }
+
+            if (_dialogService == null)
+            {
+                AddAgentMessage("Dialog service unavailable — cannot confirm live deployment.", true);
+                return;
+            }
+
+            var confirm = await _dialogService.ShowSelectionDialogAsync(
+                "Batch Auto-Fix",
+                $"Dry-run completed. Proceed with live deployment of {plan.Sections.Count} remediation section(s)?",
+                new[] { "Deploy Live", "Cancel" },
+                defaultIndex: 1);
+
+            if (confirm != 0)
+            {
+                AddAgentMessage("Batch auto-fix cancelled.", true);
+                return;
+            }
+
+            AddAgentMessage("Deploying batch auto-fix live...", true);
+            var liveResult = await _remediationExecutor.ExecuteAsync(plan, policy, dryRun: false);
+            AddAgentMessage($"[LIVE] {liveResult.Summary}", liveResult.Sections.All(s => s.ApplyResults.All(r => r.Skipped || r.Success)));
+
+            if (liveResult.Sections.Any(s => s.RollbackResults.Count > 0))
+            {
+                AddAgentMessage("Rollback was executed automatically because one or more commands failed.", true);
+            }
+
+            await (_analystActionLogger?.LogBatchAutoFixAsync("avalonia", plan.Sections.Count) ?? Task.CompletedTask);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task DeployCountermeasuresAsync(RemediationSection? section)
@@ -2248,6 +2501,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             AddAgentMessage("Rollback was executed automatically because one or more commands failed.", true);
         }
+
+        await (_analystActionLogger?.LogCountermeasureDeployedAsync("avalonia", section.FindingSummary) ?? Task.CompletedTask);
     }
 
     private void RefreshActiveFilterChips()

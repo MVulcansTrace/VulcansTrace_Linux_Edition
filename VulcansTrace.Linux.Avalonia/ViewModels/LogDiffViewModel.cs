@@ -1,4 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Threading.Tasks;
+using VulcansTrace.Linux.Avalonia.Services;
+using VulcansTrace.Linux.Evidence.Formatters;
 using VulcansTrace.Linux.Engine.LogDiff;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -17,6 +22,12 @@ public sealed class LogDiffViewModel : ViewModelBase
     private int _addedFindingsCount;
     private int _removedFindingsCount;
     private int _changedFindingsCount;
+    private string _statusMessage = "";
+    private LogDiffResult? _result;
+
+    private readonly IDialogService _dialogService;
+    private readonly LogDiffMarkdownFormatter _markdownFormatter;
+    private readonly LogDiffHtmlFormatter _htmlFormatter;
 
     /// <summary>Gets the collection of diffed connection-pattern events.</summary>
     public ObservableCollection<DiffEvent> Events { get; } = new();
@@ -87,6 +98,62 @@ public sealed class LogDiffViewModel : ViewModelBase
         private set => SetField(ref _changedFindingsCount, value);
     }
 
+    /// <summary>Gets the status message from the last export attempt.</summary>
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set
+        {
+            if (SetField(ref _statusMessage, value))
+            {
+                OnPropertyChanged(nameof(HasStatusMessage));
+            }
+        }
+    }
+
+    /// <summary>Gets whether there is a status message to display.</summary>
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(_statusMessage);
+
+    /// <summary>Gets the command to export the diff as HTML.</summary>
+    public AsyncRelayCommand ExportHtmlCommand { get; }
+
+    /// <summary>Gets the command to export the diff as Markdown.</summary>
+    public AsyncRelayCommand ExportMarkdownCommand { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LogDiffViewModel"/> class for design-time use.
+    /// </summary>
+    public LogDiffViewModel()
+        : this(new NoOpDialogService())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LogDiffViewModel"/> class.
+    /// </summary>
+    /// <param name="dialogService">Dialog service for save prompts and messages.</param>
+    /// <param name="markdownFormatter">Optional markdown formatter.</param>
+    /// <param name="htmlFormatter">Optional HTML formatter.</param>
+    public LogDiffViewModel(
+        IDialogService dialogService,
+        LogDiffMarkdownFormatter? markdownFormatter = null,
+        LogDiffHtmlFormatter? htmlFormatter = null)
+    {
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _markdownFormatter = markdownFormatter ?? new LogDiffMarkdownFormatter();
+        _htmlFormatter = htmlFormatter ?? new LogDiffHtmlFormatter();
+
+        ExportHtmlCommand = new AsyncRelayCommand(
+            async _ => await ExportHtmlAsync(),
+            _ => _result != null,
+            ex => SetStatus($"Export failed: {ex.Message}"));
+
+        ExportMarkdownCommand = new AsyncRelayCommand(
+            async _ => await ExportMarkdownAsync(),
+            _ => _result != null,
+            ex => SetStatus($"Export failed: {ex.Message}"));
+    }
+
     /// <summary>
     /// Loads a <see cref="LogDiffResult"/> into the view model.
     /// </summary>
@@ -108,5 +175,75 @@ public sealed class LogDiffViewModel : ViewModelBase
         AddedFindingsCount = result.AddedFindingsCount;
         RemovedFindingsCount = result.RemovedFindingsCount;
         ChangedFindingsCount = result.ChangedFindingsCount;
+        _result = result;
+        StatusMessage = string.Empty;
+        ExportHtmlCommand.RaiseCanExecuteChanged();
+        ExportMarkdownCommand.RaiseCanExecuteChanged();
+    }
+
+    private async Task ExportHtmlAsync()
+    {
+        if (_result == null)
+        {
+            SetStatus("No diff result is loaded.");
+            return;
+        }
+
+        var path = await _dialogService.ShowSaveFileDialogAsync(
+            "Save Log Diff HTML Report",
+            "HTML files (*.html)|*.html|All files (*.*)|*.*",
+            $"log-diff-{DateTime.UtcNow:yyyyMMdd-HHmmss}.html");
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            SetStatus("Export cancelled.");
+            return;
+        }
+
+        var html = _htmlFormatter.ToHtml(_result, _result.BaselineLabel, _result.IncidentLabel);
+        await File.WriteAllTextAsync(path, html);
+        SetStatus($"HTML report saved to {path}");
+        _dialogService.ShowMessage("HTML report saved.", "Log Diff Export");
+    }
+
+    private async Task ExportMarkdownAsync()
+    {
+        if (_result == null)
+        {
+            SetStatus("No diff result is loaded.");
+            return;
+        }
+
+        var path = await _dialogService.ShowSaveFileDialogAsync(
+            "Save Log Diff Markdown Report",
+            "Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            $"log-diff-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            SetStatus("Export cancelled.");
+            return;
+        }
+
+        var markdown = _markdownFormatter.ToMarkdown(_result, _result.BaselineLabel, _result.IncidentLabel);
+        await File.WriteAllTextAsync(path, markdown);
+        SetStatus($"Markdown report saved to {path}");
+        _dialogService.ShowMessage("Markdown report saved.", "Log Diff Export");
+    }
+
+    private void SetStatus(string message)
+    {
+        StatusMessage = message;
+    }
+
+    private sealed class NoOpDialogService : IDialogService
+    {
+        public void ShowMessage(string message, string title) { }
+        public void ShowError(string message, string title) { }
+        public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultFileName) => Task.FromResult<string?>(null);
+        public Task<string?> ShowOpenFileDialogAsync(string title, string filter) => Task.FromResult<string?>(null);
+        public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "") => Task.FromResult<string?>(null);
+        public Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel) => Task.FromResult<bool?>(null);
+        public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0) => Task.FromResult<int?>(null);
     }
 }

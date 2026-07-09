@@ -126,7 +126,7 @@ public sealed class ThreatIntelViewModel : ViewModelBase
     public AsyncRelayCommand ImportCommand { get; }
 
     /// <summary>Gets the command to remove the selected IOC.</summary>
-    public RelayCommand RemoveSelectedCommand { get; }
+    public AsyncRelayCommand RemoveSelectedCommand { get; }
 
     /// <summary>Gets the command to clear all stored IOCs.</summary>
     public AsyncRelayCommand ClearCommand { get; }
@@ -155,9 +155,10 @@ public sealed class ThreatIntelViewModel : ViewModelBase
             _ => !IsBusy,
             ex => StatusMessage = $"Import failed: {ex.Message}");
 
-        RemoveSelectedCommand = new RelayCommand(
-            _ => RemoveSelected(),
-            _ => !IsBusy && SelectedIoc != null);
+        RemoveSelectedCommand = new AsyncRelayCommand(
+            async _ => await RemoveSelectedAsync(),
+            _ => !IsBusy && SelectedIoc != null,
+            ex => StatusMessage = $"Remove failed: {ex.Message}");
 
         ClearCommand = new AsyncRelayCommand(
             async _ => await ClearAllAsync(),
@@ -217,16 +218,21 @@ public sealed class ThreatIntelViewModel : ViewModelBase
         OnPropertyChanged(nameof(FilteredCount));
     }
 
-    private void RemoveSelected()
+    private async Task RemoveSelectedAsync()
     {
         var selected = SelectedIoc;
         if (selected == null)
             return;
 
-        _store.Remove(selected.StorageKey);
+        var removed = _store.Remove(selected.StorageKey);
         SelectedIoc = null;
         Refresh();
-        StatusMessage = _store.PersistenceWarning ?? $"Removed {selected.Type} {selected.Value}.";
+        StatusMessage = _store.PersistenceWarning
+            ?? (removed ? $"Removed {selected.Type} {selected.Value}." : "The selected IOC was already removed.");
+        if (removed)
+        {
+            await (_analystActionLogger?.LogThreatIntelRemovedAsync("avalonia", selected.Type.ToString(), selected.Value) ?? Task.CompletedTask);
+        }
     }
 
     private async Task ClearAllAsync()
@@ -308,15 +314,30 @@ public sealed class ThreatIntelViewModel : ViewModelBase
             _store.Import(result.Entries);
             Refresh();
 
-            var msg = $"Imported {result.ImportedCount} IOC(s) from {format.ToUpperInvariant()} bundle.";
-            if (result.SkippedCount > 0)
-                msg += $" Skipped: {result.SkippedCount}.";
-            StatusMessage = _store.PersistenceWarning ?? msg;
+            StatusMessage = BuildImportStatusMessage(result, format, _store.PersistenceWarning);
             await (_analystActionLogger?.LogThreatIntelImportedAsync("avalonia", format, result.ImportedCount) ?? Task.CompletedTask);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private static string BuildImportStatusMessage(ThreatIntelImportResult result, string format, string? persistenceWarning)
+    {
+        var parts = new List<string>
+        {
+            $"Imported {result.ImportedCount} IOC(s) from {format.ToUpperInvariant()} bundle."
+        };
+
+        if (result.SkippedCount > 0)
+            parts[0] += $" Skipped: {result.SkippedCount}.";
+
+        parts.AddRange(result.Warnings.Select(w => $"Warning: {w}"));
+
+        if (!string.IsNullOrWhiteSpace(persistenceWarning))
+            parts.Add($"Note: {persistenceWarning}");
+
+        return string.Join(" ", parts);
     }
 }

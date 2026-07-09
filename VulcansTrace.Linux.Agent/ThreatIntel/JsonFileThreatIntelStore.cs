@@ -102,7 +102,27 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
         try
         {
             _entries.Clear();
-            PersistCurrentState();
+            PersistCurrentState("Threat intel changes will last only for this session.");
+        }
+        finally
+        {
+            _lock.ExitWriteLock();
+        }
+    }
+
+    /// <inheritdoc />
+    public bool Remove(string storageKey)
+    {
+        ArgumentNullException.ThrowIfNull(storageKey);
+        _lock.EnterWriteLock();
+        try
+        {
+            var removed = _entries.Remove(storageKey);
+            if (removed)
+            {
+                PersistCurrentState("Threat intel changes will last only for this session.");
+            }
+            return removed;
         }
         finally
         {
@@ -213,22 +233,21 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
         }
     }
 
-    private void PersistCurrentState()
+    private void PersistCurrentState(string sessionOnlyMessage)
     {
-        var committed = false;
         try
         {
             var snapshot = _entries.Values.ToList();
             _validator.ValidateAllAndThrow(snapshot);
-            committed = true;
             _persistence.Save(snapshot);
             _persistenceWarning = null;
         }
         catch (Exception ex)
         {
-            _persistenceWarning = committed
-                ? $"Could not save threat intel to disk: {ex.Message}. IOCs will last only for this session."
-                : $"Could not save threat intel to disk: {ex.Message}. Invalid IOCs were not imported.";
+            // Clear/Remove mutate _entries before calling this method, so a save failure — whether
+            // validation or I/O — leaves the in-memory change effective for this session only.
+            // The exception message conveys the cause (invalid data vs. I/O error).
+            _persistenceWarning = $"Could not save threat intel to disk: {ex.Message}. {sessionOnlyMessage}";
         }
     }
 

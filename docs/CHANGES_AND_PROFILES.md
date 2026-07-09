@@ -549,13 +549,26 @@ Hardening pass over the searchable slash-command help popup (? button, Ctrl+K, `
 - `BuildSessionResult` accepts an optional `intent` parameter so resumed sessions report `ResumeRemediation` instead of hardcoding `StartRemediation`.
 - Code: `VulcansTrace.Linux.Agent/Query/AgentIntent.cs`, `VulcansTrace.Linux.Agent/Query/QueryParser.cs`, `VulcansTrace.Linux.Agent/SecurityAgent.cs`, `VulcansTrace.Linux.Agent/IAgent.cs`, `VulcansTrace.Linux.Agent/Reports/GuidedRemediationService.cs`, `VulcansTrace.Linux.Agent/Sessions/RemediationSession.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentViewModel.cs`, `VulcansTrace.Linux.Avalonia/Views/AgentView.axaml`, `VulcansTrace.Linux.Cli/Program.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentOperationRunner.cs`
 
+### Threat Intel Management and Export
+- `IThreatIntelStore`, `InMemoryThreatIntelStore`, and `JsonFileThreatIntelStore` support removing individual IOCs by storage key; save failures keep the change active for the current session and surface a session-only warning.
+  - Code: `VulcansTrace.Linux.Core/ThreatIntel/IThreatIntelStore.cs`, `VulcansTrace.Linux.Agent/ThreatIntel/JsonFileThreatIntelStore.cs`
+- Avalonia **Threat Intel** tab lists, filters, imports, removes, and clears STIX/MISP IOCs from the shared threat-intel store.
+  - Code: `VulcansTrace.Linux.Avalonia/Views/ThreatIntelView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/ThreatIntelViewModel.cs`
+- `MispFormatter` exports findings as MISP event JSON, `export-threat-intel` can write STIX or MISP from a log file, and signed evidence ZIPs include `findings.misp.json`.
+  - Code: `VulcansTrace.Linux.Evidence/Formatters/MispFormatter.cs`, `VulcansTrace.Linux.Evidence/EvidenceBuilder.cs`, `VulcansTrace.Linux.Cli/Program.cs`
+
 ### Notifications
+- `NotificationSettings`, `INotificationSettingsStore`, and `JsonFileNotificationSettingsStore` persist the global notification enable switch plus Email/Webhook delivery settings in `notification-settings.json`.
+  - Code: `VulcansTrace.Linux.Agent/Notifications/NotificationSettings.cs`, `VulcansTrace.Linux.Agent/Notifications/JsonFileNotificationSettingsStore.cs`
+- Avalonia **Notifications** tab configures the shared notification settings used by Avalonia, CLI scheduled runs, cron-installed schedules, and `audit --notify-on-critical`.
+  - Code: `VulcansTrace.Linux.Avalonia/Views/NotificationSettingsView.axaml`, `VulcansTrace.Linux.Avalonia/ViewModels/NotificationSettingsViewModel.cs`
 - `NotifySendNotificationService` — Linux desktop notifications via `notify-send`.
   - Code: `VulcansTrace.Linux.Agent/Notifications/NotifySendNotificationService.cs`
-- `EmailNotificationService` — SMTP email notifications with TLS support and configurable credentials via environment variables.
+- `EmailNotificationService` — SMTP email notifications with TLS support and configurable credentials via notification settings.
   - Code: `VulcansTrace.Linux.Agent/Notifications/EmailNotificationService.cs`
 - `WebhookNotificationService` — HTTP POST JSON notifications with 3 retries and exponential backoff for transient failures (5xx, timeouts, connection errors). Implements `IDisposable`.
   - Code: `VulcansTrace.Linux.Agent/Notifications/WebhookNotificationService.cs`
+- `notification-settings.json` is owner-only on Unix because it may contain an SMTP password; failed saves leave the edited settings active for the current session and surface a persistence warning.
 - `INotificationService.NotifyAsync` marked `[Obsolete]` — unused, prefer `NotifyCriticalFindingsAsync`.
   - Code: `VulcansTrace.Linux.Agent/Notifications/INotificationService.cs`
 
@@ -572,7 +585,6 @@ Hardening pass over the searchable slash-command help popup (? button, Ctrl+K, `
 - `CrontabManager.Install` rejects disabled schedules.
 - CLI `ParseArg`/`TryParseArg` reject values starting with `--` to prevent flags from being consumed as values.
 - Schedule name deduplication (case-insensitive) in CLI and GUI.
-- `VT_EMAIL_NO_SSL` parsing supports `1`, `true`, and `yes` as disable-SSL values.
 - `LastRunUtc` displayed with explicit `UTC` label in CLI list output.
 - `ScheduleViewModel.Refresh` preserves DataGrid selection by ID across reloads.
 

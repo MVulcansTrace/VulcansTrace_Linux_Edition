@@ -397,7 +397,7 @@ public class FindingsViewModelTests
         };
 
         Assert.False(vm.HasSelectedItem);
-        Assert.Equal("Select a finding to investigate, suppress, or resolve", vm.SelectedFindingActionContext);
+        Assert.Equal("Select a finding to investigate, suppress, resolve, or verify", vm.SelectedFindingActionContext);
 
         vm.LoadResults(result);
         vm.SelectedItem = vm.Items.Single();
@@ -408,7 +408,7 @@ public class FindingsViewModelTests
         vm.Clear();
 
         Assert.False(vm.HasSelectedItem);
-        Assert.Equal("Select a finding to investigate, suppress, or resolve", vm.SelectedFindingActionContext);
+        Assert.Equal("Select a finding to investigate, suppress, resolve, or verify", vm.SelectedFindingActionContext);
     }
 
     [AvaloniaTheory]

@@ -15,15 +15,8 @@ public sealed class EmailNotificationService : INotificationService
     private readonly IEmailTransport _transport;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EmailNotificationService"/> class.
+    /// Initializes a new instance from explicit SMTP settings.
     /// </summary>
-    /// <param name="smtpHost">SMTP server hostname.</param>
-    /// <param name="smtpPort">SMTP server port.</param>
-    /// <param name="fromAddress">Sender email address.</param>
-    /// <param name="toAddress">Recipient email address.</param>
-    /// <param name="username">Optional SMTP username.</param>
-    /// <param name="password">Optional SMTP password.</param>
-    /// <param name="enableSsl">Whether to use SSL/TLS.</param>
     public EmailNotificationService(
         string smtpHost,
         int smtpPort,
@@ -33,6 +26,22 @@ public sealed class EmailNotificationService : INotificationService
         string? password = null,
         bool enableSsl = true)
         : this(smtpHost, smtpPort, fromAddress, toAddress, username, password, enableSsl, transport: null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance from notification settings.
+    /// </summary>
+    public EmailNotificationService(NotificationSettings settings)
+        : this(
+            (settings ?? throw new ArgumentNullException(nameof(settings))).EmailSmtpHost,
+            settings.EmailSmtpPort,
+            settings.EmailFrom,
+            settings.EmailTo,
+            settings.EmailUsername,
+            settings.EmailPassword,
+            settings.EmailEnableSsl,
+            transport: null)
     {
     }
 
@@ -123,6 +132,28 @@ public sealed class EmailNotificationService : INotificationService
         body.AppendLine();
         body.AppendLine($"Signature: {alert.Signature}");
         return SendEmailAsync(subject, body.ToString(), ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SendTestAsync(CancellationToken ct = default)
+    {
+        const string subject = "[VulcansTrace] Test notification";
+        const string body = "If you can read this, SMTP notification settings are configured correctly.";
+        try
+        {
+            using var message = new MailMessage(_fromAddress, _toAddress, subject, body);
+            await _transport.SendAsync(message, _smtp, ct);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // Unlike SendEmailAsync, the test path surfaces failure so a user can verify settings.
+            return false;
+        }
     }
 
     private async Task SendEmailAsync(string subject, string body, CancellationToken ct)

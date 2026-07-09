@@ -36,6 +36,67 @@ public class ThreatIntelStoreTests
     }
 
     [Fact]
+    public void InMemoryStore_Remove_RemovesByStorageKey()
+    {
+        var store = new InMemoryThreatIntelStore();
+        var entry = new IocEntry { Type = IocType.IPv4, Value = "1.2.3.4" };
+        store.Import(new[] { entry });
+
+        Assert.True(store.Remove(entry.StorageKey));
+        Assert.Equal(0, store.Count);
+        Assert.False(store.Remove(entry.StorageKey));
+    }
+
+    [Fact]
+    public void JsonFileStore_Remove_PersistsDeletion()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var store1 = new JsonFileThreatIntelStore(path);
+            var entry = new IocEntry { Type = IocType.IPv4, Value = "10.0.0.1", ThreatScore = 70, Source = "MISP" };
+            store1.Import(new[] { entry });
+            Assert.True(store1.Remove(entry.StorageKey));
+            store1.Dispose();
+
+            var store2 = new JsonFileThreatIntelStore(path);
+            Assert.Equal(0, store2.Count);
+            store2.Dispose();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void JsonFileStore_RemoveSaveFailure_KeepsSessionChangeAndWarns()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"vt-ti-remove-fail-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var path = Path.Combine(tempDir, "threat-intel.json");
+
+        try
+        {
+            using var store = new JsonFileThreatIntelStore(path);
+            var entry = new IocEntry { Type = IocType.IPv4, Value = "10.0.0.2", ThreatScore = 70, Source = "MISP" };
+            store.Import(new[] { entry });
+
+            File.Delete(path);
+            Directory.CreateDirectory(path);
+
+            Assert.True(store.Remove(entry.StorageKey));
+            Assert.Empty(store.GetAll());
+            Assert.Contains("Threat intel changes will last only for this session", store.PersistenceWarning);
+        }
+        finally
+        {
+            try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
     public void InMemoryStore_DeduplicatesByKey()
     {
         var store = new InMemoryThreatIntelStore();

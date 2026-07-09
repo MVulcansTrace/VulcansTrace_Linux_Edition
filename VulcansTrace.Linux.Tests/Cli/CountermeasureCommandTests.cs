@@ -52,6 +52,7 @@ public class CountermeasureCommandTests : IDisposable
     {
         var baselinePath = WriteTempLog("baseline", "normal traffic");
         var incidentPath = WriteTempLog("incident", "normal traffic");
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir);
 
         var exitCode = await Program.RunCountermeasureAsync(new[]
         {
@@ -59,7 +60,7 @@ public class CountermeasureCommandTests : IDisposable
             "--log-file", incidentPath,
             "--baseline", baselinePath,
             "--yes"
-        });
+        }, services);
 
         Assert.Equal(0, exitCode);
     }
@@ -68,7 +69,8 @@ public class CountermeasureCommandTests : IDisposable
     public async Task RunCountermeasureAsync_DryRun_WithCriticalChain_ReturnsZero()
     {
         var baselinePath = WriteTempLog("baseline", "normal traffic");
-        var incidentPath = WriteTempLog("incident", "beaconing");
+        var incidentPath = WriteTempLog("incident", BuildCriticalChainLog());
+        var services = AgentFactory.Create(configDirectory: _tempConfigDir);
 
         var exitCode = await Program.RunCountermeasureAsync(new[]
         {
@@ -76,7 +78,7 @@ public class CountermeasureCommandTests : IDisposable
             "--log-file", incidentPath,
             "--baseline", baselinePath,
             "--dry-run"
-        });
+        }, services);
 
         Assert.Equal(0, exitCode);
     }

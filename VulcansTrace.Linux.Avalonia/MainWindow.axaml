@@ -238,8 +238,8 @@
                             <Button Content="Compare Logs"
                                     Theme="{StaticResource VtSecondaryButton}"
                                     ToolTip.Tip="Compare two log files for differences"
+                                    Click="CompareLogsButton_Click"
                                     AutomationProperties.AutomationId="CompareLogsButton"
-                                    Command="{Binding CompareLogsCommand}"
                                     Margin="0,0,8,8"/>
                             <Button Content="Cancel Export"
                                     Theme="{StaticResource VtSecondaryButton}"

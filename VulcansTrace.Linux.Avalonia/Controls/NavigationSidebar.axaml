@@ -17,6 +17,7 @@
                Padding="0,8">
         <ListBox.Styles>
           <Style Selector="ListBoxItem">
+            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,1,8,1" />
             <Setter Property="Background" Value="Transparent" />

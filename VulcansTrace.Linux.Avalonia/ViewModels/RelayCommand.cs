@@ -22,10 +22,20 @@ public sealed class RelayCommand : ICommand
 
     public void Execute(object? parameter) => _execute(parameter);
 
-    public event EventHandler? CanExecuteChanged;
+    private EventHandler? _canExecuteChanged;
+
+    public event EventHandler? CanExecuteChanged
+    {
+        add
+        {
+            _canExecuteChanged += value;
+            value?.Invoke(this, EventArgs.Empty);
+        }
+        remove => _canExecuteChanged -= value;
+    }
 
     public void RaiseCanExecuteChanged()
     {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        _canExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

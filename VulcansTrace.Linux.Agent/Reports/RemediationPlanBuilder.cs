@@ -66,7 +66,7 @@ public sealed class RemediationPlanBuilder
             if (chainFindings.Count < 3)
                 continue;
 
-            var beaconing = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.Beaconing));
+            var beaconing = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.Beaconing) || IsCategory(f, FindingCategories.C2Channel));
             var lateral = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.LateralMovement));
             var privEsc = chainFindings.FirstOrDefault(f => IsCategory(f, FindingCategories.PrivilegeEscalation));
 

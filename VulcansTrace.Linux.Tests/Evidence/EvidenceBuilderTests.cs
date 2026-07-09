@@ -109,6 +109,40 @@ public class EvidenceBuilderTests
     }
 
     [Fact]
+    public void Build_WithMispFormatter_IncludesMispFileAndManifestEntry()
+    {
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            new JsonFormatter(),
+            new StixFormatter(),
+            riskScorecardHtmlFormatter: new RiskScorecardHtmlFormatter(),
+            riskScorecardMarkdownFormatter: new RiskScorecardMarkdownFormatter(),
+            mispFormatter: new MispFormatter());
+        var result = SingleFindingResult();
+
+        var zipBytes = builder.Build(result, DefaultLog(), DefaultKey, DateTime.UtcNow);
+
+        using var ms = new MemoryStream(zipBytes);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        var names = zip.Entries.Select(e => e.FullName).ToArray();
+        Assert.Contains("findings.misp.json", names);
+
+        var manifestEntry = zip.GetEntry("manifest.json");
+        Assert.NotNull(manifestEntry);
+        using var entryStream = manifestEntry!.Open();
+        using var doc = JsonDocument.Parse(entryStream);
+        var fileNames = doc.RootElement.GetProperty("files")
+            .EnumerateArray()
+            .Select(e => e.GetProperty("file").GetString())
+            .ToArray();
+
+        Assert.Contains("findings.misp.json", fileNames);
+    }
+
+    [Fact]
     public void Build_SameInputsAndTimestamp_ProducesByteIdenticalArchive()
     {
         var builder = CreateBuilder();
@@ -120,6 +154,37 @@ public class EvidenceBuilderTests
         var second = builder.Build(result, logText, DefaultKey, timestamp);
 
         Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void Build_WithMispFormatter_SameInputsAndTimestamp_ProducesByteIdenticalArchive()
+    {
+        // The MISP formatter's default Format() overload stamps UtcNow, but EvidenceBuilder must
+        // route through the deterministic 3-arg overload so the archive stays reproducible.
+        var builder = new EvidenceBuilder(
+            new IntegrityHasher(),
+            new CsvFormatter(),
+            new MarkdownFormatter(),
+            new HtmlFormatter(),
+            new JsonFormatter(),
+            new StixFormatter(),
+            null,
+            null,
+            new RiskScorecardHtmlFormatter(),
+            new RiskScorecardMarkdownFormatter(),
+            mispFormatter: new MispFormatter());
+        var result = SingleFindingResult();
+        var logText = DefaultLog();
+        var timestamp = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+
+        var first = builder.Build(result, logText, DefaultKey, timestamp);
+        var second = builder.Build(result, logText, DefaultKey, timestamp);
+
+        Assert.Equal(first, second);
+
+        using var ms = new MemoryStream(first);
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
+        Assert.Contains("findings.misp.json", zip.Entries.Select(e => e.FullName));
     }
 
     [Fact]

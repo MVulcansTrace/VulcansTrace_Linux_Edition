@@ -289,12 +289,14 @@ File-backed stores share a small set of persistence primitives instead of duplic
 Notification services are pluggable:
 
 - `INotificationService` abstraction with `NotifyCriticalFindingsAsync` and `NotifySignedAlertAsync`.
+- `NotificationSettings` and `INotificationSettingsStore` hold the global enable switch plus Email/Webhook delivery settings in `notification-settings.json`; Avalonia, CLI schedule runs, cron-installed schedules, and `audit --notify-on-critical` share that store.
 - `SignedAlertMessage` carries the drift-alert payload plus `ScheduleId`, `Nonce`, and `Signature`.
 - `SignedAlertVerifier` computes and verifies HMAC-SHA256 signatures over a stable canonical JSON form using constant-time comparison.
 - `NotifySendNotificationService` shells out to `notify-send` for desktop alerts.
 - `EmailNotificationService` sends SMTP email with TLS and credential support; it exposes an `IEmailTransport` seam for tests.
 - `WebhookNotificationService` POSTs JSON payloads with retry logic for transient failures; it exposes an `HttpMessageHandler` seam for tests.
 - All notification services catch exceptions and log to `stderr` so notification failures do not crash audits.
+- `notification-settings.json` is written with owner-only permissions on Unix because SMTP credentials can be stored there. If a save fails, the edited settings remain active for the current session and the store exposes a session-only `PersistenceWarning`.
 
 The human-approved remediation path for schedules:
 
@@ -373,11 +375,12 @@ Advanced threat detectors:
 
 ## Threat Intel Components
 
-- `IThreatIntelStore` — abstraction for IOC storage (`InMemoryThreatIntelStore` + `JsonFileThreatIntelStore` → `~/.config/VulcansTrace/threat-intel.json`).
+- `IThreatIntelStore` — abstraction for IOC storage, query, clear, and remove operations (`InMemoryThreatIntelStore` + `JsonFileThreatIntelStore` → `~/.config/VulcansTrace/threat-intel.json`).
 - `IocEntry` — immutable IOC record with `Type`, `Value`, `ThreatScore`, `Source`, `ImportedAtUtc`.
 - `IocType` — `IPv4`, `IPv6`, `Domain`, `URL`, `Port`, `FileHash`.
 - `StixParser` — parses STIX 2.1 bundle JSON, extracting IOCs from `ipv4-addr`, `ipv6-addr`, `domain-name`, `url`, `file` objects, and simple or compound `indicator` equality patterns.
 - `MispParser` — parses MISP event JSON, reading `Event.Attribute` and `Event.Object.Attribute`, mapping MISP types to `IocType`.
+- `MispFormatter` — exports current findings as MISP event JSON for handoff to MISP-compatible tooling or re-import.
 - `FileHashEntry` — scanner output pairing a file path with its SHA-256 hash.
 - `FileHashScanner` — discovers security-sensitive files (SUID/SGID, world-writable, unowned, cron scripts) and hashes them via `sha256sum`/`openssl` only when file-hash IOCs are loaded.
 - `ThreatIntelDetector` (Engine) — implements `IDetector`; checks `UnifiedEvent.SourceIP`, `DestinationIP`, and `DestinationPort` against the store. Domain and URL IOCs are stored but not yet correlated in firewall log analysis (the log format does not reliably carry those fields).
@@ -385,7 +388,7 @@ Advanced threat detectors:
   - `TI-001` (`ThreatIntelIpRule`) — active connections matching IP IOCs.
   - `TI-002` (`ThreatIntelPortRule`) — open ports matching port IOCs.
   - `TI-003` (`ThreatIntelHashRule`) — file hashes matching hash IOCs.
-- AgentFactory wires the store into `ThreatIntelDetector`, all three rules, and `FileHashScanner`.
+- AgentFactory wires the store into `ThreatIntelDetector`, all three rules, and `FileHashScanner`, and wires `MispFormatter` into evidence ZIP generation so `findings.misp.json` is signed alongside the other artifacts.
 
 ## YARA Components
 

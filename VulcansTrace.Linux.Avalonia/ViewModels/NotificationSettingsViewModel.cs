@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Notifications;
-using VulcansTrace.Linux.Avalonia.Services;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -16,7 +15,7 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 public sealed class NotificationSettingsViewModel : ViewModelBase
 {
     private readonly INotificationSettingsStore _store;
-    private readonly IDialogService _dialogService;
+    private readonly Func<NotificationSettings, INotificationService> _serviceFactory;
     private readonly AnalystActionLogger? _analystActionLogger;
     private string _statusMessage = "";
     private bool _isTesting;
@@ -53,7 +52,14 @@ public sealed class NotificationSettingsViewModel : ViewModelBase
     public bool Enabled
     {
         get => _enabled;
-        set => SetField(ref _enabled, value);
+        set
+        {
+            if (SetField(ref _enabled, value))
+            {
+                // TestCommand.CanExecute depends on Enabled, so bound buttons must re-query.
+                TestCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     /// <summary>Gets a value indicating whether Desktop is the selected channel.</summary>
@@ -154,10 +160,20 @@ public sealed class NotificationSettingsViewModel : ViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationSettingsViewModel"/> class.
     /// </summary>
-    public NotificationSettingsViewModel(INotificationSettingsStore store, IDialogService dialogService, AnalystActionLogger? analystActionLogger = null)
+    /// <param name="store">The notification settings store.</param>
+    /// <param name="notificationServiceFactory">
+    /// Optional factory that builds a notification service from settings, used by the Test command.
+    /// Defaults to <see cref="NotificationChannelExtensions.CreateNotificationService"/>; tests may
+    /// inject a stub to make Test outcomes deterministic.
+    /// </param>
+    /// <param name="analystActionLogger">Optional analyst action logger.</param>
+    public NotificationSettingsViewModel(
+        INotificationSettingsStore store,
+        Func<NotificationSettings, INotificationService>? notificationServiceFactory = null,
+        AnalystActionLogger? analystActionLogger = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _serviceFactory = notificationServiceFactory ?? NotificationChannelExtensions.CreateNotificationService;
         _analystActionLogger = analystActionLogger;
 
         foreach (NotificationChannel channel in Enum.GetValues(typeof(NotificationChannel)))
@@ -240,9 +256,20 @@ public sealed class NotificationSettingsViewModel : ViewModelBase
         {
             var settings = ToSettings();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var service = settings.CreateNotificationService();
-            await service.NotifyCriticalFindingsAsync("Test notification", 0, cts.Token);
-            StatusMessage = "Test notification sent.";
+            var service = _serviceFactory(settings);
+            try
+            {
+                // SendTestAsync surfaces real delivery success/failure (unlike the Notify* methods,
+                // which swallow errors so a notification can never break an audit).
+                var delivered = await service.SendTestAsync(cts.Token);
+                StatusMessage = delivered
+                    ? "Test notification delivered."
+                    : "Test notification could not be delivered — check the channel settings (delivery errors are logged to stderr).";
+            }
+            finally
+            {
+                (service as IDisposable)?.Dispose();
+            }
         }
         finally
         {

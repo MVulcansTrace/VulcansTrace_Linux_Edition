@@ -42,6 +42,13 @@ public sealed class InMemoryThreatIntelStore : IThreatIntelStore
     }
 
     /// <inheritdoc />
+    public bool Remove(string storageKey)
+    {
+        ArgumentNullException.ThrowIfNull(storageKey);
+        return _entries.TryRemove(storageKey, out _);
+    }
+
+    /// <inheritdoc />
     public int CountByType(IocType type)
     {
         var typeInt = (int)type;

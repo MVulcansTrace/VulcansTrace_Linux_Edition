@@ -146,6 +146,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetField(ref _selectedNavigationItem, value))
             {
                 SelectedContent = value?.Content;
+                if (ReferenceEquals(value?.Content, ThreatIntel))
+                {
+                    ThreatIntel.Refresh();
+                }
             }
         }
     }
@@ -450,10 +454,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RuleCoverage = new RuleCoverageViewModel();
         ComplianceScorecard = new ComplianceScorecardViewModel();
         RiskScorecard = new RiskScorecardViewModel();
+        // Hoist a single shared store so the scheduler and the settings tab observe the same
+        // settings; two independent `?? new InMemoryNotificationSettingsStore()` would diverge.
+        var notificationSettings = notificationSettingsStore ?? new InMemoryNotificationSettingsStore();
         Schedules = new ScheduleViewModel(
             scheduleStore ?? new InMemoryScheduleStore(),
             auditHistoryStore,
-            notificationSettingsStore ?? new InMemoryNotificationSettingsStore(),
+            notificationSettings,
             notificationService ?? new NotifySendNotificationService(),
             dialogService,
             _analystActionLogger);
@@ -462,9 +469,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             dialogService,
             _analystActionLogger);
         NotificationSettings = new NotificationSettingsViewModel(
-            notificationSettingsStore ?? new InMemoryNotificationSettingsStore(),
-            dialogService,
-            _analystActionLogger);
+            notificationSettings,
+            analystActionLogger: _analystActionLogger);
 
         LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
         Doctor = new DoctorViewModel(doctorService ?? new DoctorService(System.Array.Empty<IScanner>()));
@@ -509,6 +515,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Parse Errors", Icon = "mdi-alert-circle", Content = Findings, Group = "SYSTEM" });
         NavigationItems.Add(new NavigationItem { Label = "Warnings", Icon = "mdi-alert", Content = Findings, Group = "" });
 
+        Agent.NavigateToThreatIntelAction = NavigateToThreatIntel;
         SelectedNavigationItem = NavigationItems[0];
 
         SelectNavigationCommand = new RelayCommand<NavigationItem>(
@@ -851,6 +858,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Opens the Threat Intel management view and refreshes it from the shared store first.
+    /// </summary>
+    public void NavigateToThreatIntel()
+    {
+        ThreatIntel.Refresh();
+        var item = NavigationItems.FirstOrDefault(i => ReferenceEquals(i.Content, ThreatIntel));
+        if (item != null)
+        {
+            SelectedNavigationItem = item;
+        }
+    }
+
     private static string BuildDemoBaselineLog()
     {
         return """
@@ -1077,6 +1097,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (e.PropertyName == nameof(AgentViewModel.IsBusy))
         {
             InvestigateCommand?.RaiseCanExecuteChanged();
+            VerifyFindingCommand?.RaiseCanExecuteChanged();
         }
     }
 

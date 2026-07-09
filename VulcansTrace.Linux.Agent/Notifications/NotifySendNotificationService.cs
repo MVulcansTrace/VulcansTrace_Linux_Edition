@@ -40,7 +40,15 @@ public sealed class NotifySendNotificationService : INotificationService
         return Task.CompletedTask;
     }
 
-    private static void TryNotifySend(string title, string message, string urgency = "normal")
+    /// <inheritdoc />
+    public Task<bool> SendTestAsync(CancellationToken ct = default)
+    {
+        const string title = "VulcansTrace: Test notification";
+        const string message = "If you can read this, desktop notifications are configured correctly.";
+        return Task.FromResult(TryNotifySend(title, message));
+    }
+
+    private static bool TryNotifySend(string title, string message, string urgency = "normal")
     {
         try
         {
@@ -57,11 +65,16 @@ public sealed class NotifySendNotificationService : INotificationService
             };
 
             using var process = Process.Start(startInfo);
-            process?.WaitForExit(TimeSpan.FromSeconds(5));
+            if (process is null)
+                return false;
+
+            process.WaitForExit(TimeSpan.FromSeconds(5));
+            return process.HasExited && process.ExitCode == 0;
         }
         catch
         {
             // Best-effort: silently degrade if notify-send is missing or fails.
+            return false;
         }
     }
 }

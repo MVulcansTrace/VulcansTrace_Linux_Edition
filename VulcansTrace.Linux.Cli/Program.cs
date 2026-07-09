@@ -110,11 +110,7 @@ public static class Program
 
         using var services = AgentFactory.Create(machineRole);
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var result = await services.Agent.RunAuditAsync(agentIntent, rawLog: null, cts.Token);
 
@@ -209,11 +205,7 @@ public static class Program
 
         using var services = AgentFactory.Create(machineRole);
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var result = await services.Agent.VerifyFindingAsync(ruleId, cts.Token);
         Console.WriteLine(StripMarkdown(result.Summary));
@@ -275,11 +267,7 @@ public static class Program
 
         using var services = agent is null ? AgentFactory.Create(role) : null;
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var actualAgent = agent ?? services!.Agent;
 
@@ -400,11 +388,7 @@ public static class Program
 
         using var services = AgentFactory.Create();
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var runner = new DemoRunner(services.LiveStreamAnalyzer, services.TraceMapCorrelator);
         var result = await runner.RunAsync(scenario, TimeSpan.FromSeconds(durationSeconds), intensity, seed, cts.Token);
@@ -566,11 +550,7 @@ public static class Program
         Console.WriteLine($"  Intensity: {intensity}");
 
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var services = AgentFactory.Create();
         var baselineLog = await File.ReadAllTextAsync(baselinePath, cts.Token);
@@ -694,11 +674,7 @@ public static class Program
         Console.WriteLine();
 
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         using var services = doctorService is null ? AgentFactory.Create() : null;
         var result = await (doctorService ?? services!.DoctorService).ProbeAsync(cts.Token);
@@ -996,11 +972,11 @@ public static class Program
                 return sub switch
                 {
                     "list" => ListSchedules(services.ScheduleStore),
-                    "add" => AddSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
-                    "edit" => EditSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
-                    "delete" => DeleteSchedule(args, services.ScheduleStore, services.AnalystActionLogger),
-                    "enable" => ToggleSchedule(args, services.ScheduleStore, services.AnalystActionLogger, enabled: true),
-                    "disable" => ToggleSchedule(args, services.ScheduleStore, services.AnalystActionLogger, enabled: false),
+                    "add" => await AddScheduleAsync(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "edit" => await EditScheduleAsync(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "delete" => await DeleteScheduleAsync(args, services.ScheduleStore, services.AnalystActionLogger),
+                    "enable" => await ToggleScheduleAsync(args, services.ScheduleStore, services.AnalystActionLogger, enabled: true),
+                    "disable" => await ToggleScheduleAsync(args, services.ScheduleStore, services.AnalystActionLogger, enabled: false),
                     _ => PrintError($"Unknown schedule subcommand: {sub}")
                 };
             }
@@ -1032,7 +1008,7 @@ public static class Program
         return 0;
     }
 
-    private static int AddSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
+    private static async Task<int> AddScheduleAsync(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var name = ParseArg(args, "--name", null);
         var intentStr = ParseArg(args, "--intent", null);
@@ -1113,11 +1089,11 @@ public static class Program
         if (!string.IsNullOrWhiteSpace(schedule.OutputDirectory))
             Console.WriteLine($"  Output directory: {schedule.OutputDirectory}");
 
-        logger.LogScheduleAddedAsync("cli", schedule.Id).GetAwaiter().GetResult();
+        await logger.LogScheduleAddedAsync("cli", schedule.Id);
         return 0;
     }
 
-    private static int EditSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
+    private static async Task<int> EditScheduleAsync(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1223,11 +1199,11 @@ public static class Program
         store.Save(updated);
         Console.WriteLine($"Schedule updated: {updated.Id}");
 
-        logger.LogScheduleEditedAsync("cli", updated.Id).GetAwaiter().GetResult();
+        await logger.LogScheduleEditedAsync("cli", updated.Id);
         return 0;
     }
 
-    private static int DeleteSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger)
+    private static async Task<int> DeleteScheduleAsync(string[] args, IScheduleStore store, AnalystActionLogger logger)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1240,11 +1216,11 @@ public static class Program
         store.Delete(id);
         Console.WriteLine($"Schedule deleted: {schedule.Name} ({id})");
 
-        logger.LogScheduleDeletedAsync("cli", schedule.Id).GetAwaiter().GetResult();
+        await logger.LogScheduleDeletedAsync("cli", schedule.Id);
         return 0;
     }
 
-    private static int ToggleSchedule(string[] args, IScheduleStore store, AnalystActionLogger logger, bool enabled)
+    private static async Task<int> ToggleScheduleAsync(string[] args, IScheduleStore store, AnalystActionLogger logger, bool enabled)
     {
         var id = ParseArg(args, "--id", null);
         if (string.IsNullOrWhiteSpace(id))
@@ -1258,9 +1234,9 @@ public static class Program
         Console.WriteLine($"Schedule {(enabled ? "enabled" : "disabled")}: {schedule.Name} ({id})");
 
         if (enabled)
-            logger.LogScheduleEnabledAsync("cli", schedule.Id).GetAwaiter().GetResult();
+            await logger.LogScheduleEnabledAsync("cli", schedule.Id);
         else
-            logger.LogScheduleDisabledAsync("cli", schedule.Id).GetAwaiter().GetResult();
+            await logger.LogScheduleDisabledAsync("cli", schedule.Id);
         return 0;
     }
 
@@ -1313,11 +1289,7 @@ public static class Program
         Console.WriteLine($"Running scheduled audit: {schedule.Name} ({schedule.Intent}, role: {schedule.MachineRole})...");
 
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         using var services = AgentFactory.Create(schedule.MachineRole, configDirectory);
         var previous = services.AuditHistoryStore.GetAll()
@@ -1362,7 +1334,7 @@ public static class Program
 
             if (newCriticalCount > 0)
             {
-                var notifier = CreateNotificationService(schedule.NotificationChannel);
+                var notifier = CreateNotificationService(schedule.NotificationChannel, services.NotificationSettingsStore);
                 try
                 {
                     await notifier.NotifyCriticalFindingsAsync(schedule.Name, newCriticalCount, cts.Token);
@@ -1396,7 +1368,7 @@ public static class Program
             // Best-effort: drift response must never fail the cron run or alter the audit outcome.
             // The already-completed `result` is reused for alert enrichment so we don't run a
             // redundant third full-audit pass.
-            var driftNotifier = CreateNotificationService(schedule.NotificationChannel);
+            var driftNotifier = CreateNotificationService(schedule.NotificationChannel, services.NotificationSettingsStore);
             try
             {
                 var responder = new AutonomousDriftResponder(
@@ -1457,124 +1429,111 @@ public static class Program
         Console.WriteLine($"Running remediation for schedule: {schedule.Name} ({schedule.Intent}, role: {schedule.MachineRole})...");
 
         using var cts = new CancellationTokenSource();
-        ConsoleCancelEventHandler cancelHandler = (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
-        Console.CancelKeyPress += cancelHandler;
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
+        using var services = AgentFactory.Create(schedule.MachineRole, configDirectory);
+        AgentResult result;
         try
         {
-            using var services = AgentFactory.Create(schedule.MachineRole, configDirectory);
-            AgentResult result;
-            try
-            {
-                result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Console.Error.WriteLine("Remediation audit cancelled.");
-                return 130; // Standard exit code for Ctrl-C cancellation.
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error: remediation audit failed: {ex.Message}");
-                return 1;
-            }
+            result = await services.Agent.RunAuditAsync(schedule.Intent, rawLog: null, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("Remediation audit cancelled.");
+            return 130; // Standard exit code for Ctrl-C cancellation.
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: remediation audit failed: {ex.Message}");
+            return 1;
+        }
 
-            // Enforce the schedule's rule-prefix scope on what is actually remediated — not just on
-            // the alert preview — so a schedule scoped to e.g. "FW" cannot remediate other rules.
-            var scopedFindings = RemediationScopeFilter.Apply(result.AgentFindings, schedule.AllowedRemediationRulePrefixes);
-            var plan = services.RemediationPlanBuilder.Build(scopedFindings);
-            var policy = BuildScheduleRemediationPolicy(schedule);
-            var validation = RemediationPlanValidator.Validate(plan);
+        // Enforce the schedule's rule-prefix scope on what is actually remediated — not just on
+        // the alert preview — so a schedule scoped to e.g. "FW" cannot remediate other rules.
+        var scopedFindings = RemediationScopeFilter.Apply(result.AgentFindings, schedule.AllowedRemediationRulePrefixes);
+        var plan = services.RemediationPlanBuilder.Build(scopedFindings);
+        var policy = BuildScheduleRemediationPolicy(schedule);
+        var validation = RemediationPlanValidator.Validate(plan);
 
-            if (plan.TotalSections == 0)
-            {
-                Console.WriteLine("No remediable findings in scope. Nothing to do.");
-                return 0;
-            }
-
-            var permittedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => policy.IsPermitted(c.Safety)));
-            var blockedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => !policy.IsPermitted(c.Safety)));
-
-            Console.WriteLine();
-            Console.WriteLine($"Findings in scope: {plan.TotalSections}");
-            Console.WriteLine($"Commands permitted by policy: {permittedCount}");
-            Console.WriteLine($"Commands blocked by policy: {blockedCount}");
-            Console.WriteLine($"Policy: {policy.Describe()}");
-
-            if (!validation.IsValid)
-            {
-                Console.WriteLine();
-                Console.WriteLine("Validation warnings:");
-                foreach (var err in validation.Errors)
-                {
-                    Console.WriteLine($"  • {err}");
-                }
-            }
-
-            if (permittedCount == 0)
-            {
-                Console.WriteLine();
-                Console.WriteLine("No commands are permitted under the current policy. Nothing to do.");
-                Console.WriteLine("Use --allow-remediate with --allow-remediation-restart or --allow-remediation-packages to expand the policy.");
-                return 0;
-            }
-
-            var preview = RemediationConsoleFormatter.FormatDryRun(plan, policy);
-            Console.WriteLine(preview);
-
-            if (dryRun)
-            {
-                return 0;
-            }
-
-            if (!yes)
-            {
-                Console.Write("Type 'yes' to execute the remediation plan, or anything else to cancel: ");
-                var response = Console.ReadLine()?.Trim();
-                if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
-                {
-                    Console.WriteLine("Remediation cancelled by user.");
-                    return 0;
-                }
-            }
-            else
-            {
-                Console.WriteLine("--yes flag set. Proceeding without interactive confirmation.");
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("Executing remediation plan...");
-
-            var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, cts.Token);
-            await RecordAutoFixRemediationAttemptsAsync(executionResult, services);
-
-            var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
-            Console.WriteLine(output);
-
-            if (!executionResult.AllSucceeded)
-            {
-                Console.WriteLine("⚠️  Some remediation commands failed. Review the output above.");
-                return 3;
-            }
-
-            if (executionResult.TotalCommandsExecuted == 0)
-            {
-                Console.WriteLine("ℹ️  No remediation commands were executed (all skipped by policy or validation).");
-                return 0;
-            }
-
-            Console.WriteLine("✅ All permitted remediation commands completed successfully.");
+        if (plan.TotalSections == 0)
+        {
+            Console.WriteLine("No remediable findings in scope. Nothing to do.");
             return 0;
         }
-        finally
+
+        var permittedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => policy.IsPermitted(c.Safety)));
+        var blockedCount = plan.Sections.Sum(s => s.ApplyCommands.Count(c => !policy.IsPermitted(c.Safety)));
+
+        Console.WriteLine();
+        Console.WriteLine($"Findings in scope: {plan.TotalSections}");
+        Console.WriteLine($"Commands permitted by policy: {permittedCount}");
+        Console.WriteLine($"Commands blocked by policy: {blockedCount}");
+        Console.WriteLine($"Policy: {policy.Describe()}");
+
+        if (!validation.IsValid)
         {
-            // Detach so repeated in-process invocation (notably unit tests) does not accumulate handlers.
-            Console.CancelKeyPress -= cancelHandler;
+            Console.WriteLine();
+            Console.WriteLine("Validation warnings:");
+            foreach (var err in validation.Errors)
+            {
+                Console.WriteLine($"  • {err}");
+            }
         }
+
+        if (permittedCount == 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("No commands are permitted under the current policy. Nothing to do.");
+            Console.WriteLine("Use --allow-remediate with --allow-remediation-restart or --allow-remediation-packages to expand the policy.");
+            return 0;
+        }
+
+        var preview = RemediationConsoleFormatter.FormatDryRun(plan, policy);
+        Console.WriteLine(preview);
+
+        if (dryRun)
+        {
+            return 0;
+        }
+
+        if (!yes)
+        {
+            Console.Write("Type 'yes' to execute the remediation plan, or anything else to cancel: ");
+            var response = Console.ReadLine()?.Trim();
+            if (!string.Equals(response, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Remediation cancelled by user.");
+                return 0;
+            }
+        }
+        else
+        {
+            Console.WriteLine("--yes flag set. Proceeding without interactive confirmation.");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Executing remediation plan...");
+
+        var executionResult = await services.RemediationExecutor.ExecuteAsync(plan, policy, dryRun: false, cts.Token);
+        await RecordAutoFixRemediationAttemptsAsync(executionResult, services);
+
+        var output = RemediationConsoleFormatter.FormatExecutionResult(executionResult);
+        Console.WriteLine(output);
+
+        if (!executionResult.AllSucceeded)
+        {
+            Console.WriteLine("⚠️  Some remediation commands failed. Review the output above.");
+            return 3;
+        }
+
+        if (executionResult.TotalCommandsExecuted == 0)
+        {
+            Console.WriteLine("ℹ️  No remediation commands were executed (all skipped by policy or validation).");
+            return 0;
+        }
+
+        Console.WriteLine("✅ All permitted remediation commands completed successfully.");
+        return 0;
     }
 
     private static AutoFixPolicy BuildScheduleRemediationPolicy(AuditSchedule schedule) => new()
@@ -1625,11 +1584,7 @@ public static class Program
         using var ownedServices = services == null ? AgentFactory.Create(machineRole) : null;
         var actualServices = services ?? ownedServices!;
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var baselineLog = await File.ReadAllTextAsync(baselinePath, cts.Token);
         var incidentLog = await File.ReadAllTextAsync(logFile, cts.Token);
@@ -1806,46 +1761,12 @@ public static class Program
         return 0;
     }
 
-    private static INotificationService CreateNotificationService(NotificationChannel channel)
+    private static INotificationService CreateNotificationService(
+        NotificationChannel channel,
+        INotificationSettingsStore notificationSettingsStore)
     {
-        return channel switch
-        {
-            NotificationChannel.Email => CreateEmailService(),
-            NotificationChannel.Webhook => CreateWebhookService(),
-            _ => new NotifySendNotificationService()
-        };
-    }
-
-    private static INotificationService CreateEmailService()
-    {
-        var hostEnv = Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_HOST");
-        var host = hostEnv ?? "localhost";
-        var port = int.TryParse(Environment.GetEnvironmentVariable("VT_EMAIL_SMTP_PORT"), out var p) ? p : 587;
-        var fromAddr = Environment.GetEnvironmentVariable("VT_EMAIL_FROM") ?? "vulcanstrace@localhost";
-        var toAddr = Environment.GetEnvironmentVariable("VT_EMAIL_TO") ?? "admin@localhost";
-        var user = Environment.GetEnvironmentVariable("VT_EMAIL_USER");
-        var pass = Environment.GetEnvironmentVariable("VT_EMAIL_PASS");
-        var noSsl = Environment.GetEnvironmentVariable("VT_EMAIL_NO_SSL");
-        var disableSsl = noSsl?.Equals("1", StringComparison.OrdinalIgnoreCase) == true
-            || noSsl?.Equals("true", StringComparison.OrdinalIgnoreCase) == true
-            || noSsl?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
-        var enableSsl = !disableSsl;
-
-        if (string.IsNullOrWhiteSpace(hostEnv))
-            Console.Error.WriteLine("[VulcansTrace] Warning: VT_EMAIL_SMTP_HOST is not set; defaulting to localhost. Email alerts will not be delivered until SMTP is configured.");
-        if (!enableSsl && !string.IsNullOrEmpty(user))
-            Console.Error.WriteLine("[VulcansTrace] Warning: VT_EMAIL_NO_SSL is set while SMTP credentials are configured — credentials will be sent in plaintext.");
-
-        return new EmailNotificationService(host, port, fromAddr, toAddr, user, pass, enableSsl);
-    }
-
-    private static INotificationService CreateWebhookService()
-    {
-        var urlEnv = Environment.GetEnvironmentVariable("VT_WEBHOOK_URL");
-        var url = urlEnv ?? "http://localhost:8080/webhook";
-        if (string.IsNullOrWhiteSpace(urlEnv))
-            Console.Error.WriteLine("[VulcansTrace] Warning: VT_WEBHOOK_URL is not set; defaulting to localhost. Webhook alerts will not be delivered until it is configured.");
-        return new WebhookNotificationService(url);
+        ArgumentNullException.ThrowIfNull(notificationSettingsStore);
+        return notificationSettingsStore.Settings.CreateNotificationService(channel);
     }
 
     private static string? ParseArg(string[] args, string key, string? defaultValue)
@@ -1897,6 +1818,34 @@ public static class Program
         return args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Registers a Ctrl-C handler that cancels <paramref name="cts"/> and returns a scope that
+    /// detaches it on dispose. Use <c>using var</c> so the handler is removed on every exit path
+    /// (normal return, early return, or exception) — repeated in-process invocation (notably unit
+    /// tests) must not accumulate handlers that reference a disposed token source.
+    /// </summary>
+    private sealed class CancelKeyPressScope : IDisposable
+    {
+        private readonly ConsoleCancelEventHandler _handler;
+
+        private CancelKeyPressScope(ConsoleCancelEventHandler handler) => _handler = handler;
+
+        public static IDisposable Attach(CancellationTokenSource cts)
+        {
+            ConsoleCancelEventHandler handler = (_, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+            Console.CancelKeyPress += handler;
+            return new CancelKeyPressScope(handler);
+        }
+
+        // Console.CancelKeyPress -= is idempotent, so no guard is required for the single
+        // dispose that `using var` performs.
+        public void Dispose() => Console.CancelKeyPress -= _handler;
+    }
+
     /// <summary>True if <paramref name="key"/> appears as a bare <c>--key</c> or attached <c>--key=...</c> token.</summary>
     private static bool IsFlagPresent(string[] args, string key)
     {
@@ -1941,8 +1890,7 @@ public static class Program
     private static int PrintError(string message)
     {
         Console.Error.WriteLine($"Error: {message}");
-        Console.Error.WriteLine();
-        PrintHelp();
+        Console.Error.WriteLine("Run 'vulcanstrace --help' for usage.");
         return 1;
     }
 
@@ -2115,11 +2063,7 @@ public static class Program
 
         using var services = AgentFactory.Create();
         using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         var rawLog = await File.ReadAllTextAsync(logFile, cts.Token);
         var result = services.Analyzer.Analyze(rawLog, intensity, cts.Token);
@@ -2146,8 +2090,6 @@ public static class Program
 
     private static async Task<int> RunThreatIntelAsync(string[] args)
     {
-        await Task.CompletedTask;
-
         if (args.Length < 2)
         {
             return PrintError("Threat intel subcommand required: import, status, clear");
@@ -2159,14 +2101,14 @@ public static class Program
 
         return sub switch
         {
-            "import" => RunThreatIntelImport(args, store, services.AnalystActionLogger),
+            "import" => await RunThreatIntelImportAsync(args, store, services.AnalystActionLogger),
             "status" => RunThreatIntelStatus(store),
-            "clear" => RunThreatIntelClear(args, store, services.AnalystActionLogger),
+            "clear" => await RunThreatIntelClearAsync(args, store, services.AnalystActionLogger),
             _ => PrintError($"Unknown threat-intel subcommand: {sub}")
         };
     }
 
-    private static int RunThreatIntelImport(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
+    private static async Task<int> RunThreatIntelImportAsync(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
     {
         var filePath = ParseArg(args, "--file", null);
         var format = ParseArg(args, "--format", "auto")!.ToLowerInvariant();
@@ -2219,7 +2161,7 @@ public static class Program
         if (!string.IsNullOrWhiteSpace(store.PersistenceWarning))
             Console.WriteLine($"  Note: {store.PersistenceWarning}");
 
-        logger.LogThreatIntelImportedAsync("cli", format, result.ImportedCount).GetAwaiter().GetResult();
+        await logger.LogThreatIntelImportedAsync("cli", format, result.ImportedCount);
         return 0;
     }
 
@@ -2246,7 +2188,7 @@ public static class Program
         return 0;
     }
 
-    private static int RunThreatIntelClear(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
+    private static async Task<int> RunThreatIntelClearAsync(string[] args, IThreatIntelStore store, AnalystActionLogger logger)
     {
         var yes = HasFlag(args, "--yes");
         var previousCount = store.Count;
@@ -2264,8 +2206,10 @@ public static class Program
 
         store.Clear();
         Console.WriteLine("All threat intelligence IOCs cleared.");
+        if (!string.IsNullOrWhiteSpace(store.PersistenceWarning))
+            Console.WriteLine($"  Note: {store.PersistenceWarning}");
 
-        logger.LogThreatIntelClearedAsync("cli", previousCount).GetAwaiter().GetResult();
+        await logger.LogThreatIntelClearedAsync("cli", previousCount);
         return 0;
     }
 
@@ -2366,10 +2310,9 @@ public static class Program
         Console.WriteLine("  --allow-restart            With --auto-fix: permit service restart commands");
         Console.WriteLine("  --allow-packages           With --auto-fix: permit package install/remove commands");
         Console.WriteLine();
-        Console.WriteLine("Environment variables for Email channel:");
-        Console.WriteLine("  VT_EMAIL_SMTP_HOST, VT_EMAIL_SMTP_PORT, VT_EMAIL_FROM, VT_EMAIL_TO, VT_EMAIL_USER, VT_EMAIL_PASS, VT_EMAIL_NO_SSL");
-        Console.WriteLine("Environment variables for Webhook channel:");
-        Console.WriteLine("  VT_WEBHOOK_URL");
+        Console.WriteLine("Notification settings:");
+        Console.WriteLine("  Configure Email/Webhook delivery in the Avalonia Notifications tab.");
+        Console.WriteLine("  Settings are shared with CLI/cron via notification-settings.json in the VulcansTrace config directory.");
         Console.WriteLine("Environment variables for autonomous drift-response signing:");
         Console.WriteLine("  VT_ALERT_SIGNING_KEY       Hex-encoded HMAC-SHA256 key for signing drift alerts (if unset, alerts are sent UNSIGNED)");
         Console.WriteLine("  VT_REQUIRE_SIGNED_ALERTS   When 1/true/yes, unsigned drift alerts are never sent across all schedules (fail closed)");

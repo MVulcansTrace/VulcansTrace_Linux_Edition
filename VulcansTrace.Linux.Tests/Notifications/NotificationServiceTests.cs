@@ -40,6 +40,15 @@ public class NotificationServiceTests
             // we cannot observe the toast body, so this is a smoke test only.
             await service.NotifySignedAlertAsync(alert);
         }
+
+        [Fact]
+        public async Task SendTestAsync_DoesNotThrowAndReturnsBool()
+        {
+            var service = new NotifySendNotificationService();
+            // Best-effort: depends on notify-send being installed (absent in CI); must not throw.
+            var delivered = await service.SendTestAsync();
+            Assert.IsType<bool>(delivered);
+        }
     }
 
     public class EmailNotificationServiceTests
@@ -61,6 +70,28 @@ public class NotificationServiceTests
             Assert.Contains(alert.RemediationSummary!, sent.Body);
             Assert.Contains(alert.RuleIds[0], sent.Body);
             Assert.Contains(alert.ScheduleName, sent.Subject);
+        }
+
+        [Fact]
+        public async Task SendTestAsync_OnSuccess_ReturnsTrue()
+        {
+            var transport = new CapturingEmailTransport();
+            var service = new EmailNotificationService("host", 25, "from@test", "to@test", null, null, true, transport);
+
+            var delivered = await service.SendTestAsync();
+
+            Assert.True(delivered);
+            Assert.Single(transport.Sent);
+        }
+
+        [Fact]
+        public async Task SendTestAsync_OnFailure_ReturnsFalseAndDoesNotThrow()
+        {
+            var service = new EmailNotificationService("host", 25, "from@test", "to@test", null, null, true, new ThrowingEmailTransport());
+
+            var delivered = await service.SendTestAsync();
+
+            Assert.False(delivered);
         }
     }
 
@@ -112,6 +143,38 @@ public class NotificationServiceTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.NotifySignedAlertAsync(CreateAlert(), cts.Token));
             service.Dispose();
         }
+
+        [Fact]
+        public async Task SendTestAsync_OnSuccess_ReturnsTrue()
+        {
+            var handler = new CapturingHttpHandler { Status = HttpStatusCode.OK };
+            var service = new WebhookNotificationService("http://test.local/webhook", handler);
+
+            Assert.True(await service.SendTestAsync());
+            Assert.Single(handler.CapturedBodies);
+            service.Dispose();
+        }
+
+        [Fact]
+        public async Task SendTestAsync_OnNonSuccessStatus_ReturnsFalse()
+        {
+            // Unlike the Notify* path (which retries 5xx), the test path reports the real outcome.
+            var handler = new CapturingHttpHandler { Status = HttpStatusCode.InternalServerError };
+            var service = new WebhookNotificationService("http://test.local/webhook", handler);
+
+            Assert.False(await service.SendTestAsync());
+            Assert.Single(handler.CapturedBodies);
+            service.Dispose();
+        }
+
+        [Fact]
+        public async Task SendTestAsync_OnException_ReturnsFalse()
+        {
+            var service = new WebhookNotificationService("http://test.local/webhook", new ThrowingHttpHandler());
+
+            Assert.False(await service.SendTestAsync());
+            service.Dispose();
+        }
     }
 
     /// <summary>An HTTP handler that records every request body and returns a fixed status.</summary>
@@ -148,5 +211,19 @@ public class NotificationServiceTests
             Sent.Add(message);
             return Task.CompletedTask;
         }
+    }
+
+    /// <summary>An email transport that always fails, to exercise the test path's failure handling.</summary>
+    private sealed class ThrowingEmailTransport : IEmailTransport
+    {
+        public Task SendAsync(MailMessage message, EmailSmtpOptions options, CancellationToken ct)
+            => throw new InvalidOperationException("simulated SMTP failure");
+    }
+
+    /// <summary>An HTTP handler that always throws, to exercise the test path's failure handling.</summary>
+    private sealed class ThrowingHttpHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("simulated network failure");
     }
 }

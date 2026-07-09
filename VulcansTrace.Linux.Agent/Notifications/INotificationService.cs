@@ -30,6 +30,17 @@ public interface INotificationService
     /// <param name="alert">The signed alert payload.</param>
     /// <param name="ct">Cancellation token.</param>
     Task NotifySignedAlertAsync(SignedAlertMessage alert, CancellationToken ct = default);
+
+    /// <summary>
+    /// Attempts a best-effort diagnostic delivery and returns whether it succeeded.
+    /// Unlike the <c>Notify*</c> methods — which swallow delivery errors so a failed
+    /// notification can never break an audit — this surfaces success/failure so a user
+    /// can verify channel configuration from the UI. Returns <c>false</c> when the channel
+    /// is unavailable or delivery failed; never throws for delivery failures.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><c>true</c> if the test was delivered; otherwise <c>false</c>.</returns>
+    Task<bool> SendTestAsync(CancellationToken ct = default);
 }
 
 /// <summary>

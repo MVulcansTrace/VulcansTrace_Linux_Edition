@@ -70,19 +70,24 @@ public sealed class TraceMapCorrelator
             var groupFindings = group.ToList();
             var categories = groupFindings.Select(f => f.Category).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            if (categories.Contains(FindingCategories.Beaconing) &&
+            if ((categories.Contains(FindingCategories.Beaconing) || categories.Contains(FindingCategories.C2Channel)) &&
                 categories.Contains(FindingCategories.LateralMovement) &&
                 categories.Contains(FindingCategories.PrivilegeEscalation))
             {
-                var beaconing = groupFindings.Where(f => IsCategory(f, FindingCategories.Beaconing)).OrderBy(f => f.TimeRangeStart).First();
+                // The opening stage is either a beacon or a C2 channel — whichever established the
+                // attacker's presence on this host — so the slot may hold either category.
+                var foothold = groupFindings
+                    .Where(f => IsCategory(f, FindingCategories.Beaconing) || IsCategory(f, FindingCategories.C2Channel))
+                    .OrderBy(f => f.TimeRangeStart)
+                    .First();
                 var lateral = groupFindings.Where(f => IsCategory(f, FindingCategories.LateralMovement)).OrderBy(f => f.TimeRangeStart).First();
                 var privEsc = groupFindings.Where(f => IsCategory(f, FindingCategories.PrivilegeEscalation)).OrderBy(f => f.TimeRangeStart).First();
-                var ordered = new[] { beaconing, lateral, privEsc }.OrderBy(f => f.TimeRangeStart).ToList();
+                var ordered = new[] { foothold, lateral, privEsc }.OrderBy(f => f.TimeRangeStart).ToList();
 
                 criticalChains.Add(new CriticalChain
                 {
                     Host = group.Key,
-                    Narrative = $"Critical chain detected on {group.Key}: Beaconing → LateralMovement → PrivilegeEscalation.",
+                    Narrative = $"Critical chain detected on {group.Key}: Beaconing/C2 → LateralMovement → PrivilegeEscalation.",
                     FindingIds = ordered.Select(f => f.Id).ToList()
                 });
             }

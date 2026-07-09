@@ -413,5 +413,7 @@ public class AutonomousDriftResponderTests
             LastAlert = alert;
             return Task.CompletedTask;
         }
+
+        public Task<bool> SendTestAsync(CancellationToken ct = default) => Task.FromResult(true);
     }
 }

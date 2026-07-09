@@ -36,6 +36,15 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
         _httpClient = new HttpClient(handler ?? throw new ArgumentNullException(nameof(handler)));
     }
 
+    /// <summary>
+    /// Initializes a new instance from notification settings.
+    /// </summary>
+    /// <param name="settings">The notification settings containing the webhook URL.</param>
+    public WebhookNotificationService(NotificationSettings settings)
+        : this((settings ?? throw new ArgumentNullException(nameof(settings))).WebhookUrl)
+    {
+    }
+
     /// <inheritdoc />
     public Task NotifyAsync(string title, string message, CancellationToken ct = default)
     {
@@ -82,6 +91,37 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
             alert.Signature
         };
         return PostAsync(payload, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SendTestAsync(CancellationToken ct = default)
+    {
+        // Single attempt, no retry: the test path must report the real outcome so a user can
+        // verify the configured URL, not a transient recovery.
+        var payload = new
+        {
+            title = "VulcansTrace: Test notification",
+            message = "If you can read this, webhook notification settings are configured correctly.",
+            timestamp = DateTime.UtcNow
+        };
+        try
+        {
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.PostAsync(_webhookUrl, content, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task PostAsync(object payload, CancellationToken ct)

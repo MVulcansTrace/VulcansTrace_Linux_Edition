@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.ThreatIntelView"
+             x:DataType="vm:ThreatIntelViewModel">
+
+    <Design.DataContext>
+        <vm:ThreatIntelViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,*">
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+            <Button Content="Import"
+                    Command="{Binding ImportCommand}"
+                    Theme="{StaticResource VtPrimaryButton}"
+                    MinWidth="70"
+                    AutomationProperties.AutomationId="ThreatIntelImportButton"/>
+            <Button Content="Remove"
+                    Command="{Binding RemoveSelectedCommand}"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    MinWidth="70"
+                    AutomationProperties.AutomationId="ThreatIntelRemoveButton"/>
+            <Button Content="Clear All"
+                    Command="{Binding ClearCommand}"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    MinWidth="70"
+                    AutomationProperties.AutomationId="ThreatIntelClearButton"/>
+            <Button Content="Refresh"
+                    Command="{Binding RefreshCommand}"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    MinWidth="70"
+                    AutomationProperties.AutomationId="ThreatIntelRefreshButton"/>
+            <TextBlock Text="Type:"
+                       VerticalAlignment="Center"
+                       Margin="16,0,4,0"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"/>
+            <ComboBox ItemsSource="{Binding TypeFilterOptions}"
+                      SelectedItem="{Binding SelectedTypeFilter}"
+                      Width="140"
+                      VerticalAlignment="Center"
+                      AutomationProperties.AutomationId="ThreatIntelTypeFilterComboBox">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Label}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="Search:"
+                       VerticalAlignment="Center"
+                       Margin="16,0,4,0"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"/>
+            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="Filter value, source, description..."
+                     Width="260"
+                     VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ThreatIntelSearchTextBox"/>
+        </StackPanel>
+
+        <!-- Counts -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+            <TextBlock Text="{Binding TotalCount, StringFormat='{}Total: {0}'}"
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"/>
+            <TextBlock Text="{Binding FilteredCount, StringFormat='{}Shown: {0}'}"
+                       Foreground="{StaticResource VtTextMutedBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"/>
+        </StackPanel>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="2"
+                   Text="{Binding StatusMessage}"
+                   Foreground="{StaticResource VtTextMutedBrush}"
+                   FontSize="{StaticResource VtFontSizeSm}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,8"
+                   AutomationProperties.AutomationId="ThreatIntelStatusTextBlock"/>
+
+        <!-- IOC grid -->
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding FilteredEntries}"
+                  SelectedItem="{Binding SelectedIoc, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+
+                  CanUserResizeColumns="True"
+                  AutomationProperties.AutomationId="ThreatIntelDataGrid"
+                  AutomationProperties.Name="Threat Intelligence IOCs">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="180" />
+                <DataGridTextColumn Header="Score" Binding="{Binding ThreatScore}" Width="60" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                <DataGridTextColumn Header="Algorithm" Binding="{Binding Algorithm}" Width="90" />
+                <DataGridTextColumn Header="Imported" Binding="{Binding ImportedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="130" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

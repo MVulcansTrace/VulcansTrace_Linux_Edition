@@ -203,6 +203,11 @@ public class EvidenceViewModelTests
             return Task.FromResult<string?>(null);
         }
 
+        public Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel)
+        {
+            return Task.FromResult<bool?>(null);
+        }
+
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
         {
             return Task.FromResult<int?>(null);

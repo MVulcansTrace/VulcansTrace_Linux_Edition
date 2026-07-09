@@ -12,6 +12,11 @@ public interface IThreatIntelStore
     /// <summary>Removes all stored IOCs.</summary>
     void Clear();
 
+    /// <summary>Removes the IOC with the specified storage key.</summary>
+    /// <param name="storageKey">The storage key of the IOC to remove.</param>
+    /// <returns><c>true</c> if an IOC was removed; otherwise <c>false</c>.</returns>
+    bool Remove(string storageKey);
+
     /// <summary>Total number of stored IOCs.</summary>
     int Count { get; }
 

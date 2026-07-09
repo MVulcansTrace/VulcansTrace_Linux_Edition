@@ -103,6 +103,29 @@ public class ThreatIntelViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task RemoveSelected_LogsAnalystAction()
+    {
+        var store = new InMemoryThreatIntelStore();
+        store.Import(new[]
+        {
+            new IocEntry { Type = IocType.IPv4, Value = "192.168.1.1", Source = "STIX" },
+            new IocEntry { Type = IocType.Port, Value = "4444", Source = "STIX" }
+        });
+        var actionStore = new InMemoryAnalystActionStore();
+        var vm = new ThreatIntelViewModel(store, new TestDialogService(), new AnalystActionLogger(actionStore));
+        vm.Refresh();
+
+        vm.SelectedIoc = vm.FilteredEntries.First(e => e.Value == "192.168.1.1");
+        vm.RemoveSelectedCommand.Execute(null);
+        await vm.RemoveSelectedCommand.ExecutionTask;
+
+        var entry = Assert.Single(actionStore.GetAll());
+        Assert.Equal(AnalystActionType.ThreatIntelRemoved, entry.ActionType);
+        Assert.Contains("value=192.168.1.1", entry.Details);
+        Assert.Contains("type=IPv4", entry.Details);
+    }
+
+    [AvaloniaFact]
     public async Task ClearAll_RemovesAllFromStore()
     {
         var store = new InMemoryThreatIntelStore();
@@ -245,6 +268,43 @@ public class ThreatIntelViewModelTests
 
             Assert.Single(store.GetAll());
             Assert.Equal("misp.example.com", store.GetAll()[0].Value);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ImportCommand_SurfaceParserWarningsInStatus()
+    {
+        var json = @"{
+            ""Event"": {
+                ""Attribute"": [
+                    { ""type"": ""unsupported-type"", ""value"": ""not-actionable"", ""comment"": ""test"" }
+                ]
+            }
+        }";
+
+        var tempFile = Path.GetTempFileName() + ".json";
+        await File.WriteAllTextAsync(tempFile, json);
+
+        try
+        {
+            var store = new InMemoryThreatIntelStore();
+            var dialogService = new TestDialogService
+            {
+                OpenFileResult = tempFile,
+                SelectionResult = 2 // MISP JSON
+            };
+            var vm = new ThreatIntelViewModel(store, dialogService);
+
+            vm.ImportCommand.Execute(null);
+            await vm.ImportCommand.ExecutionTask;
+
+            Assert.Empty(store.GetAll());
+            Assert.Contains("Skipped: 1", vm.StatusMessage);
+            Assert.Contains("Skipped unsupported MISP attribute type: unsupported-type", vm.StatusMessage);
         }
         finally
         {

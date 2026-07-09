@@ -204,6 +204,8 @@ The Avalonia UI includes a **Schedules** tab:
 6. Click **Run Now** to execute a schedule on demand. The result is persisted to the audit history store.
 7. The grid shows whether each schedule is currently installed in cron.
 
+Use the **Notifications** tab to configure global notification delivery. Schedule `--channel` / **Notification Channel** chooses Desktop, Email, or Webhook per schedule, while Email SMTP settings, Webhook URL, and the global enable/disable switch come from `~/.config/VulcansTrace/notification-settings.json` (or `$XDG_CONFIG_HOME/VulcansTrace/notification-settings.json`). The settings file is written with owner-only permissions on Unix because it can contain an SMTP password.
+
 ### CLI Schedule Management
 
 The headless CLI provides full schedule management (every command also accepts the global `--config-dir <dir>` flag):
@@ -400,6 +402,9 @@ vulcanstrace threat-intel status
 
 # Clear all imported IOCs
 vulcanstrace threat-intel clear
+
+# Export findings from a log as STIX or MISP threat intelligence
+vulcanstrace export-threat-intel --log-file /path/to/firewall.log --format misp --output findings.misp.json --intensity High
 ```
 
 ### Supported IOC Types
@@ -415,9 +420,9 @@ vulcanstrace threat-intel clear
 
 ¹ Domain and URL IOCs are imported and persisted, but firewall log correlation currently matches on IP addresses and ports only. Domain/URL correlation will be available when the log parser extracts those fields.
 
-### Avalonia UI Import
+### Avalonia UI Management
 
-The Security Agent view includes an **Import Threat Intel** button. Click it to open a file picker, select a STIX or MISP JSON file, and confirm the format. Imported IOCs are immediately available for correlation in the next audit or live stream session.
+The **Threat Intel** tab lists imported IOCs, supports type/search filtering, imports STIX or MISP JSON, removes individual IOCs, and clears the store. The Security Agent view also includes an **Import Threat Intel** button for quick imports; imported IOCs are immediately available for correlation in the next audit or live stream session and are visible in the Threat Intel tab.
 
 ### How Threat Intel Correlation Works
 
@@ -479,6 +484,10 @@ vulcanstrace audit --intent FullAudit --auto-fix --yes --allow-packages
 
 When a scheduled audit produces new critical findings, a notification is sent through the configured channel. Notification failures are logged to `stderr` and do not affect the audit exit code.
 
+Configure delivery in the Avalonia **Notifications** tab. The tab writes `notification-settings.json` under the VulcansTrace config directory and is shared by Avalonia, CLI `audit --notify-on-critical`, CLI `schedule run`, and installed cron entries. If notification settings cannot be written to disk, the UI keeps the edited values for the current session and shows a session-only warning.
+
+The global **Enable notifications** switch disables all scheduled notification delivery. Each schedule still chooses its own channel (`Desktop`, `Email`, or `Webhook`); Email and Webhook reuse the global SMTP/Webhook fields from the settings file.
+
 ### Drift-Alert Notifications
 
 When a schedule has **autonomous drift response** enabled, drift at or above the configured severity triggers a signed alert through the same notification channel. The alert payload includes:
@@ -505,25 +514,11 @@ Uses `notify-send` (Linux desktop notification daemon). Falls back silently if u
 
 ### Email Notifications
 
-Configure via environment variables:
-
-```bash
-export VT_EMAIL_SMTP_HOST=smtp.example.com
-export VT_EMAIL_SMTP_PORT=587
-export VT_EMAIL_FROM=vulcanstrace@example.com
-export VT_EMAIL_TO=security@example.com
-export VT_EMAIL_USER=username      # optional
-export VT_EMAIL_PASS=password      # optional
-export VT_EMAIL_NO_SSL=1           # set to 1, true, or yes to disable SSL
-```
+Configure SMTP host, port, sender, recipient, optional username/password, and SSL/TLS in the **Notifications** tab. The SMTP password is stored in `notification-settings.json`; keep the config directory private and prefer an app-specific SMTP password.
 
 ### Webhook Notifications
 
-Configure via environment variable:
-
-```bash
-export VT_WEBHOOK_URL=https://hooks.example.com/vulcanstrace
-```
+Configure the webhook URL in the **Notifications** tab.
 
 The webhook receives a JSON POST with the drift-alert fields above (for drift alerts) or `title`, `message`, `scheduleName`, `criticalCount`, and `timestamp` (for critical-findings notifications). Failed requests are retried up to 3 times with exponential backoff for transient errors (5xx, timeouts, connection failures).
 
@@ -575,6 +570,7 @@ Exporting evidence produces a ZIP archive with:
 - `findings.csv`
 - `findings.json`
 - `findings.stix.json`
+- `findings.misp.json`
 - `report.html`
 - `summary.md`
 - `log.txt`

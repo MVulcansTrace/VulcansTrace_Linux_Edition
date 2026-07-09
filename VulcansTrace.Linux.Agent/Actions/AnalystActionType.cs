@@ -14,6 +14,7 @@ public static class AnalystActionType
     public const string ThreatIntelExported = "ThreatIntelExported";
     public const string ThreatIntelImported = "ThreatIntelImported";
     public const string ThreatIntelCleared = "ThreatIntelCleared";
+    public const string ThreatIntelRemoved = "ThreatIntelRemoved";
     public const string SuppressionAdded = "SuppressionAdded";
     public const string BaselineSet = "BaselineSet";
     public const string DriftChecked = "DriftChecked";

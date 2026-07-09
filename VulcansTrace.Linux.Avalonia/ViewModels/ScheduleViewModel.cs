@@ -577,26 +577,8 @@ public sealed class ScheduleViewModel : ViewModelBase
 
     private INotificationService CreateNotificationService(NotificationChannel channel)
     {
-        if (_notificationSettingsStore?.Settings is { Enabled: false })
-            return new NullNotificationService();
-
         var settings = _notificationSettingsStore?.Settings ?? new NotificationSettings { Channel = channel };
-        return channel switch
-        {
-            NotificationChannel.Email => new EmailNotificationService(settings with { Channel = NotificationChannel.Email }),
-            NotificationChannel.Webhook => new WebhookNotificationService(settings with { Channel = NotificationChannel.Webhook }),
-            _ => _fallbackNotificationService
-        };
-    }
-
-    private static INotificationService CreateEmailService(NotificationSettings settings)
-    {
-        return new EmailNotificationService(settings);
-    }
-
-    private static INotificationService CreateWebhookService(NotificationSettings settings)
-    {
-        return new WebhookNotificationService(settings);
+        return settings.CreateNotificationService(channel, _fallbackNotificationService);
     }
 
     private static Window? GetOwnerWindow()

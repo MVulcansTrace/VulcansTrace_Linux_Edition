@@ -1,11 +1,12 @@
 using System.Text.Json;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Cli;
 
 namespace VulcansTrace.Linux.Tests.Cli;
 
 [Collection(CliCommandTestCollection.Name)]
-public class AnalystActionLogCommandTests
+public class AnalystActionLogCommandTests : IDisposable
 {
     private readonly string _configDir;
 
@@ -118,5 +119,12 @@ public class AnalystActionLogCommandTests
     {
         var result = await Program.Main(["analyst-action-log", "frobnicate", "--config-dir", _configDir]);
         Assert.Equal(1, result);
+    }
+
+    public void Dispose()
+    {
+        VulcansTraceConfig.OverrideDirectory = null;
+        try { if (Directory.Exists(_configDir)) Directory.Delete(_configDir, recursive: true); }
+        catch { /* best-effort cleanup */ }
     }
 }

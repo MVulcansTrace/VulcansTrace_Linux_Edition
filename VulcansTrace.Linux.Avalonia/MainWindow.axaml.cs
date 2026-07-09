@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -34,7 +35,7 @@ public partial class MainWindow : Window
         var services = AgentFactory.Create(MachineRole.Workstation);
         _rootServices = services;
         var dialogService = new AvaloniaDialogService(this);
-        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.PinnedFindingStore, services.PinnedMessageStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.PolicyStore, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService, services.MemoryStore);
+        var viewModel = new MainViewModel(services.Analyzer, services.EvidenceBuilder, dialogService, services.ProfileProvider, services.Agent, services.SuppressionStore, services.PinnedFindingStore, services.PinnedMessageStore, services.AuditHistoryStore, services.RemediationPlanBuilder, services.RemediationExecutor, services.TraceMapCorrelator, services.LiveStreamAnalyzer, services.PolicyStore, services.ScheduleStore, services.NotificationService, services.SessionStore, services.ThreatIntelStore, services.DoctorService, services.MemoryStore, services.NotificationSettingsStore, services.AnalystActionStore, services.AnalystActionLogger);
         viewModel.RuleCatalog.LoadCatalog(services.RuleCatalog);
         viewModel.Agent.ShowAuditDiffAction = diff =>
         {
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
             window.ViewModel.LoadDiff(diff);
             window.ShowDialog(this);
         };
+        viewModel.Agent.ShowLogDiffDemoAction = () => viewModel.ShowLogDiffDemoAsync();
         DataContext = viewModel;
 
         // The Warnings and Parse Errors nav items share the Findings data context but
@@ -63,6 +65,14 @@ public partial class MainWindow : Window
 
         // Defer control lookup until after layout
         Dispatcher.UIThread.Post(() => _mainContent = this.FindControl<ContentControl>("MainContent"));
+    }
+
+    private void CompareLogsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel || !viewModel.CompareLogsCommand.CanExecute(null))
+            return;
+
+        viewModel.CompareLogsCommand.Execute(null);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

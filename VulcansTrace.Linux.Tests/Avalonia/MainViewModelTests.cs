@@ -10,10 +10,12 @@ using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
 using VulcansTrace.Linux.Agent.Rules;
+using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Security;
+using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.Detectors;
@@ -46,6 +48,52 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Same(_vm.InvestigateCommand, _vm.Findings.InvestigateCommand);
         Assert.Same(_vm.SuppressCommand, _vm.Findings.SuppressCommand);
         Assert.Same(_vm.ResolveCommand, _vm.Findings.ResolveCommand);
+        Assert.Same(_vm.VerifyFindingCommand, _vm.Findings.VerifyFindingCommand);
+    }
+
+    [AvaloniaFact]
+    public void NavigateToThreatIntel_RefreshesAlreadySelectedThreatIntelTab()
+    {
+        var store = new InMemoryThreatIntelStore();
+        using var vm = BuildViewModel(threatIntelStore: store);
+        var threatIntelNav = vm.NavigationItems.First(i => i.Label == "Threat Intel");
+
+        vm.SelectedNavigationItem = threatIntelNav;
+        Assert.Empty(vm.ThreatIntel.FilteredEntries);
+
+        store.Import(new[]
+        {
+            new IocEntry { Type = IocType.IPv4, Value = "10.0.0.99", Source = "STIX" }
+        });
+        vm.Agent.NavigateToThreatIntelAction?.Invoke();
+
+        Assert.Same(threatIntelNav, vm.SelectedNavigationItem);
+        var entry = Assert.Single(vm.ThreatIntel.FilteredEntries);
+        Assert.Equal("10.0.0.99", entry.Value);
+    }
+
+    [AvaloniaFact]
+    public void VerifyFindingCommand_CanExecute_WhenFindingHasRuleId()
+    {
+        var withRuleId = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        var withoutRuleId = new FindingItemViewModel(new Finding { RuleId = "" });
+
+        Assert.True(_vm.VerifyFindingCommand.CanExecute(withRuleId));
+        Assert.False(_vm.VerifyFindingCommand.CanExecute(withoutRuleId));
+        Assert.False(_vm.VerifyFindingCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task VerifyFindingCommand_Executes_AndSwitchesToAgentTab()
+    {
+        var item = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        _vm.Findings.SelectedItem = item;
+
+        _vm.VerifyFindingCommand.Execute(item);
+        await _vm.VerifyFindingCommand.ExecutionTask;
+
+        Assert.Equal("Agent", _vm.SelectedNavigationItem?.Label);
+        Assert.Contains("FW-001", _vm.SummaryText);
     }
 
     [AvaloniaFact]
@@ -76,6 +124,34 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.True(_vm.ResolveCommand.CanExecute(withRuleId));
         Assert.False(_vm.ResolveCommand.CanExecute(withoutRuleId));
         Assert.False(_vm.ResolveCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void CompareLogsCommand_CanExecute_WhenNotBusy()
+    {
+        Assert.False(_vm.IsBusy);
+        Assert.True(_vm.CompareLogsCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void MainWindowXaml_CompareLogsButton_UsesCodeBehindClickHandler()
+    {
+        var xaml = ReadMainWindowXaml();
+        var button = ExtractSelfClosingElementWithAutomationId(xaml, "CompareLogsButton");
+
+        Assert.Contains("Click=\"CompareLogsButton_Click\"", button);
+        Assert.DoesNotContain("Command=\"{Binding CompareLogsCommand}\"", button);
+    }
+
+    [AvaloniaFact]
+    public async Task BuildLogDiffDemoResultAsync_ProducesDiffResult()
+    {
+        var diffResult = await _vm.BuildLogDiffDemoResultAsync();
+
+        Assert.NotNull(diffResult);
+        Assert.False(_vm.IsBusy);
+        Assert.Contains("Demo baseline log", diffResult.BaselineLabel);
+        Assert.Contains("Demo incident log", diffResult.IncidentLabel);
     }
 
     [AvaloniaFact]
@@ -281,7 +357,8 @@ also not a firewall line";
     private static MainViewModel BuildViewModel(
         ISuppressionStore? suppressionStore = null,
         IAgent? agent = null,
-        IDetector[]? baselineDetectors = null)
+        IDetector[]? baselineDetectors = null,
+        IThreatIntelStore? threatIntelStore = null)
     {
         var logNormalizer = new LogNormalizer();
         var profileProvider = new AnalysisProfileProvider();
@@ -345,7 +422,28 @@ also not a firewall line";
             new RemediationPlanBuilder(new ExplanationProvider()),
             remediationExecutor,
             new TraceMapCorrelator(),
-            liveStreamAnalyzer);
+            liveStreamAnalyzer,
+            threatIntelStore: threatIntelStore);
+    }
+
+    private static string ReadMainWindowXaml()
+    {
+        var path = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../VulcansTrace.Linux.Avalonia/MainWindow.axaml"));
+        return File.ReadAllText(path);
+    }
+
+    private static string ExtractSelfClosingElementWithAutomationId(string xaml, string automationId)
+    {
+        var automationIdIndex = xaml.IndexOf($"AutomationProperties.AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(automationIdIndex >= 0, $"Could not find automation id {automationId}.");
+
+        var elementStart = xaml.LastIndexOf('<', automationIdIndex);
+        var elementEnd = xaml.IndexOf("/>", automationIdIndex, StringComparison.Ordinal);
+        Assert.True(elementStart >= 0 && elementEnd > elementStart, $"Could not extract element for automation id {automationId}.");
+
+        return xaml[elementStart..(elementEnd + 2)];
     }
 
     private sealed class MockAgent : IAgent
@@ -433,6 +531,17 @@ also not a firewall line";
             {
                 Intent = AgentIntent.VerifyRemediation,
                 Summary = "Mock verification",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        public Task<AgentResult> VerifyFindingAsync(string ruleId, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.VerifyRemediation,
+                Summary = $"Mock verify {ruleId}",
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             });
@@ -528,6 +637,11 @@ also not a firewall line";
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
         {
             return Task.FromResult<string?>(null);
+        }
+
+        public Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel)
+        {
+            return Task.FromResult<bool?>(null);
         }
 
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)

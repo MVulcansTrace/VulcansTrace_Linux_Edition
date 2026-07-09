@@ -78,6 +78,8 @@ public class ScheduleViewModelAnalystActionTests
         public Task NotifyCriticalFindingsAsync(string scheduleName, int criticalCount, CancellationToken ct = default) => Task.CompletedTask;
 
         public Task NotifySignedAlertAsync(SignedAlertMessage alert, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<bool> SendTestAsync(CancellationToken ct = default) => Task.FromResult(true);
     }
 
     private sealed class TestDialogService : IDialogService

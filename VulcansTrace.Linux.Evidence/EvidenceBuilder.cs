@@ -34,6 +34,7 @@ public sealed class EvidenceBuilder
     private readonly HtmlFormatter _htmlFormatter;
     private readonly JsonFormatter _jsonFormatter;
     private readonly StixFormatter _stixFormatter;
+    private readonly MispFormatter? _mispFormatter;
     private readonly ComplianceScorecardHtmlFormatter? _scorecardHtmlFormatter;
     private readonly ComplianceScorecardMarkdownFormatter? _scorecardMarkdownFormatter;
     private readonly RiskScorecardHtmlFormatter? _riskScorecardHtmlFormatter;
@@ -68,6 +69,7 @@ public sealed class EvidenceBuilder
     /// <param name="mitreCoverageSources">Optional detector and rule coverage sources for the Navigator layer.</param>
     /// <param name="logDiffMarkdownFormatter">Optional formatter for log diff Markdown.</param>
     /// <param name="logDiffHtmlFormatter">Optional formatter for log diff HTML.</param>
+    /// <param name="mispFormatter">Optional formatter for MISP event JSON.</param>
     public EvidenceBuilder(
         IntegrityHasher hasher,
         CsvFormatter csvFormatter,
@@ -85,7 +87,8 @@ public sealed class EvidenceBuilder
         MitreLayerBuilder? mitreLayerBuilder = null,
         IReadOnlyList<MitreCoverageSource>? mitreCoverageSources = null,
         LogDiffMarkdownFormatter? logDiffMarkdownFormatter = null,
-        LogDiffHtmlFormatter? logDiffHtmlFormatter = null)
+        LogDiffHtmlFormatter? logDiffHtmlFormatter = null,
+        MispFormatter? mispFormatter = null)
     {
         _hasher = hasher;
         _csvFormatter = csvFormatter;
@@ -93,6 +96,7 @@ public sealed class EvidenceBuilder
         _htmlFormatter = htmlFormatter;
         _jsonFormatter = jsonFormatter ?? new JsonFormatter();
         _stixFormatter = stixFormatter ?? new StixFormatter();
+        _mispFormatter = mispFormatter;
         _scorecardHtmlFormatter = scorecardHtmlFormatter;
         _scorecardMarkdownFormatter = scorecardMarkdownFormatter;
         _riskScorecardHtmlFormatter = riskScorecardHtmlFormatter;
@@ -185,6 +189,11 @@ public sealed class EvidenceBuilder
             ["findings.json"] = Encoding.UTF8.GetBytes(_jsonFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime)),
             ["findings.stix.json"] = Encoding.UTF8.GetBytes(_stixFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime))
         };
+
+        if (_mispFormatter != null)
+        {
+            files["findings.misp.json"] = Encoding.UTF8.GetBytes(_mispFormatter.Format(result, rawLog ?? string.Empty, timestampOffset.UtcDateTime));
+        }
 
         if (result.ActiveSuppressions.Count > 0)
         {

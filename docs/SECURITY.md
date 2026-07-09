@@ -37,7 +37,7 @@ Recurring audits use the standard Linux `crontab` command. VulcansTrace:
 Notifications are sent only when **new** critical findings are detected, using fingerprint-aware diffing against previous audit history. This prevents alert fatigue and reduces notification surface area.
 
 - **Desktop notifications** use the local `notify-send` command. No network calls.
-- **Email notifications** use user-configured SMTP settings via environment variables. No third-party email APIs.
+- **Email notifications** use user-configured SMTP settings from `notification-settings.json`. No third-party email APIs. The file is written with owner-only permissions on Unix because it may contain an SMTP password.
 - **Webhook notifications** POST to a user-configured URL. No telemetry or analytics payloads are included.
 - **Drift alerts** are sent when a scheduled audit has autonomous drift response enabled and baseline drift at or above the configured threshold is detected.
 

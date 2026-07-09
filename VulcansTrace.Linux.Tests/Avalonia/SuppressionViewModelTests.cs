@@ -303,6 +303,8 @@ public class SuppressionViewModelTests
             => Task.FromResult<string?>(null);
         public Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
             => Task.FromResult(InputResult);
+        public Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel)
+            => Task.FromResult<bool?>(null);
         public Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
             => Task.FromResult(SelectionResult);
     }

@@ -32,6 +32,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private ICommand? _investigateCommand;
     private ICommand? _suppressCommand;
     private ICommand? _resolveCommand;
+    private ICommand? _verifyFindingCommand;
 
     /// <summary>Gets the collection of findings to display.</summary>
     public ObservableCollection<FindingItemViewModel> Items { get; } = new();
@@ -67,6 +68,13 @@ public sealed class FindingsViewModel : ViewModelBase
     {
         get => _resolveCommand;
         set => SetField(ref _resolveCommand, value);
+    }
+
+    /// <summary>Gets or sets the command used to verify a finding has been remediated.</summary>
+    public ICommand? VerifyFindingCommand
+    {
+        get => _verifyFindingCommand;
+        set => SetField(ref _verifyFindingCommand, value);
     }
 
     /// <summary>Gets the command used to pin a finding.</summary>
@@ -275,7 +283,7 @@ public sealed class FindingsViewModel : ViewModelBase
 
     /// <summary>Gets the toolbar text that explains which finding actions apply to.</summary>
     public string SelectedFindingActionContext => SelectedItem == null
-        ? "Select a finding to investigate, suppress, or resolve"
+        ? "Select a finding to investigate, suppress, resolve, or verify"
         : $"Selected: {FormatSelectedFinding(SelectedItem)}";
 
     /// <summary>

@@ -112,6 +112,19 @@
                         <TextBlock Text="Resolve" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
+                <Button Theme="{StaticResource VtGhostButton}"
+                        Padding="8,4"
+                        FontSize="{StaticResource VtFontSizeSm}"
+                        ToolTip.Tip="Re-run the rule to verify remediation"
+                        Command="{Binding VerifyFindingCommand}"
+                        CommandParameter="{Binding SelectedItem}"
+                        AutomationProperties.AutomationId="FindingsVerifyButton"
+                        AutomationProperties.Name="Verify">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <i:Icon Value="mdi-check-circle-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Verify" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 

@@ -109,6 +109,10 @@ public sealed class AnalystActionLogger
     public Task LogThreatIntelClearedAsync(string actor, int count)
         => LogAsync(actor, AnalystActionType.ThreatIntelCleared, details: $"count={count}");
 
+    /// <summary>Records that a single threat-intel IOC was removed.</summary>
+    public Task LogThreatIntelRemovedAsync(string actor, string type, string value)
+        => LogAsync(actor, AnalystActionType.ThreatIntelRemoved, target: value, details: $"type={type};value={value}");
+
     /// <summary>Records that a baseline was set.</summary>
     public Task LogBaselineSetAsync(string actor, string intent)
         => LogAsync(actor, AnalystActionType.BaselineSet, intent);
