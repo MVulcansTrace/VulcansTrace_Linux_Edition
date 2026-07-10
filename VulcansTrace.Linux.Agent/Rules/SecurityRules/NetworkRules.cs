@@ -153,8 +153,8 @@ public sealed class LoopbackExposureRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 4.1",
-            ControlName = "Establish and Maintain a Secure Configuration Process",
+            ControlId = "CIS 4.4",
+            ControlName = "Implement and Manage a Firewall on Servers",
             WhyItMatters = "Services intended for loopback-only access (e.g., databases, debug ports) exposed externally bypass network segmentation and create direct attack vectors.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.4 / 3.5.2.4 — Ensure loopback traffic is configured"
         }

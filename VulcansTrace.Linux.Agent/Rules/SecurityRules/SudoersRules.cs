@@ -40,8 +40,8 @@ public sealed class SudoersFilePermissionRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure sudo",
+            ControlId = "CIS 6.8",
+            ControlName = "Define and Maintain Role-Based Access Control",
             WhyItMatters = "World-writable or group-writable sudoers files allow any user to grant themselves root privileges. CIS benchmarks require /etc/sudoers to be owned by root with mode 0440.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.1 — Ensure sudo is installed"
         }
@@ -157,8 +157,8 @@ public sealed class SudoersNoPasswordlessFullSudoRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure sudo",
+            ControlId = "CIS 6.8",
+            ControlName = "Define and Maintain Role-Based Access Control",
             WhyItMatters = "NOPASSWD bypasses authentication for privileged execution. A compromised account with passwordless sudo can escalate to root instantly, breaking accountability and enabling lateral movement.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.3 — Ensure sudo authentication timeout is configured"
         }
@@ -203,8 +203,8 @@ public sealed class SudoersFullSudoRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure sudo",
+            ControlId = "CIS 6.8",
+            ControlName = "Define and Maintain Role-Based Access Control",
             WhyItMatters = "Granting ALL to every administrator removes least-privilege separation. Restrict sudo to explicit commands per role to limit blast radius from credential compromise.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.2 — Ensure sudo commands use pty and log"
         }
@@ -249,8 +249,8 @@ public sealed class SudoersNoAuthenticateRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure sudo",
+            ControlId = "CIS 6.8",
+            ControlName = "Define and Maintain Role-Based Access Control",
             WhyItMatters = "Disabling sudo authentication removes the primary control protecting privileged execution. This is equivalent to passwordless root access for any account with sudo privileges.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.3 — Ensure sudo authentication timeout is configured"
         }
@@ -289,8 +289,8 @@ public sealed class SudoersSecurePathRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure sudo",
+            ControlId = "CIS 6.8",
+            ControlName = "Define and Maintain Role-Based Access Control",
             WhyItMatters = "Without secure_path, sudo inherits the caller's PATH, allowing attackers to plant malicious binaries in writable directories and have them executed with elevated privileges.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.4 — Ensure sudo log file exists"
         }

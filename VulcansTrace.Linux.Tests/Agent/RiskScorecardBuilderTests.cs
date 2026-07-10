@@ -110,6 +110,41 @@ public class RiskScorecardBuilderTests
     }
 
     [Fact]
+    public void Build_Saturated_ExposesTotalDeductionAndFlag()
+    {
+        // 6 * Critical (20) = 120 deduction -> score floored at 0, but the
+        // raw deduction and a saturation flag must still be surfaced.
+        var findings = Enumerable.Range(0, 6)
+            .Select(_ => CreateFinding(Severity.Critical, "PortScan"))
+            .ToArray();
+
+        var scorecard = _builder.Build(findings);
+
+        Assert.NotNull(scorecard);
+        Assert.Equal(0.0, scorecard.NumericScore);
+        Assert.Equal(120.0, scorecard.TotalDeduction);
+        Assert.True(scorecard.IsSaturated);
+    }
+
+    [Fact]
+    public void Build_NotSaturated_TotalDeductionEqualsSumAndFlagFalse()
+    {
+        // Critical (20) + High (15) = 35 deduction -> 65 score, not saturated
+        var findings = new[]
+        {
+            CreateFinding(Severity.Critical, "PortScan"),
+            CreateFinding(Severity.High, "Beaconing")
+        };
+
+        var scorecard = _builder.Build(findings);
+
+        Assert.NotNull(scorecard);
+        Assert.Equal(65.0, scorecard.NumericScore);
+        Assert.Equal(35.0, scorecard.TotalDeduction);
+        Assert.False(scorecard.IsSaturated);
+    }
+
+    [Fact]
     public void Build_WithCisControlWeight_AppliesMultiplier()
     {
         var findings = new[]

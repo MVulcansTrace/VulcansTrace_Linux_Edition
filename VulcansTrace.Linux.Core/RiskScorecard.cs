@@ -9,6 +9,12 @@ public sealed record RiskScorecard
     /// <summary>Overall risk score from 0 to 100, where 100 means no risk.</summary>
     public double NumericScore { get; init; }
 
+    /// <summary>Sum of all per-finding deductions before clamping (may exceed 100).</summary>
+    public double TotalDeduction { get; init; }
+
+    /// <summary>True when <see cref="TotalDeduction"/> exceeds 100 and <see cref="NumericScore"/> is floored at 0.</summary>
+    public bool IsSaturated { get; init; }
+
     /// <summary>Letter grade derived from the numeric score (A–F).</summary>
     public string LetterGrade { get; init; } = string.Empty;
 

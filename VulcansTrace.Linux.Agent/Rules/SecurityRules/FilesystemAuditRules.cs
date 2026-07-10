@@ -279,8 +279,8 @@ public sealed class TmpHardeningRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.1.2",
-            ControlName = "Configure /tmp",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "The /tmp directory is world-writable and frequently used by attackers to stage payloads. Mounting it with noexec, nosuid, and nodev limits what can be run or elevated from that location. CIS also recommends /tmp be a separate partition.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.1.2.2-4 — Ensure nodev, nosuid, noexec options set on /tmp partition"
         }

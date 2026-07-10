@@ -150,8 +150,8 @@ public sealed class SshProtocolRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 4.8",
-            ControlName = "Uninstall or Disable Unnecessary Services",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "SSH Protocol 1 has known cryptographic weaknesses (CRC-32 integrity, weak key exchange) and has been deprecated for over two decades. Its presence is an automatic critical audit failure.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.15 — Ensure SSH Protocol is set to 2"
         }
@@ -277,8 +277,8 @@ public sealed class SshX11ForwardingRule : IRule, IContextualRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 4.8",
-            ControlName = "Uninstall or Disable Unnecessary Services",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "X11 forwarding over SSH tunnels graphical sessions, expanding the attack surface and potentially leaking display credentials. Servers should disable it unless explicitly required.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.12 — Ensure SSH X11 forwarding is disabled"
         }
@@ -325,8 +325,8 @@ public sealed class SshUsePamRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2",
-            ControlName = "Configure SSH Server",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Disabling UsePAM causes SSH to bypass local PAM policies including password quality, account lockout, and session logging. This creates a gap where users can authenticate with weaker credentials than the host policy requires.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 5.2.20 — Ensure SSH PAM is enabled"
         }

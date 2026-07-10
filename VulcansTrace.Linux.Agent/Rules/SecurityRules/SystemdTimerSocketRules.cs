@@ -40,8 +40,8 @@ public sealed class SystemdShortTimerIntervalRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 2.2",
-            ControlName = "Ensure timers are configured securely",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Very frequent timers increase resource consumption and create opportunities for attackers to retry failed persistence attempts rapidly.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 2.2 — Configure timers securely"
         }

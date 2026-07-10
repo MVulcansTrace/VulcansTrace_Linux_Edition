@@ -140,11 +140,6 @@
                   Focusable="True"
                   AutomationProperties.AutomationId="FindingsDataGrid"
                   AutomationProperties.Name="Findings Table">
-            <DataGrid.Styles>
-                <Style Selector="DataGridCell TextBlock">
-                    <Setter Property="ToolTip.Tip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                </Style>
-            </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False">
                     <DataGridTemplateColumn.CellTemplate>
@@ -172,7 +167,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Severity" Width="90" CanUserResize="False">
+                <DataGridTemplateColumn Header="Severity" Width="130" MinWidth="120" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"
@@ -189,15 +184,15 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Count" Binding="{Binding GroupedCount}" Width="Auto" MinWidth="70" CanUserResize="True"/>
-                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="Auto" MinWidth="80" CanUserResize="True"/>
-                <DataGridTextColumn Header="Evidence Signals" Binding="{Binding EvidenceSignalsDisplay}" Width="*" MinWidth="120" CanUserResize="True"/>
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" MinWidth="90" CanUserResize="True"/>
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="Auto" MinWidth="90" CanUserResize="True"/>
-                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="Auto" MinWidth="90" CanUserResize="True"/>
-                <DataGridTextColumn Header="Time" Binding="{Binding TimeRangeDisplay}" Width="Auto" MinWidth="110" CanUserResize="True"/>
-                <DataGridTextColumn Header="MITRE ATT&amp;CK" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="120" CanUserResize="True"/>
-                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" MinWidth="140" CanUserResize="True"/>
+                <DataGridTextColumn Header="Count" Binding="{Binding GroupedCount}" Width="Auto" MinWidth="90" CanUserResize="True"/>
+                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" Width="150" MinWidth="140" CanUserResize="True"/>
+                <DataGridTextColumn Header="Evidence" Binding="{Binding EvidenceSignalsDisplay}" Width="*" MinWidth="120" CanUserResize="True"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}" Width="Auto" MinWidth="140" CanUserResize="True"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceHost}" Width="Auto" MinWidth="130" CanUserResize="True"/>
+                <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="Auto" MinWidth="130" CanUserResize="True"/>
+                <DataGridTextColumn Header="Time" Binding="{Binding TimeRangeDisplay}" Width="Auto" MinWidth="120" CanUserResize="True"/>
+                <DataGridTextColumn Header="MITRE" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="130" CanUserResize="True"/>
+                <DataGridTextColumn Header="Description" Binding="{Binding ShortDescription}" Width="*" MinWidth="180" CanUserResize="True"/>
             </DataGrid.Columns>
         </DataGrid>
 

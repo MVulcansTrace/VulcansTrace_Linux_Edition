@@ -28,8 +28,8 @@ public sealed class K8sPrivilegedPodRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2.1",
-            ControlName = "Minimize Admission of Privileged Containers",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Privileged containers bypass all container security controls and have full host access. This is a scored item in CIS Kubernetes Benchmark.",
             BenchmarkReference = "CIS Kubernetes Benchmark 5.2.1 — Minimize the admission of privileged containers"
         }
@@ -68,8 +68,8 @@ public sealed class K8sHostNamespaceRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2.4",
-            ControlName = "Minimize Admission of HostNetwork and HostPID",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Sharing host namespaces removes the isolation boundary between pod and host, allowing direct access to host network interfaces and processes.",
             BenchmarkReference = "CIS Kubernetes Benchmark 5.2.4 — Minimize the admission of containers wishing to share the host network namespace"
         }
@@ -108,8 +108,8 @@ public sealed class K8sRunAsRootRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2.6",
-            ControlName = "Minimize Admission of Root Containers",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Running containers as root increases the blast radius of a compromise and makes container escape trivial if coupled with a kernel vulnerability.",
             BenchmarkReference = "CIS Kubernetes Benchmark 5.2.6 — Minimize the admission of root containers"
         }
@@ -148,8 +148,8 @@ public sealed class K8sSecurityContextRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.2.7",
-            ControlName = "Enforce Security Context Constraints",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Missing security context fields (readOnlyRootFilesystem, dropped capabilities, seccomp) leave pods vulnerable to runtime exploits and privilege escalation.",
             BenchmarkReference = "CIS Kubernetes Benchmark 5.2.7 — Enforce hardened container security contexts"
         }

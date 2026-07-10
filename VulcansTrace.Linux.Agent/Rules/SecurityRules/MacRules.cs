@@ -40,8 +40,8 @@ public sealed class MacFrameworkActiveRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.6",
-            ControlName = "Ensure mandatory access control is enabled",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Operating without AppArmor or SELinux removes kernel-level mandatory access controls that constrain process privileges and limit exploit impact.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.6 — Ensure mandatory access control is enabled"
         }
@@ -89,8 +89,8 @@ public sealed class MacAppArmorUnconfinedRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.6",
-            ControlName = "Ensure all AppArmor profiles are enforcing",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Unconfined processes bypass AppArmor restrictions, creating exceptions that attackers can exploit to move laterally or escalate privileges.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.6.1 — Ensure AppArmor is installed and enforcing"
         }
@@ -129,8 +129,8 @@ public sealed class MacSelinuxEnforcingRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.6",
-            ControlName = "Ensure SELinux is enforcing",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "SELinux in permissive or disabled mode logs but does not block policy violations, leaving systems exposed to privilege escalation and lateral movement.",
             BenchmarkReference = "CIS Red Hat Enterprise Linux 8 1.6.1 — Ensure SELinux is enforcing"
         }

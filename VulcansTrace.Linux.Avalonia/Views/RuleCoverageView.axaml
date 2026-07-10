@@ -67,12 +67,12 @@
                   AutomationProperties.AutomationId="CoverageDataGrid"
                   AutomationProperties.Name="Rule Coverage Table">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180" />
-                <DataGridTextColumn Header="Passed" Binding="{Binding Passed}" Width="90" />
-                <DataGridTextColumn Header="Failed" Binding="{Binding Failed}" Width="90" />
-                <DataGridTextColumn Header="Suppressed" Binding="{Binding Suppressed}" Width="100" />
-                <DataGridTextColumn Header="Crashed" Binding="{Binding Crashed}" Width="90" />
-                <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="90" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}" Width="*" MinWidth="150" />
+                <DataGridTextColumn Header="Passed" Binding="{Binding Passed}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Failed" Binding="{Binding Failed}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Suppressed" Binding="{Binding Suppressed}" Width="150" MinWidth="135" />
+                <DataGridTextColumn Header="Crashed" Binding="{Binding Crashed}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="110" MinWidth="100" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

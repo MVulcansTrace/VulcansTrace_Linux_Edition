@@ -110,14 +110,14 @@
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Family" Binding="{Binding FamilyName}" Width="280" />
-                <DataGridTextColumn Header="Total" Binding="{Binding TotalControls}" Width="70" />
-                <DataGridTextColumn Header="Passed" Binding="{Binding PassedControls}" Width="70" />
-                <DataGridTextColumn Header="Failed" Binding="{Binding FailedControls}" Width="70" />
-                <DataGridTextColumn Header="Crashed" Binding="{Binding CrashedControls}" Width="80" />
-                <DataGridTextColumn Header="Suppressed" Binding="{Binding SuppressedControls}" Width="90" />
-                <DataGridTextColumn Header="Score" Binding="{Binding ScorePercentage, StringFormat={}{0:F1}%}" Width="80" />
-                <DataGridTemplateColumn Header="Status" Width="90">
+                <DataGridTextColumn Header="Family" Binding="{Binding FamilyName}" Width="*" MinWidth="200" />
+                <DataGridTextColumn Header="Total" Binding="{Binding TotalControls}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Passed" Binding="{Binding PassedControls}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Failed" Binding="{Binding FailedControls}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Crashed" Binding="{Binding CrashedControls}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Suppressed" Binding="{Binding SuppressedControls}" Width="150" MinWidth="135" />
+                <DataGridTextColumn Header="Score" Binding="{Binding ScorePercentage, StringFormat={}{0:F1}%}" Width="110" MinWidth="100" />
+                <DataGridTemplateColumn Header="Status" Width="120" MinWidth="110">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding Status, Converter={StaticResource ComplianceStatusToBackgroundConverter}}"

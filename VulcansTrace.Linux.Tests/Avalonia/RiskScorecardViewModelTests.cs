@@ -15,6 +15,8 @@ public class RiskScorecardViewModelTests
 
         Assert.False(vm.HasData);
         Assert.Equal(0, vm.NumericScore);
+        Assert.Equal(0, vm.TotalDeduction);
+        Assert.False(vm.IsSaturated);
         Assert.Equal("—", vm.LetterGrade);
         Assert.Equal("—", vm.SummaryStatus);
         Assert.Equal("#64748b", vm.GradeColor);
@@ -29,6 +31,8 @@ public class RiskScorecardViewModelTests
         vm.LoadScorecard(new RiskScorecard
         {
             NumericScore = 72.5,
+            TotalDeduction = 27.5,
+            IsSaturated = false,
             LetterGrade = "C",
             SummaryStatus = "Elevated",
             TotalFindings = 3,
@@ -41,12 +45,35 @@ public class RiskScorecardViewModelTests
 
         Assert.True(vm.HasData);
         Assert.Equal(72.5, vm.NumericScore);
+        Assert.Equal(27.5, vm.TotalDeduction);
+        Assert.False(vm.IsSaturated);
         Assert.Equal("C", vm.LetterGrade);
         Assert.Equal("Elevated", vm.SummaryStatus);
         Assert.Equal(2, vm.ByCategory.Count);
         Assert.Equal("Port", vm.ByCategory[0].Category);
         Assert.Equal(2, vm.ByCategory[0].FindingCount);
         Assert.Equal("Firewall", vm.ByCategory[1].Category);
+    }
+
+    [AvaloniaFact]
+    public void LoadScorecard_Saturated_CopiesTotalDeductionAndFlag()
+    {
+        var vm = new RiskScorecardViewModel();
+        vm.LoadScorecard(new RiskScorecard
+        {
+            NumericScore = 0.0,
+            TotalDeduction = 125.0,
+            IsSaturated = true,
+            LetterGrade = "F",
+            SummaryStatus = "Severe",
+            TotalFindings = 12,
+            ByCategory = Array.Empty<CategoryRisk>()
+        });
+
+        Assert.True(vm.HasData);
+        Assert.Equal(0.0, vm.NumericScore);
+        Assert.Equal(125.0, vm.TotalDeduction);
+        Assert.True(vm.IsSaturated);
     }
 
     [AvaloniaFact]

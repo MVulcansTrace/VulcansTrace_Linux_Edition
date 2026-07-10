@@ -40,8 +40,8 @@ public sealed class BootloaderSecureBootEnabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.8",
-            ControlName = "Ensure Secure Boot is enabled",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Secure Boot prevents unauthorized boot loaders, kernels, and option ROMs from loading, reducing bootkit and rootkit risk.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.8 — Ensure Secure Boot is enabled"
         }
@@ -83,8 +83,8 @@ public sealed class NoRescueBootParameterRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.9",
-            ControlName = "Ensure boot loader password is set",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Rescue or debug-shell kernel parameters allow an attacker with physical or console access to bypass authentication and gain root without credentials.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.9 — Ensure bootloader password is set"
         }
@@ -141,8 +141,8 @@ public sealed class GrubPasswordSetRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.9",
-            ControlName = "Ensure boot loader password is set",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Without a boot loader password, an attacker with physical access can edit kernel parameters at boot to bypass authentication and escalate privileges.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.9 — Ensure boot loader password is set"
         }
@@ -187,8 +187,8 @@ public sealed class KernelModuleLoadRestrictionRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.6",
-            ControlName = "Ensure kernel module loading is disabled",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Allowing unsigned or arbitrary kernel modules to load after boot exposes the system to rootkit-style persistence. Boot-time module restrictions close this gap.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.6.4 — Ensure kernel module loading is disabled"
         }

@@ -509,6 +509,7 @@ public sealed class FindingsViewModel : ViewModelBase
             return true;
 
         return item.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               CategoryDisplay.ToDisplayName(item.Category).Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.SourceHost.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.Target.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.TimeRangeDisplay.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||

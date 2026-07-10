@@ -11,6 +11,8 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 public sealed class RiskScorecardViewModel : ViewModelBase
 {
     private double _numericScore;
+    private double _totalDeduction;
+    private bool _isSaturated;
     private string _letterGrade = "—";
     private string _summaryStatus = "—";
     private string _gradeColor = "#64748b";
@@ -25,6 +27,20 @@ public sealed class RiskScorecardViewModel : ViewModelBase
     {
         get => _numericScore;
         private set => SetField(ref _numericScore, value);
+    }
+
+    /// <summary>Gets the sum of all per-finding deductions before clamping (may exceed 100).</summary>
+    public double TotalDeduction
+    {
+        get => _totalDeduction;
+        private set => SetField(ref _totalDeduction, value);
+    }
+
+    /// <summary>Gets whether deductions exceed 100 and the numeric score is floored at 0.</summary>
+    public bool IsSaturated
+    {
+        get => _isSaturated;
+        private set => SetField(ref _isSaturated, value);
     }
 
     /// <summary>Gets the letter grade (A–F).</summary>
@@ -78,6 +94,8 @@ public sealed class RiskScorecardViewModel : ViewModelBase
         if (scorecard == null)
         {
             NumericScore = 0;
+            TotalDeduction = 0;
+            IsSaturated = false;
             LetterGrade = "—";
             SummaryStatus = "—";
             GradeColor = "#64748b";
@@ -87,6 +105,8 @@ public sealed class RiskScorecardViewModel : ViewModelBase
         }
 
         NumericScore = scorecard.NumericScore;
+        TotalDeduction = scorecard.TotalDeduction;
+        IsSaturated = scorecard.IsSaturated;
         LetterGrade = scorecard.LetterGrade;
         SummaryStatus = scorecard.SummaryStatus;
         HasData = true;

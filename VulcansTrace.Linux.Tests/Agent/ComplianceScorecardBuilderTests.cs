@@ -115,16 +115,35 @@ public class ComplianceScorecardBuilderTests
     {
         var results = new[]
         {
-            PassWithCis("FW-001", "10.1")
+            PassWithCis("FW-001", "99.1")
         };
 
         var scorecard = _builder.Build(results);
 
         Assert.NotNull(scorecard);
         Assert.Single(scorecard.FamilyScores);
-        Assert.Equal("10", scorecard.FamilyScores[0].FamilyId);
+        Assert.Equal("99", scorecard.FamilyScores[0].FamilyId);
         Assert.Equal("Other", scorecard.FamilyScores[0].FamilyName);
         Assert.Equal(100.0, scorecard.FamilyScores[0].ScorePercentage);
+    }
+
+    [Theory]
+    [InlineData("8.1", "8", "Audit Log Management")]
+    [InlineData("10.1", "10", "Malware Defenses")]
+    [InlineData("13.3", "13", "Network Monitoring and Defense")]
+    public void Build_KnownFamilyNumber_ResolvesToName(string controlSuffix, string familyId, string expectedName)
+    {
+        var results = new[]
+        {
+            PassWithCis("FW-001", controlSuffix)
+        };
+
+        var scorecard = _builder.Build(results);
+
+        Assert.NotNull(scorecard);
+        Assert.Single(scorecard.FamilyScores);
+        Assert.Equal(familyId, scorecard.FamilyScores[0].FamilyId);
+        Assert.Equal(expectedName, scorecard.FamilyScores[0].FamilyName);
     }
 
     [Fact]

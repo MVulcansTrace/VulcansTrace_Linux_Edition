@@ -74,8 +74,8 @@ public sealed class WideOpenServicesRule : IRule, IContextualRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 4.1",
-            ControlName = "Establish and Maintain a Secure Configuration Process",
+            ControlId = "CIS 4.4",
+            ControlName = "Implement and Manage a Firewall on Servers",
             WhyItMatters = "Services bound to all interfaces increase the attack surface. Each listening port should have a documented business need and be protected by host or network firewall rules.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }
@@ -138,8 +138,8 @@ public sealed class DatabasePortExposureRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 4.1",
-            ControlName = "Establish and Maintain a Secure Configuration Process",
+            ControlId = "CIS 4.4",
+            ControlName = "Implement and Manage a Firewall on Servers",
             WhyItMatters = "Database ports exposed to all interfaces bypass defense-in-depth and violate data-protection requirements (PCI-DSS Req 1.3, HIPAA 164.312(e)).",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports"
         }

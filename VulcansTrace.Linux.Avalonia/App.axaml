@@ -12,6 +12,7 @@
             <conv:SeverityToForegroundBrushConverter x:Key="SeverityToForegroundBrushConverter" />
             <conv:ReviewFilterLabelConverter x:Key="ReviewFilterLabelConverter" />
             <conv:NotificationChannelLabelConverter x:Key="NotificationChannelLabelConverter" />
+            <conv:CategoryLabelConverter x:Key="CategoryLabelConverter" />
             <conv:GroupModeToBoolConverter x:Key="GroupModeToBoolConverter" />
             <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
         </ResourceDictionary>

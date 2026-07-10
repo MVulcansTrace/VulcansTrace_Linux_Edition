@@ -692,21 +692,21 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 
 | Rule | CIS Control | Ubuntu Benchmark |
 |------|-------------|------------------|
-| KERN-001 | CIS 1.5 — Establish and Maintain a Secure Configuration Process | 1.5.2 — Ensure address space layout randomization is enabled |
-| KERN-002 | CIS 3.1 — Network Parameters (Host Only) | 3.1.1 — Ensure IP forwarding is disabled |
-| KERN-003 | CIS 3.1 — Network Parameters (Host Only) | 3.1.2 — Ensure ICMP redirects are not accepted |
-| KERN-004 | CIS 3.1 — Network Parameters (Host Only) | 3.1.3 — Ensure source routed packets are not accepted |
-| KERN-005 | CIS 1.4 — Secure Boot Settings | 1.4.1 — Ensure loading and unloading of kernel modules is restricted |
-| KERN-006 | CIS 1.4 — Secure Boot Settings | 1.4.2 — Ensure Secure Boot is enabled |
-| KERN-007 | CIS 1.5 — Establish and Maintain a Secure Configuration Process | 1.5.3 — Ensure kernel pointer restriction is enabled |
+| KERN-001 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 1.5.2 — Ensure address space layout randomization is enabled |
+| KERN-002 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.1.1 — Ensure IP forwarding is disabled |
+| KERN-003 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.1.2 — Ensure ICMP redirects are not accepted |
+| KERN-004 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.1.3 — Ensure source routed packets are not accepted |
+| KERN-005 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 1.4.1 — Ensure loading and unloading of kernel modules is restricted |
+| KERN-006 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 1.4.2 — Ensure Secure Boot is enabled |
+| KERN-007 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 1.5.3 — Ensure kernel pointer restriction is enabled |
 | SSH-001 | CIS 5.4 — Restrict Administrator Privileges | 5.2.7 — Ensure SSH root login is disabled |
 | SSH-002 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.16 — Ensure SSH PasswordAuthentication is disabled |
 | SSH-003 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.14 — Ensure SSH MaxAuthTries is configured |
-| SSH-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 5.2.15 — Ensure SSH Protocol is set to 2 |
+| SSH-004 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 5.2.15 — Ensure SSH Protocol is set to 2 |
 | SSH-005 | CIS 5.2 — Use Unique Passwords | 5.2.9 — Ensure SSH PermitEmptyPasswords is disabled |
 | SSH-006 | CIS 6.3 — Require MFA for Externally-Exposed Applications | 5.2.17 — Ensure SSH PubkeyAuthentication is enabled |
-| SSH-007 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 5.2.12 — Ensure SSH X11 forwarding is disabled |
-| SSH-008 | CIS 5.2 — Use Unique Passwords | 5.2.20 — Ensure SSH PAM is enabled |
+| SSH-007 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 5.2.12 — Ensure SSH X11 forwarding is disabled |
+| SSH-008 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 5.2.20 — Ensure SSH PAM is enabled |
 | FILE-001 | CIS 6.1 — Configure System File Permissions | 6.1.1 — Ensure permissions on /etc/shadow are configured |
 | FILE-002 | CIS 6.1 — Configure System File Permissions | 6.1.2 — Ensure permissions on /etc/passwd are configured |
 | FILE-003 | CIS 5.2 — Use Unique Passwords | 5.2.2 — Ensure permissions on SSH private host key files are configured |
@@ -718,7 +718,7 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | FSYS-002 | CIS 6.1.12 — Ensure SUID and SGID files are reviewed | 6.1.12 — Ensure SUID and SGID files are reviewed |
 | FSYS-003 | CIS 6.1.11 — Ensure no unowned files or directories exist | 6.1.11 — Ensure no unowned files or directories exist |
 | FSYS-004 | CIS 6.1.10 — Ensure sticky bit is set on all world-writable directories | 6.1.10 — Ensure sticky bit is set on all world-writable directories |
-| FSYS-005 | CIS 1.1.2 — Configure /tmp | 1.1.2.2-4 — Ensure nodev, nosuid, noexec options set on /tmp partition |
+| FSYS-005 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 1.1.2.2-4 — Ensure nodev, nosuid, noexec options set on /tmp partition |
 | USER-001 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
 | USER-002 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
 | USER-003 | CIS 5.4 — Configure Password Policies | 5.4.1 — Ensure password creation requirements are configured |
@@ -734,8 +734,8 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | FW-003 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.2 / 3.5.2.2 — Ensure iptables/nftables service is enabled |
 | FW-004 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.1 / 3.5.2.1 — Ensure iptables/nftables is installed |
 | FW-005 | CIS 4.5 — Implement and Manage a Firewall on Servers | 3.5.1.5 / 3.5.2.5 — Ensure outbound and established connections are configured |
-| PORT-002 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
-| PORT-003 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
+| PORT-002 | CIS 4.4 — Implement and Manage a Firewall on Servers | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
+| PORT-003 | CIS 4.4 — Implement and Manage a Firewall on Servers | 3.5.1.6 / 3.5.2.6 — Ensure firewall rules exist for all open ports |
 | SRV-001 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.17 — Ensure telnet server is not installed |
 | SRV-002 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.12 — Ensure FTP server is not installed |
 | SRV-004 | CIS 4.8 — Uninstall or Disable Unnecessary Services | 2.2.16 — Ensure rsh server is not installed |
@@ -750,17 +750,17 @@ This dual-layer mapping gives auditors both the high-level organizational contro
 | CRON-001 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | CRON-002 | CIS 6.1 — Configure System File Permissions | 6.1.3 — Ensure permissions on /etc/cron.* are configured |
 | CRON-003 | CIS 6.2 — Configure System Account Security | 6.2.1 — Ensure accounts in /etc/passwd use assigned UIDs |
-| PKG-VULN-001 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
-| PKG-VULN-002 | CIS 1.9 — Ensure updates, patches, and additional security software are installed | 1.9 — Ensure updates, patches, and additional security software are installed |
-| CTR-001 | CIS 5.4 — Ensure Privileged Containers Are Not Used | CIS Docker Benchmark 5.4 — Ensure that privileged containers are not used |
+| PKG-VULN-001 | CIS 7.3 — Perform Automated Operating System Patch Management | 1.9 — Ensure updates, patches, and additional security software are installed |
+| PKG-VULN-002 | CIS 7.3 — Perform Automated Operating System Patch Management | 1.9 — Ensure updates, patches, and additional security software are installed |
+| CTR-001 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Docker Benchmark 5.4 — Ensure that privileged containers are not used |
 | CTR-002 | CIS 4.1 — Ensure Image Pinning Is Used | CIS Docker Benchmark 4.1 — Ensure that a fixed tag or digest is used for base images |
-| CTR-003 | CIS 5.25 — Ensure Docker Socket Is Not Mounted Inside Containers | CIS Docker Benchmark 5.25 — Ensure that the Docker socket is not exposed or mounted inside any containers |
-| CTR-004 | CIS 1.1 — Use Explicit Namespaces for Workload Isolation | CIS Containerd Benchmark 1.1 — Use explicit namespaces for workload isolation |
+| CTR-003 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Docker Benchmark 5.25 — Ensure that the Docker socket is not exposed or mounted inside any containers |
+| CTR-004 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Containerd Benchmark 1.1 — Use explicit namespaces for workload isolation |
 | CTR-005 | CIS 4.1 — Ensure Image Pinning Is Used | CIS Docker Benchmark 4.1 — Ensure that a fixed and maintained image base is used |
-| K8S-001 | CIS 5.2.1 — Minimize Admission of Privileged Containers | CIS Kubernetes Benchmark 5.2.1 — Minimize the admission of privileged containers |
-| K8S-002 | CIS 5.2.4 — Minimize Admission of HostNetwork and HostPID | CIS Kubernetes Benchmark 5.2.4 — Minimize the admission of containers wishing to share the host network namespace |
-| K8S-003 | CIS 5.2.6 — Minimize Admission of Root Containers | CIS Kubernetes Benchmark 5.2.6 — Minimize the admission of root containers |
-| K8S-004 | CIS 5.2.7 — Enforce Security Context Constraints | CIS Kubernetes Benchmark 5.2.7 — Enforce hardened container security contexts |
+| K8S-001 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Kubernetes Benchmark 5.2.1 — Minimize the admission of privileged containers |
+| K8S-002 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Kubernetes Benchmark 5.2.4 — Minimize the admission of containers wishing to share the host network namespace |
+| K8S-003 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Kubernetes Benchmark 5.2.6 — Minimize the admission of root containers |
+| K8S-004 | CIS 4.1 — Establish and Maintain a Secure Configuration Process | CIS Kubernetes Benchmark 5.2.7 — Enforce hardened container security contexts |
 | PROC-001 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
 | PROC-002 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |
 | PROC-003 | *(no CIS mapping — DFIR indicator)* | *(no direct benchmark mapping)* |

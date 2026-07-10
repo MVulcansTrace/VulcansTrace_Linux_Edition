@@ -6,7 +6,7 @@
         x:Class="VulcansTrace.Linux.Avalonia.Views.LogDiffWindow"
         x:DataType="vm:LogDiffViewModel"
         Title="Log Diff"
-        Width="1000"
+        Width="1200"
         Height="640"
         FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
 
@@ -104,7 +104,7 @@
                   CanUserResizeColumns="True"
                   Margin="0,20,0,0">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="State" Width="100">
+                <DataGridTemplateColumn Header="State" Width="130" MinWidth="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding State, Converter={StaticResource LogDiffStateToBrushConverter}}"
@@ -121,13 +121,13 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Connection" Binding="{Binding ConnectionKey}" Width="280" />
-                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="80" />
-                <DataGridTextColumn Header="Count Δ" Binding="{Binding CountDelta}" Width="90" />
-                <DataGridTextColumn Header="Baseline Actions" Binding="{Binding BaselineDominantAction}" Width="130" />
-                <DataGridTextColumn Header="Incident Actions" Binding="{Binding IncidentDominantAction}" Width="130" />
-                <DataGridTextColumn Header="Baseline First" Binding="{Binding BaselineFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
-                <DataGridTextColumn Header="Incident First" Binding="{Binding IncidentFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="150" />
+                <DataGridTextColumn Header="Connection" Binding="{Binding ConnectionKey}" Width="*" MinWidth="220" />
+                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="100" MinWidth="90" />
+                <DataGridTextColumn Header="Count Δ" Binding="{Binding CountDelta}" Width="110" MinWidth="100" />
+                <DataGridTextColumn Header="Baseline" Binding="{Binding BaselineDominantAction}" Width="140" MinWidth="120" />
+                <DataGridTextColumn Header="Incident" Binding="{Binding IncidentDominantAction}" Width="140" MinWidth="120" />
+                <DataGridTextColumn Header="Baseline First" Binding="{Binding BaselineFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="210" MinWidth="200" />
+                <DataGridTextColumn Header="Incident First" Binding="{Binding IncidentFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="210" MinWidth="200" />
             </DataGrid.Columns>
         </DataGrid>
 
@@ -157,7 +157,7 @@
                   CanUserResizeColumns="True"
                   IsVisible="{Binding Findings.Count, Converter={StaticResource IntToBoolConverter}}">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="State" Width="100">
+                <DataGridTemplateColumn Header="State" Width="130" MinWidth="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding State, Converter={StaticResource LogDiffStateToBrushConverter}}"
@@ -174,11 +174,11 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Category" Binding="{Binding Finding.Category}" Width="150" />
-                <DataGridTextColumn Header="Severity" Binding="{Binding Finding.Severity}" Width="100" />
-                <DataGridTextColumn Header="Source" Binding="{Binding Finding.SourceHost}" Width="130" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Finding.Target}" Width="150" />
-                <DataGridTextColumn Header="Description" Binding="{Binding Finding.ShortDescription}" Width="*" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Finding.Category, Converter={StaticResource CategoryLabelConverter}}" Width="150" MinWidth="130" />
+                <DataGridTextColumn Header="Severity" Binding="{Binding Finding.Severity}" Width="130" MinWidth="120" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Finding.SourceHost}" Width="140" MinWidth="130" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Finding.Target}" Width="150" MinWidth="120" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Finding.ShortDescription}" Width="*" MinWidth="180" />
             </DataGrid.Columns>
         </DataGrid>
 

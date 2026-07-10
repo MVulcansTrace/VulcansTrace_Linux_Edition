@@ -115,27 +115,33 @@
         <DataGrid.Columns>
           <DataGridTextColumn Header="Time"
                               Binding="{Binding TimeRangeStart, StringFormat='{}{0:HH:mm:ss.fff}'}"
-                              Width="100"
+                              Width="120"
+                              MinWidth="110"
                               CanUserResize="True" />
           <DataGridTextColumn Header="Severity"
                               Binding="{Binding Severity}"
-                              Width="80"
+                              Width="130"
+                              MinWidth="120"
                               CanUserResize="True" />
           <DataGridTextColumn Header="Category"
-                              Binding="{Binding Category}"
-                              Width="140"
+                              Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}"
+                              Width="160"
+                              MinWidth="140"
                               CanUserResize="True" />
           <DataGridTextColumn Header="Source"
                               Binding="{Binding SourceHost}"
-                              Width="120"
+                              Width="140"
+                              MinWidth="130"
                               CanUserResize="True" />
           <DataGridTextColumn Header="Target"
                               Binding="{Binding Target}"
-                              Width="120"
+                              Width="140"
+                              MinWidth="130"
                               CanUserResize="True" />
           <DataGridTextColumn Header="Description"
                               Binding="{Binding ShortDescription}"
                               Width="*"
+                              MinWidth="180"
                               CanUserResize="True" />
         </DataGrid.Columns>
       </DataGrid>

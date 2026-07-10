@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.ScheduleView"
              x:DataType="vm:ScheduleViewModel">
 
@@ -10,18 +11,18 @@
 
     <Grid Margin="8" RowDefinitions="Auto,Auto,*">
         <!-- Toolbar -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
-            <Button Content="Add" Command="{Binding AddCommand}" Theme="{StaticResource VtPrimaryButton}" MinWidth="60"/>
-            <Button Content="Edit" Command="{Binding EditCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60"/>
-            <Button Content="Delete" Command="{Binding DeleteCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60"/>
-            <Button Content="Enable" Command="{Binding EnableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60"/>
-            <Button Content="Disable" Command="{Binding DisableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60"/>
-            <Button Content="Run Now" Command="{Binding RunNowCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="70"/>
-            <Button Content="Install Cron" Command="{Binding InstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80"/>
-            <Button Content="Uninstall Cron" Command="{Binding UninstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="90"/>
-            <Button Content="Open Output" Command="{Binding OpenOutputCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80"/>
-            <Button Content="Remediate" Command="{Binding RemediateCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80"/>
-        </StackPanel>
+        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+            <Button Content="Add" Command="{Binding AddCommand}" Theme="{StaticResource VtPrimaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Edit" Command="{Binding EditCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Delete" Command="{Binding DeleteCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Enable" Command="{Binding EnableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Disable" Command="{Binding DisableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Run Now" Command="{Binding RunNowCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="70" Margin="0,0,6,6"/>
+            <Button Content="Install Cron" Command="{Binding InstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+            <Button Content="Uninstall Cron" Command="{Binding UninstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="90" Margin="0,0,6,6"/>
+            <Button Content="Open Output" Command="{Binding OpenOutputCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+            <Button Content="Remediate" Command="{Binding RemediateCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+        </WrapPanel>
 
         <!-- Status -->
         <TextBlock Grid.Row="1"
@@ -40,19 +41,49 @@
 
                   CanUserResizeColumns="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="140" />
-                <DataGridTextColumn Header="Intent" Binding="{Binding Intent}" Width="110" />
-                <DataGridTextColumn Header="Role" Binding="{Binding MachineRole}" Width="90" />
-                <DataGridTextColumn Header="Cron" Binding="{Binding CronExpression}" Width="100" />
-                <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="65" />
-                <DataGridCheckBoxColumn Header="Notify" Binding="{Binding NotifyOnCritical}" Width="55" />
-                <DataGridTextColumn Header="Channel" Binding="{Binding NotificationChannel}" Width="70" />
-                <DataGridCheckBoxColumn Header="Drift" Binding="{Binding AutonomousDriftResponse}" Width="50" />
-                <DataGridTextColumn Header="Threshold" Binding="{Binding AutonomousDriftSeverityThreshold}" Width="70" />
-                <DataGridCheckBoxColumn Header="Rmdt" Binding="{Binding AllowAutoRemediate}" Width="50" />
-                <DataGridCheckBoxColumn Header="Cron?" Binding="{Binding IsInstalledInCron}" Width="50" />
-                <DataGridTextColumn Header="Last Run" Binding="{Binding LastRunUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="120" />
-                <DataGridTextColumn Header="Output Dir" Binding="{Binding OutputDirectory}" Width="*" />
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" MinWidth="130" />
+                <DataGridTextColumn Header="Intent" Binding="{Binding Intent}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Role" Binding="{Binding MachineRole}" Width="100" MinWidth="90" />
+                <DataGridTextColumn Header="Cron" Binding="{Binding CronExpression}" Width="120" MinWidth="110" />
+                <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="56" MinWidth="48" CanUserResize="False">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <i:Icon Value="mdi-toggle-switch" FontSize="{StaticResource VtIconSizeSm}" AutomationProperties.Name="Enabled" />
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Header="Notify on critical" Binding="{Binding NotifyOnCritical}" Width="56" MinWidth="48" CanUserResize="False">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <i:Icon Value="mdi-bell-outline" FontSize="{StaticResource VtIconSizeSm}" AutomationProperties.Name="Notify on critical" />
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridTextColumn Header="Channel" Binding="{Binding NotificationChannel}" Width="120" MinWidth="110" />
+                <DataGridCheckBoxColumn Header="Autonomous drift response" Binding="{Binding AutonomousDriftResponse}" Width="56" MinWidth="48" CanUserResize="False">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <i:Icon Value="mdi-swap-horizontal" FontSize="{StaticResource VtIconSizeSm}" AutomationProperties.Name="Autonomous drift response" />
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridTextColumn Header="Threshold" Binding="{Binding AutonomousDriftSeverityThreshold}" Width="135" MinWidth="125" />
+                <DataGridCheckBoxColumn Header="Allow auto-remediate" Binding="{Binding AllowAutoRemediate}" Width="56" MinWidth="48" CanUserResize="False">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <i:Icon Value="mdi-wrench-outline" FontSize="{StaticResource VtIconSizeSm}" AutomationProperties.Name="Allow auto-remediate" />
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridCheckBoxColumn Header="Installed in cron" Binding="{Binding IsInstalledInCron}" Width="56" MinWidth="48" CanUserResize="False">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <i:Icon Value="mdi-clock-outline" FontSize="{StaticResource VtIconSizeSm}" AutomationProperties.Name="Installed in cron" />
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridTextColumn Header="Last Run" Binding="{Binding LastRunUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="195" MinWidth="185" />
+                <DataGridTextColumn Header="Output Dir" Binding="{Binding OutputDirectory}" Width="*" MinWidth="180" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

@@ -43,7 +43,7 @@
                   AutomationProperties.AutomationId="SuppressionsDataGrid"
                   AutomationProperties.Name="Suppressions Review Queue">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Status" Width="120">
+                <DataGridTemplateColumn Header="Status" Width="120" MinWidth="110">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding StatusBackground}"
@@ -60,13 +60,13 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="90" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="140" />
-                <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" />
-                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="100" />
-                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="150" MinWidth="130" />
+                <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" MinWidth="180" />
+                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTemplateColumn Header="Actions" Width="300" MinWidth="260" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="4">

@@ -28,8 +28,8 @@ public sealed class PrivilegedContainerRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.4",
-            ControlName = "Ensure Privileged Containers Are Not Used",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Privileged containers have full access to host resources, effectively bypassing container isolation. This is a scored item in CIS Docker Benchmark.",
             BenchmarkReference = "CIS Docker Benchmark 5.4 — Ensure that privileged containers are not used"
         }
@@ -104,8 +104,8 @@ public sealed class DockerSocketExposedRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 5.25",
-            ControlName = "Ensure Docker Socket Is Not Mounted Inside Containers",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Mounting the Docker socket gives a container full root-equivalent access to the host. This is one of the most dangerous container misconfigurations.",
             BenchmarkReference = "CIS Docker Benchmark 5.25 — Ensure that the Docker socket is not mounted inside any containers"
         }
@@ -192,8 +192,8 @@ public sealed class ContainerdWeakDefaultsRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.1",
-            ControlName = "Use Explicit Namespaces for Workload Isolation",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Using only the default namespace in containerd reduces workload isolation and complicates RBAC and resource governance.",
             BenchmarkReference = "CIS Containerd Benchmark 1.1 — Use explicit namespaces for workload isolation"
         }

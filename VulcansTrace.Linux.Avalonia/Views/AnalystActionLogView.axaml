@@ -45,12 +45,12 @@
               AutomationProperties.AutomationId="AnalystActionLogDataGrid"
               AutomationProperties.Name="Analyst Action Log">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="160" />
-        <DataGridTextColumn Header="Actor" Binding="{Binding Actor}" Width="90" />
-        <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="180" />
-        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="*" />
-        <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*" />
-        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90" />
+        <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="210" MinWidth="200" />
+        <DataGridTextColumn Header="Actor" Binding="{Binding Actor}" Width="110" MinWidth="100" />
+        <DataGridTextColumn Header="Action" Binding="{Binding ActionType}" Width="160" MinWidth="150" />
+        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="160" MinWidth="140" />
+        <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*" MinWidth="180" />
+        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="120" MinWidth="110" />
       </DataGrid.Columns>
     </DataGrid>
   </Grid>

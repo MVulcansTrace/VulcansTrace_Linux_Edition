@@ -23,6 +23,8 @@ public class CisFamilyResolverTests
     [InlineData("")]
     [InlineData("NIST 4.5")]
     [InlineData("4.5")]
+    [InlineData("CIS 4.x")]
+    [InlineData("CIS 4.1 trailing")]
     [InlineData("Some random text")]
     public void ExtractFamilyId_InvalidId_ReturnsNull(string? controlId)
     {
@@ -31,13 +33,24 @@ public class CisFamilyResolverTests
     }
 
     [Theory]
-    [InlineData("1", "Initial Setup")]
-    [InlineData("2", "Services")]
-    [InlineData("3", "Network Configuration")]
-    [InlineData("4", "Logging and Auditing")]
-    [InlineData("5", "Access, Authentication and Authorization")]
-    [InlineData("6", "System Maintenance")]
-    [InlineData("7", "Optional Services")]
+    [InlineData("1", "Inventory and Control of Enterprise Assets")]
+    [InlineData("2", "Inventory and Control of Software Assets")]
+    [InlineData("3", "Data Protection")]
+    [InlineData("4", "Secure Configuration of Enterprise Assets and Software")]
+    [InlineData("5", "Account Management")]
+    [InlineData("6", "Access Control Management")]
+    [InlineData("7", "Continuous Vulnerability Management")]
+    [InlineData("8", "Audit Log Management")]
+    [InlineData("9", "Email and Web Browser Protections")]
+    [InlineData("10", "Malware Defenses")]
+    [InlineData("11", "Data Recovery")]
+    [InlineData("12", "Network Infrastructure Management")]
+    [InlineData("13", "Network Monitoring and Defense")]
+    [InlineData("14", "Security Awareness and Skills Training")]
+    [InlineData("15", "Service Provider Management")]
+    [InlineData("16", "Application Software Security")]
+    [InlineData("17", "Incident Response Management")]
+    [InlineData("18", "Penetration Testing")]
     public void GetFamilyName_KnownFamily_ReturnsName(string familyId, string expectedName)
     {
         var result = CisFamilyResolver.GetFamilyName(familyId);
@@ -58,7 +71,7 @@ public class CisFamilyResolverTests
     public void ResolveFamilyName_ValidId_ReturnsFullName()
     {
         var result = CisFamilyResolver.ResolveFamilyName("CIS 4.5");
-        Assert.Equal("Logging and Auditing", result);
+        Assert.Equal("Secure Configuration of Enterprise Assets and Software", result);
     }
 
     [Fact]

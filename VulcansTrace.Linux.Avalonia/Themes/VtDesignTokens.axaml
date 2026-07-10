@@ -381,6 +381,9 @@
     <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
     <Setter Property="VerticalGridLinesBrush" Value="{StaticResource VtBorderDefaultBrush}" />
     <Setter Property="RowBackground" Value="Transparent" />
+    <!-- Overflow escape hatch: never force columns to clip; scroll when content exceeds the pane. -->
+    <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    <Setter Property="CanUserResizeColumns" Value="True" />
   </Style>
   <Style Selector="DataGridRow:nth-child(2n)">
     <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
@@ -390,9 +393,12 @@
     <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
     <Setter Property="BorderThickness" Value="0,0,0,1" />
-    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Padding" Value="6,10" />
     <Setter Property="FontSize" Value="{StaticResource VtFontSizeSm}" />
     <Setter Property="FontWeight" Value="SemiBold" />
+    <!-- Reveal the full header text when a narrow column clips it. -->
+    <Setter Property="ToolTip.Tip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
+    <Setter Property="ToolTip.ShowDelay" Value="400" />
   </Style>
   <Style Selector="DataGrid DataGridColumnHeader:pointerover">
     <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
@@ -416,6 +422,9 @@
   </Style>
   <Style Selector="DataGrid DataGridCell TextBlock">
     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <!-- Reveal the full cell text on hover when CharacterEllipsis trims it. -->
+    <Setter Property="ToolTip.Tip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+    <Setter Property="ToolTip.ShowDelay" Value="400" />
   </Style>
 
   <!-- === ProgressBar === -->

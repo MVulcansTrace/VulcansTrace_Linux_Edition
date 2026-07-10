@@ -29,8 +29,8 @@ public sealed class AslrEnabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.5",
-            ControlName = "Address Space Layout Randomization",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "ASLR makes memory corruption exploits significantly harder by randomizing the memory locations used by system and program components. Without it, attackers can reliably jump to known addresses.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.5.2 — Ensure address space layout randomization is enabled"
         }
@@ -69,8 +69,8 @@ public sealed class IpForwardingDisabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 3.1",
-            ControlName = "Network Parameters (Host Only)",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "IP forwarding allows the system to act as a router. On non-router hosts, this is unnecessary and can be abused for traffic redirection, lateral movement, and man-in-the-middle attacks.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.1 — Ensure IP forwarding is disabled"
         }
@@ -121,8 +121,8 @@ public sealed class IcmpRedirectsDisabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 3.1",
-            ControlName = "Network Parameters (Host Only)",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "ICMP redirects can be used by attackers to alter routing tables and redirect traffic through compromised hosts, enabling man-in-the-middle and traffic interception attacks.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.2 — Ensure ICMP redirects are not accepted"
         }
@@ -168,8 +168,8 @@ public sealed class SourceRoutingDisabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 3.1",
-            ControlName = "Network Parameters (Host Only)",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Source routing allows senders to define the exact network path packets take. Attackers can use this to bypass security controls, probe internal networks, and circumvent routing policies.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 3.1.3 — Ensure source routed packets are not accepted"
         }
@@ -208,8 +208,8 @@ public sealed class KernelModuleLoadingRestrictedRule : IRule, IContextualRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.4",
-            ControlName = "Secure Boot Settings",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Unrestricted kernel module loading allows attackers to install rootkits, keyloggers, and other malicious kernel code. Restricting it hardens the system against kernel-level compromise.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.4.1 — Ensure loading and unloading of kernel modules is restricted"
         }
@@ -253,8 +253,8 @@ public sealed class SecureBootEnabledRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.4",
-            ControlName = "Secure Boot Settings",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Secure Boot ensures only cryptographically signed bootloaders and kernels can execute, preventing rootkits and boot-time malware from compromising the system before the OS loads.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.4.2 — Ensure Secure Boot is enabled"
         }
@@ -305,8 +305,8 @@ public sealed class KernelPointerExposureRestrictedRule : IRule
     {
         new CisBenchmarkMapping
         {
-            ControlId = "CIS 1.5",
-            ControlName = "Additional Process Hardening",
+            ControlId = "CIS 4.1",
+            ControlName = "Establish and Maintain a Secure Configuration Process",
             WhyItMatters = "Exposing kernel pointers through /proc and dmesg aids attackers in developing reliable kernel exploits. Restricting them increases the difficulty of privilege escalation attacks.",
             BenchmarkReference = "CIS Ubuntu 24.04 LTS 1.5.3 — Ensure kernel pointer restriction is enabled"
         }

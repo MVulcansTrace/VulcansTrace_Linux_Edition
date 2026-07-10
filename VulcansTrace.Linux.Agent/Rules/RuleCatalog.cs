@@ -1,3 +1,5 @@
+using VulcansTrace.Linux.Core;
+
 namespace VulcansTrace.Linux.Agent.Rules;
 
 /// <summary>
@@ -34,7 +36,7 @@ public sealed class RuleCatalog
     public IReadOnlyList<RuleCatalogItem> Items => _items;
 
     /// <summary>
-    /// Gets items filtered by a search term (matches Id, Category, Description, WhatItChecks, or DataSources).
+    /// Gets items filtered by a search term (matches Id, Category or its display label, Description, WhatItChecks, or DataSources).
     /// </summary>
     /// <param name="search">The search term (case-insensitive).</param>
     /// <returns>Matching catalog items.</returns>
@@ -47,6 +49,7 @@ public sealed class RuleCatalog
         return _items.Where(i =>
             i.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.Category.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+            CategoryDisplay.ToDisplayName(i.Category).Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.WhatItChecks.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             i.SupportedDataSources.Any(ds => ds.Contains(term, StringComparison.OrdinalIgnoreCase)) ||

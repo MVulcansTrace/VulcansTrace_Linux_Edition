@@ -87,13 +87,13 @@
                   AutomationProperties.AutomationId="ThreatIntelDataGrid"
                   AutomationProperties.Name="Threat Intelligence IOCs">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="90" />
-                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="180" />
-                <DataGridTextColumn Header="Score" Binding="{Binding ThreatScore}" Width="60" />
-                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90" />
-                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
-                <DataGridTextColumn Header="Algorithm" Binding="{Binding Algorithm}" Width="90" />
-                <DataGridTextColumn Header="Imported" Binding="{Binding ImportedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="130" />
+                <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120" MinWidth="100" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="180" MinWidth="160" />
+                <DataGridTextColumn Header="Score" Binding="{Binding ThreatScore}" Width="100" MinWidth="90" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="120" MinWidth="100" />
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="180" />
+                <DataGridTextColumn Header="Algorithm" Binding="{Binding Algorithm}" Width="135" MinWidth="120" />
+                <DataGridTextColumn Header="Imported" Binding="{Binding ImportedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="195" MinWidth="185" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

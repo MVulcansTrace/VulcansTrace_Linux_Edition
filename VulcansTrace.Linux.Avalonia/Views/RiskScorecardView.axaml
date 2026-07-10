@@ -43,6 +43,13 @@
                            FontSize="{StaticResource VtFontSizeXs}"
                            Foreground="{Binding GradeColor}"
                            FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding TotalDeduction, StringFormat='Total deduction: {0:F1} (score floored at 0)'}"
+                           FontSize="{StaticResource VtFontSizeXs}"
+                           Foreground="{StaticResource VtTextMutedBrush}"
+                           IsVisible="{Binding IsSaturated}"
+                           TextWrapping="Wrap"
+                           MaxWidth="420"
+                           Margin="0,2,0,0"/>
             </StackPanel>
         </StackPanel>
 
@@ -75,10 +82,10 @@
                   CanUserResizeColumns="True"
                   IsVisible="{Binding HasData}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="360" />
-                <DataGridTextColumn Header="Findings" Binding="{Binding FindingCount}" Width="90" />
-                <DataGridTextColumn Header="Avg Severity" Binding="{Binding AverageSeverity, StringFormat={}{0:F1}}" Width="110" />
-                <DataGridTextColumn Header="Deduction" Binding="{Binding TotalDeduction, StringFormat={}{0:F1}}" Width="100" />
+                <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}" Width="*" MinWidth="220" />
+                <DataGridTextColumn Header="Findings" Binding="{Binding FindingCount}" Width="130" MinWidth="120" />
+                <DataGridTextColumn Header="Avg Severity" Binding="{Binding AverageSeverity, StringFormat={}{0:F1}}" Width="155" MinWidth="140" />
+                <DataGridTextColumn Header="Deduction" Binding="{Binding TotalDeduction, StringFormat={}{0:F1}}" Width="135" MinWidth="125" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

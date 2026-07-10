@@ -8,7 +8,7 @@ public sealed record ControlFamilyScore
     /// <summary>The numeric family identifier (e.g. "4").</summary>
     public string FamilyId { get; init; } = string.Empty;
 
-    /// <summary>The human-readable family name (e.g. "Logging and Auditing").</summary>
+    /// <summary>The human-readable family name (e.g. "Secure Configuration of Enterprise Assets and Software").</summary>
     public string FamilyName { get; init; } = string.Empty;
 
     /// <summary>Total number of rules mapped to this family.</summary>

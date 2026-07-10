@@ -74,6 +74,8 @@ public sealed class RiskScorecardBuilder : IRiskScorecardBuilder
         return new RiskScorecard
         {
             NumericScore = numericScore,
+            TotalDeduction = Math.Round(totalDeduction, 1, MidpointRounding.AwayFromZero),
+            IsSaturated = totalDeduction > 100.0,
             LetterGrade = letterGrade,
             SummaryStatus = summaryStatus,
             TotalFindings = riskRelevantCount,
