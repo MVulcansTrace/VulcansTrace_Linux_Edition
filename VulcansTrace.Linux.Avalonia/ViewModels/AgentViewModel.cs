@@ -1649,6 +1649,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void AddAgentMessage(string text, bool isInfo, bool isError = false) => _presenter.AddAgentMessage(text, isInfo, isError);
     private void AddAgentFinding(Finding finding) => _presenter.AddAgentFinding(finding);
 
+    /// <summary>
+    /// Posts a single informational message to the Agent transcript from outside the
+    /// agent conversation flow (e.g. the main analysis view surfacing remediation detail).
+    /// </summary>
+    public void PostInfo(string text) => _presenter.AddAgentMessage(text, isInfo: true);
+
     private void ClearPrivilegeWarning()
     {
         HasPrivilegeWarning = false;

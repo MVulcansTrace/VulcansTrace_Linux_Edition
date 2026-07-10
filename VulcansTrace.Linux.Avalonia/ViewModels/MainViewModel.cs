@@ -927,8 +927,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             }
             else
             {
-                var warning = "Remediation plan omitted from evidence bundle: " + string.Join("; ", validation.Errors);
-                AdvisorMessage = warning;
+                // Keep the left-panel Tip bounded (count only); surface the per-section
+                // detail in the Agent transcript, which is built for long content.
+                var (tip, detail) = AdvisorText.ForBlockedRemediation(validation);
+                AdvisorMessage = tip;
+                var transcript = AdvisorText.FormatBlockedRemediationTranscript(detail);
+                if (transcript is not null)
+                    Agent.PostInfo(transcript);
             }
         }
 

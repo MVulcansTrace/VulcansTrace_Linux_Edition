@@ -184,7 +184,12 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="{StaticResource VtPrimaryBrush}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            <ScrollViewer Grid.Column="1"
+                                          MaxHeight="140"
+                                          VerticalScrollBarVisibility="Auto"
+                                          VerticalAlignment="Top">
+                                <TextBlock Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                            </ScrollViewer>
                         </Grid>
                     </Border>
 
