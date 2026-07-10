@@ -2,12 +2,13 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using Xunit;
+
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -115,5 +116,4 @@ public sealed class LiveStreamIntegrationTests : IDisposable
         vm.Dispose();
     }
 
-    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 }

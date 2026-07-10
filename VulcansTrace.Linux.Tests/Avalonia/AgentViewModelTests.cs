@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using Avalonia.Media;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -18,6 +18,8 @@ using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.ThreatIntel;
+
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -270,6 +272,40 @@ public class AgentViewModelTests
         Assert.True(vm.CanExportAudit);
         Assert.Single(vm.History);
         Assert.Equal(AgentIntent.YaraCheck, vm.History[0].Intent);
+    }
+
+    [AvaloniaFact]
+    public async Task PublishAuditCompleted_FromWorker_MutatesHistoryAndRaisesEventOnUiThread()
+    {
+        var vm = new AgentViewModel(
+            new StubAgent(),
+            new InMemoryAuditHistoryStore(),
+            PlanBuilder,
+            new RemediationExecutor(new ProcessRunner()));
+        var uiThreadId = Environment.CurrentManagedThreadId;
+        int? historyThreadId = null;
+        int? completedThreadId = null;
+        vm.History.CollectionChanged += (_, _) =>
+            historyThreadId ??= Environment.CurrentManagedThreadId;
+        vm.AuditCompleted += (_, _) =>
+            completedThreadId ??= Environment.CurrentManagedThreadId;
+
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            UtcTimestamp = DateTime.UtcNow
+        };
+        var publish = typeof(AgentViewModel).GetMethod(
+            "PublishAuditCompleted",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(publish);
+
+        await Task.Run(() => publish.Invoke(vm, new object[] { result }));
+        FlushDispatcher();
+
+        Assert.Single(vm.History);
+        Assert.Equal(uiThreadId, historyThreadId);
+        Assert.Equal(uiThreadId, completedThreadId);
     }
 
     [AvaloniaFact]
@@ -2172,8 +2208,6 @@ public class AgentViewModelTests
                 Narrative = string.IsNullOrWhiteSpace(NextNarrative) ? null : new Narrative { Summary = NextNarrative }
             };
     }
-
-    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     [AvaloniaFact]
     public async Task SendQueryCommand_ProseReveal_HidesQueuedUntilItsTurn()

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
+using VulcansTrace.Linux.Avalonia.Threading;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
 using VulcansTrace.Linux.Engine;
@@ -24,6 +25,7 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
     private readonly Func<IntensityLevel> _intensityProvider;
     private readonly EventHandler<LiveAnalysisResult> _resultProducedHandler;
     private readonly object _demoFindingsLock = new();
+    private readonly object _autoStopLock = new();
     private readonly List<Finding> _currentDemoFindings = new();
     private IReadOnlyList<Finding> _latestDemoAnalysisFindings = Array.Empty<Finding>();
     private IEventSource? _resolvedSource;
@@ -39,7 +41,6 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
     private int _totalDeltaFindings;
     private int _scenarioDurationSeconds = 60;
     private CancellationTokenSource? _autoStopCts;
-    private Task? _autoStopTask;
     private bool _isAutoStopping;
     private int _isStopping;
     private DateTime _demoStartTime;
@@ -228,19 +229,42 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         if (IsScenarioSource && ScenarioDurationSeconds > 0)
         {
             _demoStartTime = DateTime.UtcNow;
-            _autoStopCts = new CancellationTokenSource();
+            // The auto-stop task owns this CTS's lifetime. It is disposed in the task's
+            // finally (which always runs once the task completes), so neither StopAsync
+            // nor Dispose touches it. Capturing a local decouples disposal from the
+            // mutable _autoStopCts field, and lets Dispose cancel-and-return without
+            // waiting for the task: a blocking Wait would deadlock StopAsync's final
+            // UiThread.InvokeAsync (which needs the UI thread) and freeze the window
+            // close for the wait's full timeout.
+            var cts = new CancellationTokenSource();
+            lock (_autoStopLock)
+            {
+                _autoStopCts = cts;
+            }
             _isAutoStopping = false;
-            _autoStopTask = Task.Run(async () =>
+            Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(ScenarioDurationSeconds), _autoStopCts.Token).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(ScenarioDurationSeconds), cts.Token).ConfigureAwait(false);
                     _isAutoStopping = true;
                     await StopAsync().ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
-                    // Expected when user clicks Stop manually
+                    // Expected when the user clicks Stop manually or the view is disposed.
+                }
+                finally
+                {
+                    // Cancellation and disposal share the same lock. Clearing the field
+                    // before disposal while holding that lock prevents StopAsync/Dispose
+                    // from retaining a live reference that is disposed before Cancel().
+                    lock (_autoStopLock)
+                    {
+                        if (ReferenceEquals(_autoStopCts, cts))
+                            _autoStopCts = null;
+                        cts.Dispose();
+                    }
                 }
             });
         }
@@ -274,41 +298,48 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
 
             var wasAutoStop = _isAutoStopping;
             _isAutoStopping = false;
-            _autoStopCts?.Cancel();
+            CancelAutoStop();
 
             await _analyzer.StopAsync().ConfigureAwait(false);
 
-            _autoStopCts?.Dispose();
-            _autoStopCts = null;
-            _autoStopTask = null;
-
-            IsRunning = false;
-
-            if (IsScenarioSource)
+            // The pipeline has shut down. All UI-bound state changes and the
+            // DemoCompleted event must be raised on the UI thread: StopAsync
+            // reaches here from a worker thread (the auto-stop Task.Run and the
+            // ConfigureAwait(false) tail of StopAsync itself). Raising
+            // PropertyChanged off the UI thread left the banner/dot stale while
+            // the command buttons updated (the end/stop desync).
+            var applyStopState = () =>
             {
-                var duration = DateTime.UtcNow - _demoStartTime;
-                StatusText = $"Demo complete: {TotalDeltaFindings} finding(s)";
-                IReadOnlyList<Finding> demoFindings;
-                lock (_demoFindingsLock)
+                IsRunning = false;
+
+                if (IsScenarioSource)
                 {
-                    demoFindings = _latestDemoAnalysisFindings.Count > 0
-                        ? _latestDemoAnalysisFindings.ToList()
-                        : _currentDemoFindings.ToList();
-                }
+                    var duration = DateTime.UtcNow - _demoStartTime;
+                    StatusText = $"Demo complete: {TotalDeltaFindings} finding(s)";
+                    IReadOnlyList<Finding> demoFindings;
+                    lock (_demoFindingsLock)
+                    {
+                        demoFindings = _latestDemoAnalysisFindings.Count > 0
+                            ? _latestDemoAnalysisFindings.ToList()
+                            : _currentDemoFindings.ToList();
+                    }
 
-                var args = new DemoCompletedEventArgs(
-                    SelectedSourceName,
-                    demoFindings,
-                    wasAutoStop,
-                    duration,
-                    _demoStartTime,
-                    DateTime.UtcNow);
-                Dispatcher.UIThread.Post(() => DemoCompleted?.Invoke(this, args));
-            }
-            else
-            {
-                StatusText = "Stopped";
-            }
+                    var args = new DemoCompletedEventArgs(
+                        SelectedSourceName,
+                        demoFindings,
+                        wasAutoStop,
+                        duration,
+                        _demoStartTime,
+                        DateTime.UtcNow);
+                    DemoCompleted?.Invoke(this, args);
+                }
+                else
+                {
+                    StatusText = "Stopped";
+                }
+            };
+
+            await UiThread.InvokeAsync(applyStopState);
         }
         finally
         {
@@ -408,6 +439,14 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         _resolvedSource = null;
     }
 
+    private void CancelAutoStop()
+    {
+        lock (_autoStopLock)
+        {
+            _autoStopCts?.Cancel();
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -415,6 +454,18 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
 
         _analyzer.StreamFaulted -= OnStreamFaulted;
         _analyzer.ResultProduced -= _resultProducedHandler;
+
+        // Cancel the auto-stop delay so the background task completes promptly (its
+        // own finally disposes the CTS). We deliberately do NOT wait for the task:
+        // Dispose runs synchronously on the UI thread (Window.OnClosed ->
+        // MainViewModel.Dispose -> here), and StopAsync ends with a
+        // UiThread.InvokeAsync that can only complete on the UI thread — so a
+        // blocking Wait would deadlock that final hop and freeze the window close
+        // for the wait's full timeout. If StopAsync is already in flight it finishes
+        // harmlessly after we return: its state writes target a dead VM, and
+        // MainViewModel unsubscribes DemoCompleted before calling LiveStream.Dispose.
+        CancelAutoStop();
+
         Stop();
         ReleaseResolvedSource();
     }

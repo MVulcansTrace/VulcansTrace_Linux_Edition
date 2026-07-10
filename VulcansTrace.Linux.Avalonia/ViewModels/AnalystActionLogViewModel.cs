@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Avalonia.Services;
+using VulcansTrace.Linux.Avalonia.Threading;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -111,10 +111,7 @@ public sealed class AnalystActionLogViewModel : ViewModelBase
     /// </summary>
     private void OnStoreChanged(object? sender, EventArgs e)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-            Refresh();
-        else
-            Dispatcher.UIThread.Post(Refresh);
+        UiThread.Run(Refresh);
     }
 
     /// <summary>

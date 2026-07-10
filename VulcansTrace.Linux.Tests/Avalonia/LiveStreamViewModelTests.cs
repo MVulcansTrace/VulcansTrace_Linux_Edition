@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
@@ -8,6 +8,8 @@ using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
 using VulcansTrace.Linux.Engine.Detectors;
 using VulcansTrace.Linux.Engine.Live;
+
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -190,6 +192,73 @@ public class LiveStreamViewModelTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Dispose_WhileRunning_DoesNotThrowAndStops()
+    {
+        // A demo still running when Dispose() is called must tear down the auto-stop
+        // background task and its CTS without throwing and leave the VM stopped.
+        // Regression guard for the orphaned-auto-stop teardown gap.
+        var vm = CreateViewModel();
+        vm.SelectedSourceName = "Demo: Random Mix";
+        vm.ScenarioDurationSeconds = 60; // long enough to guarantee we dispose mid-run
+
+        vm.StartCommand.Execute(null);
+        FlushDispatcher();
+        Assert.True(vm.IsRunning, "Stream should be running after Start");
+
+        // Let the auto-stop Task.Run enter its delay, then dispose while running.
+        await Task.Delay(150);
+        FlushDispatcher();
+        Assert.True(vm.IsRunning, "Stream should still be running before dispose");
+
+        vm.Dispose(); // must not throw with the auto-stop task in flight
+
+        Assert.False(vm.IsRunning, "Dispose must leave IsRunning false");
+
+        // The task owns disposal and must promptly clear its published CTS after
+        // observing cancellation; otherwise Dispose merely hides an orphaned task.
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        while (GetAutoStopCts(vm) is not null && !timeout.IsCancellationRequested)
+        {
+            await Task.Delay(20);
+        }
+        Assert.Null(GetAutoStopCts(vm));
+    }
+
+    [AvaloniaFact]
+    public async Task Dispose_WhileAutoStopInFlight_DoesNotBlockTheUIThread()
+    {
+        // Regression guard for the UI-thread freeze. The auto-stop background task
+        // ends StopAsync with `await UiThread.InvokeAsync(applyStopState)`, which can
+        // only complete on the UI thread. A Dispose that blocked waiting for that task
+        // would deadlock the final hop and freeze the close for the wait's full timeout.
+        //
+        // We park the task in exactly that state: start a 1s demo, then Sleep on the UI
+        // thread (without pumping) past the 1s auto-stop. The task runs StopAsync on the
+        // threadpool, reaches its InvokeAsync tail, and parks with applyStopState queued.
+        // Dispose must return promptly rather than block on the parked task.
+        var vm = CreateViewModel();
+        vm.SelectedSourceName = "Demo: Random Mix";
+        vm.ScenarioDurationSeconds = 1;
+
+        vm.StartCommand.Execute(null);
+        FlushDispatcher();
+
+        Thread.Sleep(1500); // let the 1s auto-stop elapse and park at InvokeAsync
+
+        var sw = Stopwatch.StartNew();
+        vm.Dispose();
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 1000,
+            $"Dispose blocked the UI thread for {sw.ElapsedMilliseconds}ms (expected sub-second).");
+        Assert.False(vm.IsRunning);
+
+        // Let the parked tail drain on the dispatcher before teardown disposes the analyzer.
+        await Task.Delay(100);
+        FlushDispatcher();
+    }
+
+    [AvaloniaFact]
     public async Task LiveResultReceived_RaisedWhenResultsArrive()
     {
         var vm = CreateViewModel();
@@ -303,6 +372,70 @@ public class LiveStreamViewModelTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task StopState_IsRaisedOnUiThread_Diagnostic()
+    {
+        // Diagnoses the Live Stream end/stop desync: the stream stops and the
+        // ViewModel values change, but if those changes are raised off the UI
+        // thread the banner/dot bindings never re-render while the command-based
+        // buttons do. This captures which thread raised the stop transition.
+        var vm = CreateViewModel();
+        vm.SelectedSourceName = "Demo: Random Mix";
+        vm.ScenarioDurationSeconds = 2;
+
+        var uiThreadId = Environment.CurrentManagedThreadId;
+
+        int? isRunningStopThreadId = null;
+        int? statusStopThreadId = null;
+        string? observedStatus = null;
+
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(LiveStreamViewModel.IsRunning) && !vm.IsRunning)
+            {
+                isRunningStopThreadId ??= Environment.CurrentManagedThreadId;
+            }
+            if (e.PropertyName == nameof(LiveStreamViewModel.StatusText)
+                && vm.StatusText.Contains("complete", StringComparison.OrdinalIgnoreCase))
+            {
+                statusStopThreadId ??= Environment.CurrentManagedThreadId;
+                observedStatus ??= vm.StatusText;
+            }
+        };
+
+        vm.StartCommand.Execute(null);
+        FlushDispatcher();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+        try
+        {
+            while (vm.IsRunning && !cts.Token.IsCancellationRequested)
+            {
+                FlushDispatcher();
+                await Task.Delay(50, cts.Token);
+            }
+        }
+        catch (OperationCanceledException) { }
+
+        // Allow the auto-stop background task to finish raising events.
+        await Task.Delay(300);
+        FlushDispatcher();
+        vm.Dispose();
+
+        Assert.True(isRunningStopThreadId.HasValue,
+            "IsRunning never transitioned to false (auto-stop did not run).");
+        Assert.True(statusStopThreadId.HasValue,
+            "StatusText never reached a 'complete' value (auto-stop did not run).");
+
+        Assert.True(isRunningStopThreadId.Value == uiThreadId,
+            $"IsRunning=false was raised OFF the UI thread " +
+            $"(raising thread {isRunningStopThreadId.Value}, UI thread {uiThreadId}).");
+
+        Assert.True(statusStopThreadId.Value == uiThreadId,
+            $"StatusText stop value ('{observedStatus}') was raised OFF the UI thread " +
+            $"(raising thread {statusStopThreadId.Value}, UI thread {uiThreadId}).");
+    }
+
+    [AvaloniaFact]
     public async Task DemoCompleted_RaisedOnManualStop()
     {
         var vm = CreateViewModel();
@@ -326,5 +459,9 @@ public class LiveStreamViewModelTests : IDisposable
         Assert.Equal(completed[0].Findings.Count, completed[0].TotalFindings);
     }
 
-    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
+    private static CancellationTokenSource? GetAutoStopCts(LiveStreamViewModel vm) =>
+        (CancellationTokenSource?)typeof(LiveStreamViewModel)
+            .GetField("_autoStopCts", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(vm);
+
 }

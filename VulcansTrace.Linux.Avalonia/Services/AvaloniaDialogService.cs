@@ -7,7 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
+using VulcansTrace.Linux.Avalonia.Threading;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Avalonia.Views;
 
@@ -81,7 +81,7 @@ public sealed class AvaloniaDialogService : IDialogService
             FileTypeChoices = fileTypes
         };
 
-        var result = await RunOnUiThreadAsync(() => topLevel.StorageProvider.SaveFilePickerAsync(options));
+        var result = await UiThread.InvokeAsync(() => topLevel.StorageProvider.SaveFilePickerAsync(options));
         return result?.TryGetLocalPath();
     }
 
@@ -109,13 +109,13 @@ public sealed class AvaloniaDialogService : IDialogService
             AllowMultiple = false
         };
 
-        var results = await RunOnUiThreadAsync(() => topLevel.StorageProvider.OpenFilePickerAsync(options));
+        var results = await UiThread.InvokeAsync(() => topLevel.StorageProvider.OpenFilePickerAsync(options));
         return results?.Count > 0 ? results[0].TryGetLocalPath() : null;
     }
 
     private Task ShowDialogAsync(string message, string title, bool isError)
     {
-        return RunOnUiThreadAsync(async () =>
+        return UiThread.InvokeAsync(async () =>
         {
             var dialog = new Window
             {
@@ -160,22 +160,12 @@ public sealed class AvaloniaDialogService : IDialogService
         });
     }
 
-    private static Task<T> RunOnUiThreadAsync<T>(Func<Task<T>> action)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return action();
-        }
-
-        return Dispatcher.UIThread.InvokeAsync(action);
-    }
-
     /// <summary>
     /// Shows a modal selection dialog with a dropdown of predefined options.
     /// </summary>
     public async Task<int?> ShowSelectionDialogAsync(string title, string message, string[] options, int defaultIndex = 0)
     {
-        return await RunOnUiThreadAsync(async () =>
+        return await UiThread.InvokeAsync(async () =>
         {
             var dialog = new Window
             {
@@ -253,7 +243,7 @@ public sealed class AvaloniaDialogService : IDialogService
     /// </summary>
     public async Task<string?> ShowInputDialogAsync(string title, string message, string defaultText = "")
     {
-        return await RunOnUiThreadAsync(async () =>
+        return await UiThread.InvokeAsync(async () =>
         {
             var dialog = new Window
             {
@@ -331,7 +321,7 @@ public sealed class AvaloniaDialogService : IDialogService
     /// </summary>
     public async Task<bool?> ShowRulePolicyEditDialogAsync(RulePolicyEditViewModel viewModel)
     {
-        return await RunOnUiThreadAsync(async () =>
+        return await UiThread.InvokeAsync(async () =>
         {
             var dialog = new RulePolicyEditWindow
             {

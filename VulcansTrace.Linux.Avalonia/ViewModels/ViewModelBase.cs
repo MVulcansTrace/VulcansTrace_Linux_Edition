@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia;
+using Avalonia.Threading;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -12,6 +15,15 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// </remarks>
 public abstract class ViewModelBase : INotifyPropertyChanged
 {
+#if DEBUG
+    // Application.Current is process-global, so it is not enough on its own to
+    // identify a UI-owned view model (parallel unit tests can have an Avalonia app
+    // active while constructing unrelated view models on worker threads). Capture
+    // ownership per instance at construction instead.
+    private readonly bool _enforceUiThreadAffinity =
+        Application.Current is not null && Dispatcher.UIThread.CheckAccess();
+#endif
+
     /// <summary>
     /// Event raised when a property value changes.
     /// </summary>
@@ -41,6 +53,21 @@ public abstract class ViewModelBase : INotifyPropertyChanged
     /// <param name="propertyName">Name of the property (automatically provided by CallerMemberName).</param>
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
+#if DEBUG
+        // UI-bound view-model state must be mutated on the UI thread: an off-thread
+        // PropertyChanged raise silently desyncs bindings (the Live Stream end/stop
+        // bug). Fail loud in Debug/test so the bug is caught at write-time; Release
+        // builds skip the check (structural marshaling keeps them correct).
+        // Instances created outside an active UI dispatcher (CLI/headless unit-test
+        // hosts) are deliberately exempt; UI-owned instances keep the tripwire for
+        // their entire lifetime.
+        if (_enforceUiThreadAffinity && !Dispatcher.UIThread.CheckAccess())
+        {
+            throw new InvalidOperationException(
+                $"PropertyChanged for '{propertyName}' was raised off the UI thread. " +
+                "Marshal the mutation via Dispatcher.UIThread.Post/InvokeAsync or UiThread.Run.");
+        }
+#endif
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

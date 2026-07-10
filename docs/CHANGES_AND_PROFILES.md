@@ -5,7 +5,19 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-07-06
+Last updated: 2026-07-10
+
+### UI-Thread Affinity Hardening (View-Model State)
+
+Defense-in-depth pass against the class of bug behind the Live Stream end/stop desync: view-model state mutated off the UI thread silently desyncs bindings (banner/dot frozen while command buttons updated). Turns "correct by luck / safe because we quit" into "correct and verified by construction."
+
+- **Thread-affinity tripwire** — `ViewModelBase` records whether each instance was created on the active UI dispatcher, then `OnPropertyChanged` throws `InvalidOperationException` under `#if DEBUG` if that UI-owned instance raises `PropertyChanged` off-thread. Capturing affinity per instance is important: `Application.Current` is process-global, so using it as the raise-time gate caused false failures when ordinary xUnit tests ran concurrently with Avalonia tests. Active in Debug builds and tests (compiled out of Release), the tripwire catches real UI-owned violations without classifying CLI/headless worker-owned view models as UI objects. Scope: covers `PropertyChanged`, not `ObservableCollection.CollectionChanged`.
+- **Shared UI-thread helper** — new `UiThread` with the `CheckAccess` inline fast-path (runs synchronously when already on the UI thread, marshals via `Dispatcher.UIThread.Post`/`InvokeAsync` otherwise): `Run(Action)` (fire-and-forget), `InvokeAsync(Action)` (awaited), and `InvokeAsync<T>(Func<Task<T>>)` (awaited, typed). All four former inline `CheckAccess` sites (`AgentOperationRunner`, `AvaloniaDialogService`, `LiveStreamViewModel.StopAsync`, `AnalystActionLogViewModel`) now route through it instead of duplicating the pattern.
+- **AgentViewModel choke-point hardening** — the result-finalization path can resume on an operation background thread after an `await`. `SetLastResult` and `PublishAuditCompleted` now route their complete operations through `UiThread.Run`: coordinator state, persistence-warning messages, `PropertyChanged`, command refreshes, `AuditCompleted`, and history `ObservableCollection` refreshes execute together on the UI thread rather than marshaling only the final notifications.
+- **Live Stream dispose teardown** — `LiveStreamViewModel.Dispose()` cancels the auto-stop delay and returns *without* waiting for the background task. Dispose runs synchronously on the UI thread (`Window.OnClosed` → `MainViewModel.Dispose`), so a blocking `Wait` would deadlock `StopAsync`'s final `UiThread.InvokeAsync` — which needs the UI thread — and freeze the window close for the wait's full timeout (empirically ~2 s). The auto-stop task owns CTS disposal, while assignment, cancellation, field clearing, and disposal share one lock; this prevents `StopAsync` or `Dispose` from retaining a CTS reference that the task disposes immediately before `Cancel()`. A late-completing `StopAsync` finishes harmlessly after Dispose (its writes target a dead VM, and `MainViewModel` unsubscribes `DemoCompleted` first). The shared analyzer is left for its owner (`AgentFactory`) to dispose.
+- Regression coverage includes the UI-owned/off-thread tripwire and worker-owned exemption, Agent audit history/event affinity, Live Stream stop-state affinity, prompt CTS cleanup, and non-blocking disposal. Verified with the full suite: 3,878/3,878 tests pass with the Debug tripwire active.
+  - Code: `VulcansTrace.Linux.Avalonia/ViewModels/ViewModelBase.cs`, `AgentViewModel.cs`, `LiveStreamViewModel.cs`, `VulcansTrace.Linux.Avalonia/Threading/UiThread.cs`
+  - Tests: `VulcansTrace.Linux.Tests/Avalonia/ViewModelBaseTests.cs`, `AgentViewModelTests.cs`, `LiveStreamViewModelTests.cs`
 
 ### Agent Chat — Phase 1 Hardening (Regression-Proofing)
 
@@ -670,7 +682,7 @@ Hardening pass over the searchable slash-command help popup (? button, Ctrl+K, `
   - Default duration is **150 s** so C2 beaconing works out of the box.
   - CLI demo evidence export now includes `risk-scorecard.html` and `risk-scorecard.md` because `RiskScorecardBuilder` is invoked after the run.
 - **Avalonia UI:** Live Stream tab includes a scenario dropdown and a duration `NumericUpDown`. Selecting a scenario auto-sets the recommended duration (C2 Beaconing → 150 s; others → 60 s). Auto-stop timer fires after the configured duration and raises `DemoCompleted`, which `MainViewModel` handles to sync evidence, timeline, incident story, and risk scorecard.
-- **Safety:** `LiveStreamViewModel.StopAsync()` uses `Interlocked.CompareExchange` reentrancy guard and marshals `DemoCompleted` to the UI thread via `Dispatcher.UIThread.Post` to prevent `ObservableCollection` modification from a background thread.
+- **Safety:** `LiveStreamViewModel.StopAsync()` uses an `Interlocked.CompareExchange` reentrancy guard and marshals all stop state — `IsRunning`, `StatusText`, and the `DemoCompleted` event — to the UI thread (via `Dispatcher.UIThread.CheckAccess()`/`InvokeAsync`), so banner/dot bindings and the `ObservableCollection` are never mutated from a background thread.
 - `TraceMapCorrelator` is now wired into `AgentFactory.AgentServices` so demo evidence exports include correlated `trace-map.md`, `trace-map.json`, and `incident-story.md`.
 - Code: `VulcansTrace.Linux.Engine/Live/DemoScenario.cs`, `DemoPatterns.cs`, `DemoRunner.cs`, `DemoResult.cs`, `DemoCompletedEventArgs.cs`
 - Code: `VulcansTrace.Linux.Cli/Program.cs`

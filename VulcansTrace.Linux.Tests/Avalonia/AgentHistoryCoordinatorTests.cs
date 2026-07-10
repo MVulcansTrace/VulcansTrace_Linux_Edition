@@ -1,11 +1,12 @@
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Compliance;
 using Xunit;
+
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -204,8 +205,6 @@ public class AgentHistoryCoordinatorTests
         Assert.Empty(harness.History);
         Assert.Equal(1, harness.HistoryChangedCount);
     }
-
-    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     private static AuditHistoryEntry CreateHistoryEntry(string snapshotId, DateTime timestamp) => new()
     {

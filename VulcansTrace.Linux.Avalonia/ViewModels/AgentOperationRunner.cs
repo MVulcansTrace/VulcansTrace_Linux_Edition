@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Avalonia.Threading;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -67,7 +67,7 @@ internal sealed class AgentOperationRunner : IDisposable
         // Use a lightweight IProgress<T> implementation that explicitly marshals to the UI thread.
         // This keeps the dispatcher hop in one obvious place and avoids relying on a captured
         // SynchronizationContext, which may be missing if RunAsync is invoked off the UI thread.
-        var progress = new UiThreadProgress<AgentAuditProgress>(p => RunOnUiThread(() => _onProgress(p)));
+        var progress = new UiThreadProgress<AgentAuditProgress>(p => UiThread.Run(() => _onProgress(p)));
 
         try
         {
@@ -77,29 +77,17 @@ internal sealed class AgentOperationRunner : IDisposable
         catch (OperationCanceledException)
         {
             // Cancellation is a user action, not an error — keep it as a neutral info bubble.
-            RunOnUiThread(() => _addAgentMessage("Query cancelled.", true, false));
+            UiThread.Run(() => _addAgentMessage("Query cancelled.", true, false));
         }
         catch (Exception ex)
         {
-            RunOnUiThread(() => _addAgentMessage($"Agent error: {ex.Message}", true, true));
+            UiThread.Run(() => _addAgentMessage($"Agent error: {ex.Message}", true, true));
         }
         finally
         {
-            RunOnUiThread(() => _setBusy(false));
+            UiThread.Run(() => _setBusy(false));
             _cts?.Dispose();
             _cts = null;
-        }
-    }
-
-    private static void RunOnUiThread(Action action)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(action);
         }
     }
 
@@ -113,7 +101,7 @@ internal sealed class AgentOperationRunner : IDisposable
 
 /// <summary>
 /// A minimal <see cref="IProgress<T>"/> implementation that invokes the supplied handler directly.
-/// Combine with an explicit <see cref="Dispatcher.UIThread"/> post (as in <see cref="AgentOperationRunner"/>)
+/// Combine with a UI-thread marshal via UiThread.Run (as in AgentOperationRunner)
 /// when the handler must run on the UI thread.
 /// </summary>
 internal sealed class UiThreadProgress<T> : IProgress<T>

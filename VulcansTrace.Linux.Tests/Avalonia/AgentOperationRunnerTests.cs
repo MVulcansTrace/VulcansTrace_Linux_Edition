@@ -1,7 +1,8 @@
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.ViewModels;
+
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -262,8 +263,6 @@ public class AgentOperationRunnerTests
         Assert.Equal(0, report.StepIndex);
         Assert.Equal(2, report.TotalSteps);
     }
-
-    private static void FlushDispatcher() => Dispatcher.UIThread.RunJobs();
 
     /// <summary>Pumps the dispatcher until <paramref name="condition" /> holds, or the timeout lapses.</summary>
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)

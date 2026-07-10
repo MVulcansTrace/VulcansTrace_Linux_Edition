@@ -20,6 +20,7 @@ using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Services;
+using VulcansTrace.Linux.Avalonia.Threading;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.ThreatIntel;
 
@@ -872,6 +873,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 CompareAuditsCommand!.RaiseCanExecuteChanged();
                 CompareSelectedAuditsCommand!.RaiseCanExecuteChanged();
             });
+        // SetLastResult and PublishAuditCompleted below marshal the complete
+        // result-finalization operation. These callbacks therefore run directly and
+        // remain in the same UI-dispatcher job as the state and history mutations.
         _resultState = new AgentResultStateCoordinator(
             _historyCoordinator,
             OnPropertyChanged,
@@ -1663,8 +1667,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void SetLastResult(AgentResult result)
     {
-        _resultState.SetLastResult(result);
-        ShowMemoryPersistenceWarningIfAny();
+        UiThread.Run(() =>
+        {
+            _resultState.SetLastResult(result);
+            ShowMemoryPersistenceWarningIfAny();
+        });
     }
 
     private void ShowMemoryPersistenceWarningIfAny()
@@ -1864,7 +1871,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void PublishAuditCompleted(AgentResult result)
     {
-        _resultState.PublishAuditCompleted(result);
+        UiThread.Run(() => _resultState.PublishAuditCompleted(result));
     }
 
     /// <summary>Marks the most recent audit history entry as exported.</summary>
