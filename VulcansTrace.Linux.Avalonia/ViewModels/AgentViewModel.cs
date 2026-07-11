@@ -248,6 +248,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _isBusy, value))
             {
                 AgentStatus = value ? "Busy" : "Online";
+                if (value)
+                {
+                    // Collapse the tools panel when an operation starts so it does not
+                    // cover the transcript/results while the check runs.
+                    IsAgentToolsPanelOpen = false;
+                }
                 // Reset on every transition: clears stale values when an operation ends (hide the
                 // bar) and when the next one starts (no leftover label/percent from the prior op,
                 // which a late Progress<T> callback may have written after the previous reset).

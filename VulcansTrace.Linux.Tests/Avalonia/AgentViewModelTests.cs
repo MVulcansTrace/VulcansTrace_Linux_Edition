@@ -1098,6 +1098,21 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task RunCheckCommand_CollapsesAgentToolsPanel()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.ToggleAgentToolsPanelCommand.Execute(null);
+        Assert.True(vm.IsAgentToolsPanelOpen);
+
+        vm.FirewallCommand.Execute(null);
+        await vm.FirewallCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.False(vm.IsAgentToolsPanelOpen);
+    }
+
+    [AvaloniaFact]
     public void AgentToolsPanel_PreservesLegacyAutomationIds()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
