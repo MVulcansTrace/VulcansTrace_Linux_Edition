@@ -684,6 +684,26 @@ public class AgentResultPresenterTests
         Assert.False(harness.Messages[1].IsVisible);
     }
 
+    [AvaloniaFact]
+    public void AddAgentMessage_SanitizesEveryMessageIncludingNonErrorInfo()
+    {
+        // The choke point sanitizes unconditionally: even a non-error, non-"Error:"-prefixed info
+        // message (e.g. a "File not found:" prompt built from a path) must not leak an absolute home
+        // path. This locks the always-sanitize behavior added to close the parse-error / file-not-found
+        // gap that the previous error-flag-only check missed.
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+            return;
+
+        var harness = new PresenterHarness();
+        harness.Presenter.AddAgentMessage($"File not found: {home}/secrets/stix.json", isInfo: true);
+
+        var msg = Assert.Single(harness.Messages);
+        Assert.DoesNotContain(home, msg.Text, StringComparison.Ordinal);
+        Assert.Contains("~/secrets/stix.json", msg.Text, StringComparison.Ordinal);
+        Assert.False(msg.IsError);
+    }
+
     private sealed class PresenterHarness
     {
         public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();

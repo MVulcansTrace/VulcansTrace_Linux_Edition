@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent.Actions;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Notifications;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -184,12 +185,12 @@ public sealed class NotificationSettingsViewModel : ViewModelBase
         SaveCommand = new AsyncRelayCommand(
             async _ => await SaveAsync(),
             _ => !IsTesting,
-            ex => StatusMessage = $"Save failed: {ex.Message}");
+            ex => StatusMessage = $"Save failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         TestCommand = new AsyncRelayCommand(
             async _ => await TestAsync(),
             _ => !IsTesting && Enabled,
-            ex => StatusMessage = $"Test failed: {ex.Message}");
+            ex => StatusMessage = $"Test failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         ResetCommand = new RelayCommand(
             _ => LoadSettings(),

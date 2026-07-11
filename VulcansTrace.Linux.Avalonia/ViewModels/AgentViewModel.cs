@@ -1722,7 +1722,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             // If the store throws, we cannot assume the pin succeeded. Re-read if possible,
             // otherwise treat it as rejected and surface the failure.
             accepted = SafeIsPinned(message.MessageId);
-            PinMessageStatusMessage = $"Could not pin message: {ex.Message}";
+            PinMessageStatusMessage = $"Could not pin message: {ErrorSanitizer.SanitizeException(ex)}";
         }
 
         ApplyPinnedState(message, accepted);
@@ -1747,7 +1747,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             stillPinned = SafeIsPinned(message.MessageId);
-            PinMessageStatusMessage = $"Could not unpin message: {ex.Message}";
+            PinMessageStatusMessage = $"Could not unpin message: {ErrorSanitizer.SanitizeException(ex)}";
         }
 
         ApplyPinnedState(message, stillPinned);
@@ -1829,7 +1829,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             PinnedMessages.Clear();
             PinnedMessageCount = 0;
-            PinMessageStatusMessage = $"Could not load pinned messages: {ex.Message}";
+            PinMessageStatusMessage = $"Could not load pinned messages: {ErrorSanitizer.SanitizeException(ex)}";
         }
     }
 

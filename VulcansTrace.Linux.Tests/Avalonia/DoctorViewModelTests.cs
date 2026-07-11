@@ -50,7 +50,7 @@ public class DoctorViewModelTests
     }
 
     [AvaloniaFact]
-    public void LoadResults_WithWarnings_PopulatesWarningsCollection()
+    public void LoadResults_WithWarnings_CollapsesIntoFriendlyMessage()
     {
         var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
 
@@ -64,8 +64,9 @@ public class DoctorViewModelTests
             Warnings = new[] { "Scanner 'X' failed: boom" }
         });
 
-        Assert.Single(vm.Warnings);
-        Assert.Contains("Scanner 'X' failed: boom", vm.Warnings);
+        var friendly = Assert.Single(vm.Warnings);
+        Assert.Contains("scanner returned", friendly, System.StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("boom", friendly, System.StringComparison.OrdinalIgnoreCase);
     }
 
     [AvaloniaFact]
@@ -138,5 +139,59 @@ public class DoctorViewModelTests
         Assert.Single(vm.Capabilities);
         Assert.Equal("ss", vm.Capabilities[0].SourceName);
         Assert.Empty(vm.Warnings);
+    }
+
+    [AvaloniaFact]
+    public void LoadResults_PermissionDeniedFlood_CollapsesToSingleFriendlyWarning()
+    {
+        var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
+
+        var warnings = System.Linq.Enumerable
+            .Range(0, 40)
+            .Select(i => $"find: '/var/{i}': Permission denied")
+            .ToArray();
+
+        vm.LoadResults(new DoctorResult
+        {
+            Capabilities = new[]
+            {
+                new DataSourceCapability { SourceName = "find-world-writable-files", Status = CapabilityStatus.PermissionLimited }
+            },
+            IsHealthy = false,
+            PermissionLimitedCount = 1,
+            Warnings = warnings
+        });
+
+        var friendly = Assert.Single(vm.Warnings);
+        Assert.Contains("40 checks were blocked", friendly, System.StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("find:", friendly, System.StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/var/", friendly, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    [AvaloniaFact]
+    public void LoadResults_CapabilityDetail_SanitizesProcessStartError()
+    {
+        var vm = new DoctorViewModel(new DoctorService(System.Array.Empty<IScanner>()));
+        var home = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
+
+        vm.LoadResults(new DoctorResult
+        {
+            Capabilities = new[]
+            {
+                new DataSourceCapability
+                {
+                    SourceName = "iptables",
+                    Status = CapabilityStatus.Unavailable,
+                    Detail = $"An error occurred trying to start process 'iptables' with working directory '{home}/Projects/X'. No such file or directory"
+                }
+            },
+            IsHealthy = false,
+            UnavailableCount = 1
+        });
+
+        var detail = Assert.Single(vm.Capabilities).Detail;
+        Assert.Contains("could not be started", detail, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("iptables", detail, System.StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("working directory", detail, System.StringComparison.OrdinalIgnoreCase);
     }
 }

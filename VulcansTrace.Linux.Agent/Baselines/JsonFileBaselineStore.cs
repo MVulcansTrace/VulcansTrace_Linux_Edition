@@ -3,6 +3,7 @@ using FluentValidation;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Persistence;
 using VulcansTrace.Linux.Agent.Query;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Validation;
 using VulcansTrace.Linux.Core.Logging;
 
@@ -45,7 +46,7 @@ public sealed class JsonFileBaselineStore : IBaselineStore, IDisposable
     }
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public IReadOnlyList<BaselineEntry> GetAll()

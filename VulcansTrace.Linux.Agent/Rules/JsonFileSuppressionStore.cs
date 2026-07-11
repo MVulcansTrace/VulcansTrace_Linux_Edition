@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Validation;
 using VulcansTrace.Linux.Core.Logging;
 
@@ -43,7 +44,7 @@ public sealed class JsonFileSuppressionStore : ISuppressionStore, IDisposable
     }
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public void Add(SuppressionEntry entry)

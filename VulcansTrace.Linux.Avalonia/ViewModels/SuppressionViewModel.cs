@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Avalonia.Services;
 
@@ -145,7 +146,7 @@ public sealed class SuppressionViewModel : ViewModelBase
                 }
             },
             _ => true,
-            ex => StatusMessage = $"Renew failed: {ex.Message}");
+            ex => StatusMessage = $"Renew failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         ConvertDurationCommand = new AsyncRelayCommand(
             async param =>
@@ -156,7 +157,7 @@ public sealed class SuppressionViewModel : ViewModelBase
                 }
             },
             _ => true,
-            ex => StatusMessage = $"Convert failed: {ex.Message}");
+            ex => StatusMessage = $"Convert failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         EditReasonCommand = new AsyncRelayCommand(
             async param =>
@@ -178,7 +179,7 @@ public sealed class SuppressionViewModel : ViewModelBase
                 StatusMessage = _store.PersistenceWarning ?? $"Updated reason for {item.Entry.RuleId} ({item.Entry.Target}).";
             },
             _ => true,
-            ex => StatusMessage = $"Edit reason failed: {ex.Message}");
+            ex => StatusMessage = $"Edit reason failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         foreach (ReviewFilter filter in Enum.GetValues(typeof(ReviewFilter)))
         {

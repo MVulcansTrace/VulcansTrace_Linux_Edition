@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.Threading;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
@@ -222,7 +223,7 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         {
             (source as IDisposable)?.Dispose();
             IsRunning = false;
-            StatusText = $"Stream error: {ex.Message}";
+            StatusText = $"Stream error: {ErrorSanitizer.SanitizeException(ex)}";
             return;
         }
 
@@ -392,7 +393,7 @@ public sealed class LiveStreamViewModel : ViewModelBase, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             IsRunning = false;
-            StatusText = $"Stream error: {ex.Message}";
+            StatusText = $"Stream error: {ErrorSanitizer.SanitizeException(ex)}";
         });
     }
 

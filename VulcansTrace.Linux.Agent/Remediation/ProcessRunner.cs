@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using VulcansTrace.Linux.Agent.Reports;
 
 namespace VulcansTrace.Linux.Agent.Remediation;
 
@@ -123,7 +124,7 @@ public sealed class ProcessRunner : IProcessRunner
                 Success = false,
                 ExitCode = -1,
                 StdOut = stdoutBuilder.ToString(),
-                StdErr = $"Failed to start process: {ex.Message}"
+                StdErr = ErrorSanitizer.SanitizeException(ex)
             };
         }
     }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core.Logging;
 
 namespace VulcansTrace.Linux.Agent.Notifications;
@@ -57,7 +58,7 @@ public sealed class JsonFileNotificationSettingsStore : INotificationSettingsSto
     }
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public NotificationSettings Settings

@@ -119,52 +119,52 @@ public sealed class ScheduleViewModel : ViewModelBase
         AddCommand = new AsyncRelayCommand(
             async _ => await AddAsync(),
             _ => true,
-            ex => StatusMessage = $"Add failed: {ex.Message}");
+            ex => StatusMessage = $"Add failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         EditCommand = new AsyncRelayCommand(
             async _ => await EditAsync(),
             _ => SelectedRow != null,
-            ex => StatusMessage = $"Edit failed: {ex.Message}");
+            ex => StatusMessage = $"Edit failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         DeleteCommand = new AsyncRelayCommand(
             async _ => await DeleteAsync(),
             _ => SelectedRow != null,
-            ex => StatusMessage = $"Delete failed: {ex.Message}");
+            ex => StatusMessage = $"Delete failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         EnableCommand = new AsyncRelayCommand(
             async _ => await ToggleAsync(enabled: true),
             _ => SelectedRow != null && !SelectedRow.Schedule.Enabled,
-            ex => StatusMessage = $"Enable failed: {ex.Message}");
+            ex => StatusMessage = $"Enable failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         DisableCommand = new AsyncRelayCommand(
             async _ => await ToggleAsync(enabled: false),
             _ => SelectedRow != null && SelectedRow.Schedule.Enabled,
-            ex => StatusMessage = $"Disable failed: {ex.Message}");
+            ex => StatusMessage = $"Disable failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         RunNowCommand = new AsyncRelayCommand(
             async _ => await RunNowAsync(),
             _ => SelectedRow != null && SelectedRow.Schedule.Enabled,
-            ex => StatusMessage = $"Run failed: {ex.Message}");
+            ex => StatusMessage = $"Run failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         InstallCronCommand = new AsyncRelayCommand(
             async _ => await InstallCronAsync(),
             _ => SelectedRow != null,
-            ex => StatusMessage = $"Install cron failed: {ex.Message}");
+            ex => StatusMessage = $"Install cron failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         UninstallCronCommand = new AsyncRelayCommand(
             async _ => await UninstallCronAsync(),
             _ => SelectedRow != null,
-            ex => StatusMessage = $"Uninstall cron failed: {ex.Message}");
+            ex => StatusMessage = $"Uninstall cron failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         OpenOutputCommand = new AsyncRelayCommand(
             async _ => await OpenOutputAsync(),
             _ => SelectedRow != null && !string.IsNullOrWhiteSpace(SelectedRow.Schedule.OutputDirectory),
-            ex => StatusMessage = $"Open output failed: {ex.Message}");
+            ex => StatusMessage = $"Open output failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         RemediateCommand = new AsyncRelayCommand(
             async _ => await RemediateAsync(),
             _ => SelectedRow != null && SelectedRow.Schedule.Enabled && SelectedRow.Schedule.AllowAutoRemediate,
-            ex => StatusMessage = $"Remediate failed: {ex.Message}");
+            ex => StatusMessage = $"Remediate failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         Refresh();
     }
@@ -359,7 +359,7 @@ public sealed class ScheduleViewModel : ViewModelBase
                 }
                 catch (Exception ex)
                 {
-                    Dispatcher.UIThread.Post(() => StatusMessage = $"Drift response failed: {ex.Message}");
+                    Dispatcher.UIThread.Post(() => StatusMessage = $"Drift response failed: {ErrorSanitizer.SanitizeException(ex)}");
                 }
                 finally
                 {
@@ -423,7 +423,7 @@ public sealed class ScheduleViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Preview failed: audit for '{schedule.Name}' could not complete: {ex.Message}";
+            StatusMessage = $"Preview failed: audit for '{schedule.Name}' could not complete: {ErrorSanitizer.SanitizeException(ex)}";
             return;
         }
 

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
 using VulcansTrace.Linux.Agent.Findings;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -376,7 +377,7 @@ public sealed class FindingsViewModel : ViewModelBase
 
         for (var i = 0; i < displayLimit; i++)
         {
-            ParseErrors.Add(errorsToDisplay[i]);
+            ParseErrors.Add(ErrorSanitizer.Sanitize(errorsToDisplay[i]));
         }
 
         if (totalParseErrors > displayLimit)
@@ -388,7 +389,7 @@ public sealed class FindingsViewModel : ViewModelBase
         // Load warnings
         foreach (var warning in result.Warnings)
         {
-            Warnings.Add(warning);
+            Warnings.Add(ErrorSanitizer.Sanitize(warning));
         }
 
         // Update statistics

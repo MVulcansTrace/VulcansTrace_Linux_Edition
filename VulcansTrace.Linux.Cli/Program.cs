@@ -83,7 +83,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            Console.Error.WriteLine($"Error: {ErrorSanitizer.SanitizeException(ex)}");
             return 1;
         }
     }
@@ -677,7 +677,8 @@ public static class Program
         using var cancelScope = CancelKeyPressScope.Attach(cts);
 
         using var services = doctorService is null ? AgentFactory.Create() : null;
-        var result = await (doctorService ?? services!.DoctorService).ProbeAsync(cts.Token);
+        var result = DoctorResultSanitizer.SanitizeForDisplay(
+            await (doctorService ?? services!.DoctorService).ProbeAsync(cts.Token));
 
         if (result.Capabilities.Count == 0)
         {
@@ -936,7 +937,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Could not save remediation attempt memory: {ex.Message}");
+            Console.WriteLine($"Warning: Could not save remediation attempt memory: {ErrorSanitizer.SanitizeException(ex)}");
         }
     }
 
@@ -1342,7 +1343,7 @@ public static class Program
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"  Notification failed via {schedule.NotificationChannel}: {ex.Message}");
+                    Console.Error.WriteLine($"  Notification failed via {schedule.NotificationChannel}: {ErrorSanitizer.SanitizeException(ex)}");
                 }
                 finally
                 {
@@ -1381,7 +1382,7 @@ public static class Program
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"  Autonomous drift response failed: {ex.Message}");
+                Console.Error.WriteLine($"  Autonomous drift response failed: {ErrorSanitizer.SanitizeException(ex)}");
             }
             finally
             {
@@ -1444,7 +1445,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error: remediation audit failed: {ex.Message}");
+            Console.Error.WriteLine($"Error: remediation audit failed: {ErrorSanitizer.SanitizeException(ex)}");
             return 1;
         }
 
@@ -2147,7 +2148,7 @@ public static class Program
         }
         catch (Exception ex)
         {
-            return PrintError($"Parse error: {ex.Message}");
+            return PrintError($"Parse error: {ErrorSanitizer.SanitizeException(ex)}");
         }
 
         store.Import(result.Entries);

@@ -155,7 +155,7 @@ public sealed class AutonomousDriftResponder
         catch (Exception ex)
         {
             // Best-effort: drift response must never alter the schedule's audit outcome or fail its run.
-            statusLogger?.Invoke($"Autonomous drift alert failed: {ex.Message}");
+            statusLogger?.Invoke($"Autonomous drift alert failed: {ErrorSanitizer.SanitizeException(ex)}");
             return false;
         }
     }

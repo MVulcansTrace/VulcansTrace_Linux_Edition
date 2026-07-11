@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using VulcansTrace.Linux.Agent.Reports;
 
 namespace VulcansTrace.Linux.Agent.Scanners;
 
@@ -101,7 +102,7 @@ internal static class ScannerCommandRunner
         }
         catch (Exception ex)
         {
-            return (null, ex.Message, false);
+            return (null, ErrorSanitizer.Sanitize(ex.Message), false);
         }
     }
 

@@ -125,7 +125,10 @@ internal sealed class AgentHistoryCoordinator
 
     private void AddHistoryPersistenceWarningIfAny()
     {
-        var warning = _historyStore.PersistenceWarning;
+        // Normalize once and reuse the same value for the duplicate check and the add. The presenter's
+        // AddAgentMessage sanitizes every message, so comparing against the already-sanitized warning
+        // keeps the dedup correct whether or not the backing store sanitizes its own getter.
+        var warning = ErrorSanitizer.SanitizeOptional(_historyStore.PersistenceWarning);
         if (string.IsNullOrWhiteSpace(warning) || _getMessages().Any(message => message.Text == warning))
             return;
 

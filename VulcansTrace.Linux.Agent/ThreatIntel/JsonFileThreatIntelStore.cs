@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Validation;
 using VulcansTrace.Linux.Core.Logging;
 using VulcansTrace.Linux.Core.ThreatIntel;
@@ -52,7 +53,7 @@ public sealed class JsonFileThreatIntelStore : IThreatIntelStore, IDisposable
     }
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public int Count

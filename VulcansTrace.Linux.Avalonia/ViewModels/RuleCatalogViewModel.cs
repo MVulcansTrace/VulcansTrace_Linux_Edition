@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Actions;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Core;
@@ -118,7 +119,7 @@ public sealed class RuleCatalogViewModel : ViewModelBase
             _ => CanEditPolicy(),
             ex =>
             {
-                _dialogService?.ShowMessage($"Could not edit rule policy: {ex.Message}", "Policy edit failed");
+                _dialogService?.ShowMessage($"Could not edit rule policy: {ErrorSanitizer.SanitizeException(ex)}", "Policy edit failed");
             });
     }
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using VulcansTrace.Linux.Agent.Reports;
 
 namespace VulcansTrace.Linux.Agent.Notifications;
 
@@ -13,6 +14,7 @@ public sealed class EmailNotificationService : INotificationService
     private readonly string _fromAddress;
     private readonly string _toAddress;
     private readonly IEmailTransport _transport;
+    private readonly Action<string> _errorLogger;
 
     /// <summary>
     /// Initializes a new instance from explicit SMTP settings.
@@ -57,7 +59,8 @@ public sealed class EmailNotificationService : INotificationService
         string? username,
         string? password,
         bool enableSsl,
-        IEmailTransport? transport)
+        IEmailTransport? transport,
+        Action<string>? errorLogger = null)
     {
         _smtp = new EmailSmtpOptions
         {
@@ -70,6 +73,7 @@ public sealed class EmailNotificationService : INotificationService
         _fromAddress = fromAddress;
         _toAddress = toAddress;
         _transport = transport ?? new SmtpEmailTransport();
+        _errorLogger = errorLogger ?? Console.Error.WriteLine;
     }
 
     /// <inheritdoc />
@@ -170,7 +174,7 @@ public sealed class EmailNotificationService : INotificationService
         catch (Exception ex)
         {
             // Best-effort: log to stderr and degrade silently so the audit itself doesn't fail.
-            Console.Error.WriteLine($"[VulcansTrace] Email notification failed: {ex.Message}");
+            _errorLogger($"[VulcansTrace] Email notification failed: {ErrorSanitizer.SanitizeException(ex)}");
         }
     }
 }

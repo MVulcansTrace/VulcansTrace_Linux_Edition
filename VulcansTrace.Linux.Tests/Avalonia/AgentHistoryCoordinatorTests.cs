@@ -145,6 +145,27 @@ public class AgentHistoryCoordinatorTests
     }
 
     [AvaloniaFact]
+    public void ShowPersistenceWarningIfAny_SanitizesHomePathAndDeduplicates()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+            return; // Environment without a home profile; nothing to scrub.
+
+        var harness = new CoordinatorHarness(
+            new InMemoryAuditHistoryStore($"Could not save audit history to {home}/.config/vt/audit.json: disk full"));
+
+        harness.Coordinator.ShowPersistenceWarningIfAny();
+        harness.Coordinator.ShowPersistenceWarningIfAny();
+
+        // Dedup must still hold when the warning carries an absolute home path: the coordinator
+        // normalizes the warning once, so the second call must not produce a duplicate.
+        var message = Assert.Single(harness.Messages);
+        Assert.DoesNotContain(home, message.Text, StringComparison.Ordinal);
+        Assert.Contains("~/.config/vt/audit.json", message.Text, StringComparison.Ordinal);
+        Assert.True(message.IsInfo);
+    }
+
+    [AvaloniaFact]
     public void AppendHistoryEntry_PostsPersistenceWarningAndDeduplicates()
     {
         var harness = new CoordinatorHarness(new InMemoryAuditHistoryStore("History persistence unavailable."));

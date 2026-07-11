@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Validation;
 using VulcansTrace.Linux.Core.Logging;
 
@@ -49,7 +50,7 @@ public sealed class JsonRulePolicyStore : IRulePolicyStore, IDisposable
     /// <summary>
     /// Gets the latest persistence warning, if policy could not be stored durably.
     /// </summary>
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <summary>
     /// Sets a policy for the given role and rule.

@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Evidence;
@@ -99,7 +100,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             _ => CanExportEvidence(),
             ex =>
             {
-                _dialogService.ShowError($"Export failed: {ex.Message}", "VulcansTrace");
+                _dialogService.ShowError($"Export failed: {ErrorSanitizer.SanitizeException(ex)}", "VulcansTrace");
                 StatusChanged?.Invoke(this, "Export failed.");
             });
         CancelExportCommand = new RelayCommand(_ => CancelExport(), _ => CanCancel());
@@ -108,7 +109,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             _ => !string.IsNullOrEmpty(SigningKey),
             ex =>
             {
-                _dialogService.ShowError($"Failed to copy signing key: {ex.Message}", "VulcansTrace");
+                _dialogService.ShowError($"Failed to copy signing key: {ErrorSanitizer.SanitizeException(ex)}", "VulcansTrace");
             });
     }
 
@@ -177,7 +178,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _dialogService.ShowError($"Export failed: {ex.Message}", "VulcansTrace");
+            _dialogService.ShowError($"Export failed: {ErrorSanitizer.SanitizeException(ex)}", "VulcansTrace");
             StatusChanged?.Invoke(this, "Export failed.");
         }
         finally
@@ -235,7 +236,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             }
             else
             {
-                _dialogService.ShowError($"Failed to {failureAction}: {ex.Message}", "VulcansTrace");
+                _dialogService.ShowError($"Failed to {failureAction}: {ErrorSanitizer.SanitizeException(ex)}", "VulcansTrace");
                 StatusChanged?.Invoke(this, "Export failed.");
             }
             return;
@@ -282,7 +283,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            _dialogService.ShowError($"Failed to copy signing key: {ex.Message}", "VulcansTrace");
+            _dialogService.ShowError($"Failed to copy signing key: {ErrorSanitizer.SanitizeException(ex)}", "VulcansTrace");
         }
     }
 

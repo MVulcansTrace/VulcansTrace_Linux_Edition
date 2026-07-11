@@ -51,7 +51,7 @@ public sealed class JsonFileAuditHistoryStore : IAuditHistoryStore, IDisposable
     }
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public IReadOnlyList<AuditHistoryEntry> GetAll()

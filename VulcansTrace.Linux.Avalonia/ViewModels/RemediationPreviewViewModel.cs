@@ -56,7 +56,7 @@ public sealed class RemediationPreviewViewModel : ViewModelBase
         ExecuteCommand = new AsyncRelayCommand(
             _ => ExecuteCoreAsync(),
             _ => CanExecute,
-            ex => StatusMessage = $"Execution failed: {ex.Message}");
+            ex => StatusMessage = $"Execution failed: {ErrorSanitizer.SanitizeException(ex)}");
     }
 
     /// <summary>The remediation plan being previewed.</summary>

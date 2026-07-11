@@ -1,7 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent.Diagnostics;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Scanners;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -81,7 +83,7 @@ public sealed class DoctorViewModel : ViewModelBase
             _ => !IsBusy,
             ex =>
             {
-                SummaryText = $"Diagnostic failed: {ex.Message}";
+                SummaryText = $"Diagnostic failed: {ErrorSanitizer.Sanitize(ex.Message)}";
                 SummaryColor = "#f87171";
                 SummaryBackground = "#450a0a";
                 HasProbed = true;
@@ -108,6 +110,8 @@ public sealed class DoctorViewModel : ViewModelBase
     /// </summary>
     public void LoadResults(DoctorResult result)
     {
+        result = DoctorResultSanitizer.SanitizeForDisplay(result);
+
         Capabilities.Clear();
         Warnings.Clear();
 

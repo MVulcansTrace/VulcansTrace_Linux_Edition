@@ -93,6 +93,24 @@ public class NotificationServiceTests
 
             Assert.False(delivered);
         }
+
+        [Fact]
+        public async Task NotifyAsync_OnFailure_LogsSanitizedException()
+        {
+            var messages = new List<string>();
+            var error = "An error occurred trying to start process 'sendmail' with working directory '/home/user/private'. No such file or directory";
+            var service = new EmailNotificationService(
+                "host", 25, "from@test", "to@test", null, null, true,
+                new ThrowingEmailTransport(new InvalidOperationException(error)),
+                messages.Add);
+
+            await service.NotifyAsync("Subject", "Body");
+
+            var message = Assert.Single(messages);
+            Assert.Contains("The tool 'sendmail' could not be started", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("working directory", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("/home/user/private", message, StringComparison.Ordinal);
+        }
     }
 
     public class WebhookNotificationServiceTests
@@ -175,6 +193,25 @@ public class NotificationServiceTests
             Assert.False(await service.SendTestAsync());
             service.Dispose();
         }
+
+        [Fact]
+        public async Task NotifyAsync_OnFailure_LogsSanitizedException()
+        {
+            var messages = new List<string>();
+            var error = "An error occurred trying to start process 'curl' with working directory '/home/user/private'. No such file or directory";
+            var service = new WebhookNotificationService(
+                "http://test.local/webhook",
+                new ThrowingHttpHandler(new InvalidOperationException(error)),
+                messages.Add);
+
+            await service.NotifyAsync("Title", "Body");
+            service.Dispose();
+
+            var message = Assert.Single(messages);
+            Assert.Contains("The tool 'curl' could not be started", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("working directory", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("/home/user/private", message, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>An HTTP handler that records every request body and returns a fixed status.</summary>
@@ -216,14 +253,28 @@ public class NotificationServiceTests
     /// <summary>An email transport that always fails, to exercise the test path's failure handling.</summary>
     private sealed class ThrowingEmailTransport : IEmailTransport
     {
+        private readonly Exception _exception;
+
+        public ThrowingEmailTransport(Exception? exception = null)
+        {
+            _exception = exception ?? new InvalidOperationException("simulated SMTP failure");
+        }
+
         public Task SendAsync(MailMessage message, EmailSmtpOptions options, CancellationToken ct)
-            => throw new InvalidOperationException("simulated SMTP failure");
+            => throw _exception;
     }
 
     /// <summary>An HTTP handler that always throws, to exercise the test path's failure handling.</summary>
     private sealed class ThrowingHttpHandler : HttpMessageHandler
     {
+        private readonly Exception _exception;
+
+        public ThrowingHttpHandler(Exception? exception = null)
+        {
+            _exception = exception ?? new InvalidOperationException("simulated network failure");
+        }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => throw new InvalidOperationException("simulated network failure");
+            => throw _exception;
     }
 }

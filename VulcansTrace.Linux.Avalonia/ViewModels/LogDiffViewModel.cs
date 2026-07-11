@@ -2,6 +2,9 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+// Type alias (not a namespace import) so the Engine.LogDiff.DiffFinding reference below stays
+// unambiguous — a `using VulcansTrace.Linux.Agent.Reports;` would collide with Reports.DiffFinding.
+using ErrorSanitizer = VulcansTrace.Linux.Agent.Reports.ErrorSanitizer;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Evidence.Formatters;
 using VulcansTrace.Linux.Engine.LogDiff;
@@ -146,12 +149,12 @@ public sealed class LogDiffViewModel : ViewModelBase
         ExportHtmlCommand = new AsyncRelayCommand(
             async _ => await ExportHtmlAsync(),
             _ => _result != null,
-            ex => SetStatus($"Export failed: {ex.Message}"));
+            ex => SetStatus($"Export failed: {ErrorSanitizer.SanitizeException(ex)}"));
 
         ExportMarkdownCommand = new AsyncRelayCommand(
             async _ => await ExportMarkdownAsync(),
             _ => _result != null,
-            ex => SetStatus($"Export failed: {ex.Message}"));
+            ex => SetStatus($"Export failed: {ErrorSanitizer.SanitizeException(ex)}"));
     }
 
     /// <summary>

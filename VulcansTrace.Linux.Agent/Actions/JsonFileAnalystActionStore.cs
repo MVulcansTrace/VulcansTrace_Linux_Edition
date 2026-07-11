@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using VulcansTrace.Linux.Agent.Persistence;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Validation;
 using VulcansTrace.Linux.Core.Logging;
 
@@ -57,7 +58,7 @@ public sealed class JsonFileAnalystActionStore : IAnalystActionStore, IDisposabl
     public event EventHandler? Changed;
 
     /// <inheritdoc />
-    public string? PersistenceWarning => _persistenceWarning;
+    public string? PersistenceWarning => ErrorSanitizer.SanitizeOptional(_persistenceWarning);
 
     /// <inheritdoc />
     public IReadOnlyList<AnalystActionEntry> GetAll()

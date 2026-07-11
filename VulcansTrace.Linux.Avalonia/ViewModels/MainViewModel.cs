@@ -417,7 +417,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _ => CanAnalyze(),
             ex =>
             {
-                SummaryText = $"Analysis failed: {ex.Message}";
+                SummaryText = $"Analysis failed: {ErrorSanitizer.SanitizeException(ex)}";
                 AdvisorMessage = "Analysis failed.";
                 IsBusy = false;
             });
@@ -526,7 +526,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             parameter => parameter is FindingItemViewModel && !Agent.IsBusy,
             ex =>
             {
-                SummaryText = $"Investigate failed: {ex.Message}";
+                SummaryText = $"Investigate failed: {ErrorSanitizer.SanitizeException(ex)}";
             });
 
         SuppressCommand = new AsyncRelayCommand(
@@ -534,7 +534,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId),
             ex =>
             {
-                SummaryText = $"Suppress failed: {ex.Message}";
+                SummaryText = $"Suppress failed: {ErrorSanitizer.SanitizeException(ex)}";
             });
 
         ResolveCommand = new AsyncRelayCommand(
@@ -542,7 +542,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId),
             ex =>
             {
-                SummaryText = $"Resolve failed: {ex.Message}";
+                SummaryText = $"Resolve failed: {ErrorSanitizer.SanitizeException(ex)}";
             });
 
         VerifyFindingCommand = new AsyncRelayCommand(
@@ -550,7 +550,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             parameter => parameter is FindingItemViewModel item && !string.IsNullOrEmpty(item.Finding.RuleId) && !Agent.IsBusy,
             ex =>
             {
-                SummaryText = $"Verify failed: {ex.Message}";
+                SummaryText = $"Verify failed: {ErrorSanitizer.SanitizeException(ex)}";
             });
 
         Findings.InvestigateCommand = InvestigateCommand;
@@ -563,7 +563,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _ => !IsBusy,
             ex =>
             {
-                SummaryText = $"Log comparison failed: {ex.Message}";
+                SummaryText = $"Log comparison failed: {ErrorSanitizer.SanitizeException(ex)}";
             });
 
         BotIntroText = "Hi, I'm VulcansTrace. Paste a Linux firewall log, choose scan intensity, and I'll flag port scans, floods, lateral movement, beaconing, policy violations, novelty destinations, plus advanced signals like C2 channels and admin access spikes at higher intensities.";
@@ -637,7 +637,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             IsBusy = false;
-            SummaryText = $"Analysis failed: {ex.Message}";
+            SummaryText = $"Analysis failed: {ErrorSanitizer.SanitizeException(ex)}";
             AdvisorMessage = "Analysis failed.";
             return;
         }
@@ -774,7 +774,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            SummaryText = $"Log comparison failed: {ex.Message}";
+            SummaryText = $"Log comparison failed: {ErrorSanitizer.SanitizeException(ex)}";
             AdvisorMessage = "Log comparison failed.";
         }
         finally
@@ -847,7 +847,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            SummaryText = $"Log diff demo failed: {ex.Message}";
+            SummaryText = $"Log diff demo failed: {ErrorSanitizer.SanitizeException(ex)}";
             AdvisorMessage = "Log diff demo failed.";
         }
         finally
@@ -1010,7 +1010,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            SummaryText = $"Failed to export remediation plan: {ex.Message}";
+            SummaryText = $"Failed to export remediation plan: {ErrorSanitizer.SanitizeException(ex)}";
         }
     }
 
@@ -1034,7 +1034,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            SummaryText = $"Failed to export session report: {ex.Message}";
+            SummaryText = $"Failed to export session report: {ErrorSanitizer.SanitizeException(ex)}";
             return false;
         }
     }
@@ -1084,7 +1084,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            SummaryText = $"Failed to export threat intelligence: {ex.Message}";
+            SummaryText = $"Failed to export threat intelligence: {ErrorSanitizer.SanitizeException(ex)}";
             return false;
         }
     }

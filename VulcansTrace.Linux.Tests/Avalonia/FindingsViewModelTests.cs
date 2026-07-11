@@ -60,6 +60,32 @@ public class FindingsViewModelTests
     }
 
     [AvaloniaFact]
+    public void LoadResults_WithHomePathInWarningsAndParseErrors_SanitizesThem()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+            return;
+
+        var vm = new FindingsViewModel();
+        var warning = $"Failed to parse line: x Error: could not read {home}/logs/auth.log: denied";
+        var parseError = $"Failed to parse line: y Error: {home}/logs/auth.log malformed";
+        vm.LoadResults(new AnalysisResult
+        {
+            Warnings = new[] { warning },
+            ParseErrorCount = 1,
+            ParseErrors = new[] { parseError }
+        });
+
+        var shownWarning = Assert.Single(vm.Warnings);
+        Assert.DoesNotContain(home, shownWarning, StringComparison.Ordinal);
+        Assert.Contains("~/logs/auth.log", shownWarning, StringComparison.Ordinal);
+
+        var shownError = Assert.Single(vm.ParseErrors);
+        Assert.DoesNotContain(home, shownError, StringComparison.Ordinal);
+        Assert.Contains("~/logs/auth.log", shownError, StringComparison.Ordinal);
+    }
+
+    [AvaloniaFact]
     public void SearchText_FiltersFindings()
     {
         var vm = new FindingsViewModel();

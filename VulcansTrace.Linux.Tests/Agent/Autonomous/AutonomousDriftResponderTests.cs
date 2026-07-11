@@ -309,6 +309,29 @@ public class AutonomousDriftResponderTests
         Assert.Contains("1 of 2 findings in scope", notifier.LastAlert.RemediationSummary);
     }
 
+    [Fact]
+    public async Task RespondToDriftAsync_AlertFailure_LogsSanitizedMessage()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+            return;
+
+        var agent = new FakeAgent
+        {
+            CheckDriftException = new System.IO.IOException($"Access to the path '{home}/.config/VulcansTrace/key.pem' is denied.")
+        };
+        var responder = CreateResponder(agent, new InMemoryBaselineStore(), new FakeNotificationService(), _ => TestKey);
+
+        var messages = new List<string>();
+        var schedule = CreateSchedule(autonomousDriftResponse: true, threshold: Severity.High);
+        var result = await responder.RespondToDriftAsync(schedule, messages.Add);
+
+        Assert.False(result);
+        var failed = Assert.Single(messages, m => m.StartsWith("Autonomous drift alert failed:", StringComparison.Ordinal));
+        Assert.DoesNotContain(home, failed, StringComparison.Ordinal);
+        Assert.Contains("~/.config/VulcansTrace/key.pem", failed, StringComparison.Ordinal);
+    }
+
     private static AutonomousDriftResponder CreateResponder(
         IAgent agent,
         IBaselineStore? baselineStore,
@@ -361,6 +384,7 @@ public class AutonomousDriftResponderTests
         public AgentResult DriftResult { get; set; } = new();
         public AgentResult FullResult { get; set; } = new();
         public bool CheckDriftCalled { get; set; }
+        public Exception? CheckDriftException { get; set; }
         public bool RunAuditCalled { get; set; }
 
         public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) => throw new NotSupportedException();
@@ -378,6 +402,7 @@ public class AutonomousDriftResponderTests
         public Task<AgentResult> CheckDriftAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             CheckDriftCalled = true;
+            if (CheckDriftException != null) throw CheckDriftException;
             return Task.FromResult(DriftResult);
         }
 

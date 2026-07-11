@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent.Actions;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Core.ThreatIntel;
@@ -153,17 +154,17 @@ public sealed class ThreatIntelViewModel : ViewModelBase
         ImportCommand = new AsyncRelayCommand(
             async _ => await ImportAsync(),
             _ => !IsBusy,
-            ex => StatusMessage = $"Import failed: {ex.Message}");
+            ex => StatusMessage = $"Import failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         RemoveSelectedCommand = new AsyncRelayCommand(
             async _ => await RemoveSelectedAsync(),
             _ => !IsBusy && SelectedIoc != null,
-            ex => StatusMessage = $"Remove failed: {ex.Message}");
+            ex => StatusMessage = $"Remove failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         ClearCommand = new AsyncRelayCommand(
             async _ => await ClearAllAsync(),
             _ => !IsBusy && _store.Count > 0,
-            ex => StatusMessage = $"Clear failed: {ex.Message}");
+            ex => StatusMessage = $"Clear failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         RefreshCommand = new RelayCommand(
             _ => Refresh(),
@@ -304,7 +305,7 @@ public sealed class ThreatIntelViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Parse error: {ex.Message}";
+            StatusMessage = $"Parse error: {ErrorSanitizer.SanitizeException(ex)}";
             return;
         }
 

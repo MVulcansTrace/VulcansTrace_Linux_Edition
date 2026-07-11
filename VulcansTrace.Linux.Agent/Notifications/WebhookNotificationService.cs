@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using VulcansTrace.Linux.Agent.Reports;
 
 namespace VulcansTrace.Linux.Agent.Notifications;
 
@@ -12,6 +13,7 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
 {
     private readonly string _webhookUrl;
     private readonly HttpClient _httpClient;
+    private readonly Action<string> _errorLogger;
     private bool _disposed;
 
     /// <summary>
@@ -22,6 +24,7 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
     {
         _webhookUrl = webhookUrl ?? throw new ArgumentNullException(nameof(webhookUrl));
         _httpClient = new HttpClient();
+        _errorLogger = Console.Error.WriteLine;
     }
 
     /// <summary>
@@ -30,10 +33,14 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
     /// </summary>
     /// <param name="webhookUrl">The URL to POST notifications to.</param>
     /// <param name="handler">The HTTP message handler to use.</param>
-    internal WebhookNotificationService(string webhookUrl, HttpMessageHandler handler)
+    internal WebhookNotificationService(
+        string webhookUrl,
+        HttpMessageHandler handler,
+        Action<string>? errorLogger = null)
     {
         _webhookUrl = webhookUrl ?? throw new ArgumentNullException(nameof(webhookUrl));
         _httpClient = new HttpClient(handler ?? throw new ArgumentNullException(nameof(handler)));
+        _errorLogger = errorLogger ?? Console.Error.WriteLine;
     }
 
     /// <summary>
@@ -146,13 +153,13 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
                 var statusCode = (int)response.StatusCode;
                 if (statusCode >= 500 && statusCode < 600 && attempt < maxRetries)
                 {
-                    Console.Error.WriteLine($"[VulcansTrace] Webhook returned {statusCode} (attempt {attempt}/{maxRetries}), retrying in {delay.TotalSeconds}s...");
+                    _errorLogger($"[VulcansTrace] Webhook returned {statusCode} (attempt {attempt}/{maxRetries}), retrying in {delay.TotalSeconds}s...");
                     await Task.Delay(delay, ct);
                     delay = delay.Multiply(2);
                     continue;
                 }
 
-                Console.Error.WriteLine($"[VulcansTrace] Webhook notification returned {statusCode}: {response.ReasonPhrase}");
+                _errorLogger($"[VulcansTrace] Webhook notification returned {statusCode}: {response.ReasonPhrase}");
                 return;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -164,13 +171,13 @@ public sealed class WebhookNotificationService : INotificationService, IDisposab
             }
             catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
             {
-                Console.Error.WriteLine($"[VulcansTrace] Webhook attempt {attempt}/{maxRetries} failed: {ex.Message}, retrying in {delay.TotalSeconds}s...");
+                _errorLogger($"[VulcansTrace] Webhook attempt {attempt}/{maxRetries} failed: {ErrorSanitizer.SanitizeException(ex)}, retrying in {delay.TotalSeconds}s...");
                 await Task.Delay(delay, ct);
                 delay = delay.Multiply(2);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[VulcansTrace] Webhook notification failed: {ex.Message}");
+                _errorLogger($"[VulcansTrace] Webhook notification failed: {ErrorSanitizer.SanitizeException(ex)}");
                 return;
             }
         }

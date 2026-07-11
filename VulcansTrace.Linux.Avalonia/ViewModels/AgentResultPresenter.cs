@@ -301,12 +301,19 @@ internal sealed class AgentResultPresenter
 
     public AgentMessageViewModel AddAgentMessage(string text, bool isInfo, bool isError = false, bool isProse = false)
     {
+        var isErrorMessage = isError || (!isInfo && IsErrorText(text));
+        // Sanitize every agent message, not just error-flagged ones: the process-start rewrite
+        // drops embedded working-directory paths and home-prefix scrubbing ensures no absolute
+        // local path reaches the chat, regardless of which call site produced the text. Both
+        // transforms are idempotent, so already-sanitized runner/warning text is unaffected.
+        text = ErrorSanitizer.Sanitize(text);
+
         var message = new AgentMessageViewModel
         {
             Text = text,
             IsUser = false,
             IsInfo = isInfo,
-            IsError = isError || (!isInfo && IsErrorText(text)),
+            IsError = isErrorMessage,
             IsProse = isProse,
             Timestamp = DateTime.Now
         };

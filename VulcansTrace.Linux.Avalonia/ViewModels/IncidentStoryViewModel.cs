@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Evidence.Formatters;
 
@@ -103,7 +104,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         CopyMarkdownCommand = new AsyncRelayCommand(
             async _ => await CopyMarkdownAsync(),
             _ => HasStory,
-            ex => CopyStatus = $"Copy failed: {ex.Message}");
+            ex => CopyStatus = $"Copy failed: {ErrorSanitizer.SanitizeException(ex)}");
     }
 
     /// <summary>

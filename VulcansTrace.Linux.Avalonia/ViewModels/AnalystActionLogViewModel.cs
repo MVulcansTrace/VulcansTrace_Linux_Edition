@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Agent.Actions;
+using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.Threading;
 
@@ -93,12 +94,12 @@ public sealed class AnalystActionLogViewModel : ViewModelBase
         ClearCommand = new AsyncRelayCommand(
             async _ => await ClearAsync(),
             _ => TotalCount > 0,
-            ex => StatusMessage = $"Clear failed: {ex.Message}");
+            ex => StatusMessage = $"Clear failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         ExportCommand = new AsyncRelayCommand(
             async _ => await ExportAsync(),
             _ => TotalCount > 0,
-            ex => StatusMessage = $"Export failed: {ex.Message}");
+            ex => StatusMessage = $"Export failed: {ErrorSanitizer.SanitizeException(ex)}");
 
         _store.Changed += OnStoreChanged;
         Refresh();
