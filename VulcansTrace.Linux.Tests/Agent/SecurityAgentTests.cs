@@ -42,6 +42,400 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task AskAsync_ShortVersionAfterAudit_ReturnsVerdictWithoutRescanning()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // Complete an audit to populate LastResult (one scan).
+        var audit = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.FullAudit, audit.Intent);
+        Assert.Equal(1, scanner.Count);
+
+        // Ask for the short version — must answer from the completed audit, not re-scan.
+        var result = await agent.AskAsync("is my system secure? give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+        Assert.Empty(result.AgentFindings);
+        Assert.Empty(result.Warnings);
+        Assert.Equal(string.Empty, result.CapabilityReport);
+        Assert.Contains("From your audit", result.Summary);
+        Assert.Contains("re-scan", result.Summary);
+        Assert.Equal(ResponseVerbosity.Terse, result.Verbosity);
+
+        // The completed audit remains the context for subsequent follow-ups.
+        Assert.NotNull(agent.LastResult);
+        Assert.Equal(AgentIntent.FullAudit, agent.LastResult!.Intent);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVersionFollowUp_AfterAudit_ReturnsVerdictFromCache()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // A standalone brevity follow-up (no audit keyword) must answer from the cached audit
+        // rather than dumping the help menu or re-scanning.
+        var result = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+        Assert.Contains("From your audit", result.Summary);
+        Assert.Equal(AgentIntent.FullAudit, agent.LastResult!.Intent);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVersionFollowUp_WithoutPriorAudit_ReturnsGuidance()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // No prior audit: a standalone brevity follow-up must not run a surprise scan or dump the
+        // help menu — it guides the user to run an audit first.
+        var result = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(0, scanner.Count);
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.Contains("No audit to answer from yet", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ReuseOnlyWithPriorAudit_ReturnsVerdictWithoutScanning()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // Complete an audit to populate LastResult (one scan).
+        var audit = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.FullAudit, audit.Intent);
+        Assert.Equal(1, scanner.Count);
+
+        // Explicit reuse ("what did you find") must answer from the completed audit, not re-scan —
+        // even though the parser does not classify this as an audit intent.
+        var result = await agent.AskAsync("what did you find in the audit?", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+        Assert.Contains("From your audit", result.Summary);
+    }
+
+    [Theory]
+    [InlineData("what did you find without rescanning?")]
+    [InlineData("what did you find in the last scan?")]
+    [InlineData("do not scan again; recap the audit")]
+    public async Task AskAsync_ExplicitReusePhrasesContainingScan_DoNotRescan(string query)
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        var result = await agent.AskAsync(query, null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count);
+    }
+
+    [Fact]
+    public async Task AskAsync_ReuseModifier_DoesNotOverrideExplanationIntent()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        var result = await agent.AskAsync("based on your audit, explain TEST-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ExplainFinding, result.Intent);
+        Assert.NotEqual(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count);
+    }
+
+    [Fact]
+    public async Task AskAsync_ReuseOnlyWithoutPriorAudit_ReturnsGuidance()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // No audit has run; explicit reuse must not fabricate a verdict or trigger a scan.
+        var result = await agent.AskAsync("what did you find in the audit?", null, CancellationToken.None);
+
+        Assert.Equal(0, scanner.Count);
+        // Guidance is conversational (Help), not an audit intent, so the chat layer won't publish
+        // a bogus audit-completion event or append an empty entry to audit history.
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.False(result.Intent.IsAuditIntent());
+        Assert.Contains("No audit to answer from yet", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_AuditQuestionWithoutBrevity_StillRescans()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // No brevity marker → a fresh audit still runs (documented behavior preserved).
+        var result = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FullAudit, result.Intent);
+        Assert.Equal(2, scanner.Count);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVersionWithRerunMarker_RescansAndStampsTerse()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // Brevity + explicit re-run → bypass the cache, run a fresh audit, and stamp Terse.
+        var result = await agent.AskAsync("is my system secure? give me the short version and re-scan", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FullAudit, result.Intent);
+        Assert.Equal(2, scanner.Count);
+        Assert.Equal(ResponseVerbosity.Terse, result.Verbosity);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVersionWithoutPriorAudit_StampsTerseAndKeepsFindings()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("is my system secure? give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FullAudit, result.Intent);
+        Assert.Equal(1, scanner.Count);
+        Assert.Equal(ResponseVerbosity.Terse, result.Verbosity);
+        // Terse is render-only: the underlying result keeps its full audit data.
+        Assert.NotEmpty(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowFindingsAfterAudit_ReturnsFindingsWithoutRescanning()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule(Severity.Critical) },
+            new ExplanationProvider());
+
+        var audit = await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+        var auditFindings = audit.AgentFindings;
+        Assert.NotEmpty(auditFindings);
+
+        // "show findings" re-displays the last audit's findings in full without re-scanning.
+        var result = await agent.AskAsync("show findings", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowFindings, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+        Assert.Equal(auditFindings.Count, result.AgentFindings.Count);
+        Assert.Equal(string.Empty, result.CapabilityReport);
+        Assert.Empty(result.Warnings);
+        Assert.Equal(ResponseVerbosity.Normal, result.Verbosity);
+        Assert.Contains("From your last audit", result.Summary);
+        Assert.Contains("re-scan", result.Summary);
+        Assert.Contains("1 Critical", result.Summary); // severe findings labeled by severity
+
+        // The completed audit remains the context for subsequent follow-ups.
+        Assert.Equal(AgentIntent.FullAudit, agent.LastResult!.Intent);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowFindingsAfterShortVerdict_ExpandsFindings()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // A terse verdict carries no findings; the hint directs the user to "show findings".
+        var verdict = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.ShortVerdict, verdict.Intent);
+        Assert.Empty(verdict.AgentFindings);
+        Assert.Equal(1, scanner.Count);
+
+        // Expanding must surface the cached audit's findings, still without re-scanning.
+        var result = await agent.AskAsync("show findings", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShowFindings, result.Intent);
+        Assert.Equal(1, scanner.Count);
+        Assert.NotEmpty(result.AgentFindings);
+        Assert.Equal(AgentIntent.FullAudit, agent.LastResult!.Intent);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowFindingsWithoutPriorAudit_ReturnsGuidance()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        var result = await agent.AskAsync("show findings", null, CancellationToken.None);
+
+        Assert.Equal(0, scanner.Count);
+        Assert.Equal(AgentIntent.Help, result.Intent);
+        Assert.False(result.Intent.IsAuditIntent());
+        Assert.Contains("No audit to answer from yet", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShowFindingsWithRerunMarker_RunsFreshAudit()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // "show findings" + explicit re-run → bypass the cache and run a fresh full audit whose
+        // findings then render normally (no terse stamp, since ShowFindings is not an audit intent).
+        var result = await agent.AskAsync("show findings and re-scan", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FullAudit, result.Intent);
+        Assert.Equal(2, scanner.Count);
+        Assert.Equal(ResponseVerbosity.Normal, result.Verbosity);
+        Assert.NotEmpty(result.AgentFindings);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVerdict_WithCriticalFinding_LabelsBySeverity()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule(Severity.Critical) },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+
+        var result = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        // A single Critical finding is labeled "Critical", not the bucketed "High/Critical".
+        Assert.Contains("1 Critical", result.Summary);
+        Assert.DoesNotContain("High/Critical", result.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ShortVerdict_WithLimitedCapability_QualifiesVerdictAsPartial()
+    {
+        var agent = new SecurityAgent(
+            new IScanner[]
+            {
+                new CapabilityScanner(new DataSourceCapability
+                {
+                    SourceName = "iptables",
+                    Status = CapabilityStatus.PermissionLimited,
+                    Detail = "raw permission error must not be repeated"
+                })
+            },
+            new IRule[] { new AlwaysPassRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        var result = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Contains("Coverage was limited", result.Summary);
+        Assert.Contains("treat this verdict as partial", result.Summary);
+        Assert.DoesNotContain("raw permission error", result.Summary);
+        Assert.Empty(result.Warnings);
+
+        var findingsRecap = await agent.AskAsync("show findings", null, CancellationToken.None);
+        Assert.Equal(AgentIntent.ShowFindings, findingsRecap.Intent);
+        Assert.Contains("Coverage was limited", findingsRecap.Summary);
+        Assert.DoesNotContain("raw permission error", findingsRecap.Summary);
+    }
+
+    [Fact]
+    public async Task AskAsync_ReusePhrase_WhatWereTheAuditResults_ReusesFromCache()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // The audit-qualified reuse phrase still answers from the cache.
+        var result = await agent.AskAsync("what were the audit results?", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+    }
+
+    [Fact]
+    public async Task AskAsync_ReusePhrase_BareWhatWereTheResults_DoesNotHijack()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        // The bare, context-blind phrase "what were the results" is no longer treated as an audit
+        // reuse marker (it used to hijack remediation-verification requests). It must not return
+        // the cached audit verdict.
+        var result = await agent.AskAsync("what were the results", null, CancellationToken.None);
+
+        Assert.NotEqual(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no scan
+    }
+
+    [Fact]
     public async Task AskAsync_AmbiguousQuery_ReturnsClarificationWithoutScanning()
     {
         var agent = new SecurityAgent(
@@ -531,6 +925,18 @@ public class SecurityAgentTests
         }
     }
 
+    private sealed class CountingScanner : IScanner
+    {
+        public string Name => "Counting";
+        public int Count { get; private set; }
+
+        public Task ScanAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+        {
+            Count++;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class CapabilityScanner(params DataSourceCapability[] capabilities) : IScanner
     {
         public string Name => "Capability";
@@ -548,12 +954,16 @@ public class SecurityAgentTests
 
     private sealed class AlwaysFailRule : IRule
     {
+        private readonly Severity _severity;
+
+        public AlwaysFailRule(Severity severity = Severity.Low) => _severity = severity;
+
         public string Id => "TEST-001";
         public string Category => "Firewall";
         public string Description => "Test finding should be explained";
         public string WhatItChecks => "Test rule that always fails";
         public IReadOnlyList<string> SupportedDataSources => new[] { "test" };
-        public Severity Severity => Severity.Low;
+        public Severity Severity => _severity;
 
         public IReadOnlyList<CisBenchmarkMapping> CisMappings => new[]
         {
@@ -573,7 +983,7 @@ public class SecurityAgentTests
                 Category,
                 Id,
                 Description,
-                Severity.Low,
+                _severity,
                 "test-target",
                 cisMappings: CisMappings);
         }

@@ -102,8 +102,9 @@ internal sealed class AgentResultPresenter
         using (SuppressChatFilters())
         {
             AgentMessageViewModel? suggestionAnchor = null;
+            var terse = result.Verbosity == ResponseVerbosity.Terse;
 
-            if (showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
+            if (!terse && showCapabilityReport && !string.IsNullOrWhiteSpace(result.CapabilityReport))
                 created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.CapabilityReport, true)));
 
             // Interpret warnings once, up front. IntentSummaryBuilder.BuildMissingToolLead uses the
@@ -155,7 +156,7 @@ internal sealed class AgentResultPresenter
                     : result.Summary;
                 created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(lead, result.AgentFindings.Count == 0, isProse: true)));
 
-                if (result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
+                if (!terse && result.Narrative != null && !string.IsNullOrWhiteSpace(result.Narrative.FullText))
                 {
                     created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(result.Narrative.FullText, false, isProse: true)));
                 }
@@ -173,27 +174,44 @@ internal sealed class AgentResultPresenter
                 {
                     created.Add(AddAgentFindingGroupSummary(result.AgentFindings));
 
-                    _categoryFilters.Clear();
-                    _categoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
-                    foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                    if (terse)
                     {
-                        _categoryFilters.Add(cat);
+                        created.Add(TrackSuggestionAnchor(ref suggestionAnchor,
+                            AddAgentMessage("Ask 'show findings' for the full, categorized list.", true)));
                     }
-
-                    var grouped = result.AgentFindings
-                        .GroupBy(f => f.Category)
-                        .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
-                        .OrderByDescending(g => g.Findings.Max(f => f.Severity))
-                        .ToList();
-
-                    foreach (var group in grouped)
+                    else
                     {
-                        created.Add(AddAgentFindingGroup(group.Category, group.Findings));
+                        _categoryFilters.Clear();
+                        _categoryFilters.Add(ChatFilterConstants.AllCategoriesFilter);
+                        foreach (var cat in result.AgentFindings.Select(f => f.Category).Distinct().OrderBy(c => c))
+                        {
+                            _categoryFilters.Add(cat);
+                        }
+
+                        var grouped = result.AgentFindings
+                            .GroupBy(f => f.Category)
+                            .Select(g => new { Category = g.Key, Findings = g.OrderByDescending(f => f.Severity).ToList() })
+                            .OrderByDescending(g => g.Findings.Max(f => f.Severity))
+                            .ToList();
+
+                        foreach (var group in grouped)
+                        {
+                            created.Add(AddAgentFindingGroup(group.Category, group.Findings));
+                        }
                     }
                 }
             }
 
-            if (showWarnings && result.Warnings.Count > 0)
+            if (terse && showWarnings && result.Warnings.Count > 0)
+            {
+                // Keep terse output truthful without exposing raw command stderr or expanding into
+                // the full warning block. Permission state still drives the persistent UI banner.
+                created.Add(TrackSuggestionAnchor(ref suggestionAnchor, AddAgentMessage(
+                    $"Audit recorded {result.Warnings.Count} warning(s); some checks or data sources may be incomplete.",
+                    true)));
+                DetectPrivilegeWarning(result.Warnings);
+            }
+            else if (showWarnings && result.Warnings.Count > 0)
             {
                 foreach (var warning in interpreted)
                 {

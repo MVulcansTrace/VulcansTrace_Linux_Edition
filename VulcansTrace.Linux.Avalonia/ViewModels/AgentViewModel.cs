@@ -1574,9 +1574,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
-        // Reset chat filters when a new audit result arrives so findings from the current
-        // intent aren't hidden by a stale category or severity selection.
-        if (AgentResultStateCoordinator.IsAuditIntent(result.Intent))
+        // Reset chat filters when a new audit result (or a findings recap of the last audit)
+        // arrives so findings from the current intent aren't hidden by a stale category or
+        // severity selection.
+        if (AgentResultStateCoordinator.IsAuditIntent(result.Intent)
+            || result.Intent == AgentIntent.ShowFindings)
         {
             SelectedChatSeverityFilter = ChatSeverityFilters[0];
             SelectedChatCategoryFilter = null;
@@ -1669,7 +1671,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         UiThread.Run(() =>
         {
-            _resultState.SetLastResult(result);
+            _resultState.SetLastResult(result, _agent.LastResult);
             ShowMemoryPersistenceWarningIfAny();
         });
     }

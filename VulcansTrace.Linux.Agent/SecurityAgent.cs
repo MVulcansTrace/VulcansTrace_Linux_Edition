@@ -169,7 +169,67 @@ public sealed class SecurityAgent : IAgent
 
         AgentResult result;
 
-        if (agentQuery.Intent == AgentIntent.Help)
+        // Slot-driven brevity and freshness: brevity ("short version") and explicit reuse/rerun
+        // intent are extracted once by the parser into agentQuery.Slots. (a) "show findings"
+        // re-displays the last audit's full findings without re-scanning (or runs a fresh audit if
+        // the user also asked to re-run). (b) Explicit reuse ("what did you find") answers from
+        // the last audit — or guides the user if none ran yet — even when the parser returns Help.
+        // (c) Brevity on an audit intent, OR a generic brevity follow-up that parses to Help
+        // (e.g. "give me the short version" after an audit), answers from the cached audit instead
+        // of re-scanning, unless the user also asked to re-run (ForceRefresh). (d) Brevity stamps
+        // the returned result Terse so the chat renders a short version even when a fresh audit
+        // runs. The stamp applies to the returned copy only; LastResult keeps full data.
+        var slots = agentQuery.Slots;
+        var auditIntent = agentQuery.Intent.IsAuditIntent();
+        var terseRequest = slots.Verbosity == QueryVerbosity.Terse;
+        // A generic brevity follow-up ("short version", "summary") with no audit keyword parses to
+        // Help; treat it like an audit-intent brevity request so it answers from the cache.
+        var wantsBrevity = terseRequest && (auditIntent || agentQuery.Intent == AgentIntent.Help);
+
+        if (agentQuery.Intent == AgentIntent.ShowFindings)
+        {
+            // "show findings" re-displays the last audit's findings in full without re-scanning.
+            // An explicit re-run (ForceRefresh) is honored by running a fresh full audit whose
+            // findings then render normally; with no prior audit the user gets guidance instead
+            // of an empty list.
+            if (slots.Freshness == Freshness.ForceRefresh)
+            {
+                result = await RunAuditCoreAsync(AgentIntent.FullAudit, rawLog, progress, ct);
+            }
+            else if (_auditState.LastResult != null)
+            {
+                result = BuildFindingsRecap();
+            }
+            else
+            {
+                result = BuildNoAuditYetResult();
+            }
+        }
+        else if (slots.Freshness == Freshness.ReuseOnly && (auditIntent || agentQuery.Intent == AgentIntent.Help))
+        {
+            result = _auditState.LastResult != null
+                ? BuildShortVerdict()
+                : BuildNoAuditYetResult();
+        }
+        else if (_auditState.LastResult != null
+            && wantsBrevity
+            && slots.Freshness != Freshness.ForceRefresh)
+        {
+            result = BuildShortVerdict();
+        }
+        else if (agentQuery.Intent == AgentIntent.Help && terseRequest && slots.Freshness == Freshness.ForceRefresh)
+        {
+            // Generic brevity + explicit re-run with no usable cache: run a fresh full audit,
+            // rendered terse.
+            result = await RunAuditCoreAsync(AgentIntent.FullAudit, rawLog, progress, ct);
+        }
+        else if (agentQuery.Intent == AgentIntent.Help && terseRequest)
+        {
+            // Generic brevity follow-up with no prior audit and no re-run: guide the user instead
+            // of running a surprise scan or dumping the help menu.
+            result = BuildNoAuditYetResult();
+        }
+        else if (agentQuery.Intent == AgentIntent.Help)
         {
             result = new AgentResult
             {
@@ -254,6 +314,9 @@ public sealed class SecurityAgent : IAgent
         {
             result = await RunAuditCoreAsync(agentQuery.Intent, rawLog, progress, ct);
         }
+
+        if (wantsBrevity)
+            result = result with { Verbosity = ResponseVerbosity.Terse };
 
         return await CompleteStructuredResultAsync(query, agentQuery, result).ConfigureAwait(false);
     }
@@ -576,6 +639,145 @@ public sealed class SecurityAgent : IAgent
         AgentIntent.RiskScore => true,
         _ => false
     };
+
+    /// <summary>
+    /// Builds a one-line verdict from the most recent completed audit, without re-scanning.
+    /// The returned result intentionally carries no findings, warnings, or capability report so
+    /// the chat surfaces just the verdict (no verbose "Data sources:" dump or raw tool errors).
+    /// Callers must ensure <see cref="AgentAuditState.LastResult"/> is non-null.
+    /// </summary>
+    private AgentResult BuildShortVerdict()
+    {
+        var last = _auditState.LastResult!;
+        var findings = last.AgentFindings;
+        var critical = findings.Count(f => f.Severity == Severity.Critical);
+        var high = findings.Count(f => f.Severity == Severity.High);
+
+        string body;
+        if (last.RiskScorecard is { } risk)
+        {
+            body = $"risk grade {risk.LetterGrade} ({risk.NumericScore:F0}/100) — {risk.SummaryStatus}; "
+                + $"{findings.Count} issue(s){SevereClause(critical, high)}";
+        }
+        else if (findings.Count == 0)
+        {
+            body = "no issues found — all checks passed";
+        }
+        else
+        {
+            body = $"{findings.Count} issue(s) found{SevereClause(critical, high)}";
+        }
+
+        // Lead with provenance so a cached answer is never mistaken for a fresh scan, and offer the
+        // explicit escape hatch that the re-run guard honors.
+        var summary = $"From your audit {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {body}. "
+            + BuildCoverageQualifier(last)
+            + "Say 're-scan' for a fresh check.";
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.ShortVerdict,
+            Summary = summary,
+            AgentFindings = Array.Empty<Finding>(),
+            Warnings = Array.Empty<string>(),
+            RiskScorecard = last.RiskScorecard
+        };
+    }
+
+    /// <summary>
+    /// Re-surfaces the full, categorized findings from the most recent completed audit without
+    /// re-scanning, so a terse verdict can be expanded on demand ("show findings"). The returned
+    /// result carries the audit's findings (so the chat renders finding groups) but no capability
+    /// report, narrative, or warnings, keeping the recap focused on the findings list.
+    /// Callers must ensure <see cref="AgentAuditState.LastResult"/> is non-null.
+    /// </summary>
+    private AgentResult BuildFindingsRecap()
+    {
+        var last = _auditState.LastResult!;
+        var findings = last.AgentFindings;
+        var critical = findings.Count(f => f.Severity == Severity.Critical);
+        var high = findings.Count(f => f.Severity == Severity.High);
+
+        var detail = findings.Count == 0
+            ? "no issues found"
+            : $"{findings.Count} finding(s){SevereClause(critical, high)}";
+
+        var summary = $"From your last audit {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {detail}. "
+            + BuildCoverageQualifier(last)
+            + "Say 're-scan' for a fresh check.";
+
+        return new AgentResult
+        {
+            Intent = AgentIntent.ShowFindings,
+            Summary = summary,
+            AgentFindings = findings,
+            PassedCount = last.PassedCount,
+            FailedCount = last.FailedCount,
+            Warnings = Array.Empty<string>(),
+            RiskScorecard = last.RiskScorecard
+        };
+    }
+
+    /// <summary>A short, human-readable count of High/Critical findings, omitting empty severities.</summary>
+    private static string SevereClause(int critical, int high)
+    {
+        if (critical > 0 && high > 0) return $", {critical} Critical, {high} High";
+        if (critical > 0) return $", {critical} Critical";
+        if (high > 0) return $", {high} High";
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Adds a compact truthfulness qualifier when the cached audit recorded incomplete collection.
+    /// Raw warning/tool output intentionally stays out of the verdict.
+    /// </summary>
+    private static string BuildCoverageQualifier(AgentResult result)
+    {
+        var limitedSources = result.DataSourceCapabilities
+            .Where(cap => cap.Status is CapabilityStatus.Unavailable or CapabilityStatus.PermissionLimited)
+            .Select(cap => cap.SourceName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
+        var parts = new List<string>();
+        if (limitedSources > 0)
+            parts.Add($"{limitedSources} data source(s) unavailable or permission-limited");
+        if (result.CrashedCount > 0)
+            parts.Add($"{result.CrashedCount} rule(s) crashed");
+
+        if (parts.Count > 0)
+            return $"Coverage was limited ({string.Join(", ", parts)}); treat this verdict as partial. ";
+
+        if (result.Warnings.Count > 0)
+            return $"The audit recorded {result.Warnings.Count} warning(s); results may be incomplete. ";
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Guidance returned when a reuse-style query ("show findings", "what did you find") arrives
+    /// before any audit has run. Uses <see cref="AgentIntent.Help"/> so the chat layer treats it as
+    /// conversational guidance rather than a completed audit — no audit-completion publishing, no
+    /// history append, no export enablement for an empty result.
+    /// </summary>
+    private static AgentResult BuildNoAuditYetResult() => new()
+    {
+        Intent = AgentIntent.Help,
+        Summary = "No audit to answer from yet. Run an audit first (e.g. 'is my system secure?'), then ask me to summarize it.",
+        AgentFindings = Array.Empty<Finding>(),
+        Warnings = Array.Empty<string>()
+    };
+
+    private static string FormatAge(TimeSpan age)
+    {
+        if (age < TimeSpan.Zero) age = TimeSpan.Zero;
+        if (age < TimeSpan.FromMinutes(1)) return "just now";
+        if (age < TimeSpan.FromHours(1)) return $"{(int)age.TotalMinutes} min ago";
+        if (age < TimeSpan.FromDays(1)) return $"{(int)age.TotalHours} hr ago";
+        var days = (int)age.TotalDays;
+        return days == 1 ? "1 day ago" : $"{days} days ago";
+    }
 
     private static bool IsBaselineIntent(AgentIntent intent) => intent switch
     {

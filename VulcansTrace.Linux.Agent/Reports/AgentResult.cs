@@ -23,6 +23,9 @@ public sealed record AgentResult
     /// <summary>User-facing summary text.</summary>
     public string Summary { get; init; } = string.Empty;
 
+    /// <summary>Hint for chat renderers to trim output. Render-only: does not alter findings, LastResult, or history.</summary>
+    public ResponseVerbosity Verbosity { get; init; } = ResponseVerbosity.Normal;
+
     /// <summary>The intent that triggered this audit.</summary>
     public Query.AgentIntent Intent { get; init; }
 

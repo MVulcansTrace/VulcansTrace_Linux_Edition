@@ -37,12 +37,43 @@ internal sealed class AgentResultStateCoordinator
         NotifyResultStateChanged();
     }
 
-    public void SetLastResult(AgentResult result)
+    public void SetLastResult(AgentResult result, AgentResult? sourceAudit = null)
     {
-        LastResult = result ?? throw new ArgumentNullException(nameof(result));
+        ArgumentNullException.ThrowIfNull(result);
+
+        // Cached renderings (short verdict, findings recap) present existing audit data in a
+        // different shape; they must not replace the last real audit. Otherwise export/batch-fix
+        // enablement and SelectedFindingProvider would flip off despite the audit still being the
+        // active context. Command state is still refreshed so dependents re-evaluate.
+        if (IsCachedRendering(result.Intent))
+        {
+            // A SecurityAgent may have rehydrated its audit from persistent memory while this UI
+            // coordinator is still empty (startup or role/agent swap). Seed from that real audit
+            // so export, batch-fix, and selected-finding state become available again.
+            if (LastResult == null && sourceAudit != null && IsAuditIntent(sourceAudit.Intent))
+            {
+                LastResult = sourceAudit;
+                IsExportableAudit = true;
+                HasCompletedAudit = true;
+                LastAuditIntent = sourceAudit.Intent;
+            }
+
+            NotifyResultStateChanged();
+            return;
+        }
+
+        LastResult = result;
         IsExportableAudit = IsAuditIntent(result.Intent);
         NotifyResultStateChanged();
     }
+
+    /// <summary>
+    /// Results that re-present the most recent audit in a different shape (a one-line verdict or
+    /// a findings recap) rather than producing a new audit. These are render-only with respect to
+    /// the view-model's "last result" state.
+    /// </summary>
+    private static bool IsCachedRendering(AgentIntent intent) =>
+        intent is AgentIntent.ShortVerdict or AgentIntent.ShowFindings;
 
     public void PublishAuditCompleted(AgentResult result)
     {

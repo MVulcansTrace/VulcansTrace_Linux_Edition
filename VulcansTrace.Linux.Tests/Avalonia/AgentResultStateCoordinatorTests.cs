@@ -112,6 +112,59 @@ public class AgentResultStateCoordinatorTests
         Assert.False(harness.State.IsExportableAudit);
     }
 
+    [AvaloniaTheory]
+    [InlineData(AgentIntent.ShortVerdict)]
+    [InlineData(AgentIntent.ShowFindings)]
+    public void SetLastResult_CachedRendering_PreservesPriorAuditLastResult(AgentIntent cachedIntent)
+    {
+        var harness = new CoordinatorHarness();
+        var audit = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            Summary = "audit",
+            AgentFindings = new[] { CreateFinding("FW-001", Severity.High) }
+        };
+        harness.State.SetLastResult(audit);
+        harness.State.PublishAuditCompleted(audit);
+
+        // A cached rendering (short verdict or findings recap) presents existing audit data in a
+        // different shape. It must not replace the prior audit, or export/batch-fix enablement
+        // would flip off despite the audit still being the active context.
+        var cached = new AgentResult { Intent = cachedIntent, Summary = "cached view", AgentFindings = Array.Empty<Finding>() };
+        harness.State.SetLastResult(cached);
+
+        Assert.Same(audit, harness.State.LastResult); // prior audit preserved
+        Assert.True(harness.State.IsExportableAudit); // export still enabled
+        Assert.True(harness.State.HasCompletedAudit);
+        Assert.Same(audit, harness.PublishedResult); // only the real audit published; the cached view did not
+        // Command state is still refreshed so dependents re-evaluate.
+        Assert.Equal(3, harness.RefreshCommandsCount);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(AgentIntent.ShortVerdict)]
+    [InlineData(AgentIntent.ShowFindings)]
+    public void SetLastResult_CachedRendering_SeedsRehydratedAuditWhenCoordinatorIsEmpty(AgentIntent cachedIntent)
+    {
+        var harness = new CoordinatorHarness();
+        var rehydratedAudit = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            Summary = "rehydrated audit",
+            AgentFindings = new[] { CreateFinding("SSH-001", Severity.High) }
+        };
+        var cached = new AgentResult { Intent = cachedIntent, Summary = "cached view" };
+
+        harness.State.SetLastResult(cached, rehydratedAudit);
+
+        Assert.Same(rehydratedAudit, harness.State.LastResult);
+        Assert.True(harness.State.IsExportableAudit);
+        Assert.True(harness.State.HasCompletedAudit);
+        Assert.Equal(AgentIntent.SshCheck, harness.State.LastAuditIntent);
+        Assert.Null(harness.PublishedResult);
+        Assert.Empty(harness.History);
+    }
+
     private static Finding CreateFinding(string ruleId, Severity severity)
     {
         var now = DateTime.UtcNow;

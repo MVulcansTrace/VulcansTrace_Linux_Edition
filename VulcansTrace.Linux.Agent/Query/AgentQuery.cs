@@ -16,4 +16,11 @@ public sealed record AgentQuery(
     /// Structured entities extracted from the raw query (rule IDs, categories, severity filters, etc.).
     /// </summary>
     public QueryEntityFrame Entities { get; init; } = new();
+
+    /// <summary>
+    /// Modifier slots extracted from the raw query (freshness, verbosity, category, finding reference),
+    /// orthogonal to the primary <see cref="Intent"/>. Defaults to <see cref="QuerySlots.Default"/> so
+    /// all existing construction sites are unaffected.
+    /// </summary>
+    public QuerySlots Slots { get; init; } = QuerySlots.Default;
 }

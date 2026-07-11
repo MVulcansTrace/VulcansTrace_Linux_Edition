@@ -14,6 +14,10 @@ The query parser maps natural-language prompts to structured intents:
 | --- | --- | --- |
 | `Is my system secure?` | `FullAudit` | Runs all agent rule categories |
 | `Run a full audit` | `FullAudit` | Runs all agent rule categories |
+| `Is my system secure? Give me the short version.` | `ShortVerdict` | Reuses the latest audit when available; with no prior audit, runs one fresh audit and renders it tersely |
+| `Give me the short version and re-scan` | `FullAudit` (terse) | Runs a fresh audit but suppresses verbose capability, narrative, and finding-group output |
+| `Show findings` | `ShowFindings` | Re-displays the latest audit's full categorized findings without scanning |
+| `Show me the findings for firewall` | `FilterCategory` | Filters the latest audit to the requested category |
 | `Check my firewall` | `FirewallCheck` | Runs firewall posture rules |
 | `How's my iptables?` | `FirewallCheck` | Runs firewall posture rules |
 | `What ports are open?` | `PortCheck` | Reviews listening ports and exposure |
@@ -643,6 +647,7 @@ The Avalonia application exposes the agent as a first-class **Security Agent** v
 - **Pinned chat messages** — any completed transcript message can be pinned from the chat bubble and reviewed later in the Agent Tools panel. Pins are persisted in the user config directory when available; if persistence falls back, the Agent Tools panel shows that pins are session-only.
 - **Scanner selection by rule dependency** — targeted audits run only the scanners that feed the rules for that intent. Rule cross-category data dependencies (e.g., a network rule that also reads `OpenPorts`) are declared via `IRule.RequiredDataFields` and resolved automatically, so targeted audits cannot be silently data-starved.
 - **User-friendly warnings** — scanner warnings are classified as missing tools, permission limits, configuration gaps, or scanner errors and surfaced in plain language. Missing primary tools (e.g., `iptables` for a firewall check) produce a friendly lead sentence explaining which tool was absent and that results are partial.
+- **Brevity and freshness slots** — explicit short-version prompts reuse the latest completed audit and render a terse verdict. Explicit freshness language (`re-scan`, `run again`, `fresh audit`) runs new scanners while keeping the response terse. Explicit reuse language (`without rescanning`, `do not scan again`, `based on the audit`) never triggers a scan. Terse output hides raw tool details but retains a compact warning when collection was incomplete.
 - **Copyable command rows** — verification, backup, apply, rollback, and verification commands render in reusable rows with safety badges (ReadOnly, ConfigChange, ServiceRestart, etc.) and structural badges (SUDO, CHAIN, PIPE, REDIR, DL-EXEC). Each row has a one-click copy button.
 - In-flight query cancellation.
 - Data-source capability messages showing whether scanner inputs such as iptables, nftables, ss, netstat, ip, and systemctl were available, unavailable, permission-limited, or not checked.

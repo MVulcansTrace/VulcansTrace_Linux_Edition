@@ -110,6 +110,16 @@ public enum AgentIntent
     /// <summary>Show the overall risk score and grade from the last audit.</summary>
     RiskScore,
 
+    /// <summary>Return a one-line verdict from the last completed audit without re-scanning, for explicit brevity requests.</summary>
+    ShortVerdict,
+
+    /// <summary>
+    /// Re-display the full, categorized findings from the most recent completed audit without
+    /// re-scanning. Surfaced by phrases like "show findings" so a terse verdict can be expanded
+    /// on demand. Non-audit: does not trigger audit-completion publishing or history appends.
+    /// </summary>
+    ShowFindings,
+
     /// <summary>Start a guided remediation session for one or more findings.</summary>
     StartRemediation,
 

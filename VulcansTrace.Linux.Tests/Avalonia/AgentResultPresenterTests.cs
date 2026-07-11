@@ -59,6 +59,71 @@ public class AgentResultPresenterTests
     }
 
     [AvaloniaFact]
+    public void PresentFindings_Terse_SuppressesCapabilityNarrativeGroupsAndWarnings()
+    {
+        var harness = new PresenterHarness();
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.FullAudit,
+            Verbosity = ResponseVerbosity.Terse,
+            Summary = "Full audit complete. 3 issue(s) found, 2 High/Critical. 2 check(s) passed.",
+            CapabilityReport = "Data sources: ss available.",
+            PassedCount = 2,
+            Narrative = new VulcansTrace.Linux.Agent.Dialogue.Narrative { KeyFindingsParagraph = "A long composed narrative that terse mode must hide." },
+            AgentFindings = new[]
+            {
+                CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed"),
+                CreateFinding("SSH-001", "SSH", Severity.Medium, "Root login enabled"),
+                CreateFinding("FW-002", "Firewall", Severity.Critical, "Firewall disabled")
+            },
+            Warnings = new[] { "permission denied reading process details" }
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        // Lead + one-line counts + hint remain.
+        Assert.Contains(harness.Messages, m => m.Text == "Full audit complete. 3 issue(s) found, 2 High/Critical. 2 check(s) passed." && !m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Text == "Findings: 1 Critical, 1 High, 1 Medium (3 total)" && m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Text.Contains("show findings", StringComparison.OrdinalIgnoreCase) && m.IsInfo);
+
+        // Verbose elements suppressed.
+        Assert.DoesNotContain(harness.Messages, m => m.Text.StartsWith("Data sources:"));
+        Assert.DoesNotContain(harness.Messages, m => m.Category == "Firewall" || m.Category == "SSH");
+        Assert.DoesNotContain(harness.Messages, m => m.Text.Contains("blocked by permissions", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(harness.Messages, m => m.Text.Contains("long composed narrative", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(harness.Messages, m => m.Text.Contains("some checks or data sources may be incomplete", StringComparison.OrdinalIgnoreCase));
+        Assert.True(harness.HasPrivilegeWarning);
+    }
+
+    [AvaloniaFact]
+    public void PresentFindings_ShowFindings_RendersGroupsAndOmitsCapabilityAndTerseHint()
+    {
+        var harness = new PresenterHarness();
+        var result = new AgentResult
+        {
+            Intent = AgentIntent.ShowFindings,
+            Summary = "From your last audit just now: 2 finding(s), 1 Critical, 1 High. Say 're-scan' for a fresh check.",
+            PassedCount = 2,
+            AgentFindings = new[]
+            {
+                CreateFinding("FW-001", "Firewall", Severity.High, "SSH exposed"),
+                CreateFinding("FW-002", "Firewall", Severity.Critical, "Firewall disabled")
+            }
+        };
+
+        harness.Presenter.PresentFindings(result);
+
+        // Recap lead + one-line counts + finding groups render at Normal verbosity (not suppressed).
+        Assert.Contains(harness.Messages, m => m.Text.StartsWith("From your last audit") && !m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Text == "Findings: 1 Critical, 1 High (2 total)" && m.IsInfo);
+        Assert.Contains(harness.Messages, m => m.Category == "Firewall");
+
+        // No capability report (recap carries none) and no terse "show findings" hint.
+        Assert.DoesNotContain(harness.Messages, m => m.Text.StartsWith("Data sources:"));
+        Assert.DoesNotContain(harness.Messages, m => m.Text.Contains("show findings", StringComparison.OrdinalIgnoreCase) && m.IsInfo);
+    }
+
+    [AvaloniaFact]
     public void ApplyChatFilters_HidesOnlyFindingGroupsThatDoNotMatch()
     {
         var harness = new PresenterHarness();

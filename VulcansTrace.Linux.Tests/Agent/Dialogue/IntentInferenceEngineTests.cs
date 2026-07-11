@@ -92,6 +92,24 @@ public class IntentInferenceEngineTests
     }
 
     [Fact]
+    public void Infer_AuditReroute_PreservesSlots()
+    {
+        // A low-confidence brevity query with a resolved category promotes to that category's audit;
+        // the reconstructed AgentQuery must carry the parser's slots forward so freshness/verbosity
+        // survive the reroute.
+        var context = new DialogueContext();
+        var parsed = _parser.Parse("give me the short version");
+        Assert.Equal(QueryVerbosity.Terse, parsed.Slots.Verbosity);
+
+        var resolution = new ReferenceResolution(false, null, null, "Firewall", null, null, null);
+        var (inferred, wasInferred) = _engine.Infer(parsed, resolution, context.SnapshotEntities());
+
+        Assert.True(wasInferred);
+        Assert.Equal(AgentIntent.FirewallCheck, inferred.Intent);
+        Assert.Equal(QueryVerbosity.Terse, inferred.Slots.Verbosity);
+    }
+
+    [Fact]
     public void Infer_PrioritizeRemediationWithOrdinal_DoesNotChangeIntent()
     {
         var context = new DialogueContext();

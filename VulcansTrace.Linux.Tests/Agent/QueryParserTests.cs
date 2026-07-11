@@ -125,6 +125,15 @@ public class QueryParserTests
     [InlineData("why does FW-004 keep returning", AgentIntent.InvestigateRecurrence)]
     [InlineData("this keeps reverting", AgentIntent.InvestigateRecurrence)]
     [InlineData("recurring SSH-002 issue", AgentIntent.InvestigateRecurrence)]
+    [InlineData("show findings", AgentIntent.ShowFindings)]
+    [InlineData("show all findings", AgentIntent.ShowFindings)]
+    [InlineData("show the findings", AgentIntent.ShowFindings)]
+    [InlineData("show all the findings", AgentIntent.ShowFindings)]
+    [InlineData("show me the findings", AgentIntent.ShowFindings)]
+    [InlineData("show me all findings", AgentIntent.ShowFindings)]
+    [InlineData("list findings", AgentIntent.ShowFindings)]
+    [InlineData("list all findings", AgentIntent.ShowFindings)]
+    [InlineData("list the findings", AgentIntent.ShowFindings)]
     public void Parse_VariousQueries_ReturnsExpectedIntent(string query, AgentIntent expected)
     {
         var result = _parser.Parse(query);
@@ -144,6 +153,56 @@ public class QueryParserTests
     {
         var result = _parser.Parse("");
         Assert.Equal(AgentIntent.Help, result.Intent);
+    }
+
+    [Theory]
+    [InlineData("give me the short version", QueryVerbosity.Terse, Freshness.Auto)]
+    [InlineData("be brief", QueryVerbosity.Terse, Freshness.Auto)]
+    [InlineData("tl;dr", QueryVerbosity.Terse, Freshness.Auto)]
+    [InlineData("scan again", QueryVerbosity.Normal, Freshness.ForceRefresh)]
+    [InlineData("re-run the audit", QueryVerbosity.Normal, Freshness.ForceRefresh)]
+    [InlineData("what did you find in the last scan?", QueryVerbosity.Normal, Freshness.ReuseOnly)]
+    [InlineData("what did you find without rescanning?", QueryVerbosity.Normal, Freshness.ReuseOnly)]
+    [InlineData("do not scan again; use the audit", QueryVerbosity.Normal, Freshness.ReuseOnly)]
+    [InlineData("show findings from the scan", QueryVerbosity.Normal, Freshness.Auto)]
+    [InlineData("is my system secure?", QueryVerbosity.Normal, Freshness.Auto)]
+    public void Parse_SetsVerbosityAndFreshnessSlots(string query, QueryVerbosity expectedVerbosity, Freshness expectedFreshness)
+    {
+        var result = _parser.Parse(query);
+        Assert.Equal(expectedVerbosity, result.Slots.Verbosity);
+        Assert.Equal(expectedFreshness, result.Slots.Freshness);
+    }
+
+    [Fact]
+    public void Parse_ReusePhrase_SetsReuseOnly()
+    {
+        var result = _parser.Parse("what did you find in the audit?");
+        Assert.Equal(Freshness.ReuseOnly, result.Slots.Freshness);
+    }
+
+    [Fact]
+    public void Parse_CategoryQuery_SetsCategory()
+    {
+        var result = _parser.Parse("check firewall");
+        Assert.Equal("Firewall", result.Slots.Category);
+    }
+
+    [Theory]
+    [InlineData("show me the findings for firewall", "firewall")]
+    [InlineData("list all findings about ssh", "ssh")]
+    public void Parse_CategoryQualifiedFindings_RoutesToFilterCategory(string query, string category)
+    {
+        var result = _parser.Parse(query);
+
+        Assert.Equal(AgentIntent.FilterCategory, result.Intent);
+        Assert.Equal(category, result.TargetReference);
+    }
+
+    [Fact]
+    public void Parse_FindingReference_SetsReference()
+    {
+        var result = _parser.Parse("explain FW-001");
+        Assert.Equal("FW-001", result.Slots.FindingReference);
     }
 
     [Fact]

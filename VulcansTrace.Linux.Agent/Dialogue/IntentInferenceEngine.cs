@@ -115,7 +115,7 @@ public sealed class IntentInferenceEngine
             && IsAuditIntent(InferIntentFromCategory(resolution.Category)))
         {
             var auditIntent = InferIntentFromCategory(resolution.Category);
-            return (new AgentQuery(auditIntent, null, 0.8, RawQuery: raw), true);
+            return (new AgentQuery(auditIntent, null, 0.8, RawQuery: raw) { Slots = parsed.Slots }, true);
         }
 
         return (parsed, false);
@@ -166,14 +166,14 @@ public sealed class IntentInferenceEngine
         var categoryIntent = InferIntentFromCategory(resolution.Category);
 
         if (IsSpecificCategoryDisambiguation(resolution.Category, categoryIntent, tiedIntents))
-            return new AgentQuery(categoryIntent, null, 1.0);
+            return new AgentQuery(categoryIntent, null, 1.0) { Slots = parsed.Slots };
 
         // If prior topic was audit and alternatives are both audit intents,
         // prefer the one matching the resolved category.
         if (priorTopic == ConversationTopic.Audit && !string.IsNullOrEmpty(resolution.Category))
         {
             if (tiedIntents.Contains(categoryIntent))
-                return new AgentQuery(categoryIntent, null, 1.0);
+                return new AgentQuery(categoryIntent, null, 1.0) { Slots = parsed.Slots };
         }
 
         // If a rule ID is present, prefer explanation/fix intent over audit intent.

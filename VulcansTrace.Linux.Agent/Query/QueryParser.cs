@@ -59,6 +59,12 @@ public sealed class QueryParser : IQueryParser
         // phrases like "show me the evidence" without relying on tuple order. New intents above
         // weight 4 should be reviewed against this routing.
         (new[] { "prove", "evidence", "provenance", "what triggered", "why was this flagged", "show sources" }, AgentIntent.ShowEvidence, 4),
+        // "show findings" / "list findings" re-display the last audit's findings in full. Phrases
+        // are specific (they require the generic word "findings" with no category in between) so
+        // category filters like "show me firewall issues" still route to FilterCategory. Weight 4
+        // outranks FilterCategory's "show me" (weight 3) on overlapping phrases like
+        // "show me the findings".
+        (new[] { "show findings", "show all findings", "show the findings", "show all the findings", "show me the findings", "show me all findings", "list findings", "list all findings", "list the findings" }, AgentIntent.ShowFindings, 4),
         (new[] { "came back", "keeps returning", "keep returning", "why does this keep happening", "keeps reverting", "keeps coming back", "recurring", "keeps happening" }, AgentIntent.InvestigateRecurrence, 4),
         (new[] { "fix first", "what should i fix", "prioritize", "remediation plan", "what to do" }, AgentIntent.PrioritizeRemediation, 2),
         (new[] { "fix ", "resolve" }, AgentIntent.FixFinding, 3),
@@ -110,7 +116,8 @@ public sealed class QueryParser : IQueryParser
             var stepTargetReference = ExtractTargetReference(query, AgentIntent.ReportStepResult);
             return new AgentQuery(AgentIntent.ReportStepResult, stepTargetReference, 1.0, RawQuery: query)
             {
-                Entities = _entityExtractor.Extract(query)
+                Entities = _entityExtractor.Extract(query),
+                Slots = QuerySlotsExtractor.Extract(normalized, query, AgentIntent.ReportStepResult)
             };
         }
 
@@ -139,11 +146,18 @@ public sealed class QueryParser : IQueryParser
 
         var entityFrame = _entityExtractor.Extract(query);
 
+        // A category-qualified expansion asks for a subset of the cached findings, not the full
+        // recap. Keep the unqualified "show findings" phrases on ShowFindings, but let forms such
+        // as "show me the findings for firewall" use the existing category-filter flow.
+        if (bestIntent == AgentIntent.ShowFindings && entityFrame.Categories.Count > 0)
+            bestIntent = AgentIntent.FilterCategory;
+
         if (bestScore == 0)
         {
             return new AgentQuery(AgentIntent.Help, Confidence: 0.0, RawQuery: query)
             {
-                Entities = entityFrame
+                Entities = entityFrame,
+                Slots = QuerySlotsExtractor.Extract(normalized, query, AgentIntent.Help)
             };
         }
 
@@ -159,7 +173,8 @@ public sealed class QueryParser : IQueryParser
         var targetReference = ExtractTargetReference(query, bestIntent);
         return new AgentQuery(bestIntent, targetReference, confidence, alternatives, isAmbiguous, query)
         {
-            Entities = entityFrame
+            Entities = entityFrame,
+            Slots = QuerySlotsExtractor.Extract(normalized, query, bestIntent)
         };
     }
 
