@@ -138,7 +138,7 @@ public partial class TimelineView : UserControl
 
     private void DrawTimeAxis(TimelineViewModel vm, double width, double usableWidth)
     {
-        if (vm.MinTime == null || vm.MaxTime == null)
+        if (vm.AxisMinTime == null || vm.AxisMaxTime == null)
         {
             return;
         }
@@ -156,8 +156,8 @@ public partial class TimelineView : UserControl
             StrokeThickness = 1
         });
 
-        var min = vm.MinTime.Value;
-        var max = vm.MaxTime.Value;
+        var min = vm.AxisMinTime.Value;
+        var max = vm.AxisMaxTime.Value;
         var total = max - min;
         if (total.TotalSeconds <= 0)
         {
@@ -218,7 +218,7 @@ public partial class TimelineView : UserControl
         return Math.Clamp(count, 2, 8);
     }
 
-    private static List<(DateTime time, string label)> ComputeTickLabels(DateTime min, DateTime max, int tickCount)
+    internal static List<(DateTime time, string label)> ComputeTickLabels(DateTime min, DateTime max, int tickCount)
     {
         var total = max - min;
         if (total.TotalSeconds <= 0)
@@ -227,7 +227,11 @@ public partial class TimelineView : UserControl
         }
 
         var labels = new List<(DateTime, string)>();
-        var format = total.TotalDays >= 1 ? "yyyy-MM-dd HH:mm" : "HH:mm:ss";
+        // Sub-minute spans need millisecond precision or every label collapses to
+        // the same second (point-in-time agent audits span ~10 ms).
+        var format = total.TotalDays >= 1 ? "yyyy-MM-dd HH:mm"
+            : total.TotalMinutes >= 1 ? "HH:mm:ss"
+            : "HH:mm:ss.fff";
 
         for (var i = 0; i < tickCount; i++)
         {

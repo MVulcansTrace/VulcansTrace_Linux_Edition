@@ -596,6 +596,55 @@ public class TimelineViewModelTraceMapTests
         Assert.Equal("2026-06-30 12:00:00 UTC – 2026-07-01 09:00:00 UTC", new TimelineEntry { StartTime = baseUtc, EndTime = baseUtc.AddDays(1).AddHours(-3) }.FormattedTimeRange);
     }
 
+    [AvaloniaFact]
+    public void LoadAnalysisResult_SubSecondSpan_KeepsRealAxisWindowAndSpreadsMarkers()
+    {
+        // Regression: point-in-time agent audits span ~10 ms. The axis window must
+        // stay the real range so markers keep their full 0-1 spread.
+        var vm = new TimelineViewModel();
+        var baseUtc = new DateTime(2026, 7, 11, 20, 7, 4, DateTimeKind.Utc);
+        var findings = new[]
+        {
+            new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = baseUtc, TimeRangeEnd = baseUtc, ShortDescription = "first" },
+            new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = baseUtc.AddMilliseconds(3), TimeRangeEnd = baseUtc.AddMilliseconds(3), ShortDescription = "middle" },
+            new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = baseUtc.AddMilliseconds(10), TimeRangeEnd = baseUtc.AddMilliseconds(10), ShortDescription = "last" },
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = findings });
+
+        Assert.Equal(baseUtc, vm.MinTime);
+        Assert.Equal(baseUtc.AddMilliseconds(10), vm.MaxTime);
+        Assert.Equal(vm.MinTime, vm.AxisMinTime);
+        Assert.Equal(vm.MaxTime, vm.AxisMaxTime);
+
+        Assert.Equal(0, vm.TimelineEntries[0].StartPosition, 6);
+        Assert.Equal(0.3, vm.TimelineEntries[1].StartPosition, 6);
+        Assert.Equal(1, vm.TimelineEntries[2].StartPosition, 6);
+    }
+
+    [AvaloniaFact]
+    public void LoadAnalysisResult_SingleInstant_PadsAxisWindowAndCentersMarkers()
+    {
+        // Every finding at the same instant: the axis needs a synthetic window or
+        // the span is zero and all markers pile on the left edge.
+        var vm = new TimelineViewModel();
+        var baseUtc = new DateTime(2026, 7, 11, 20, 7, 4, DateTimeKind.Utc);
+        var findings = new[]
+        {
+            new Finding { Category = FindingCategories.Beaconing, SourceHost = "host-a", TimeRangeStart = baseUtc, TimeRangeEnd = baseUtc, ShortDescription = "a" },
+            new Finding { Category = FindingCategories.PortScan, SourceHost = "host-a", TimeRangeStart = baseUtc, TimeRangeEnd = baseUtc, ShortDescription = "b" },
+        };
+
+        vm.LoadAnalysisResult(new AnalysisResult { Findings = findings });
+
+        // True range is unchanged; only the display window is padded.
+        Assert.Equal(baseUtc, vm.MinTime);
+        Assert.Equal(baseUtc, vm.MaxTime);
+        Assert.Equal(TimeSpan.FromSeconds(1), vm.AxisMaxTime!.Value - vm.AxisMinTime!.Value);
+        Assert.True(vm.AxisMinTime < baseUtc && vm.AxisMaxTime > baseUtc);
+        Assert.All(vm.TimelineEntries, e => Assert.Equal(0.5, e.StartPosition, 6));
+    }
+
     private static AnalysisResult CreateAnalysisResult(IEnumerable<(string Category, string SourceHost)> items)
     {
         var baseTime = DateTime.UtcNow;

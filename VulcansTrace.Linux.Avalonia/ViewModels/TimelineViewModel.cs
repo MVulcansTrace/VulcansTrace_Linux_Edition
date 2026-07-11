@@ -20,6 +20,13 @@ public class TimelineViewModel : ViewModelBase
     private const double DefaultAxisHeight = 34;
     private const double DefaultMinimumInteractiveCanvasHeight = 220;
 
+    /// <summary>
+    /// Window used when every finding shares a single instant (typical for
+    /// point-in-time agent audits), so the axis still has a span to label and the
+    /// markers sit mid-canvas instead of on an edge.
+    /// </summary>
+    private static readonly TimeSpan SingleInstantWindow = TimeSpan.FromSeconds(1);
+
     private AnalysisResult? _analysisResult;
     private double _canvasHeight;
     private string _timeRangeLabel = "No timeline data.";
@@ -70,6 +77,19 @@ public class TimelineViewModel : ViewModelBase
 
     public DateTime? MinTime { get; set; }
     public DateTime? MaxTime { get; set; }
+
+    /// <summary>
+    /// Start of the time window used for marker placement and axis ticks. Equals
+    /// <see cref="MinTime"/> unless every finding shares one instant, in which case
+    /// the window is symmetrically padded. Null when there is no data.
+    /// </summary>
+    public DateTime? AxisMinTime { get; private set; }
+
+    /// <summary>
+    /// End of the time window used for marker placement and axis ticks. See
+    /// <see cref="AxisMinTime"/> for the padding rule.
+    /// </summary>
+    public DateTime? AxisMaxTime { get; private set; }
 
     /// <summary>
     /// IDs of findings connected to <see cref="SelectedFindingId"/> via correlation edges.
@@ -244,6 +264,8 @@ public class TimelineViewModel : ViewModelBase
         {
             MinTime = null;
             MaxTime = null;
+            AxisMinTime = null;
+            AxisMaxTime = null;
             CanvasHeight = 0;
             TimeRangeLabel = "No timeline data.";
             return;
@@ -268,6 +290,8 @@ public class TimelineViewModel : ViewModelBase
         {
             MinTime = null;
             MaxTime = null;
+            AxisMinTime = null;
+            AxisMaxTime = null;
             CanvasHeight = 0;
             TimeRangeLabel = "No timeline data.";
             return;
@@ -276,6 +300,7 @@ public class TimelineViewModel : ViewModelBase
         MinTime = allTimes.Min();
         MaxTime = allTimes.Max();
         TimeRangeLabel = $"Time range: {MinTime:O} – {MaxTime:O}";
+        (AxisMinTime, AxisMaxTime) = ComputeAxisWindow(MinTime.Value, MaxTime.Value);
 
         // Build row labels based on grouping mode
         if (_groupMode == TimelineGroupMode.Host)
@@ -323,13 +348,14 @@ public class TimelineViewModel : ViewModelBase
 
     private void CalculateEntryPositions()
     {
-        if (!MinTime.HasValue || !MaxTime.HasValue)
+        if (!AxisMinTime.HasValue || !AxisMaxTime.HasValue)
         {
             CanvasHeight = 0;
             return;
         }
 
-        var totalSeconds = (MaxTime.Value - MinTime.Value).TotalSeconds;
+        var axisMin = AxisMinTime.Value;
+        var totalSeconds = (AxisMaxTime.Value - axisMin).TotalSeconds;
         if (totalSeconds <= 0)
         {
             totalSeconds = 1;
@@ -341,15 +367,15 @@ public class TimelineViewModel : ViewModelBase
 
         foreach (var entry in TimelineEntries)
         {
-            var start = entry.StartTime == DateTime.MinValue ? MinTime.Value : entry.StartTime;
+            var start = entry.StartTime == DateTime.MinValue ? MinTime!.Value : entry.StartTime;
             var end = entry.EndTime == DateTime.MinValue ? start : entry.EndTime;
             if (end < start)
             {
                 end = start;
             }
 
-            var startOffset = (start - MinTime.Value).TotalSeconds / totalSeconds;
-            var endOffset = (end - MinTime.Value).TotalSeconds / totalSeconds;
+            var startOffset = (start - axisMin).TotalSeconds / totalSeconds;
+            var endOffset = (end - axisMin).TotalSeconds / totalSeconds;
 
             entry.StartPosition = Clamp01(startOffset);
             entry.EndPosition = Math.Max(entry.StartPosition, Clamp01(endOffset));
@@ -493,6 +519,25 @@ public class TimelineViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(EmptyStateHeadline));
         OnPropertyChanged(nameof(EmptyStateDescription));
+    }
+
+    /// <summary>
+    /// Returns the axis window for the given real range. A non-zero span is used
+    /// as-is so markers keep their full 0–1 spread (a ~10 ms agent audit would
+    /// otherwise be squeezed into a tiny band). Only a zero span — every finding at
+    /// the same instant — is symmetrically padded to <see cref="SingleInstantWindow"/>
+    /// so the axis has something to label and markers don't sit on the edge.
+    /// </summary>
+    private static (DateTime Min, DateTime Max) ComputeAxisWindow(DateTime min, DateTime max)
+    {
+        var span = max - min;
+        if (span > TimeSpan.Zero)
+        {
+            return (min, max);
+        }
+
+        var halfWindow = TimeSpan.FromTicks(SingleInstantWindow.Ticks / 2);
+        return (min - halfWindow, max + (SingleInstantWindow - halfWindow));
     }
 
     private static double Clamp01(double value)
