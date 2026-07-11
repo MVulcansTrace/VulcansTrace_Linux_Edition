@@ -784,6 +784,91 @@ public class FindingsViewModelTests
     }
 
     [AvaloniaFact]
+    public void KpiSubtitles_ReflectCounts()
+    {
+        var vm = new FindingsViewModel();
+
+        Assert.Equal("none", vm.HighCriticalSubtitle);
+        Assert.Equal("none", vm.WarningSubtitle);
+        Assert.Equal("none", vm.ParseErrorSubtitle);
+        Assert.Equal("none", vm.SkippedLineSubtitle);
+
+        vm.LoadResults(new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.High,
+                    SourceHost = "192.168.1.10",
+                    Target = "multi",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan",
+                    Details = "detail"
+                }
+            ],
+            Warnings = ["warn-1"],
+            ParseErrorCount = 1,
+            ParseErrors = ["parse-error-1"],
+            SkippedLineCount = 2
+        });
+
+        Assert.Equal("requires attention", vm.HighCriticalSubtitle);
+        Assert.Equal("current scan", vm.WarningSubtitle);
+        Assert.Equal("check log format", vm.ParseErrorSubtitle);
+        Assert.Equal("unmatched lines", vm.SkippedLineSubtitle);
+    }
+
+    [AvaloniaFact]
+    public void FindingsSubtitle_SeparatesScanAndLiveCounts()
+    {
+        var vm = new FindingsViewModel();
+        vm.LoadResults(new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding
+                {
+                    Category = FindingCategories.PortScan,
+                    Severity = Severity.Low,
+                    SourceHost = "192.168.1.10",
+                    Target = "multi",
+                    TimeRangeStart = DateTime.UnixEpoch,
+                    TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(1),
+                    ShortDescription = "Port scan",
+                    Details = "detail"
+                }
+            ]
+        });
+
+        Assert.Equal("current scan", vm.FindingsSubtitle);
+        Assert.Equal(0, vm.LiveFindingsCount);
+
+        vm.AddFinding(new Finding
+        {
+            Category = FindingCategories.Beaconing,
+            Severity = Severity.Low,
+            SourceHost = "192.168.1.11",
+            Target = "10.0.0.2",
+            TimeRangeStart = DateTime.UnixEpoch,
+            TimeRangeEnd = DateTime.UnixEpoch.AddMinutes(2),
+            ShortDescription = "Beaconing",
+            Details = "detail"
+        });
+
+        Assert.Equal(2, vm.FindingsCount);
+        Assert.Equal(1, vm.LiveFindingsCount);
+        Assert.Equal("1 scan + 1 live", vm.FindingsSubtitle);
+
+        vm.Clear();
+
+        Assert.Equal(0, vm.LiveFindingsCount);
+        Assert.Equal("current scan", vm.FindingsSubtitle);
+    }
+
+    [AvaloniaFact]
     public void UnpinLastFinding_WhilePinnedOnly_LeavesButtonEnabledSoUserCanExit()
     {
         var store = new InMemoryPinnedFindingStore();

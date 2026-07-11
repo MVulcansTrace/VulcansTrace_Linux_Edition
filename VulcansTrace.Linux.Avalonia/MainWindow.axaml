@@ -45,14 +45,14 @@
                                   Value="{Binding Findings.FindingsCount, Mode=OneWay}"
                                   AccentBrush="{StaticResource VtKpiFindingsBrush}"
                                   GlowBrush="{StaticResource VtPrimaryGlowBrush}"
-                                  TrendText="current scan"
+                                  TrendText="{Binding Findings.FindingsSubtitle, Mode=OneWay}"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-alert-octagon"
                                   Label="High / Critical"
                                   Value="{Binding Findings.HighCriticalCount, Mode=OneWay}"
                                   AccentBrush="{StaticResource VtSeverityCriticalBrush}"
                                   GlowBrush="{StaticResource VtSeverityCriticalBgBrush}"
-                                  TrendText="requires attention"
+                                  TrendText="{Binding Findings.HighCriticalSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.HighCriticalCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-alert"
@@ -60,7 +60,7 @@
                                   Value="{Binding Findings.WarningCount, Mode=OneWay}"
                                   AccentBrush="{StaticResource VtSeverityMediumBrush}"
                                   GlowBrush="{StaticResource VtWarningMutedBrush}"
-                                  TrendText="current scan"
+                                  TrendText="{Binding Findings.WarningSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.WarningCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-file-document-alert-outline"
@@ -68,7 +68,7 @@
                                   Value="{Binding Findings.ParseErrorCount, Mode=OneWay}"
                                   AccentBrush="{StaticResource VtSeverityHighBrush}"
                                   GlowBrush="{StaticResource VtSeverityHighBgBrush}"
-                                  TrendText="check log format"
+                                  TrendText="{Binding Findings.ParseErrorSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.ParseErrorCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-skip-next-outline"
@@ -76,7 +76,7 @@
                                   Value="{Binding Findings.SkippedLineCount, Mode=OneWay}"
                                   AccentBrush="{StaticResource VtKpiSkippedBrush}"
                                   GlowBrush="{StaticResource VtBackground700Brush}"
-                                  TrendText="unmatched lines"/>
+                                  TrendText="{Binding Findings.SkippedLineSubtitle, Mode=OneWay}"/>
             </UniformGrid>
 
             <Border Background="{StaticResource VtSeverityMediumBgBrush}"

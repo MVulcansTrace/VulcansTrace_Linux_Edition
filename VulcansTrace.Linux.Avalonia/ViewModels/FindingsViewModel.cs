@@ -19,6 +19,7 @@ public sealed class FindingsViewModel : ViewModelBase
     private string _searchText = "";
     private SeverityFilterOption? _selectedSeverityFilter;
     private int _findingsCount;
+    private int _liveFindingsCount;
     private int _highCriticalCount;
     private int _warningCount;
     private int _parseErrorCount;
@@ -203,19 +204,52 @@ public sealed class FindingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Gets the total number of findings.</summary>
+    /// <summary>Gets the total number of findings (scan results plus live-streamed findings).</summary>
     public int FindingsCount
     {
         get => _findingsCount;
-        private set => SetField(ref _findingsCount, value);
+        private set
+        {
+            if (SetField(ref _findingsCount, value))
+            {
+                OnPropertyChanged(nameof(FindingsSubtitle));
+            }
+        }
     }
+
+    /// <summary>Gets the number of findings merged in from the live stream (not part of the current scan).</summary>
+    public int LiveFindingsCount
+    {
+        get => _liveFindingsCount;
+        private set
+        {
+            if (SetField(ref _liveFindingsCount, value))
+            {
+                OnPropertyChanged(nameof(FindingsSubtitle));
+            }
+        }
+    }
+
+    /// <summary>Gets the subtitle for the Findings KPI card, separating scan vs. live counts.</summary>
+    public string FindingsSubtitle => LiveFindingsCount > 0
+        ? $"{FindingsCount - LiveFindingsCount} scan + {LiveFindingsCount} live"
+        : "current scan";
 
     /// <summary>Gets the count of High and Critical severity findings.</summary>
     public int HighCriticalCount
     {
         get => _highCriticalCount;
-        private set => SetField(ref _highCriticalCount, value);
+        private set
+        {
+            if (SetField(ref _highCriticalCount, value))
+            {
+                OnPropertyChanged(nameof(HighCriticalSubtitle));
+            }
+        }
     }
+
+    /// <summary>Gets the subtitle for the High / Critical KPI card.</summary>
+    public string HighCriticalSubtitle => HighCriticalCount > 0 ? "requires attention" : "none";
 
     /// <summary>Gets the number of warnings.</summary>
     public int WarningCount
@@ -226,9 +260,13 @@ public sealed class FindingsViewModel : ViewModelBase
             if (SetField(ref _warningCount, value))
             {
                 HasWarnings = value > 0;
+                OnPropertyChanged(nameof(WarningSubtitle));
             }
         }
     }
+
+    /// <summary>Gets the subtitle for the Warnings KPI card.</summary>
+    public string WarningSubtitle => WarningCount > 0 ? "current scan" : "none";
 
     /// <summary>Gets the number of parse errors.</summary>
     public int ParseErrorCount
@@ -239,16 +277,29 @@ public sealed class FindingsViewModel : ViewModelBase
             if (SetField(ref _parseErrorCount, value))
             {
                 HasParseErrors = value > 0;
+                OnPropertyChanged(nameof(ParseErrorSubtitle));
             }
         }
     }
+
+    /// <summary>Gets the subtitle for the Parse Errors KPI card.</summary>
+    public string ParseErrorSubtitle => ParseErrorCount > 0 ? "check log format" : "none";
 
     /// <summary>Gets the number of lines silently skipped during parsing.</summary>
     public int SkippedLineCount
     {
         get => _skippedLineCount;
-        private set => SetField(ref _skippedLineCount, value);
+        private set
+        {
+            if (SetField(ref _skippedLineCount, value))
+            {
+                OnPropertyChanged(nameof(SkippedLineSubtitle));
+            }
+        }
     }
+
+    /// <summary>Gets the subtitle for the Skipped Lines KPI card.</summary>
+    public string SkippedLineSubtitle => SkippedLineCount > 0 ? "unmatched lines" : "none";
 
     /// <summary>Gets whether there are any warnings.</summary>
     public bool HasWarnings
@@ -394,6 +445,7 @@ public sealed class FindingsViewModel : ViewModelBase
 
         // Update statistics
         HasLoadedResults = true;
+        LiveFindingsCount = 0;
         FindingsCount = result.Findings.Count;
         HighCriticalCount = result.Findings.Count(f => f.Severity >= Severity.High);
         WarningCount = result.Warnings.Count;
@@ -417,6 +469,7 @@ public sealed class FindingsViewModel : ViewModelBase
         HasLoadedResults = true;
         Items.Add(item);
         FindingsCount++;
+        LiveFindingsCount++;
         if (finding.Severity >= Severity.High)
         {
             HighCriticalCount++;
@@ -439,6 +492,7 @@ public sealed class FindingsViewModel : ViewModelBase
         ParseErrors.Clear();
         Warnings.Clear();
         FindingsCount = 0;
+        LiveFindingsCount = 0;
         HighCriticalCount = 0;
         WarningCount = 0;
         ParseErrorCount = 0;
