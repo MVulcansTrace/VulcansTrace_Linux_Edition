@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.SuppressionView"
              x:DataType="vm:SuppressionViewModel">
 
@@ -34,10 +35,18 @@
                        Foreground="{StaticResource VtTextMutedBrush}"/>
         </StackPanel>
 
+        <!-- Empty state -->
+        <controls:EmptyStateView Grid.Row="1"
+                                 Icon="mdi-shield-off-outline"
+                                 Headline="No suppressions to review"
+                                 Description="Accepted risks appear here when they need review — expiring soon, expired, or stale. Suppress a finding from the Findings tab to add one."
+                                 IsVisible="{Binding !HasReviewItems}"/>
+
         <DataGrid Grid.Row="1"
                   ItemsSource="{Binding ReviewQueueItems}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
+                  IsVisible="{Binding HasReviewItems}"
 
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="SuppressionsDataGrid"

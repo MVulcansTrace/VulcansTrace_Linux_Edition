@@ -95,6 +95,9 @@ public sealed class SuppressionViewModel : ViewModelBase
     /// <summary>Gets the count of items currently shown in the review queue.</summary>
     public int ReviewQueueCount => ReviewQueueItems.Count;
 
+    /// <summary>Gets a value indicating whether the review queue has any items.</summary>
+    public bool HasReviewItems => ReviewQueueItems.Count > 0;
+
     /// <summary>Gets or sets a status message about the last suppression action.</summary>
     public string StatusMessage
     {
@@ -297,6 +300,7 @@ public sealed class SuppressionViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(ReviewQueueCount));
+        OnPropertyChanged(nameof(HasReviewItems));
     }
 
     private static bool TryCategorize(SuppressionEntry entry, DateTime now, out ReviewItem item)

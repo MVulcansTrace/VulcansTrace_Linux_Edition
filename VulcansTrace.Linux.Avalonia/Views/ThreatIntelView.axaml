@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.ThreatIntelView"
              x:DataType="vm:ThreatIntelViewModel">
 
@@ -76,12 +77,20 @@
                    Margin="0,0,0,8"
                    AutomationProperties.AutomationId="ThreatIntelStatusTextBlock"/>
 
+        <!-- Empty state -->
+        <controls:EmptyStateView Grid.Row="3"
+                                 Icon="mdi-database-search-outline"
+                                 Headline="No threat intel IOCs"
+                                 Description="Import a STIX 2.1 or MISP JSON bundle with the Import button above, or adjust the type and search filters."
+                                 IsVisible="{Binding !HasFilteredEntries}"/>
+
         <!-- IOC grid -->
         <DataGrid Grid.Row="3"
                   ItemsSource="{Binding FilteredEntries}"
                   SelectedItem="{Binding SelectedIoc, Mode=TwoWay}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
+                  IsVisible="{Binding HasFilteredEntries}"
 
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="ThreatIntelDataGrid"

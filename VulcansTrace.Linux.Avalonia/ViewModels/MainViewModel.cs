@@ -481,6 +481,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline.EmptyStateActionCommand = AnalyzeCommand;
         IncidentStory.EmptyStateActionCommand = AnalyzeCommand;
         RiskScorecard.EmptyStateActionCommand = AnalyzeCommand;
+        RuleCoverage.EmptyStateActionCommand = AnalyzeCommand;
         ComplianceScorecard.EmptyStateActionCommand = Agent.FullAuditCommand;
         ComplianceScorecard.EmptyStateActionText = "Run full audit";
 

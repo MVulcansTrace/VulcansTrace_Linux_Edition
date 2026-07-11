@@ -120,6 +120,9 @@ public sealed class ThreatIntelViewModel : ViewModelBase
     /// <summary>Gets the number of IOCs shown after filtering.</summary>
     public int FilteredCount => FilteredEntries.Count;
 
+    /// <summary>Gets a value indicating whether any IOCs are shown after filtering.</summary>
+    public bool HasFilteredEntries => FilteredEntries.Count > 0;
+
     /// <summary>Gets a value indicating whether there are no stored IOCs.</summary>
     public bool IsEmpty => TotalCount == 0;
 
@@ -217,6 +220,7 @@ public sealed class ThreatIntelViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(FilteredCount));
+        OnPropertyChanged(nameof(HasFilteredEntries));
     }
 
     private async Task RemoveSelectedAsync()

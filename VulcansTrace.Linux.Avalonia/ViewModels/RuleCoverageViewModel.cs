@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
 
@@ -70,6 +71,12 @@ public sealed class RuleCoverageViewModel : ViewModelBase
         get => _hasData;
         private set => SetField(ref _hasData, value);
     }
+
+    /// <summary>Gets or sets the command invoked by the empty-state action button.</summary>
+    public ICommand? EmptyStateActionCommand { get; set; }
+
+    /// <summary>Gets or sets the label of the empty-state action button.</summary>
+    public string EmptyStateActionText { get; set; } = "Analyze";
 
     /// <summary>
     /// Loads coverage data from an agent audit result.
