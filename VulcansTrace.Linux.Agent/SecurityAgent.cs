@@ -50,6 +50,7 @@ public sealed class SecurityAgent : IAgent
     private readonly CrossScannerValidator _crossScannerValidator;
     private readonly EvidenceProvenanceService _evidenceProvenanceService;
     private readonly DiagnosticDialogueService _diagnosticDialogueService;
+    private readonly IHostIdentity _hostIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SecurityAgent"/> class.
@@ -86,13 +87,15 @@ public sealed class SecurityAgent : IAgent
         ISessionStore? sessionStore = null,
         IAgentSuggestionProvider? suggestionProvider = null,
         IAgentMemoryStore? memoryStore = null,
-        DiagnosticDialogueService? diagnosticDialogueService = null)
+        DiagnosticDialogueService? diagnosticDialogueService = null,
+        IHostIdentity? hostIdentity = null)
     {
+        _hostIdentity = hostIdentity ?? new MachineHostIdentity();
         _scannerCoordinator = new ScannerCoordinator(scanners);
         _ruleEvaluationService = new RuleEvaluationService(rules, machineRole, policyProvider);
         _resultComposer = new AgentResultComposer();
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
-        _findingAssemblyService = new FindingAssemblyService(_explanationProvider, suppressionStore);
+        _findingAssemblyService = new FindingAssemblyService(_explanationProvider, suppressionStore, _hostIdentity);
         _logAnalysisService = new AgentLogAnalysisService(sentryAnalyzer, profileProvider);
         _auditState = new AgentAuditState();
         _resultFinalizer = new AgentResultFinalizer(_auditState, historyStore, scorecardBuilder, riskScorecardBuilder);
@@ -106,7 +109,8 @@ public sealed class SecurityAgent : IAgent
         _baselineDriftService = new BaselineDriftService(
             _auditState,
             baselineStore,
-            RunAuditAsync);
+            RunAuditAsync,
+            _hostIdentity);
         _findingExplanationService = new FindingExplanationService(
             _auditState,
             _ruleEvaluationService,
@@ -123,7 +127,8 @@ public sealed class SecurityAgent : IAgent
             historyStore,
             suppressionStore,
             _guidedRemediationService,
-            RunAuditAsync);
+            RunAuditAsync,
+            _hostIdentity);
         _suppressionStore = suppressionStore;
         _historyStore = historyStore;
         _dialogueManager = new DialogueManager();
@@ -1386,7 +1391,7 @@ public sealed class SecurityAgent : IAgent
         };
     }
 
-    private static Finding RehydrateFinding(AuditSnapshotFinding snapshot)
+    private Finding RehydrateFinding(AuditSnapshotFinding snapshot)
     {
         return new Finding
         {
@@ -1395,7 +1400,9 @@ public sealed class SecurityAgent : IAgent
             Severity = ParseSeverityString(snapshot.Severity),
             Confidence = ParseConfidenceString(snapshot.Confidence),
             EvidenceSignals = snapshot.EvidenceSignals,
-            SourceHost = "localhost",
+            SourceHost = string.IsNullOrWhiteSpace(snapshot.SourceHost)
+                ? _hostIdentity.SourceHost
+                : snapshot.SourceHost,
             Target = string.IsNullOrWhiteSpace(snapshot.Target) ? "unknown" : snapshot.Target,
             ShortDescription = string.IsNullOrWhiteSpace(snapshot.ShortDescription)
                 ? $"Finding {snapshot.RuleId}"

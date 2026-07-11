@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
@@ -9,11 +10,16 @@ internal sealed class FindingAssemblyService
 {
     private readonly IExplanationProvider _explanationProvider;
     private readonly ISuppressionStore? _suppressionStore;
+    private readonly IHostIdentity _hostIdentity;
 
-    public FindingAssemblyService(IExplanationProvider explanationProvider, ISuppressionStore? suppressionStore)
+    public FindingAssemblyService(
+        IExplanationProvider explanationProvider,
+        ISuppressionStore? suppressionStore,
+        IHostIdentity? hostIdentity = null)
     {
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
         _suppressionStore = suppressionStore;
+        _hostIdentity = hostIdentity ?? new MachineHostIdentity();
     }
 
     public FindingAssemblyResult Assemble(IReadOnlyList<RuleResult> ruleResults, bool applySuppressions = true)
@@ -89,7 +95,7 @@ internal sealed class FindingAssemblyService
             Category = result.Category,
             Severity = result.Severity,
             Confidence = FindingConfidenceCalculator.Calculate(signals),
-            SourceHost = "localhost",
+            SourceHost = _hostIdentity.SourceHost,
             Target = result.Target,
             ShortDescription = result.Description,
             Details = explanation,

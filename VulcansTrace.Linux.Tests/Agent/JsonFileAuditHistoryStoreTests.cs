@@ -45,6 +45,18 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Append_RoundTripsFindingSourceHost()
+    {
+        var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        store.Append(CreateEntry("snap-host", sourceHost: "web-prod-01"));
+        store.Dispose();
+
+        var reloaded = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        var finding = Assert.Single(Assert.Single(reloaded.GetAll()).SnapshotFindings);
+        Assert.Equal("web-prod-01", finding.SourceHost);
+    }
+
+    [Fact]
     public void Append_Prunes_To_MaxEntries()
     {
         var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 3);
@@ -310,7 +322,7 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
         Assert.NotNull(store.PersistenceWarning);
     }
 
-    private static AuditHistoryEntry CreateEntry(string snapshotId, bool exported = false, DateTime? timestampUtc = null)
+    private static AuditHistoryEntry CreateEntry(string snapshotId, bool exported = false, DateTime? timestampUtc = null, string? sourceHost = null)
     {
         return new AuditHistoryEntry
         {
@@ -335,7 +347,8 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
                     RuleId = "FW-001",
                     Target = "22/tcp",
                     Severity = "High",
-                    ShortDescription = "SSH exposed"
+                    ShortDescription = "SSH exposed",
+                    SourceHost = sourceHost ?? string.Empty
                 }
             }
         };

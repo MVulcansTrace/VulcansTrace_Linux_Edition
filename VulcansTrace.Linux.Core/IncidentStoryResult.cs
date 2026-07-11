@@ -1,6 +1,18 @@
 namespace VulcansTrace.Linux.Core;
 
 /// <summary>
+/// Classifies a story beat by the kind of finding it narrates.
+/// </summary>
+public enum StoryBeatKind
+{
+    /// <summary>The beat narrates an event observed in logs (real event time).</summary>
+    Event,
+
+    /// <summary>The beat narrates a point-in-time configuration snapshot from an agent rule (scan time).</summary>
+    Snapshot
+}
+
+/// <summary>
 /// Represents a single beat in an incident attack narrative.
 /// </summary>
 public sealed record StoryBeat
@@ -20,11 +32,11 @@ public sealed record StoryBeat
     /// <summary>The finding category (e.g., Beaconing, LateralMovement).</summary>
     public required string Category { get; init; }
 
-    /// <summary>The source host involved.</summary>
-    public required string SourceHost { get; init; }
-
     /// <summary>The finding severity.</summary>
     public required Severity Severity { get; init; }
+
+    /// <summary>Whether this beat narrates a log event or an agent-rule configuration snapshot.</summary>
+    public StoryBeatKind Kind { get; init; } = StoryBeatKind.Event;
 }
 
 /// <summary>

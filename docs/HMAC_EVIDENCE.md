@@ -35,7 +35,7 @@ Verification fails if the manifest HMAC does not match, if any manifest-listed f
 
 When findings are present, the evidence bundle also includes:
 
-- `incident-story.md` — flowing attack narrative with time-ordered beats, likely chain summary, and recommended responses (matches the Incident Story tab)
+- `incident-story.md` — flowing attack narrative: likely chain summary and recommended responses first, then a System Posture section (configuration snapshots from agent rules) and a time-ordered timeline of log events (matches the Incident Story tab)
 
 When correlated edges are detected, the evidence bundle also includes:
 

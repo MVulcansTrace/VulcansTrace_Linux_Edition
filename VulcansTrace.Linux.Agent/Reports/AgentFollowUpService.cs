@@ -1,4 +1,5 @@
 using System;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Rules;
@@ -14,6 +15,7 @@ internal sealed class AgentFollowUpService
     private readonly ISuppressionStore? _suppressionStore;
     private readonly GuidedRemediationService _remediationService;
     private readonly Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> _runAudit;
+    private readonly IHostIdentity _hostIdentity;
 
     public AgentFollowUpService(
         AgentAuditState auditState,
@@ -21,7 +23,8 @@ internal sealed class AgentFollowUpService
         IAuditHistoryStore? historyStore,
         ISuppressionStore? suppressionStore,
         GuidedRemediationService remediationService,
-        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit,
+        IHostIdentity? hostIdentity = null)
     {
         _auditState = auditState ?? throw new ArgumentNullException(nameof(auditState));
         _explanationProvider = explanationProvider ?? throw new ArgumentNullException(nameof(explanationProvider));
@@ -29,6 +32,7 @@ internal sealed class AgentFollowUpService
         _suppressionStore = suppressionStore;
         _remediationService = remediationService ?? throw new ArgumentNullException(nameof(remediationService));
         _runAudit = runAudit ?? throw new ArgumentNullException(nameof(runAudit));
+        _hostIdentity = hostIdentity ?? new MachineHostIdentity();
     }
 
     public Task<AgentResult> HandleFollowUpAsync(AgentQuery agentQuery, CancellationToken ct) =>
@@ -140,7 +144,7 @@ internal sealed class AgentFollowUpService
                 Severity = ParseSeverityString(df.Severity),
                 Confidence = ParseConfidenceString(df.Confidence),
                 EvidenceSignals = df.EvidenceSignals,
-                SourceHost = "localhost",
+                SourceHost = _hostIdentity.SourceHost,
                 Target = df.Target,
                 ShortDescription = df.ShortDescription,
                 Details = $"This finding is new or worsened since the last audit.",

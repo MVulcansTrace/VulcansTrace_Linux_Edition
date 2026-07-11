@@ -68,6 +68,7 @@ internal sealed class AgentResultFinalizer
         {
             RuleId = f.RuleId ?? "",
             Target = f.Target,
+            SourceHost = f.SourceHost,
             Severity = f.Severity.ToString(),
             Confidence = f.Confidence.ToString(),
             EvidenceSignals = f.EvidenceSignals,

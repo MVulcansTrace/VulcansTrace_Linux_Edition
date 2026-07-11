@@ -373,6 +373,7 @@ public static class AgentFactory
 
         var scorecardBuilder = new ComplianceScorecardBuilder();
         var riskScorecardBuilder = new RiskScorecardBuilder();
+        var hostIdentity = new MachineHostIdentity();
 
         var agent = new SecurityAgent(
             scanners,
@@ -388,7 +389,8 @@ public static class AgentFactory
             scorecardBuilder,
             riskScorecardBuilder,
             sessionStore,
-            memoryStore: memoryStore);
+            memoryStore: memoryStore,
+            hostIdentity: hostIdentity);
 
         var ruleCatalog = new RuleCatalog(rules);
 

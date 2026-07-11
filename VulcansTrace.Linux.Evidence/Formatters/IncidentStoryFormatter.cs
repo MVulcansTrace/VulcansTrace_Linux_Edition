@@ -30,8 +30,10 @@ public sealed class IncidentStoryFormatter
         }
 
         var findingById = findings.DistinctBy(f => f.Id).ToDictionary(f => f.Id);
+        // Only log-event findings carry real clock times; agent rule findings are scan-time
+        // snapshots and must not influence the date-format decision for event labels.
         var useDateInTimestamp = findings
-            .Where(HasTimestamp)
+            .Where(f => HasTimestamp(f) && string.IsNullOrEmpty(f.RuleId))
             .Select(f => f.TimeRangeStart.Date)
             .Distinct()
             .Take(2)
@@ -45,22 +47,62 @@ public sealed class IncidentStoryFormatter
             .Select(item => item.Finding)
             .ToList();
 
-        var beats = new List<StoryBeat>();
+        // Build one beat per finding, then collapse beats that share a timestamp label
+        // and category (e.g. three Service findings from the same scan minute) into a
+        // single beat with a finding count, so the story does not repeat identical lines.
+        var accumulators = new List<BeatAccumulator>();
+        var indexByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var f in orderedFindings)
         {
             var verb = VerbForCategory(f.Category);
             var narrativeName = NarrativeNameForCategory(f.Category);
-            beats.Add(new StoryBeat
+
+            // Agent rule findings (RuleId set) are point-in-time config snapshots: their timestamp
+            // is the scan time, not an event time, so rendering [HH:mm] would imply something
+            // happened at that moment. The per-category collapse then groups all snapshots of a
+            // category under one beat.
+            // Assumption: "RuleId set" == "configuration snapshot". This holds for rule and
+            // log-detector findings today (no engine detector sets RuleId), but synthesized
+            // findings that DO carry a RuleId — e.g. remediation countermeasures or proactive
+            // alerts — are events and would be misclassified if they ever flow into a trace map.
+            var isSnapshot = !string.IsNullOrEmpty(f.RuleId);
+            var timestampLabel = isSnapshot ? SnapshotTimestampLabel : FormatTimestampLabel(f.TimeRangeStart, useDateInTimestamp);
+            var key = $"{timestampLabel}|{f.Category}";
+
+            if (indexByKey.TryGetValue(key, out var existingIndex))
             {
-                Timestamp = f.TimeRangeStart,
-                HasTimestamp = HasTimestamp(f),
-                TimestampLabel = FormatTimestampLabel(f.TimeRangeStart, useDateInTimestamp),
-                Narrative = $"{narrativeName} {verb}.",
-                Category = f.Category,
-                SourceHost = f.SourceHost,
-                Severity = f.Severity
+                var existing = accumulators[existingIndex];
+                existing.Count++;
+                if (f.Severity > existing.Beat.Severity)
+                {
+                    existing.Beat = existing.Beat with { Severity = f.Severity };
+                }
+                continue;
+            }
+
+            indexByKey[key] = accumulators.Count;
+            accumulators.Add(new BeatAccumulator
+            {
+                Beat = new StoryBeat
+                {
+                    Timestamp = f.TimeRangeStart,
+                    HasTimestamp = HasTimestamp(f),
+                    TimestampLabel = timestampLabel,
+                    Narrative = string.Empty, // set below, once the group count is known
+                    Category = f.Category,
+                    Severity = f.Severity,
+                    Kind = isSnapshot ? StoryBeatKind.Snapshot : StoryBeatKind.Event
+                },
+                Sentence = $"{narrativeName} {verb}"
             });
         }
+
+        var beats = accumulators
+            .Select(a => a.Beat with
+            {
+                Narrative = a.Count > 1 ? $"{a.Sentence} ({a.Count} findings)." : $"{a.Sentence}."
+            })
+            .ToList();
 
         string likelyChain;
         bool hasCriticalChain = false;
@@ -69,14 +111,14 @@ public sealed class IncidentStoryFormatter
             hasCriticalChain = true;
             var chainSummaries = BuildCriticalChainSummaries(traceMap.CriticalChains, findingById);
             likelyChain = chainSummaries.Count == 1
-                ? $"Likely chain: {chainSummaries[0]}."
-                : $"Likely chains:{Environment.NewLine}- {string.Join($"{Environment.NewLine}- ", chainSummaries)}";
+                ? $"{chainSummaries[0]}."
+                : $"- {string.Join($"{Environment.NewLine}- ", chainSummaries)}";
         }
         else if (edges.Count > 0)
         {
             var chainCategories = LongestDirectedPathCategories(edges, findingById);
             likelyChain = chainCategories.Count > 1
-                ? $"Likely chain: {string.Join(" → ", chainCategories)}."
+                ? $"{string.Join(" → ", chainCategories)}."
                 : "Correlated activity detected, but no full chain established.";
         }
         else
@@ -101,6 +143,13 @@ public sealed class IncidentStoryFormatter
     }
 
     private static bool HasTimestamp(Finding finding) => finding.TimeRangeStart != DateTime.MinValue;
+
+    /// <summary>
+    /// Label assigned to snapshot (agent rule) beats. Not rendered by either consumer (markdown
+    /// and the Avalonia view show snapshot beats narrative-only under "System Posture"); it
+    /// serves as the per-category collapse key and a neutral value for any future consumer.
+    /// </summary>
+    private const string SnapshotTimestampLabel = "scan";
 
     private static string FormatTimestampLabel(DateTime timestamp, bool useDateInTimestamp)
     {
@@ -130,8 +179,8 @@ public sealed class IncidentStoryFormatter
             FindingCategories.InterfaceHopping => "was detected",
             FindingCategories.UnusualPacketSize => "packets were observed",
             FindingCategories.KernelModule => "module load was detected",
-            FindingCategories.UserAccount => "account anomalies were observed",
-            FindingCategories.FilesystemAudit => "filesystem anomalies were detected",
+            FindingCategories.UserAccount => "anomalies were observed",
+            FindingCategories.FilesystemAudit => "anomalies were detected",
             FindingCategories.CronJob => "suspicious job activity was detected",
             FindingCategories.PackageVulnerability => "vulnerable packages were found",
             FindingCategories.Container => "container anomalies were detected",
@@ -167,8 +216,26 @@ public sealed class IncidentStoryFormatter
             FindingCategories.ThreatIntel => "threat intel",
             FindingCategories.Yara => "YARA",
             FindingCategories.ProcessRuntime => "process runtime",
-            _ => DisplayNameForCategory(category)
+            _ => NarrativeCase(CategoryDisplay.ToDisplayName(category))
         };
+
+    /// <summary>
+    /// Converts a display label into a sentence subject without damaging leading acronyms.
+    /// For example, "Bootloader" becomes "bootloader", while "MAC" and "SSH Service"
+    /// retain their acronym casing.
+    /// </summary>
+    private static string NarrativeCase(string displayName)
+    {
+        if (string.IsNullOrEmpty(displayName) ||
+            displayName.Length < 2 ||
+            !char.IsUpper(displayName[0]) ||
+            !char.IsLower(displayName[1]))
+        {
+            return displayName;
+        }
+
+        return char.ToLowerInvariant(displayName[0]) + displayName[1..];
+    }
 
     private static string DisplayNameForCategory(string category) =>
         category switch
@@ -195,7 +262,7 @@ public sealed class IncidentStoryFormatter
             FindingCategories.ThreatIntel => "Threat Intel",
             FindingCategories.Yara => "YARA",
             FindingCategories.ProcessRuntime => "Process Runtime",
-            _ => category
+            _ => CategoryDisplay.ToDisplayName(category)
         };
 
     private static List<string> BuildCriticalChainSummaries(IReadOnlyList<CriticalChain> criticalChains, IReadOnlyDictionary<Guid, Finding> findingById)
@@ -417,11 +484,9 @@ public sealed class IncidentStoryFormatter
             sb.AppendLine();
         }
 
-        foreach (var beat in beats)
-        {
-            sb.AppendLine($"- **{beat.TimestampLabel}** — {beat.Narrative}");
-        }
-
+        // Chain summary and recommendations come first so they stay above the fold;
+        // the (potentially long) timeline follows.
+        sb.AppendLine("## Likely Chain");
         sb.AppendLine();
         sb.AppendLine(likelyChain);
         sb.AppendLine();
@@ -437,6 +502,50 @@ public sealed class IncidentStoryFormatter
             sb.AppendLine();
         }
 
+        var snapshotBeats = beats.Where(b => b.Kind == StoryBeatKind.Snapshot).ToList();
+        var eventBeats = beats.Where(b => b.Kind == StoryBeatKind.Event).ToList();
+
+        // Configuration snapshots are point-in-time (scan time, not events); surface them as a
+        // distinct "System Posture" section above the chronological event timeline. Each section
+        // is emitted only when it has beats.
+        if (snapshotBeats.Count > 0)
+        {
+            sb.AppendLine("## System Posture");
+            sb.AppendLine();
+            sb.AppendLine("Configuration findings from the latest audit (point-in-time, not events).");
+            sb.AppendLine();
+            foreach (var beat in snapshotBeats)
+            {
+                sb.AppendLine($"- {beat.Narrative}");
+            }
+            sb.AppendLine();
+        }
+
+        if (eventBeats.Count > 0)
+        {
+            sb.AppendLine("## Timeline");
+            sb.AppendLine();
+            foreach (var beat in eventBeats)
+            {
+                sb.AppendLine($"- **{beat.TimestampLabel}** — {beat.Narrative}");
+            }
+            sb.AppendLine();
+        }
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Mutable accumulation state for collapsing same-timestamp, same-category beats
+    /// into a single beat with a finding count.
+    /// </summary>
+    private sealed class BeatAccumulator
+    {
+        public required StoryBeat Beat { get; set; }
+
+        /// <summary>The narrative sentence without the trailing period or count suffix.</summary>
+        public required string Sentence { get; init; }
+
+        public int Count { get; set; } = 1;
     }
 }

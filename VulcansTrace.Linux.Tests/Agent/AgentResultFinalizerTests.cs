@@ -195,6 +195,48 @@ public class AgentResultFinalizerTests
         Assert.Equal(AgentIntent.FullAudit, auditState.LastAuditIntent);
     }
 
+    [Fact]
+    public void FinalizeAudit_PersistsFindingSourceHostOnSnapshot()
+    {
+        var auditState = new AgentAuditState();
+        var historyStore = new InMemoryAuditHistoryStore();
+        var finalizer = new AgentResultFinalizer(
+            auditState,
+            historyStore,
+            new TestComplianceScorecardBuilder(new ComplianceScorecard()),
+            new TestRiskScorecardBuilder(new RiskScorecard()));
+        var finding = new Finding
+        {
+            RuleId = "TEST-001",
+            Category = "Test",
+            Severity = Severity.High,
+            SourceHost = "web-prod-01",
+            Target = "22/tcp",
+            ShortDescription = "SSH exposed",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow
+        };
+
+        finalizer.FinalizeAudit(new AgentResultFinalizationRequest(
+            AgentIntent.FullAudit,
+            new[] { finding },
+            LogAnalysisResult: null,
+            Array.Empty<string>(),
+            "summary",
+            Array.Empty<RuleResult>(),
+            PassedCount: 0,
+            FailedCount: 1,
+            SuppressedCount: 0,
+            CrashedCount: 0,
+            "",
+            Array.Empty<DataSourceCapability>(),
+            Array.Empty<AttackChain>(),
+            new[] { ("TEST-001", finding) }));
+
+        var snapshot = Assert.Single(Assert.Single(historyStore.GetAll()).SnapshotFindings);
+        Assert.Equal("web-prod-01", snapshot.SourceHost);
+    }
+
     private static Finding CreateFinding()
     {
         var now = DateTime.UtcNow;

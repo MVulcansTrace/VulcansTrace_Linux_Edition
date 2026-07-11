@@ -280,8 +280,7 @@ public class IncidentStoryFormatterTests
 
         var result = _formatter.Format(traceMap);
 
-        Assert.Contains("Likely chains:", result.LikelyChain);
-        Assert.Contains("host-a: C2 → Lateral Movement → Privilege Escalation", result.LikelyChain);
+        Assert.StartsWith("- host-a: C2 → Lateral Movement → Privilege Escalation", result.LikelyChain);
         Assert.Contains("host-b: C2 → Lateral Movement → Privilege Escalation", result.LikelyChain);
         Assert.Contains("- host-a: C2 → Lateral Movement → Privilege Escalation", result.Markdown);
         Assert.Contains("- host-b: C2 → Lateral Movement → Privilege Escalation", result.Markdown);
@@ -303,8 +302,8 @@ public class IncidentStoryFormatterTests
 
         var result = _formatter.Format(traceMap);
 
-        Assert.Contains(result.Beats, b => b.Narrative == "SuspiciousX was detected.");
-        Assert.Contains("SuspiciousX → FollowOnY", result.LikelyChain);
+        Assert.Contains(result.Beats, b => b.Narrative == "suspicious X was detected.");
+        Assert.Contains("Suspicious X → Follow On Y", result.LikelyChain);
         Assert.DoesNotContain("suspiciousx", result.Markdown);
     }
 
@@ -327,7 +326,7 @@ public class IncidentStoryFormatterTests
 
         var result = _formatter.Format(traceMap);
 
-        Assert.Equal("Likely chain: C2 → Lateral Movement.", result.LikelyChain);
+        Assert.Equal("C2 → Lateral Movement.", result.LikelyChain);
         Assert.DoesNotContain("Port Scan", result.LikelyChain);
         Assert.DoesNotContain("Flood", result.LikelyChain);
     }
@@ -346,8 +345,8 @@ public class IncidentStoryFormatterTests
     [InlineData(FindingCategories.InterfaceHopping, "was detected")]
     [InlineData(FindingCategories.UnusualPacketSize, "packets were observed")]
     [InlineData(FindingCategories.KernelModule, "module load was detected")]
-    [InlineData(FindingCategories.UserAccount, "account anomalies were observed")]
-    [InlineData(FindingCategories.FilesystemAudit, "filesystem anomalies were detected")]
+    [InlineData(FindingCategories.UserAccount, "anomalies were observed")]
+    [InlineData(FindingCategories.FilesystemAudit, "anomalies were detected")]
     [InlineData(FindingCategories.CronJob, "suspicious job activity was detected")]
     [InlineData(FindingCategories.PackageVulnerability, "vulnerable packages were found")]
     [InlineData(FindingCategories.Container, "container anomalies were detected")]
@@ -511,6 +510,176 @@ public class IncidentStoryFormatterTests
         var result = _formatter.Format(traceMap);
 
         Assert.Contains(result.Recommendations, r => r.Contains("Inspect account changes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Format_SameCategoryAndTimestamp_CollapsesIntoSingleBeatWithCount()
+    {
+        var scanTime = new DateTime(2026, 7, 11, 20, 7, 0, DateTimeKind.Utc);
+        var serviceA = CreateFinding("Service", scanTime);
+        var serviceB = new Finding
+        {
+            Category = "Service",
+            SourceHost = "host",
+            Target = "target",
+            TimeRangeStart = scanTime,
+            TimeRangeEnd = scanTime.AddMinutes(1),
+            ShortDescription = "Service B",
+            Severity = Severity.High
+        };
+        var serviceC = CreateFinding("Service", scanTime);
+        // Interleave a different category to prove grouping is by key, not adjacency.
+        var kernel = CreateFinding("Kernel", scanTime);
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { serviceA, kernel, serviceB, serviceC },
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        Assert.Equal(2, result.Beats.Count);
+        var serviceBeat = Assert.Single(result.Beats, b => b.Category == "Service");
+        Assert.Equal("service was detected (3 findings).", serviceBeat.Narrative);
+        Assert.Equal(Severity.High, serviceBeat.Severity);
+        Assert.Equal(1, result.Markdown.Split("service was detected").Length - 1);
+    }
+
+    [Fact]
+    public void Format_SameCategoryDifferentTimestamps_KeepsSeparateBeats()
+    {
+        var first = CreateFinding("Service", DateTime.UnixEpoch);
+        var second = CreateFinding("Service", DateTime.UnixEpoch.AddMinutes(5));
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { first, second },
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        Assert.Equal(2, result.Beats.Count);
+        Assert.All(result.Beats, b => Assert.Equal("service was detected.", b.Narrative));
+    }
+
+    [Theory]
+    [InlineData("Mac", "MAC was detected.")]
+    [InlineData("Bootloader", "bootloader was detected.")]
+    [InlineData("SuspiciousX", "suspicious X was detected.")]
+    public void Format_UnknownCategory_UsesSentenceCasingWithoutDamagingAcronyms(
+        string category,
+        string expectedNarrative)
+    {
+        var finding = CreateFinding(category, DateTime.UnixEpoch);
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { finding },
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        Assert.Equal(expectedNarrative, result.Beats[0].Narrative);
+    }
+
+    [Fact]
+    public void Format_Markdown_PutsChainAndRecommendationsAboveTimeline()
+    {
+        var first = CreateFinding(FindingCategories.Beaconing, DateTime.UnixEpoch);
+        var second = CreateFinding(FindingCategories.LateralMovement, DateTime.UnixEpoch.AddMinutes(1));
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { first, second },
+            Edges = new[]
+            {
+                new CorrelationEdge(first.Id, second.Id, CorrelationType.EscalatesTo, "Edge", CorrelationConfidence.High)
+            }
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        var chainHeadingIndex = result.Markdown.IndexOf("## Likely Chain", StringComparison.Ordinal);
+        var chainIndex = result.Markdown.IndexOf("C2 → Lateral Movement", StringComparison.Ordinal);
+        var recommendationsIndex = result.Markdown.IndexOf("## Recommended Response", StringComparison.Ordinal);
+        var timelineIndex = result.Markdown.IndexOf("## Timeline", StringComparison.Ordinal);
+        Assert.True(chainHeadingIndex >= 0, "likely chain heading missing from markdown");
+        Assert.True(chainIndex > chainHeadingIndex, "chain body should follow its heading");
+        Assert.True(chainIndex >= 0, "chain summary missing from markdown");
+        Assert.True(recommendationsIndex > chainIndex, "recommendations should follow the chain summary");
+        Assert.True(timelineIndex > recommendationsIndex, "timeline should come after recommendations");
+    }
+
+    [Fact]
+    public void Format_RuleFinding_IsLabelledAsSnapshotNotEventTime()
+    {
+        var scanTime = new DateTime(2026, 7, 11, 20, 7, 0, DateTimeKind.Utc);
+        var finding = new Finding
+        {
+            Category = "Service",
+            RuleId = "SVC-001",
+            SourceHost = "host",
+            Target = "target",
+            TimeRangeStart = scanTime,
+            TimeRangeEnd = scanTime.AddMinutes(1),
+            ShortDescription = "Service",
+            Severity = Severity.High
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { finding },
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        var beat = Assert.Single(result.Beats);
+        Assert.Equal(StoryBeatKind.Snapshot, beat.Kind);
+        Assert.Equal("scan", beat.TimestampLabel);
+        // Snapshot beats render under System Posture (narrative only), not the event Timeline.
+        Assert.Contains("## System Posture", result.Markdown);
+        Assert.DoesNotContain("## Timeline", result.Markdown);
+        Assert.Contains("service was detected.", result.Markdown);
+        Assert.DoesNotContain("20:07", result.Markdown);
+    }
+
+    [Fact]
+    public void Format_MixedSnapshotAndEventFindings_RendersBothSections()
+    {
+        var eventTime = new DateTime(2026, 7, 11, 20, 7, 0, DateTimeKind.Utc);
+        var eventFinding = CreateFinding(FindingCategories.Beaconing, eventTime);
+        var snapshotFinding = new Finding
+        {
+            Category = "Service",
+            RuleId = "SVC-001",
+            SourceHost = "host",
+            Target = "target",
+            TimeRangeStart = eventTime,
+            TimeRangeEnd = eventTime.AddMinutes(1),
+            ShortDescription = "Service",
+            Severity = Severity.High
+        };
+        var traceMap = new TraceMapResult
+        {
+            Findings = new[] { eventFinding, snapshotFinding },
+            Edges = Array.Empty<CorrelationEdge>()
+        };
+
+        var result = _formatter.Format(traceMap);
+
+        Assert.Equal(2, result.Beats.Count);
+        var snapshotBeat = Assert.Single(result.Beats, b => b.Kind == StoryBeatKind.Snapshot);
+        var eventBeat = Assert.Single(result.Beats, b => b.Kind == StoryBeatKind.Event);
+        Assert.Equal("Service", snapshotBeat.Category);
+        Assert.Equal(FindingCategories.Beaconing, eventBeat.Category);
+
+        // Both sections present, System Posture above Timeline.
+        var postureIndex = result.Markdown.IndexOf("## System Posture", StringComparison.Ordinal);
+        var timelineIndex = result.Markdown.IndexOf("## Timeline", StringComparison.Ordinal);
+        Assert.True(postureIndex >= 0, "System Posture section missing");
+        Assert.True(timelineIndex >= 0, "Timeline section missing");
+        Assert.True(postureIndex < timelineIndex, "System Posture should precede Timeline");
+        Assert.Contains("service was detected.", result.Markdown);
+        Assert.Contains("20:07", result.Markdown);
     }
 
     private static Finding CreateFinding(string category, DateTime timeRangeStart, string sourceHost = "host")

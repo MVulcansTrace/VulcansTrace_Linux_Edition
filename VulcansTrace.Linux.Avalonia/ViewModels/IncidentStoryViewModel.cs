@@ -28,8 +28,27 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     private string _copyStatus = string.Empty;
     private bool _hasLoadedTraceMap;
 
-    /// <summary>Gets the ordered beats that make up the attack timeline.</summary>
-    public ObservableCollection<StoryBeat> Beats { get; } = new();
+    /// <summary>Gets the configuration-snapshot beats from the latest audit (System Posture section).</summary>
+    public ObservableCollection<StoryBeat> PostureBeats { get; } = new();
+
+    /// <summary>Gets the ordered beats that make up the attack timeline (log events).</summary>
+    public ObservableCollection<StoryBeat> TimelineBeats { get; } = new();
+
+    private bool _hasPostureFindings;
+    /// <summary>Gets whether any configuration-snapshot beats are present.</summary>
+    public bool HasPostureFindings
+    {
+        get => _hasPostureFindings;
+        private set => SetField(ref _hasPostureFindings, value);
+    }
+
+    private bool _hasTimelineFindings;
+    /// <summary>Gets whether any event beats are present.</summary>
+    public bool HasTimelineFindings
+    {
+        get => _hasTimelineFindings;
+        private set => SetField(ref _hasTimelineFindings, value);
+    }
 
     /// <summary>Gets the context-aware recommended responses.</summary>
     public ObservableCollection<string> Recommendations { get; } = new();
@@ -113,13 +132,16 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     public void LoadTraceMap(TraceMapResult? traceMap)
     {
         HasLoadedTraceMap = traceMap != null;
-        Beats.Clear();
+        PostureBeats.Clear();
+        TimelineBeats.Clear();
         Recommendations.Clear();
         CopyStatus = string.Empty;
 
         if (traceMap == null || traceMap.Findings.Count == 0)
         {
             HasStory = false;
+            HasPostureFindings = false;
+            HasTimelineFindings = false;
             LikelyChain = string.Empty;
             HasCriticalChain = false;
             Markdown = string.Empty;
@@ -131,7 +153,10 @@ public sealed class IncidentStoryViewModel : ViewModelBase
 
         foreach (var beat in story.Beats)
         {
-            Beats.Add(beat);
+            if (beat.Kind == StoryBeatKind.Snapshot)
+                PostureBeats.Add(beat);
+            else
+                TimelineBeats.Add(beat);
         }
 
         foreach (var rec in story.Recommendations)
@@ -139,6 +164,8 @@ public sealed class IncidentStoryViewModel : ViewModelBase
             Recommendations.Add(rec);
         }
 
+        HasPostureFindings = PostureBeats.Count > 0;
+        HasTimelineFindings = TimelineBeats.Count > 0;
         LikelyChain = story.LikelyChain;
         HasCriticalChain = story.HasCriticalChain;
         Markdown = story.Markdown;

@@ -63,43 +63,6 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Timeline beats -->
-                <Border Theme="{StaticResource VtCard}"
-                        Padding="12">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Timeline"
-                                   Foreground="{StaticResource VtTextPrimaryBrush}"
-                                   FontWeight="Bold"
-                                   FontSize="{StaticResource VtFontSizeXl}"
-                                   Margin="0,0,0,4"/>
-                        <ItemsControl ItemsSource="{Binding Beats}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Spacing="4"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="•"
-                                                   Foreground="{StaticResource VtPrimaryBrush}"
-                                                   FontSize="{StaticResource VtFontSizeSm}"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,1,0,0"/>
-                                        <TextBlock TextWrapping="Wrap">
-                                            <Run Text="[" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <Run Text="{Binding TimestampLabel}" Foreground="{StaticResource VtTextSecondaryBrush}" FontFamily="{StaticResource VtFontFamilyMono}"/>
-                                            <Run Text="]" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <Run Text=" " Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                                            <Run Text="{Binding Narrative}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-
                 <!-- Likely chain -->
                 <Border Theme="{StaticResource VtCard}"
                         Padding="12">
@@ -143,6 +106,84 @@
                                                    Foreground="{StaticResource VtTextSecondaryBrush}"
                                                    FontSize="{StaticResource VtFontSizeMd}"
                                                    TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- System posture (configuration snapshot findings) -->
+                <Border Theme="{StaticResource VtCard}"
+                        Padding="12"
+                        IsVisible="{Binding HasPostureFindings}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="System Posture"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                                   FontWeight="Bold"
+                                   FontSize="{StaticResource VtFontSizeXl}"
+                                   Margin="0,0,0,4"/>
+                        <TextBlock Text="Configuration findings from the latest audit (point-in-time, not events)."
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeSm}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,2"/>
+                        <ItemsControl ItemsSource="{Binding PostureBeats}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="•"
+                                                   Foreground="{StaticResource VtPrimaryBrush}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,1,0,0"/>
+                                        <TextBlock Text="{Binding Narrative}"
+                                                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                                                   FontSize="{StaticResource VtFontSizeMd}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Timeline beats (log events) -->
+                <Border Theme="{StaticResource VtCard}"
+                        Padding="12"
+                        IsVisible="{Binding HasTimelineFindings}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Timeline"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                                   FontWeight="Bold"
+                                   FontSize="{StaticResource VtFontSizeXl}"
+                                   Margin="0,0,0,4"/>
+                        <ItemsControl ItemsSource="{Binding TimelineBeats}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="•"
+                                                   Foreground="{StaticResource VtPrimaryBrush}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,1,0,0"/>
+                                        <TextBlock TextWrapping="Wrap">
+                                            <Run Text="[" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                                            <Run Text="{Binding TimestampLabel}" Foreground="{StaticResource VtTextSecondaryBrush}" FontFamily="{StaticResource VtFontFamilyMono}"/>
+                                            <Run Text="]" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                                            <Run Text=" " Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                            <Run Text="{Binding Narrative}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                        </TextBlock>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

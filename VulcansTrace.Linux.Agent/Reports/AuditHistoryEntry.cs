@@ -128,6 +128,9 @@ public sealed record AuditSnapshotFinding
 {
     public required string RuleId { get; init; }
     public required string Target { get; init; }
+    /// <summary>Host that produced the finding. Empty for legacy snapshots; reconstructed from the
+    /// current host identity on rehydrate when not present.</summary>
+    public string SourceHost { get; init; } = string.Empty;
     public required string Severity { get; init; }
     public string Confidence { get; init; } = DetectionConfidence.Unknown.ToString();
     public IReadOnlyList<EvidenceSignal> EvidenceSignals { get; init; } = Array.Empty<EvidenceSignal>();

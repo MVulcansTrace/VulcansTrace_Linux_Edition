@@ -1,4 +1,5 @@
 using System;
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
@@ -10,15 +11,18 @@ internal sealed class BaselineDriftService
     private readonly AgentAuditState _auditState;
     private readonly IBaselineStore? _baselineStore;
     private readonly Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> _runAudit;
+    private readonly IHostIdentity _hostIdentity;
 
     public BaselineDriftService(
         AgentAuditState auditState,
         IBaselineStore? baselineStore,
-        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit)
+        Func<AgentIntent, string?, IProgress<AgentAuditProgress>?, CancellationToken, Task<AgentResult>> runAudit,
+        IHostIdentity? hostIdentity = null)
     {
         _auditState = auditState ?? throw new ArgumentNullException(nameof(auditState));
         _baselineStore = baselineStore;
         _runAudit = runAudit ?? throw new ArgumentNullException(nameof(runAudit));
+        _hostIdentity = hostIdentity ?? new MachineHostIdentity();
     }
 
     public Task<AgentResult> SetBaselineAsync(AgentQuery agentQuery, CancellationToken ct)
@@ -154,7 +158,7 @@ internal sealed class BaselineDriftService
                 Severity = ParseSeverityString(sf.Severity),
                 Confidence = ParseConfidenceString(sf.Confidence),
                 EvidenceSignals = sf.EvidenceSignals,
-                SourceHost = "localhost",
+                SourceHost = _hostIdentity.SourceHost,
                 Target = sf.Target,
                 ShortDescription = sf.ShortDescription,
                 Details = $"Part of baseline '{baseline.Name}' created {baseline.CreatedUtc:yyyy-MM-dd HH:mm} UTC.",
@@ -259,7 +263,7 @@ internal sealed class BaselineDriftService
                     Severity = ParseSeverityString(df.Severity),
                     Confidence = ParseConfidenceString(df.Confidence),
                     EvidenceSignals = df.EvidenceSignals,
-                    SourceHost = "localhost",
+                    SourceHost = _hostIdentity.SourceHost,
                     Target = df.Target,
                     ShortDescription = df.ShortDescription,
                     Details = "This finding is new or worsened compared to the baseline.",

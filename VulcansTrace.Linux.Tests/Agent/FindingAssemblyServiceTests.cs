@@ -1,3 +1,4 @@
+using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Rules;
@@ -11,7 +12,7 @@ public class FindingAssemblyServiceTests
     [Fact]
     public void Assemble_FailedRule_CreatesFindingAndHistoryEntry()
     {
-        var service = new FindingAssemblyService(new TestExplanationProvider(), suppressionStore: null);
+        var service = new FindingAssemblyService(new TestExplanationProvider(), suppressionStore: null, hostIdentity: new TestHostIdentity("test-host"));
         var ruleResult = RuleResult.Fail(
             "TEST-001",
             "Test",
@@ -33,7 +34,7 @@ public class FindingAssemblyServiceTests
         Assert.Equal("TEST-001", finding.RuleId);
         Assert.Equal("Test", finding.Category);
         Assert.Equal(Severity.High, finding.Severity);
-        Assert.Equal("localhost", finding.SourceHost);
+        Assert.Equal("test-host", finding.SourceHost);
         Assert.Equal("test-target", finding.Target);
         Assert.Equal("Test failed", finding.ShortDescription);
         Assert.Equal("explanation:TEST-001:name=value", finding.Details);
@@ -133,6 +134,19 @@ public class FindingAssemblyServiceTests
         Assert.Single(result.AgentFindings);
         Assert.False(suppressionStore.PruneExpiredCalled);
         Assert.False(suppressionStore.IsSuppressedWithFingerprintCalled);
+    }
+
+    private sealed class TestHostIdentity : IHostIdentity
+    {
+        public TestHostIdentity(string sourceHost)
+        {
+            HostName = sourceHost;
+            SourceHost = sourceHost;
+        }
+
+        public string HostName { get; }
+
+        public string SourceHost { get; }
     }
 
     private sealed class TestExplanationProvider : IExplanationProvider

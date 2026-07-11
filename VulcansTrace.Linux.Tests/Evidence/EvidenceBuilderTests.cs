@@ -1068,7 +1068,7 @@ public class EvidenceBuilderTests
             Assert.Contains("- **00:00** — beaconing began.", story);
             Assert.Contains("- **00:10** — lateral movement appeared.", story);
             Assert.DoesNotContain("— At 00:00", story);
-            Assert.Contains("Likely chain:", story);
+            Assert.Contains("## Likely Chain", story);
             Assert.Contains("Recommended Response", story);
         }
 
