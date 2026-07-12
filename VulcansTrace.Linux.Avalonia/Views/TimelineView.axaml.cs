@@ -317,7 +317,7 @@ public partial class TimelineView : UserControl
                 marker.Opacity = connectedIds.Contains(entry.FindingId) ? 1.0 : 0.25;
             }
 
-            var tip = $"{entry.Category} | {entry.Severity}\n{entry.Description}\n{entry.StartTime:O} – {entry.EndTime:O}";
+            var tip = $"{CategoryDisplay.ToDisplayName(entry.Category)} | {entry.Severity}\n{entry.Description}\n{entry.StartTime:O} – {entry.EndTime:O}";
             ToolTip.SetTip(marker, tip);
 
             var findingId = entry.FindingId;

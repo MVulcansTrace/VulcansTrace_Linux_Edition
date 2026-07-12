@@ -16,7 +16,7 @@ public class CategoryDisplayTests
     [InlineData("PrivilegeEscalation", "Privilege Escalation")]
     [InlineData("LateralMovement", "Lateral Movement")]
     [InlineData("C2Channel", "C2 Channel")]
-    [InlineData("MacSpoofing", "Mac Spoofing")]
+    [InlineData("MacSpoofing", "MAC Spoofing")]
     [InlineData("InterfaceHopping", "Interface Hopping")]
     [InlineData("UnusualPacketSize", "Unusual Packet Size")]
     public void ToDisplayName_PascalCase_SplitsIntoWords(string input, string expected)

@@ -645,6 +645,38 @@ public class TimelineViewModelTraceMapTests
         Assert.All(vm.TimelineEntries, e => Assert.Equal(0.5, e.StartPosition, 6));
     }
 
+    [AvaloniaFact]
+    public void LoadAnalysisResult_CategoryGrouping_RowLabelsAreHumanized()
+    {
+        var vm = new TimelineViewModel();
+        var result = CreateAnalysisResult(new[]
+        {
+            ("PortScan", "host-a"),
+            ("LateralMovement", "host-b"),
+        });
+
+        vm.LoadAnalysisResult(result);
+
+        // Categories stays raw (row-position lookup keys); RowLabels is display-only.
+        Assert.Equal(new[] { "LateralMovement", "PortScan" }, vm.Categories);
+        Assert.Equal(new[] { "Lateral Movement", "Port Scan" }, vm.RowLabels);
+    }
+
+    [AvaloniaFact]
+    public void LoadAnalysisResult_HostGrouping_RowLabelsAreRawHosts()
+    {
+        var vm = new TimelineViewModel { GroupMode = TimelineGroupMode.Host };
+        var result = CreateAnalysisResult(new[]
+        {
+            ("PortScan", "192.168.1.10"),
+            ("Beaconing", "192.168.1.20"),
+        });
+
+        vm.LoadAnalysisResult(result);
+
+        Assert.Equal(vm.Categories, vm.RowLabels);
+    }
+
     private static AnalysisResult CreateAnalysisResult(IEnumerable<(string Category, string SourceHost)> items)
     {
         var baseTime = DateTime.UtcNow;

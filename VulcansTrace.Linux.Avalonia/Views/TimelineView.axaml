@@ -42,7 +42,7 @@
                            Foreground="{StaticResource VtTextPrimaryBrush}"/>
             </Border>
             <Border Grid.Row="2" Grid.Column="0" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
-                <ItemsControl ItemsSource="{Binding Categories}" Margin="4,40,4,6">
+                <ItemsControl ItemsSource="{Binding RowLabels}" Margin="4,40,4,6">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="8" />
@@ -54,7 +54,8 @@
                                 <TextBlock Text="{Binding}"
                                            Height="22"
                                            VerticalAlignment="Center"
-                                           TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding}"
                                            Foreground="{StaticResource VtTextSecondaryBrush}"
                                            Margin="4,0"/>
                             </Grid>
@@ -111,7 +112,7 @@
                                     <Ellipse Width="10" Height="10"
                                              VerticalAlignment="Center"
                                              Fill="{Binding SelectedEntry.Severity, Converter={StaticResource SeverityToBrushConverter}}"/>
-                                    <TextBlock Text="{Binding SelectedEntry.Category}"
+                                    <TextBlock Text="{Binding SelectedEntry.Category, Converter={StaticResource CategoryLabelConverter}}"
                                                FontWeight="Bold"
                                                FontSize="{StaticResource VtFontSizeMd}"
                                                Foreground="{StaticResource VtTextPrimaryBrush}"

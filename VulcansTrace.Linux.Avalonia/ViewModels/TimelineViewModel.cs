@@ -104,6 +104,14 @@ public class TimelineViewModel : ViewModelBase
     /// </summary>
     public ObservableCollection<string> Categories { get; set; } = new();
 
+    /// <summary>
+    /// Display labels for the Y-axis rows, in the same order as <see cref="Categories"/>.
+    /// Category-mode labels are humanized via <see cref="CategoryDisplay.ToDisplayName"/>;
+    /// host-mode labels pass through unchanged. <see cref="Categories"/> itself stays raw
+    /// because it doubles as the row-position lookup key.
+    /// </summary>
+    public ObservableCollection<string> RowLabels { get; set; } = new();
+
     public double RowHeight => DefaultRowHeight;
     public double RowGap => DefaultRowGap;
     public double TopPadding => DefaultTopPadding;
@@ -258,6 +266,7 @@ public class TimelineViewModel : ViewModelBase
         TimelineEntries.Clear();
         TimelineEdges.Clear();
         Categories.Clear();
+        RowLabels.Clear();
         ClearSelection();
 
         if (result == null || !result.Findings.Any())
@@ -279,6 +288,7 @@ public class TimelineViewModel : ViewModelBase
         TimelineEntries.Clear();
         TimelineEdges.Clear();
         Categories.Clear();
+        RowLabels.Clear();
         ClearSelection();
 
         // Determine the overall time range
@@ -324,6 +334,15 @@ public class TimelineViewModel : ViewModelBase
             {
                 Categories.Add(category);
             }
+        }
+
+        // Display labels: humanized in Category mode, untouched hostnames in Host mode.
+        // Categories stays raw — it is the row-position lookup key (see below).
+        foreach (var label in Categories)
+        {
+            RowLabels.Add(_groupMode == TimelineGroupMode.Category
+                ? CategoryDisplay.ToDisplayName(label)
+                : label);
         }
 
         // Create timeline entries for each finding (CalculateEntryPositions handles DateTime.MinValue)

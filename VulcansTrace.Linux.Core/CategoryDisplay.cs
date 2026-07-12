@@ -10,8 +10,10 @@ namespace VulcansTrace.Linux.Core;
 public static class CategoryDisplay
 {
     /// <summary>
-    /// Whole-token overrides for values that do not split cleanly into words.
-    /// Keyed case-insensitively on the raw token.
+    /// Whole-word overrides for tokens that do not split cleanly or need
+    /// acronym casing. Keyed case-insensitively; applied both to the whole
+    /// category and to each word after PascalCase splitting, so
+    /// "MacSpoofing" becomes "MAC Spoofing".
     /// </summary>
     private static readonly Dictionary<string, string> Overrides = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -23,7 +25,8 @@ public static class CategoryDisplay
     /// <summary>
     /// Returns a spaced, human-readable form of a category token.
     /// Examples: "FilesystemAudit" -&gt; "Filesystem Audit",
-    /// "C2Channel" -&gt; "C2 Channel", "Yara" -&gt; "YARA", "Firewall" -&gt; "Firewall".
+    /// "C2Channel" -&gt; "C2 Channel", "Yara" -&gt; "YARA",
+    /// "MacSpoofing" -&gt; "MAC Spoofing", "Firewall" -&gt; "Firewall".
     /// Null/whitespace returns <see cref="string.Empty"/>.
     /// </summary>
     public static string ToDisplayName(string? category)
@@ -61,6 +64,14 @@ public static class CategoryDisplay
             sb.Append(c);
         }
 
-        return sb.ToString();
+        // Apply acronym overrides per word (e.g. "Mac Spoofing" -> "MAC Spoofing").
+        var words = sb.ToString().Split(' ');
+        for (int i = 0; i < words.Length; i++)
+        {
+            if (Overrides.TryGetValue(words[i], out var wordLabel))
+                words[i] = wordLabel;
+        }
+
+        return string.Join(' ', words);
     }
 }
