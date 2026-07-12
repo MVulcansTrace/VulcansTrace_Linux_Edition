@@ -215,9 +215,17 @@
       <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
       <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
       <Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource VtBackground500Brush}" />
         <Setter Property="BorderBrush" Value="{StaticResource VtBorderHoverBrush}" />
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Opacity" Value="0.45" />
       </Style>
     </ControlTheme>
 

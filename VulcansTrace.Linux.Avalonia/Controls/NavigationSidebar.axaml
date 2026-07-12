@@ -20,6 +20,13 @@
             <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,1,8,1" />
+            <!-- Item stays transparent: the highlight lives on Border.nav-row so
+                 group headers above the row are never inside the selection. -->
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+          </Style>
+          <Style Selector="Border.nav-row">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="3,0,0,0" />
@@ -31,10 +38,10 @@
               </Transitions>
             </Setter>
           </Style>
-          <Style Selector="ListBoxItem:pointerover">
+          <Style Selector="ListBoxItem:pointerover Border.nav-row">
             <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
           </Style>
-          <Style Selector="ListBoxItem:pointerover StackPanel">
+          <Style Selector="ListBoxItem:pointerover StackPanel.nav-content">
             <Setter Property="RenderTransform" Value="translateX(4px)" />
             <Setter Property="Transitions">
               <Transitions>
@@ -50,23 +57,23 @@
               </Transitions>
             </Setter>
           </Style>
-          <Style Selector="ListBoxItem:selected">
+          <Style Selector="ListBoxItem:selected Border.nav-row">
             <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource VtPrimaryBrush}" />
           </Style>
-          <Style Selector="ListBoxItem:selected TextBlock.nav-label">
-            <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+          <!-- Suppress the Fluent theme's own hover/selected background on the item's
+               ContentPresenter; otherwise it paints a band behind the group header too. -->
+          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
           </Style>
           <Style Selector="TextBlock.group-header">
             <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
             <Setter Property="FontSize" Value="{StaticResource VtFontSizeXs}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="LetterSpacing" Value="1" />
-          </Style>
-          <Style Selector="ListBoxItem:selected TextBlock.group-header">
-            <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
           </Style>
           <Style Selector="ListBoxItem:selected i|Icon">
             <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}" />
@@ -79,6 +86,8 @@
             </Setter>
           </Style>
           <Style Selector="ListBoxItem:selected TextBlock.nav-label">
+            <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="RenderTransform" Value="translateX(2px)" />
             <Setter Property="Transitions">
               <Transitions>
@@ -102,17 +111,20 @@
                          Margin="16,12,16,4"
                          IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-              <!-- Navigation item content -->
-              <StackPanel Orientation="Horizontal" Spacing="10" Margin="12,8,12,8">
-                <i:Icon Value="{Binding Icon}"
-                        FontSize="{StaticResource VtIconSizeMd}"
-                        Foreground="{StaticResource VtTextSecondaryBrush}" />
-                <TextBlock Text="{Binding Label}"
-                           Classes="nav-label"
-                           VerticalAlignment="Center"
-                           Foreground="{StaticResource VtTextSecondaryBrush}"
-                           FontSize="{StaticResource VtFontSizeMd}" />
-              </StackPanel>
+              <!-- Navigation item content: the highlight row. The group header
+                   above lives outside this Border, so it is never highlighted. -->
+              <Border Classes="nav-row" Padding="12,8,12,8">
+                <StackPanel Classes="nav-content" Orientation="Horizontal" Spacing="10">
+                  <i:Icon Value="{Binding Icon}"
+                          FontSize="{StaticResource VtIconSizeMd}"
+                          Foreground="{StaticResource VtTextSecondaryBrush}" />
+                  <TextBlock Text="{Binding Label}"
+                             Classes="nav-label"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource VtTextSecondaryBrush}"
+                             FontSize="{StaticResource VtFontSizeMd}" />
+                </StackPanel>
+              </Border>
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
