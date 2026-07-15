@@ -94,6 +94,7 @@ public class C2ChannelDetectorTests
 
         Assert.Single(findings);
         Assert.Equal(FindingCategories.C2Channel, findings[0].Category);
+        Assert.Equal(EngineRuleIds.C2Channel, findings[0].RuleId);
     }
 
     [Fact]

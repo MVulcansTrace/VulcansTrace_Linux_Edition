@@ -145,6 +145,7 @@ public class LateralMovementDetectorTests
 
         // Assert
         Assert.Single(findings);
+        Assert.Equal(EngineRuleIds.LateralMovement, findings[0].RuleId);
     }
 
     [Fact]

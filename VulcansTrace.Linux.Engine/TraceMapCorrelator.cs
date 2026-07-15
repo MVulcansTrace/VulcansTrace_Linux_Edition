@@ -260,5 +260,5 @@ public sealed class TraceMapCorrelator
         string.Equals(f.Category, category, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPostureFinding(Finding finding) =>
-        !string.IsNullOrWhiteSpace(finding.RuleId);
+        finding.Origin == FindingOrigin.AgentRule;
 }

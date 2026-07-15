@@ -36,6 +36,7 @@ public class ThreatIntelDetectorTests
 
         Assert.Single(result.Findings);
         Assert.Equal(FindingCategories.ThreatIntel, result.Findings[0].Category);
+        Assert.Equal(EngineRuleIds.ThreatIntel, result.Findings[0].RuleId);
         Assert.Equal(Severity.Critical, result.Findings[0].Severity);
     }
 

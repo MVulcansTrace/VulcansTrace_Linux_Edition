@@ -118,6 +118,7 @@ public sealed class InterfaceHoppingDetector : IDetector
                 };
                 findings.Add(new Core.Finding
                 {
+                    RuleId = EngineRuleIds.InterfaceHopping,
                     Category = FindingCategories.InterfaceHopping,
                     Severity = Core.Severity.Medium,
                     Confidence = FindingConfidenceCalculator.Calculate(signals),

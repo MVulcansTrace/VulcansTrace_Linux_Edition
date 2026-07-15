@@ -81,6 +81,7 @@ public class PrivilegeEscalationDetectorTests
         Assert.NotEmpty(findings);
         var finding = findings.First();
         Assert.Equal("PrivilegeEscalation", finding.Category);
+        Assert.Equal(EngineRuleIds.PrivilegeEscalation, finding.RuleId);
         Assert.Contains("admin access attempts", finding.ShortDescription);
     }
 

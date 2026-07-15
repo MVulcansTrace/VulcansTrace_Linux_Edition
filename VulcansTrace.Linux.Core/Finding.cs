@@ -25,14 +25,18 @@ public sealed record Finding
     private IReadOnlyList<MitreTechnique> _mitreTechniques = Array.Empty<MitreTechnique>();
 
     /// <summary>
-    /// Optional agent rule identifier (e.g., "FW-001", "PORT-003").
-    /// Set by the Security Agent; engine findings will have this as null.
+    /// Optional rule identifier (e.g., "FW-001", "PORT-003", "ENG-PORTSCAN-001").
+    /// Set by the Security Agent or by engine detectors (see <c>EngineRuleIds</c> in the
+    /// Engine project); null only for ad-hoc or test-constructed findings.
     /// </summary>
     public string? RuleId
     {
         get => _ruleId;
         init => _ruleId = value;
     }
+
+    /// <summary>Which subsystem produced this finding. Defaults to <see cref="FindingOrigin.Detector"/>.</summary>
+    public FindingOrigin Origin { get; init; } = FindingOrigin.Detector;
 
     /// <summary>
     /// Unique identifier for this finding, deterministically derived from content fields.

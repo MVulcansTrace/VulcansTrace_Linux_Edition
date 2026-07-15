@@ -108,6 +108,7 @@ public sealed class C2ChannelDetector : IDetector
 
                         findings.Add(new Core.Finding
                         {
+                            RuleId = EngineRuleIds.C2Channel,
                             Category = FindingCategories.C2Channel,
                             Severity = Core.Severity.High,
                             Confidence = FindingConfidenceCalculator.Calculate(signals),

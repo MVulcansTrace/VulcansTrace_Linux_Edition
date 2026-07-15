@@ -32,13 +32,20 @@
                          Theme="{StaticResource VtInput}"
                          PlaceholderText="Search findings..."
                          AutomationProperties.AutomationId="SearchTextBox"/>
-                <TextBlock Text="Severity filter:" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <TextBlock x:Name="SeverityFilterLabel"
+                           Text="Severity filter:"
+                           VerticalAlignment="Center"
+                           Margin="4,0,0,0"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <ComboBox ItemsSource="{Binding SeverityFilters}"
                           SelectedItem="{Binding SelectedSeverityFilter}"
                           Width="180"
                           VerticalAlignment="Center"
                           Theme="{StaticResource VtComboBox}"
-                          AutomationProperties.AutomationId="SeverityFilterComboBox"/>
+                          AutomationProperties.AutomationId="SeverityFilterComboBox"
+                          AutomationProperties.Name="Severity filter"
+                          AutomationProperties.LabeledBy="{Binding ElementName=SeverityFilterLabel}"
+                          AutomationProperties.ItemStatus="{Binding SelectedSeverityFilter.Display}"/>
                 <Button Theme="{StaticResource VtGhostButton}"
                         Padding="8,4"
                         FontSize="{StaticResource VtFontSizeSm}"
@@ -167,6 +174,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Rule ID" Binding="{Binding RuleId}" Width="Auto" MinWidth="220" CanUserResize="True"/>
                 <DataGridTemplateColumn Header="Severity" Width="130" MinWidth="120" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

@@ -70,6 +70,7 @@ public class MacSpoofingDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("MacSpoofing", findings[0].Category);
+        Assert.Equal(EngineRuleIds.MacSpoofing, findings[0].RuleId);
         Assert.Equal(Severity.High, findings[0].Severity);
         Assert.Equal("192.168.1.100", findings[0].SourceHost);
         Assert.Equal("multiple MAC addresses", findings[0].Target);

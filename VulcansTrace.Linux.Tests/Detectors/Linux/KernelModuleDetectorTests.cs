@@ -41,6 +41,7 @@ public class KernelModuleDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("KernelModule", findings[0].Category);
+        Assert.Equal(EngineRuleIds.KernelModule, findings[0].RuleId);
         Assert.Equal(Severity.Info, findings[0].Severity);
         Assert.Equal("Firewall Configuration", findings[0].SourceHost);
         Assert.Contains("Connection Tracking", findings[0].Target);

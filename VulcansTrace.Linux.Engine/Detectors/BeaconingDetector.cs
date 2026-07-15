@@ -99,6 +99,7 @@ public sealed class BeaconingDetector : IDetector
 
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.Beaconing,
                 Category = FindingCategories.Beaconing,
                 Severity = Core.Severity.Medium,
                 Confidence = FindingConfidenceCalculator.Calculate(signals),

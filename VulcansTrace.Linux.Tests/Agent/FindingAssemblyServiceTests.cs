@@ -32,6 +32,7 @@ public class FindingAssemblyServiceTests
 
         var finding = result.AgentFindings[0];
         Assert.Equal("TEST-001", finding.RuleId);
+        Assert.Equal(FindingOrigin.AgentRule, finding.Origin);
         Assert.Equal("Test", finding.Category);
         Assert.Equal(Severity.High, finding.Severity);
         Assert.Equal("test-host", finding.SourceHost);

@@ -122,6 +122,7 @@ public sealed class MacSpoofingDetector : IDetector
                 };
                 findings.Add(new Core.Finding
                 {
+                    RuleId = EngineRuleIds.MacSpoofing,
                     Category = FindingCategories.MacSpoofing,
                     Severity = Core.Severity.High,
                     Confidence = FindingConfidenceCalculator.Calculate(signals),

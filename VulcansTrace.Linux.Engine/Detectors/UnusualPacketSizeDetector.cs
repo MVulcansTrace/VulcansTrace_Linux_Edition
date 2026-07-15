@@ -95,6 +95,7 @@ public sealed class UnusualPacketSizeDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.UnusualPacketSize,
                 Category = FindingCategories.UnusualPacketSize,
                 Severity = Core.Severity.Medium,
                 Confidence = FindingConfidenceCalculator.Calculate(largeSignals),
@@ -128,6 +129,7 @@ public sealed class UnusualPacketSizeDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.UnusualPacketSize,
                 Category = FindingCategories.UnusualPacketSize,
                 Severity = Core.Severity.Low,
                 Confidence = FindingConfidenceCalculator.Calculate(smallSignals),
@@ -183,6 +185,7 @@ public sealed class UnusualPacketSizeDetector : IDetector
                 };
                 findings.Add(new Core.Finding
                 {
+                    RuleId = EngineRuleIds.UnusualPacketSize,
                     Category = FindingCategories.UnusualPacketSize,
                     Severity = Core.Severity.Medium,
                     Confidence = FindingConfidenceCalculator.Calculate(consistentSignals),
@@ -210,6 +213,7 @@ public sealed class UnusualPacketSizeDetector : IDetector
                 };
                 findings.Add(new Core.Finding
                 {
+                    RuleId = EngineRuleIds.UnusualPacketSize,
                     Category = FindingCategories.UnusualPacketSize,
                     Severity = Core.Severity.Low,
                     Confidence = FindingConfidenceCalculator.Calculate(varianceSignals),

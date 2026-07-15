@@ -71,6 +71,7 @@ public sealed class PolicyViolationDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.PolicyViolation,
                 Category = FindingCategories.PolicyViolation,
                 Severity = Core.Severity.High,
                 Confidence = FindingConfidenceCalculator.Calculate(signals),

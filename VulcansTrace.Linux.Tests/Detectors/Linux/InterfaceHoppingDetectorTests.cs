@@ -70,6 +70,7 @@ public class InterfaceHoppingDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("InterfaceHopping", findings[0].Category);
+        Assert.Equal(EngineRuleIds.InterfaceHopping, findings[0].RuleId);
         Assert.Equal(Severity.Medium, findings[0].Severity);
         Assert.Equal("192.168.1.100", findings[0].SourceHost);
         Assert.Contains("Interface hopping", findings[0].ShortDescription);

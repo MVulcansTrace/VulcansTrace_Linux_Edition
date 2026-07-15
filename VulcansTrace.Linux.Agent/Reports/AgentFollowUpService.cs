@@ -139,6 +139,7 @@ internal sealed class AgentFollowUpService
         {
             actionableFindings.Add(new Finding
             {
+                Origin = FindingOrigin.AgentRule,
                 RuleId = df.RuleId,
                 Category = "Change",
                 Severity = ParseSeverityString(df.Severity),

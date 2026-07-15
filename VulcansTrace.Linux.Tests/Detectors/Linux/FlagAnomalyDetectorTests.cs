@@ -43,6 +43,7 @@ public class FlagAnomalyDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal(FindingCategories.FlagAnomaly, findings[0].Category);
+        Assert.Equal(EngineRuleIds.FlagAnomaly, findings[0].RuleId);
         Assert.Equal(Severity.Medium, findings[0].Severity);
         Assert.Contains("FIN-without-SYN", findings[0].ShortDescription);
         Assert.Contains("stealth port scanning", findings[0].Details);

@@ -153,6 +153,7 @@ internal sealed class BaselineDriftService
             }).ToList()
             : baseline.SnapshotFindings.Select(sf => new Finding
             {
+                Origin = FindingOrigin.AgentRule,
                 RuleId = sf.RuleId,
                 Category = string.IsNullOrEmpty(sf.Category) ? "Baseline" : sf.Category,
                 Severity = ParseSeverityString(sf.Severity),
@@ -258,6 +259,7 @@ internal sealed class BaselineDriftService
             {
                 actionableFindings.Add(new Finding
                 {
+                    Origin = FindingOrigin.AgentRule,
                     RuleId = df.RuleId,
                     Category = "Drift",
                     Severity = ParseSeverityString(df.Severity),

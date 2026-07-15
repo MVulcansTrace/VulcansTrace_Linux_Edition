@@ -34,6 +34,7 @@ public class FloodDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("Flood", findings[0].Category);
+        Assert.Equal(EngineRuleIds.Flood, findings[0].RuleId);
         Assert.Equal(Severity.High, findings[0].Severity);
     }
 

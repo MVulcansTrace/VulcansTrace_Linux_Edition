@@ -69,6 +69,7 @@ public sealed class FloodDetector : IDetector
                         };
                         findings.Add(new Core.Finding
                         {
+                            RuleId = EngineRuleIds.Flood,
                             Category = FindingCategories.Flood,
                             Severity = Core.Severity.High,
                             Confidence = FindingConfidenceCalculator.Calculate(signals),

@@ -49,6 +49,7 @@ public class BeaconingDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("Beaconing", findings[0].Category);
+        Assert.Equal(EngineRuleIds.Beaconing, findings[0].RuleId);
         Assert.Equal(Severity.Medium, findings[0].Severity);
     }
 

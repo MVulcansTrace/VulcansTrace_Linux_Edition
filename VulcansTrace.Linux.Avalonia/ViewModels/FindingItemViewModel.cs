@@ -34,6 +34,9 @@ public sealed class FindingItemViewModel : ViewModelBase
     /// <summary>Gets the finding category.</summary>
     public string Category { get; }
 
+    /// <summary>Gets the stable rule identifier when the finding came from a rule.</summary>
+    public string RuleId => Finding.RuleId ?? string.Empty;
+
     /// <summary>Gets the severity label.</summary>
     public string Severity { get; }
 

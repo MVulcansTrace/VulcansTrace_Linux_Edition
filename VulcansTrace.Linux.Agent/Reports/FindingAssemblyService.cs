@@ -92,6 +92,7 @@ internal sealed class FindingAssemblyService
 
         return new Finding
         {
+            Origin = FindingOrigin.AgentRule,
             Category = result.Category,
             Severity = result.Severity,
             Confidence = FindingConfidenceCalculator.Calculate(signals),

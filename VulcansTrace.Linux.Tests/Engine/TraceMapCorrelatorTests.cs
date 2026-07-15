@@ -265,6 +265,7 @@ public class TraceMapCorrelatorTests
             new()
             {
                 RuleId = "FW-001",
+                Origin = FindingOrigin.AgentRule,
                 Category = "Firewall",
                 SourceHost = "localhost",
                 Target = "firewall",
@@ -275,6 +276,7 @@ public class TraceMapCorrelatorTests
             new()
             {
                 RuleId = "SSH-001",
+                Origin = FindingOrigin.AgentRule,
                 Category = "SSH",
                 SourceHost = "localhost",
                 Target = "sshd_config",
@@ -285,6 +287,7 @@ public class TraceMapCorrelatorTests
             new()
             {
                 RuleId = "LOG-001",
+                Origin = FindingOrigin.AgentRule,
                 Category = "Logging",
                 SourceHost = "localhost",
                 Target = "logging",

@@ -34,6 +34,7 @@ public class PortScanDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal("PortScan", findings[0].Category);
+        Assert.Equal(EngineRuleIds.PortScan, findings[0].RuleId);
     }
 
     [Fact]

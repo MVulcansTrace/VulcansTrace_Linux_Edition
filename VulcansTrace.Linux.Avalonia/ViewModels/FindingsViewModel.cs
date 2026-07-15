@@ -563,7 +563,8 @@ public sealed class FindingsViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(_searchText))
             return true;
 
-        return item.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        return item.RuleId.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+               item.Category.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                CategoryDisplay.ToDisplayName(item.Category).Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.SourceHost.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
                item.Target.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||

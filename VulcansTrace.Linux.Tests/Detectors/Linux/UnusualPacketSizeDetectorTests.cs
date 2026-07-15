@@ -43,6 +43,7 @@ public class UnusualPacketSizeDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal(FindingCategories.UnusualPacketSize, findings[0].Category);
+        Assert.Equal(EngineRuleIds.UnusualPacketSize, findings[0].RuleId);
         Assert.Equal(Severity.Medium, findings[0].Severity);
         Assert.Equal("192.168.1.100", findings[0].SourceHost);
         Assert.Contains("unusually large packet", findings[0].ShortDescription);

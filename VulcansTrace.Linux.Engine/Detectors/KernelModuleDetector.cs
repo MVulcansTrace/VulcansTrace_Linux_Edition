@@ -97,6 +97,7 @@ public sealed class KernelModuleDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.KernelModule,
                 Category = FindingCategories.KernelModule,
                 Severity = Core.Severity.Info,
                 Confidence = FindingConfidenceCalculator.Calculate(signals),

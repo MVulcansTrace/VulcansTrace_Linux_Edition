@@ -76,6 +76,7 @@ public sealed class FlagAnomalyDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.FlagAnomaly,
                 Category = FindingCategories.FlagAnomaly,
                 Severity = Core.Severity.Medium,
                 Confidence = FindingConfidenceCalculator.Calculate(signals),

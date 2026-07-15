@@ -94,6 +94,7 @@ public sealed class LateralMovementDetector : IDetector
                         };
                         findings.Add(new Core.Finding
                         {
+                            RuleId = EngineRuleIds.LateralMovement,
                             Category = FindingCategories.LateralMovement,
                             Severity = Core.Severity.High,
                             Confidence = FindingConfidenceCalculator.Calculate(signals),

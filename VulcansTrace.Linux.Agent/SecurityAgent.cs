@@ -1395,6 +1395,7 @@ public sealed class SecurityAgent : IAgent
     {
         return new Finding
         {
+            Origin = FindingOrigin.AgentRule,
             RuleId = snapshot.RuleId,
             Category = string.IsNullOrWhiteSpace(snapshot.Category) ? "Unknown" : snapshot.Category,
             Severity = ParseSeverityString(snapshot.Severity),

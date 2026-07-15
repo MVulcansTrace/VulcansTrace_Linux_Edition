@@ -106,6 +106,7 @@ public sealed class PortScanDetector : IDetector
                         };
                         findings.Add(new Core.Finding
                         {
+                            RuleId = EngineRuleIds.PortScan,
                             Category = FindingCategories.PortScan,
                             Severity = Core.Severity.Medium,
                             Confidence = FindingConfidenceCalculator.Calculate(signals),

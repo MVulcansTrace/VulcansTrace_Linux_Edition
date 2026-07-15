@@ -690,7 +690,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         SummaryText = total == 0
             ? "No findings at the current intensity."
-            : $"Found {total} issues, {highOrCritical} High/Critical.";
+            : $"Found {total} {(total == 1 ? "issue" : "issues")}, {highOrCritical} High/Critical.";
 
         if (Findings.ParseErrorCount > 0)
         {
@@ -988,7 +988,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RiskScorecard.LoadScorecard(analysisResult.RiskScorecard);
 
         var highOrCritical = findings.Count(f => f.Severity is Severity.High or Severity.Critical);
-        SummaryText = $"Demo complete: {e.ScenarioName} — {findings.Count} finding(s), {highOrCritical} High/Critical.";
+        SummaryText = $"Demo complete: {e.ScenarioName} — {findings.Count} {(findings.Count == 1 ? "finding" : "findings")}, {highOrCritical} High/Critical.";
         AdvisorMessage = "Demo findings are ready. Switch to the Evidence tab to export a signed bundle.";
     }
 

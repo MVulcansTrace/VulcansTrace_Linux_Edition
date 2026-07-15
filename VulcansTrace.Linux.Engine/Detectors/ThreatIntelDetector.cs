@@ -121,6 +121,7 @@ public sealed class ThreatIntelDetector : IDetector
 
         return new Finding
         {
+            RuleId = EngineRuleIds.ThreatIntel,
             Category = FindingCategories.ThreatIntel,
             Severity = severity,
             Confidence = FindingConfidenceCalculator.Calculate(signals),

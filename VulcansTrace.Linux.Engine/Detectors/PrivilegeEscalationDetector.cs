@@ -107,6 +107,7 @@ public sealed class PrivilegeEscalationDetector : IDetector
                     };
                     findings.Add(new Core.Finding
                     {
+                        RuleId = EngineRuleIds.PrivilegeEscalation,
                         Category = FindingCategories.PrivilegeEscalation,
                         Severity = Core.Severity.High,
                         Confidence = FindingConfidenceCalculator.Calculate(signals),
@@ -215,6 +216,7 @@ public sealed class PrivilegeEscalationDetector : IDetector
 
                     findings.Add(new Core.Finding
                     {
+                        RuleId = EngineRuleIds.PrivilegeEscalation,
                         Category = FindingCategories.PrivilegeEscalation,
                         Severity = Core.Severity.Medium,
                         Confidence = FindingConfidenceCalculator.Calculate(signals),

@@ -30,6 +30,7 @@ public class PolicyViolationDetectorTests
         // Assert
         Assert.Single(findings);
         Assert.Equal(FindingCategories.PolicyViolation, findings[0].Category);
+        Assert.Equal(EngineRuleIds.PolicyViolation, findings[0].RuleId);
         Assert.Equal(Severity.High, findings[0].Severity);
         Assert.Equal("192.168.1.100", findings[0].SourceHost);
         Assert.Contains("8.8.8.8:21", findings[0].Target);

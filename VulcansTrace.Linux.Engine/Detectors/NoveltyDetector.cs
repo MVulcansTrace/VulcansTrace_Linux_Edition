@@ -85,6 +85,7 @@ public sealed class NoveltyDetector : IDetector
             };
             findings.Add(new Core.Finding
             {
+                RuleId = EngineRuleIds.Novelty,
                 Category = FindingCategories.Novelty,
                 Severity = Core.Severity.Low,
                 Confidence = FindingConfidenceCalculator.Calculate(signals),

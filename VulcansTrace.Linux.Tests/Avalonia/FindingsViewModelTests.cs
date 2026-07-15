@@ -179,6 +179,25 @@ public class FindingsViewModelTests
     }
 
     [AvaloniaFact]
+    public void SearchText_FiltersByRuleId()
+    {
+        var vm = new FindingsViewModel();
+        vm.LoadResults(new AnalysisResult
+        {
+            Findings =
+            [
+                new Finding { RuleId = "FW-001", Category = FindingCategories.PortScan },
+                new Finding { RuleId = "SSH-002", Category = FindingCategories.Beaconing }
+            ]
+        });
+
+        vm.SearchText = "FW-001";
+
+        Assert.Single(vm.FilteredItems);
+        Assert.Equal("FW-001", vm.FilteredItems[0].RuleId);
+    }
+
+    [AvaloniaFact]
     public void SearchText_FiltersByConfidence()
     {
         var vm = new FindingsViewModel();
@@ -317,6 +336,16 @@ public class FindingsViewModelTests
         Assert.Single(vm.FilteredItems);
         Assert.Equal("Beaconing", vm.FilteredItems[0].Category);
         Assert.Equal("T1071.001", vm.FilteredItems[0].MitreTechniquesDisplay);
+    }
+
+    [AvaloniaFact]
+    public void FindingItemViewModel_RuleId_ExposesStableRowIdentity()
+    {
+        var withRule = new FindingItemViewModel(new Finding { RuleId = "FW-001" });
+        var withoutRule = new FindingItemViewModel(new Finding());
+
+        Assert.Equal("FW-001", withRule.RuleId);
+        Assert.Equal(string.Empty, withoutRule.RuleId);
     }
 
     [AvaloniaFact]
