@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using System;
 
 namespace VulcansTrace.Linux.Avalonia;
@@ -27,6 +27,11 @@ class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // Render file pickers in-process (managed chooser) instead of
+            // delegating to the DBus portal: the portal chooser belongs to
+            // xdg-desktop-portal's process, which the Computer-Use harness
+            // cannot observe or drive.
+            .With(new X11PlatformOptions { UseDBusFilePicker = false })
             .WithInterFont()
             .LogToTrace();
 }
