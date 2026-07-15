@@ -25,13 +25,18 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-                <TextBlock Text="Search:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <TextBlock x:Name="SearchLabel"
+                           Text="Search:"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"/>
                 <TextBox Text="{Binding SearchText}"
                          Width="220"
                          VerticalAlignment="Center"
                          Theme="{StaticResource VtInput}"
                          PlaceholderText="Search findings..."
-                         AutomationProperties.AutomationId="SearchTextBox"/>
+                         AutomationProperties.AutomationId="SearchTextBox"
+                         AutomationProperties.Name="Search findings"
+                         AutomationProperties.LabeledBy="{Binding ElementName=SearchLabel}"/>
                 <TextBlock x:Name="SeverityFilterLabel"
                            Text="Severity filter:"
                            VerticalAlignment="Center"
@@ -158,7 +163,8 @@
                                         Command="{Binding #FindingsDataGrid.DataContext.PinCommand}"
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding !IsPinned}"
-                                        AutomationProperties.AutomationId="FindingsPinButton">
+                                        AutomationProperties.AutomationId="FindingsPinButton"
+                                        AutomationProperties.Name="{Binding PinTooltip}">
                                     <i:Icon Value="mdi-pin-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Theme="{StaticResource VtGhostButton}"
@@ -167,7 +173,8 @@
                                         Command="{Binding #FindingsDataGrid.DataContext.UnpinCommand}"
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding IsPinned}"
-                                        AutomationProperties.AutomationId="FindingsUnpinButton">
+                                        AutomationProperties.AutomationId="FindingsUnpinButton"
+                                        AutomationProperties.Name="{Binding PinTooltip}">
                                     <i:Icon Value="mdi-pin-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                             </Panel>
