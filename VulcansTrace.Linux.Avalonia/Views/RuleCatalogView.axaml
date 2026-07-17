@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              x:Class="VulcansTrace.Linux.Avalonia.Views.RuleCatalogView"
              x:DataType="vm:RuleCatalogViewModel">
 
@@ -48,7 +49,7 @@
                   SelectedItem="{Binding SelectedItem}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-
+                  IsVisible="{Binding HasData}"
                   CanUserResizeColumns="True"
                   AutomationProperties.AutomationId="RulesDataGrid"
                   AutomationProperties.Name="Rules Catalog Table">
@@ -79,5 +80,22 @@
                 <DataGridTextColumn Header="Sources" Binding="{Binding DataSources}" Width="*" MinWidth="120" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <!-- Filter excluded everything: show a targeted hint instead of the never-loaded empty state. -->
+        <controls:FilterEmptyStateView Grid.Row="1"
+                                       IsVisible="{Binding HasNoFilterMatches}"
+                                       Icon="mdi-filter-remove-outline"
+                                       Headline="No rules match your search"
+                                       Description="Adjust the search box above to widen the results."/>
+
+        <!-- No catalog loaded. The catalog is built into VulcansTrace and loads at startup, so this
+             state only appears if startup failed or the catalog file is missing. -->
+        <controls:EmptyStateView Grid.Row="1"
+                                 AutomationProperties.AutomationId="RulesEmptyState"
+                                 AutomationProperties.Name="Rule catalog empty state"
+                                 Icon="mdi-book-open-variant"
+                                 Headline="No rules loaded"
+                                 Description="The rule catalog is built into VulcansTrace and loads at startup, with severity, what each one checks, and the data sources it needs. If this view is empty, the catalog failed to load — restart the app and check the logs."
+                                 IsVisible="{Binding !HasItems}"/>
     </Grid>
 </UserControl>

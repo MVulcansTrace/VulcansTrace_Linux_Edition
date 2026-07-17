@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
              xmlns:i="https://github.com/projektanker/icons.avalonia"
              x:Class="VulcansTrace.Linux.Avalonia.Views.ScheduleView"
              x:DataType="vm:ScheduleViewModel">
@@ -40,7 +41,7 @@
                   SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-
+                  IsVisible="{Binding HasRows}"
                   CanUserResizeColumns="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" MinWidth="130" />
@@ -88,5 +89,20 @@
                 <DataGridTextColumn Header="Output Dir" Binding="{Binding OutputDirectory}" Width="*" MinWidth="180" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <!-- Empty state: no schedules configured yet. Teaches what a schedule is
+             and offers the Add action so a user (or the agent) has an obvious next step. -->
+        <controls:EmptyStateView Grid.Row="2"
+                                 AutomationProperties.AutomationId="SchedulesEmptyState"
+                                 AutomationProperties.Name="Schedules empty state"
+                                 Icon="mdi-clock-outline"
+                                 Headline="No schedules yet"
+                                 Description="Schedules run audits automatically on a cron interval so drift is caught without manual effort. Add one to pick an intent, machine role, cron expression, and optional critical-severity notifications."
+                                 ActionText="Add schedule"
+                                 ActionIcon="mdi-plus"
+                                 ActionCommand="{Binding AddCommand}"
+                                 ActionAutomationId="SchedulesEmptyStateAddButton"
+                                 ActionAutomationName="Add schedule from empty state"
+                                 IsVisible="{Binding !HasRows}"/>
     </Grid>
 </UserControl>

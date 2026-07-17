@@ -21,12 +21,14 @@
                  FontSize="{StaticResource VtFontSizeXl}"
                  FontWeight="SemiBold"
                  Foreground="{StaticResource VtTextPrimaryBrush}"
-                 TextAlignment="Center"/>
+                 TextAlignment="Center"
+                 AutomationProperties.Name="{Binding Headline, ElementName=Self}"/>
       <TextBlock Text="{Binding Description, ElementName=Self}"
                  FontSize="{StaticResource VtFontSizeMd}"
                  Foreground="{StaticResource VtTextSecondaryBrush}"
                  TextAlignment="Center"
-                 TextWrapping="Wrap"/>
+                 TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding Description, ElementName=Self}"/>
       <Button Theme="{StaticResource VtSecondaryButton}"
               Command="{Binding ActionCommand, ElementName=Self}"
               AutomationProperties.AutomationId="{Binding ActionAutomationId, ElementName=Self}"

@@ -43,6 +43,12 @@ public sealed class ScheduleViewModel : ViewModelBase
     public ObservableCollection<ScheduleRowViewModel> Rows { get; } = new();
 
     /// <summary>
+    /// Gets a value indicating whether any schedules are configured.
+    /// Drives the empty-state view in <see cref="ScheduleView"/>.
+    /// </summary>
+    public bool HasRows => Rows.Count > 0;
+
+    /// <summary>
     /// Gets or sets the currently selected schedule row.
     /// </summary>
     public ScheduleRowViewModel? SelectedRow
@@ -186,6 +192,9 @@ public sealed class ScheduleViewModel : ViewModelBase
             };
             Rows.Add(row);
         }
+
+        // Re-notify the computed empty-state flag so the EmptyStateView/DataGrid swap cleanly.
+        OnPropertyChanged(nameof(HasRows));
 
         if (selectedId != null)
         {

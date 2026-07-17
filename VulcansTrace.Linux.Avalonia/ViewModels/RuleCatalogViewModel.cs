@@ -35,6 +35,15 @@ public sealed class RuleCatalogViewModel : ViewModelBase
     /// <summary>Gets the filtered view of catalog items.</summary>
     public ObservableCollection<RuleCatalogItemViewModel> FilteredItems { get; } = new();
 
+    /// <summary>Gets whether any rules are loaded. Drives the never-loaded empty state.</summary>
+    public bool HasItems => Items.Count > 0;
+
+    /// <summary>Gets whether the filtered view has any rows to show. Drives DataGrid visibility.</summary>
+    public bool HasData => FilteredItems.Count > 0;
+
+    /// <summary>Gets whether rules exist but the search filter excluded all of them.</summary>
+    public bool HasNoFilterMatches => Items.Count > 0 && FilteredItems.Count == 0;
+
     /// <summary>Gets or sets the search text for filtering rules.</summary>
     public string SearchText
     {
@@ -140,6 +149,8 @@ public sealed class RuleCatalogViewModel : ViewModelBase
         TotalRules = Items.Count;
         ApplyFilters();
         RefreshPolicyOverrides();
+        OnPropertyChanged(nameof(HasItems));
+        OnPropertyChanged(nameof(HasData));
     }
 
     /// <summary>
@@ -249,6 +260,8 @@ public sealed class RuleCatalogViewModel : ViewModelBase
             {
                 FilteredItems.Add(item);
             }
+            OnPropertyChanged(nameof(HasData));
+            OnPropertyChanged(nameof(HasNoFilterMatches));
             return;
         }
 
@@ -264,5 +277,7 @@ public sealed class RuleCatalogViewModel : ViewModelBase
                 FilteredItems.Add(item);
             }
         }
+        OnPropertyChanged(nameof(HasData));
+        OnPropertyChanged(nameof(HasNoFilterMatches));
     }
 }
