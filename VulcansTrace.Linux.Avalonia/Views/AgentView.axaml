@@ -102,7 +102,7 @@
           <!-- Analysis -->
           <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
             <TextBlock Text="Analysis" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding ToolPanelAnalysisActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+            <ItemsControl ItemsSource="{Binding ToolPanelAnalysisActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}" AutomationProperties.AutomationId="AgentAnalysisActionsList" AutomationProperties.Name="Agent analysis actions">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel Orientation="Horizontal" />
@@ -114,7 +114,7 @@
           <!-- Run checks -->
           <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
             <TextBlock Text="Run checks" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding ToolPanelRunCheckActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+            <ItemsControl ItemsSource="{Binding ToolPanelRunCheckActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}" AutomationProperties.AutomationId="AgentRunCheckActionsList" AutomationProperties.Name="Agent run check actions">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel Orientation="Horizontal" />
@@ -126,7 +126,7 @@
           <!-- Baseline -->
           <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
             <TextBlock Text="Baseline" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding ToolPanelBaselineActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+            <ItemsControl ItemsSource="{Binding ToolPanelBaselineActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}" AutomationProperties.AutomationId="AgentBaselineActionsList" AutomationProperties.Name="Agent baseline actions">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel Orientation="Horizontal" />
@@ -138,7 +138,7 @@
           <!-- Export -->
           <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">
             <TextBlock Text="Export" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-            <ItemsControl ItemsSource="{Binding ToolPanelExportActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}">
+            <ItemsControl ItemsSource="{Binding ToolPanelExportActions}" ItemTemplate="{StaticResource AgentQuickActionTemplate}" AutomationProperties.AutomationId="AgentExportActionsList" AutomationProperties.Name="Agent export actions">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
                   <WrapPanel Orientation="Horizontal" />
@@ -158,6 +158,8 @@
                 <StackPanel Margin="8" Spacing="8">
                   <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
                     <ComboBox Grid.Column="0"
+                              AutomationProperties.AutomationId="AgentAuditHistoryBeforeComboBox"
+                              AutomationProperties.Name="Audit history before snapshot"
                               ItemsSource="{Binding History}"
                               SelectedItem="{Binding SelectedBeforeEntry}"
                               Theme="{StaticResource VtComboBox}"
@@ -168,6 +170,8 @@
                                VerticalAlignment="Center"
                                Foreground="{StaticResource VtTextMutedBrush}" />
                     <ComboBox Grid.Column="2"
+                              AutomationProperties.AutomationId="AgentAuditHistoryAfterComboBox"
+                              AutomationProperties.Name="Audit history after snapshot"
                               ItemsSource="{Binding History}"
                               SelectedItem="{Binding SelectedAfterEntry}"
                               Theme="{StaticResource VtComboBox}"
@@ -176,7 +180,7 @@
                   </Grid>
 
                   <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding History}">
+                    <ItemsControl ItemsSource="{Binding History}" AutomationProperties.AutomationId="AgentAuditHistoryList" AutomationProperties.Name="Agent audit history">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                           <StackPanel Spacing="6" />
@@ -233,16 +237,24 @@
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Content="Refresh"
                             Theme="{StaticResource VtSecondaryButton}"
-                            Command="{Binding ListSessionsCommand}" />
+                            Command="{Binding ListSessionsCommand}"
+                            AutomationProperties.AutomationId="AgentRemediationSessionsRefreshButton"
+                            AutomationProperties.Name="Refresh remediation sessions" />
                     <Button Content="Resume"
                             Theme="{StaticResource VtSecondaryButton}"
-                            Command="{Binding ResumeSessionCommand}" />
+                            Command="{Binding ResumeSessionCommand}"
+                            AutomationProperties.AutomationId="AgentRemediationSessionResumeButton"
+                            AutomationProperties.Name="Resume remediation session" />
                     <Button Content="Delete"
                             Theme="{StaticResource VtGhostButton}"
-                            Command="{Binding DeleteSessionCommand}" />
+                            Command="{Binding DeleteSessionCommand}"
+                            AutomationProperties.AutomationId="AgentRemediationSessionDeleteButton"
+                            AutomationProperties.Name="Delete remediation session" />
                   </StackPanel>
 
                   <ListBox ItemsSource="{Binding Sessions}"
+                           AutomationProperties.AutomationId="AgentRemediationSessionsList"
+                           AutomationProperties.Name="Remediation sessions"
                            SelectedItem="{Binding SelectedSession}"
                            MaxHeight="180"
                            Background="Transparent"
@@ -301,6 +313,24 @@
                          Foreground="{StaticResource VtTextMutedBrush}"
                          VerticalAlignment="Center"
                          IsVisible="{Binding HasPinnedMessages}" />
+              <Button Content="Toggle pin for latest agent message"
+                      AutomationProperties.AutomationId="AgentLatestMessagePinButton"
+                      AutomationProperties.Name="Toggle pin for latest agent message"
+                      Theme="{StaticResource VtGhostButton}"
+                      FontSize="{StaticResource VtFontSizeXs}"
+                      Padding="6,2"
+                      Command="{Binding TogglePinMessageCommand}"
+                      CommandParameter="{Binding LatestPinnableMessage}"
+                      IsVisible="{Binding HasLatestPinnableMessage}" />
+              <Button Content="{Binding LatestSuggestedFollowUpLabel}"
+                      AutomationProperties.AutomationId="AgentLatestSuggestionButton"
+                      AutomationProperties.Name="Run latest suggested follow-up"
+                      AutomationProperties.HelpText="{Binding LatestSuggestedFollowUpLabel}"
+                      Theme="{StaticResource VtGhostButton}"
+                      FontSize="{StaticResource VtFontSizeXs}"
+                      Padding="6,2"
+                      Command="{Binding RunLatestSuggestedFollowUpCommand}"
+                      IsVisible="{Binding HasLatestSuggestedFollowUp}" />
             </StackPanel>
 
             <TextBlock Text="{Binding PinMessageStatusMessage}"
@@ -313,7 +343,7 @@
                        IsVisible="{Binding HasPinMessageStatusMessage}" />
 
             <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" IsVisible="{Binding HasPinnedMessages}">
-              <ItemsControl ItemsSource="{Binding PinnedMessages}">
+              <ItemsControl ItemsSource="{Binding PinnedMessages}" AutomationProperties.AutomationId="AgentPinnedMessagesList" AutomationProperties.Name="Pinned agent messages">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate>
                     <StackPanel Spacing="6" />
@@ -346,6 +376,7 @@
                                    VerticalAlignment="Center" />
 
                         <Button Grid.Column="3"
+                                AutomationProperties.Name="{Binding PinTooltip}"
                                 Theme="{StaticResource VtGhostButton}"
                                 Padding="4,2"
                                 ToolTip.Tip="{Binding PinTooltip}"
@@ -406,7 +437,7 @@
                     MinWidth="150"
                     MaxDropDownHeight="160"
                     AutomationProperties.AutomationId="AgentChatSeverityFilter"
-                    AutomationProperties.Name="Severity filter"
+                    AutomationProperties.Name="Agent chat severity filter"
                     AutomationProperties.LabeledBy="{Binding ElementName=SeverityFilterLabel}" />
           <TextBlock x:Name="CategoryFilterLabel" Text="Category:" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource VtTextSecondaryBrush}" />
           <ComboBox ItemsSource="{Binding ChatCategoryFilters}"
@@ -418,8 +449,7 @@
                     AutomationProperties.AutomationId="AgentChatCategoryFilter"
                     AutomationProperties.Name="Category filter"
                     AutomationProperties.LabeledBy="{Binding ElementName=CategoryFilterLabel}" />
-          <Button Content="Clear"
-                  Theme="{StaticResource VtGhostButton}"
+          <Button Theme="{StaticResource VtGhostButton}"
                   Command="{Binding ClearChatFiltersCommand}"
                   AutomationProperties.AutomationId="AgentClearChatFiltersButton"
                   AutomationProperties.Name="Clear filters">
@@ -432,6 +462,8 @@
 
         <!-- Active filter chips -->
         <ItemsControl Grid.Row="2"
+                       AutomationProperties.AutomationId="AgentActiveChatFiltersList"
+                       AutomationProperties.Name="Active agent chat filters"
                        ItemsSource="{Binding ActiveChatFilterChips}"
                        Margin="16,0,16,12">
           <ItemsControl.ItemsPanel>
@@ -442,6 +474,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:ChatFilterChipViewModel">
               <Button Command="{Binding RemoveCommand}"
+                      AutomationProperties.Name="{Binding Label}"
                       Padding="8,4"
                       Margin="0,0,8,6"
                       Theme="{StaticResource VtGhostButton}">
@@ -519,7 +552,7 @@
                   HorizontalAlignment="{Binding IsUser, Converter={StaticResource BoolToAlignment}}"
                   IsVisible="{Binding IsRowVisible}"
                   AutomationProperties.Name="{Binding AutomationName}"
-                  AutomationProperties.AutomationId="{Binding Text, StringFormat='AgentMessage_{0}'}">
+                  AutomationProperties.AutomationId="{Binding MessageId, StringFormat='AgentMessage_{0}'}">
                 <!-- Avatar -->
                 <controls:VtAgentAvatar Grid.Column="0"
                                         AvatarSize="28"
@@ -554,7 +587,8 @@
                               Command="{Binding TogglePinCommand}"
                               CommandParameter="{Binding}"
                               IsVisible="{Binding CanBePinned}"
-                              AutomationProperties.AutomationId="AgentMessagePinButton">
+                              AutomationProperties.AutomationId="AgentMessagePinButton"
+                              AutomationProperties.Name="Toggle pin for agent message">
                         <i:Icon Value="{Binding PinIcon}"
                                 FontSize="{StaticResource VtIconSizeXs}"
                                 VerticalAlignment="Center"
@@ -563,7 +597,7 @@
                     </Grid>
 
                     <!-- Rich text blocks: paragraphs, inline formatting, code blocks with copy buttons -->
-                    <ItemsControl ItemsSource="{Binding FormattedBlocks}">
+                    <ItemsControl ItemsSource="{Binding FormattedBlocks}" AutomationProperties.Name="Agent message content">
                       <ItemsControl.DataTemplates>
                         <DataTemplate DataType="vm:ParagraphBlock">
                           <TextBlock TextWrapping="Wrap"
@@ -591,6 +625,7 @@
                                            VerticalAlignment="Center" />
                                 <Button Grid.Column="1"
                                         Content="Copy"
+                                        AutomationProperties.Name="Copy code block"
                                         Theme="{StaticResource VtGhostButton}"
                                         FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="6,2"
@@ -667,7 +702,7 @@
                     <!-- Verification commands -->
                     <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding HasVerificationCommands}">
                       <TextBlock Text="How to verify" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-                      <ItemsControl ItemsSource="{Binding VerificationCommands}">
+                      <ItemsControl ItemsSource="{Binding VerificationCommands}" AutomationProperties.Name="Verification commands">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
                             <StackPanel Spacing="6" />
@@ -841,7 +876,7 @@
                         <!-- Preconditions -->
                         <StackPanel Orientation="Vertical" Spacing="6" IsVisible="{Binding HasPreconditions}">
                           <TextBlock Text="Before you apply" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding RemediationPreconditions}">
+                          <ItemsControl ItemsSource="{Binding RemediationPreconditions}" AutomationProperties.Name="Remediation preconditions">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="4" />
@@ -861,7 +896,7 @@
                         <!-- Backup -->
                         <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding HasBackupCommands}">
                           <TextBlock Text="Backup first" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtWarningBrush}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding RemediationBackupCommands}">
+                          <ItemsControl ItemsSource="{Binding RemediationBackupCommands}" AutomationProperties.Name="Remediation backup commands">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="6" />
@@ -878,7 +913,7 @@
                         <!-- Apply -->
                         <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding HasApplyCommands}">
                           <TextBlock Text="Apply fix" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtDangerBrush}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding RemediationApplyCommands}">
+                          <ItemsControl ItemsSource="{Binding RemediationApplyCommands}" AutomationProperties.Name="Remediation apply commands">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="6" />
@@ -895,7 +930,7 @@
                         <!-- Rollback -->
                         <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding HasRollbackCommands}">
                           <TextBlock Text="If something goes wrong" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtSuccessBrush}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding RemediationRollbackCommands}">
+                          <ItemsControl ItemsSource="{Binding RemediationRollbackCommands}" AutomationProperties.Name="Remediation rollback commands">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="6" />
@@ -912,7 +947,7 @@
                         <!-- Verification -->
                         <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding HasRemediationVerificationCommands}">
                           <TextBlock Text="Verify the fix" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding RemediationVerificationCommands}">
+                          <ItemsControl ItemsSource="{Binding RemediationVerificationCommands}" AutomationProperties.Name="Remediation verification commands">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="6" />
@@ -932,7 +967,7 @@
                                      FontSize="{StaticResource VtFontSizeXs}"
                                      Foreground="{StaticResource VtDangerBrush}"
                                      FontWeight="SemiBold" />
-                          <ItemsControl ItemsSource="{Binding CountermeasureCommands}">
+                          <ItemsControl ItemsSource="{Binding CountermeasureCommands}" AutomationProperties.Name="Remediation countermeasure commands">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <StackPanel Spacing="6" />
@@ -988,7 +1023,7 @@
                                  FontSize="{StaticResource VtFontSizeXs}"
                                  Foreground="{StaticResource VtTextMutedBrush}"
                                  FontWeight="SemiBold" />
-                      <ItemsControl ItemsSource="{Binding SessionTimeline}">
+                      <ItemsControl ItemsSource="{Binding SessionTimeline}" AutomationProperties.Name="Remediation session timeline">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
                             <StackPanel Spacing="6" />
@@ -1034,7 +1069,7 @@
 
                     <!-- Suggestion chips -->
                     <WrapPanel Orientation="Horizontal" IsVisible="{Binding HasSuggestions}">
-                      <ItemsControl ItemsSource="{Binding Suggestions}">
+                      <ItemsControl ItemsSource="{Binding Suggestions}" AutomationProperties.Name="Suggested follow-up actions">
                         <ItemsControl.ItemsPanel>
                           <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal" />
@@ -1042,7 +1077,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                           <DataTemplate DataType="suggestions:SuggestedFollowUp">
-                            <Button Content="{Binding Label}"
+                          <Button Content="{Binding Label}"
+                                    AutomationProperties.Name="{Binding Label}"
                                     Theme="{StaticResource VtGhostButton}"
                                     Margin="0,0,8,8"
                                     Command="{Binding $parent[ItemsControl].DataContext.SuggestionCommand}"
@@ -1180,13 +1216,15 @@
                            Foreground="{StaticResource VtTextPrimaryBrush}"
                            FontSize="{StaticResource VtFontSizeSm}"
                            FontWeight="SemiBold"
-                           AutomationProperties.AutomationId="AgentAuditProgressLabel" />
+                           AutomationProperties.AutomationId="AgentAuditProgressLabel"
+                           AutomationProperties.Name="Audit progress status" />
                 <ProgressBar Value="{Binding AuditProgressPercent}"
                              Minimum="0"
                              Maximum="100"
                              IsIndeterminate="{Binding AuditProgressIsIndeterminate}"
                              Classes="VtAuditProgress"
-                             AutomationProperties.AutomationId="AgentAuditProgressBar" />
+                             AutomationProperties.AutomationId="AgentAuditProgressBar"
+                             AutomationProperties.Name="Audit progress" />
               </StackPanel>
               <!-- Typing dots for non-audit busy states -->
               <StackPanel Orientation="Horizontal"
@@ -1264,6 +1302,8 @@
                 IsVisible="{Binding IsSlashPaletteOpen}">
           <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
             <ListBox ItemsSource="{Binding FilteredSlashCommands}"
+                     AutomationProperties.AutomationId="AgentSlashCommandPaletteList"
+                     AutomationProperties.Name="Agent slash command palette"
                      SelectedItem="{Binding SelectedSlashCommand}"
                      Focusable="False"
                      Background="Transparent"
@@ -1277,6 +1317,7 @@
               <ListBox.ItemTemplate>
                 <DataTemplate DataType="vm:SlashCommandItem">
                   <Button Command="{Binding Command}"
+                          AutomationProperties.Name="{Binding CommandText}"
                           CommandParameter="{Binding}"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Left"
@@ -1339,7 +1380,7 @@
                   IsVisible="{Binding IsBusy}"
                   VerticalAlignment="Center"
                   AutomationProperties.AutomationId="AgentCancelButton"
-                  AutomationProperties.Name="Cancel" />
+                  AutomationProperties.Name="Cancel agent query" />
         </Grid>
       </StackPanel>
     </Border>
@@ -1351,7 +1392,8 @@
             Padding="16"
             Margin="0,0,0,12"
             IsVisible="{Binding IsSlashHelpOpen}"
-            AutomationProperties.AutomationId="AgentSlashHelpOverlay">
+            AutomationProperties.AutomationId="AgentSlashHelpOverlay"
+            AutomationProperties.Name="Agent command help overlay">
       <Grid RowDefinitions="Auto,Auto,*">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
@@ -1362,7 +1404,8 @@
           <Button Grid.Column="1"
                   Theme="{StaticResource VtGhostButton}"
                   Command="{Binding CloseSlashHelpCommand}"
-                  AutomationProperties.AutomationId="AgentSlashHelpCloseButton">
+                  AutomationProperties.AutomationId="AgentSlashHelpCloseButton"
+                  AutomationProperties.Name="Close Agent command help">
             <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center" />
           </Button>
         </Grid>
@@ -1375,11 +1418,14 @@
                  PlaceholderText="Search commands..."
                  Margin="0,0,0,12"
                  KeyDown="OnSlashHelpKeyDown"
-                 AutomationProperties.AutomationId="AgentSlashHelpSearchInput" />
+                 AutomationProperties.AutomationId="AgentSlashHelpSearchInput"
+                 AutomationProperties.Name="Search Agent commands" />
 
         <!-- Results -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
           <ListBox ItemsSource="{Binding FilteredSlashHelpCommands}"
+                   AutomationProperties.AutomationId="AgentSlashHelpResultsList"
+                   AutomationProperties.Name="Agent command help results"
                    SelectedItem="{Binding SelectedSlashHelpCommand}"
                    Focusable="False"
                    Background="Transparent"
@@ -1393,6 +1439,7 @@
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:SlashCommandItem">
                 <Button Command="{Binding Command}"
+                        AutomationProperties.Name="{Binding CommandText}"
                         CommandParameter="{Binding}"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Left"

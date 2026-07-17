@@ -8,6 +8,8 @@
     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="8">
       <TextBlock Text="Source:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
       <ComboBox Width="320"
+                AutomationProperties.AutomationId="LiveStreamSourceComboBox"
+                AutomationProperties.Name="Live stream source"
                 ItemsSource="{Binding AvailableSources}"
                 SelectedItem="{Binding SelectedSourceName}"
                 Theme="{StaticResource VtComboBox}" />
@@ -23,7 +25,7 @@
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="8,0,8,0"
                 IsVisible="{Binding IsScenarioSource}">
       <TextBlock Text="Duration (s):" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
-      <NumericUpDown Value="{Binding ScenarioDurationSeconds}" Minimum="10" Maximum="300" Width="100" Theme="{StaticResource VtNumericUpDown}" />
+      <NumericUpDown Value="{Binding ScenarioDurationSeconds}" Minimum="10" Maximum="300" Width="100" Theme="{StaticResource VtNumericUpDown}" AutomationProperties.AutomationId="LiveStreamScenarioDurationInput" AutomationProperties.Name="Live stream scenario duration seconds" />
     </StackPanel>
 
     <!-- Status Row -->
@@ -108,6 +110,8 @@
     <!-- Findings Grid Row -->
     <Border Grid.Row="4" Background="{StaticResource VtBackground900Brush}" CornerRadius="{StaticResource VtRadiusMd}" Margin="8,0,8,8">
       <DataGrid ItemsSource="{Binding LiveFindings}"
+                AutomationProperties.AutomationId="LiveStreamFindingsDataGrid"
+                AutomationProperties.Name="Live stream findings table"
                 IsReadOnly="True"
                 AutoGenerateColumns="False"
                 CanUserResizeColumns="True"

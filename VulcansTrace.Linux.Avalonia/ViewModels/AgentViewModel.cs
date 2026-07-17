@@ -93,6 +93,32 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the collection of pinned messages shown in Agent Tools.</summary>
     public ObservableCollection<AgentMessageViewModel> PinnedMessages { get; } = new();
 
+    /// <summary>
+    /// Gets the newest completed Agent message that can be pinned. This provides a
+    /// stable semantic target outside Avalonia's templated chat rows, whose nested
+    /// buttons are not consistently exported by AT-SPI on Linux.
+    /// </summary>
+    public AgentMessageViewModel? LatestPinnableMessage => Messages
+        .LastOrDefault(message => !message.IsUser && message.CanBePinned);
+
+    /// <summary>Gets whether the semantic latest-message pin action is available.</summary>
+    public bool HasLatestPinnableMessage => LatestPinnableMessage != null;
+
+    /// <summary>
+    /// Gets the newest source-provided follow-up. This provides a stable semantic
+    /// route outside Avalonia's nested message template, whose suggestion buttons
+    /// are not consistently exported by AT-SPI on Linux.
+    /// </summary>
+    public SuggestedFollowUp? LatestSuggestedFollowUp => Messages
+        .LastOrDefault(message => message.HasSuggestions)
+        ?.Suggestions.FirstOrDefault();
+
+    /// <summary>Gets whether a stable latest-suggestion action is available.</summary>
+    public bool HasLatestSuggestedFollowUp => LatestSuggestedFollowUp != null;
+
+    /// <summary>Gets the contextual label shown beside the stable suggestion action.</summary>
+    public string LatestSuggestedFollowUpLabel => LatestSuggestedFollowUp?.Label ?? string.Empty;
+
     /// <summary>Gets quick-check actions for the "Run checks" group.</summary>
     public ObservableCollection<AgentQuickAction> QuickActionsChecks { get; } = new();
 
@@ -282,6 +308,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 ExportThreatIntelCommand.RaiseCanExecuteChanged();
                 CompareAuditsCommand.RaiseCanExecuteChanged();
                 BatchAutoFixCommand.RaiseCanExecuteChanged();
+                RunLatestSuggestedFollowUpCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanExplainSelected));
                 OnPropertyChanged(nameof(CanVerifySelected));
                 OnPropertyChanged(nameof(CanExportAudit));
@@ -412,8 +439,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         private set => SetField(ref _hasNoSearchMatches, value);
     }
 
-    /// <summary>Gets whether non-search chat filters hide every message.</summary>
-    public bool HasNoVisibleFilterMessages => string.IsNullOrWhiteSpace(_chatSearchQuery) && HasNoVisibleMessages;
+    /// <summary>
+    /// Gets whether active non-search filters have no matching finding messages.
+    /// Context messages (the welcome text, user prompts, and informational summaries) stay
+    /// visible by design, so using <see cref="HasNoVisibleMessages"/> here would make the
+    /// filter empty state unreachable in the real transcript.
+    /// </summary>
+    public bool HasNoVisibleFilterMessages =>
+        string.IsNullOrWhiteSpace(_chatSearchQuery)
+        && HasActiveChatFilters
+        && !Messages.Any(IsFilterableFindingMessageAndVisible);
+
+    private static bool IsFilterableFindingMessageAndVisible(AgentMessageViewModel message) =>
+        message.IsRowVisible
+        && !message.IsUser
+        && !message.IsInfo
+        && !string.IsNullOrWhiteSpace(message.Category);
 
     /// <summary>Gets the empty-state text for a chat search with no visible matches.</summary>
     public string ChatSearchEmptyStateText => HasActiveChatFilters
@@ -710,9 +751,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to show the current baseline.</summary>
     public AsyncRelayCommand ShowBaselineCommand { get; }
 
-    /// <summary>Gets the command to show the slash-command help message.</summary>
-    public AsyncRelayCommand ShowSlashHelpCommand { get; }
-
     /// <summary>Gets the command to open the searchable slash-command help popup.</summary>
     public RelayCommand OpenSlashHelpCommand { get; }
 
@@ -761,11 +799,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to pin or unpin a chat message.</summary>
     public AsyncRelayCommand<AgentMessageViewModel> TogglePinMessageCommand { get; }
 
-    /// <summary>Gets the command to add a note to the active remediation session.</summary>
-    public AsyncRelayCommand AddSessionNoteCommand { get; }
-
-    /// <summary>Gets the command to add a note to a specific remediation step.</summary>
-    public AsyncRelayCommand AddStepNoteCommand { get; }
+    /// <summary>Gets the command to execute the newest suggested follow-up.</summary>
+    public AsyncRelayCommand RunLatestSuggestedFollowUpCommand { get; }
 
     /// <summary>Gets the command to deploy active countermeasures for a critical chain.</summary>
     public AsyncRelayCommand DeployCountermeasuresCommand { get; }
@@ -1018,11 +1053,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
-        ShowSlashHelpCommand = new AsyncRelayCommand(
-            async _ => await ShowSlashHelpAsync(),
-            _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
         OpenSlashHelpCommand = new RelayCommand(
             _ => OpenSlashHelp(),
             _ => !_isSlashHelpOpen);
@@ -1075,15 +1105,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             msg => msg != null,
             ex => AddAgentMessage($"Error toggling pin: {ex.Message}", true, isError: true));
 
-        AddSessionNoteCommand = new AsyncRelayCommand(
-            async param => await AddSessionNoteAsync((param as string) ?? ""),
-            param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
-        AddStepNoteCommand = new AsyncRelayCommand(
-            async param => await AddStepNoteAsync((param as string) ?? ""),
-            param => !_isBusy && _resultState.LastResult?.RemediationSession != null && !string.IsNullOrWhiteSpace(param as string),
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+        RunLatestSuggestedFollowUpCommand = new AsyncRelayCommand(
+            async _ => await RunLatestSuggestedFollowUpAsync(),
+            _ => !_isBusy && HasLatestSuggestedFollowUp,
+            ex => AddAgentMessage($"Error running suggestion: {ex.Message}", true, isError: true));
 
         DeployCountermeasuresCommand = new AsyncRelayCommand(
             async param => await DeployCountermeasuresAsync(param as RemediationSection),
@@ -1387,6 +1412,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private async Task RunLatestSuggestedFollowUpAsync()
+    {
+        var suggestion = LatestSuggestedFollowUp;
+        if (suggestion != null)
+        {
+            await ExecuteSuggestionAsync(suggestion);
+        }
+    }
+
     private static bool IsAuditIntent(AgentIntent intent) => intent switch
     {
         AgentIntent.FullAudit
@@ -1576,7 +1610,17 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     }
 
     private const int TypewriterCharsPerTick = 3;
-    private static readonly TimeSpan TypewriterTickInterval = TimeSpan.FromMilliseconds(30);
+    private const int DefaultTypewriterTickMilliseconds = 30;
+    private const int MaxUiTestTypewriterTickMilliseconds = 60_000;
+
+    internal static TimeSpan ResolveTypewriterTickInterval(string? value)
+    {
+        return int.TryParse(value, out var milliseconds)
+            && milliseconds > 0
+            && milliseconds <= MaxUiTestTypewriterTickMilliseconds
+                ? TimeSpan.FromMilliseconds(milliseconds)
+                : TimeSpan.FromMilliseconds(DefaultTypewriterTickMilliseconds);
+    }
 
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
@@ -1637,7 +1681,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                     message,
                     message.Text,
                     TypewriterCharsPerTick,
-                    TypewriterTickInterval,
+                    ResolveTypewriterTickInterval(
+                        Environment.GetEnvironmentVariable("VT_UI_TEST_TYPEWRITER_TICK_MS")),
                     _typewriterScheduler,
                     onCompleted: () => StartNext(),
                     cancellationToken: token);
@@ -2224,73 +2269,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private async Task AddSessionNoteAsync(string text)
-    {
-        var session = _resultState.LastResult?.RemediationSession;
-        if (session == null)
-        {
-            AddAgentMessage("No active remediation session to add a note to.", true);
-            return;
-        }
-
-        BeginChatAction();
-
-        await _operationRunner.RunAsync(async token =>
-        {
-            var result = await _agent.AddSessionNoteAsync(session.SessionId, text, null, token);
-            SetLastResult(result);
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (result.RemediationSession != null)
-                {
-                    UpdateSessionTimeline(result.RemediationSession);
-                    RefreshSessions();
-                }
-                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
-            });
-        });
-    }
-
-    private async Task AddStepNoteAsync(string param)
-    {
-        var session = _resultState.LastResult?.RemediationSession;
-        if (session == null)
-        {
-            AddAgentMessage("No active remediation session to add a note to.", true);
-            return;
-        }
-
-        // param format: "ruleId|note text"
-        var parts = param.Split('|', 2);
-        if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
-        {
-            AddAgentMessage("Provide the note as 'ruleId|note text'.", true);
-            return;
-        }
-
-        var ruleId = parts[0].Trim();
-        var text = parts[1].Trim();
-
-        BeginChatAction();
-
-        await _operationRunner.RunAsync(async token =>
-        {
-            var result = await _agent.AddStepNoteAsync(session.SessionId, ruleId, text, null, token);
-            SetLastResult(result);
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (result.RemediationSession != null)
-                {
-                    UpdateSessionTimeline(result.RemediationSession);
-                    RefreshSessions();
-                }
-                PresentFindings(result, showCapabilityReport: false, showPassedCount: false, showWarnings: false);
-            });
-        });
-    }
-
     private async Task ImportThreatIntelAsync()
     {
         if (_dialogService == null || _threatIntelStore == null)
@@ -2580,6 +2558,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
             RefreshHasNoVisibleMessages();
             UpdateHasNoSearchMatches();
+            OnPropertyChanged(nameof(LatestPinnableMessage));
+            OnPropertyChanged(nameof(HasLatestPinnableMessage));
+            RefreshLatestSuggestedFollowUp();
         };
     }
 
@@ -2605,6 +2586,27 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             RefreshHasNoVisibleMessages();
             UpdateHasNoSearchMatches();
         }
+
+        if (e.PropertyName is nameof(AgentMessageViewModel.CanBePinned)
+            or nameof(AgentMessageViewModel.IsUser))
+        {
+            OnPropertyChanged(nameof(LatestPinnableMessage));
+            OnPropertyChanged(nameof(HasLatestPinnableMessage));
+        }
+
+        if (e.PropertyName is nameof(AgentMessageViewModel.Suggestions)
+            or nameof(AgentMessageViewModel.HasSuggestions))
+        {
+            RefreshLatestSuggestedFollowUp();
+        }
+    }
+
+    private void RefreshLatestSuggestedFollowUp()
+    {
+        OnPropertyChanged(nameof(LatestSuggestedFollowUp));
+        OnPropertyChanged(nameof(HasLatestSuggestedFollowUp));
+        OnPropertyChanged(nameof(LatestSuggestedFollowUpLabel));
+        RunLatestSuggestedFollowUpCommand.RaiseCanExecuteChanged();
     }
 
     /// <inheritdoc />

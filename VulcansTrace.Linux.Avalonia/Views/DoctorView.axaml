@@ -21,7 +21,7 @@
                         Spacing="4"
                         IsVisible="{Binding IsBusy}"
                         VerticalAlignment="Center">
-                <ProgressBar Height="6" Width="100" IsIndeterminate="True" VerticalAlignment="Center"/>
+                <ProgressBar Height="6" Width="100" IsIndeterminate="True" VerticalAlignment="Center" AutomationProperties.AutomationId="DoctorProgressBar" AutomationProperties.Name="Diagnostic progress"/>
                 <TextBlock Text="Probing..." VerticalAlignment="Center" Foreground="{StaticResource VtTextMutedBrush}" FontSize="{StaticResource VtFontSizeSm}"/>
             </StackPanel>
         </StackPanel>
@@ -81,7 +81,7 @@
                 IsVisible="{Binding Warnings.Count}">
             <StackPanel Orientation="Vertical" Spacing="4">
                 <TextBlock Text="Warnings:" FontWeight="SemiBold" Foreground="{StaticResource VtWarningBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                <ItemsControl ItemsSource="{Binding Warnings}">
+                <ItemsControl ItemsSource="{Binding Warnings}" AutomationProperties.AutomationId="DoctorWarningsList" AutomationProperties.Name="Diagnostic warnings">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="2"/>
@@ -101,7 +101,7 @@
 
         <!-- Capabilities list -->
         <ScrollViewer Grid.Row="4" IsVisible="{Binding HasData}">
-            <ItemsControl ItemsSource="{Binding Capabilities}">
+            <ItemsControl ItemsSource="{Binding Capabilities}" AutomationProperties.AutomationId="DoctorCapabilitiesList" AutomationProperties.Name="Diagnostic capabilities">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Spacing="6"/>

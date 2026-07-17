@@ -23,6 +23,8 @@
                    Margin="0,0,0,8"/>
 
         <ListBox Grid.Row="1"
+                 AutomationProperties.AutomationId="ParseErrorsList"
+                 AutomationProperties.Name="Parse errors"
                  ItemsSource="{Binding ParseErrors}"
                  BorderThickness="0"
                  Background="Transparent"
@@ -38,6 +40,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-rocket-launch-outline"
                                  ActionAutomationId="ParseErrorsEmptyStateAnalyzeButton"
+                                 ActionAutomationName="Analyze input from parse errors"
                                  IsVisible="{Binding !HasParseErrors}"/>
     </Grid>
 </UserControl>

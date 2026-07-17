@@ -568,12 +568,12 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
-    public void SlashHelp_ShowSlashHelpCommand_DoesNotMarkChatInteracted()
+    public void SlashHelp_OpenSlashHelpCommand_DoesNotMarkChatInteracted()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         Assert.True(vm.HasOnlyWelcomeMessage);
 
-        vm.ShowSlashHelpCommand.Execute(null);
+        vm.OpenSlashHelpCommand.Execute(null);
 
         Assert.True(vm.HasOnlyWelcomeMessage);
     }
@@ -627,12 +627,11 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
-    public async Task SlashHelp_ShowSlashHelpCommand_OpensPopup()
+    public void SlashHelp_OpenSlashHelpCommand_OpensPopup()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
-        vm.ShowSlashHelpCommand.Execute(null);
-        await vm.ShowSlashHelpCommand.ExecutionTask;
+        vm.OpenSlashHelpCommand.Execute(null);
 
         Assert.True(vm.IsSlashHelpOpen);
         Assert.Contains(vm.FilteredSlashHelpCommands, c => c.CommandText == "/help");
@@ -1208,6 +1207,34 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public void HasNoVisibleFilterMessages_IgnoresAlwaysVisibleContextMessages()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        vm.Messages.Add(new AgentMessageViewModel
+        {
+            Text = "Medium firewall finding",
+            Category = "Firewall",
+            Severity = Severity.Medium,
+            IsVisible = true
+        });
+
+        vm.SelectedChatSeverityFilter = vm.ChatSeverityFilters[2]; // Critical only
+
+        Assert.False(vm.HasNoVisibleMessages); // welcome/context text remains visible
+        Assert.True(vm.HasNoVisibleFilterMessages);
+
+        vm.Messages.Add(new AgentMessageViewModel
+        {
+            Text = "Critical firewall finding",
+            Category = "Firewall",
+            Severity = Severity.Critical,
+            IsVisible = true
+        });
+
+        Assert.False(vm.HasNoVisibleFilterMessages);
+    }
+
+    [AvaloniaFact]
     public void HasNoVisibleMessages_UpdatesWhenMessageBecomesVisibleWithoutFilterChange()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -1729,6 +1756,29 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task RunLatestSuggestedFollowUpCommand_UsesNewestSourceSuggestion()
+    {
+        var agent = new SuggestionRoutingAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.True(vm.HasLatestSuggestedFollowUp);
+        Assert.Equal("Show all findings", vm.LatestSuggestedFollowUpLabel);
+        Assert.True(vm.RunLatestSuggestedFollowUpCommand.CanExecute(null));
+
+        vm.RunLatestSuggestedFollowUpCommand.Execute(null);
+        await vm.RunLatestSuggestedFollowUpCommand.ExecutionTask;
+        FlushDispatcher();
+
+        Assert.Equal(AgentIntent.FullAudit, agent.LastRunAuditIntent);
+        Assert.Contains(vm.Messages, message =>
+            message.IsUser && message.Text == "show all findings");
+    }
+
+    [AvaloniaFact]
     public void Constructor_MemoryStoreWarning_AddsInfoMessage()
     {
         var memoryStore = new InMemoryAgentMemoryStore("Memory persistence is unavailable for testing.");
@@ -1915,6 +1965,35 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public void AgentViewXaml_MessageAutomationIdUsesStableMessageIdentity()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"{Binding MessageId, StringFormat='AgentMessage_{0}'}\"",
+            xaml);
+        Assert.DoesNotContain(
+            "AutomationProperties.AutomationId=\"{Binding Text, StringFormat='AgentMessage_{0}'}\"",
+            xaml);
+    }
+
+    [AvaloniaFact]
+    public void AgentViewXaml_ExposesStableLatestSuggestionAction()
+    {
+        var xaml = ReadAgentViewXaml();
+
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"AgentLatestSuggestionButton\"",
+            xaml);
+        Assert.Contains(
+            "AutomationProperties.Name=\"Run latest suggested follow-up\"",
+            xaml);
+        Assert.Contains(
+            "Command=\"{Binding RunLatestSuggestedFollowUpCommand}\"",
+            xaml);
+    }
+
+    [AvaloniaFact]
     public void ClearSearchCommand_CanExecute_UpdatesWhenQueryChanges()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -2008,6 +2087,22 @@ public class AgentViewModelTests
         Assert.True(narrative.IsStreaming);
         scheduler.Tick();
         Assert.Equal("Nar", narrative.StreamingText);
+    }
+
+    [Theory]
+    [InlineData(null, 30)]
+    [InlineData("", 30)]
+    [InlineData("0", 30)]
+    [InlineData("60001", 30)]
+    [InlineData("not-a-number", 30)]
+    [InlineData("5000", 5000)]
+    public void TypewriterTickInterval_UiTestOverrideIsBounded(
+        string? value,
+        int expectedMilliseconds)
+    {
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(expectedMilliseconds),
+            AgentViewModel.ResolveTypewriterTickInterval(value));
     }
 
     [AvaloniaFact]
@@ -3248,6 +3343,29 @@ public class AgentViewModelTests
         Assert.True(vm.PinnedMessages[0].IsPinned);
         Assert.Equal(1, vm.PinnedMessageCount);
         Assert.True(vm.HasPinnedMessages);
+    }
+
+    [AvaloniaFact]
+    public void LatestPinnableMessage_TracksNewestCompletedAgentMessage()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()), pinnedMessageStore: new InMemoryPinnedMessageStore());
+        var welcome = Assert.Single(vm.Messages);
+        var user = new AgentMessageViewModel { Text = "user question", IsUser = true };
+        var streaming = new AgentMessageViewModel { Text = "pending reply", IsStreaming = true };
+        var completed = new AgentMessageViewModel { Text = "completed reply" };
+
+        vm.Messages.Add(user);
+        vm.Messages.Add(streaming);
+        vm.Messages.Add(completed);
+
+        Assert.True(vm.HasLatestPinnableMessage);
+        Assert.Same(completed, vm.LatestPinnableMessage);
+
+        completed.IsStreaming = true;
+        Assert.Same(welcome, vm.LatestPinnableMessage);
+
+        streaming.IsStreaming = false;
+        Assert.Same(streaming, vm.LatestPinnableMessage);
     }
 
     [AvaloniaFact]

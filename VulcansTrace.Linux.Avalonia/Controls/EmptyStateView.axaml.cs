@@ -52,6 +52,12 @@ public partial class EmptyStateView : UserControl
         AvaloniaProperty.Register<EmptyStateView, string>(nameof(ActionAutomationId));
 
     /// <summary>
+    /// Defines the <see cref="ActionAutomationName"/> property.
+    /// </summary>
+    public static readonly StyledProperty<string> ActionAutomationNameProperty =
+        AvaloniaProperty.Register<EmptyStateView, string>(nameof(ActionAutomationName));
+
+    /// <summary>
     /// Gets or sets the Material Design icon glyph name shown above the headline.
     /// </summary>
     public string Icon
@@ -112,6 +118,15 @@ public partial class EmptyStateView : UserControl
     {
         get => GetValue(ActionAutomationIdProperty);
         set => SetValue(ActionAutomationIdProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the stable accessible name applied to the action button.
+    /// </summary>
+    public string ActionAutomationName
+    {
+        get => GetValue(ActionAutomationNameProperty);
+        set => SetValue(ActionAutomationNameProperty, value);
     }
 
     /// <summary>

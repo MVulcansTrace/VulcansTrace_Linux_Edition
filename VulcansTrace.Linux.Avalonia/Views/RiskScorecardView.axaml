@@ -63,6 +63,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-rocket-launch-outline"
                                  ActionAutomationId="RiskEmptyStateAnalyzeButton"
+                                 ActionAutomationName="Run audit for risk scorecard"
                                  IsVisible="{Binding !HasData}"/>
 
         <!-- Category breakdown -->
@@ -75,6 +76,8 @@
                    IsVisible="{Binding HasData}"/>
 
         <DataGrid Grid.Row="3"
+                  AutomationProperties.AutomationId="RiskCategoryDataGrid"
+                  AutomationProperties.Name="Risk by category table"
                   ItemsSource="{Binding ByCategory}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"

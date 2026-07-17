@@ -79,6 +79,7 @@
 
     <Button Grid.Column="7"
             Content="Copy"
+            AutomationProperties.Name="Copy command"
             Theme="{StaticResource VtGhostButton}"
             FontSize="{StaticResource VtFontSizeXs}"
             Padding="8,4"

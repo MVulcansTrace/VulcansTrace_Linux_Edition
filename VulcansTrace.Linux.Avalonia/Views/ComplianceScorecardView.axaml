@@ -61,7 +61,7 @@
                        Foreground="{StaticResource VtTextSecondaryBrush}"
                        Margin="0,0,0,6"
                        IsVisible="{Binding TrendPoints.Count}" />
-            <ItemsControl ItemsSource="{Binding TrendPoints}" IsVisible="{Binding TrendPoints.Count}">
+            <ItemsControl ItemsSource="{Binding TrendPoints}" IsVisible="{Binding TrendPoints.Count}" AutomationProperties.AutomationId="ComplianceTrendList" AutomationProperties.Name="Compliance trend">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom" Height="64" />
@@ -91,6 +91,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-robot"
                                  ActionAutomationId="ComplianceEmptyStateAuditButton"
+                                 ActionAutomationName="Run audit for compliance scorecard"
                                  IsVisible="{Binding !HasData}"/>
 
         <!-- Family scores -->
@@ -103,6 +104,8 @@
                    IsVisible="{Binding HasData}"/>
 
         <DataGrid Grid.Row="4"
+                  AutomationProperties.AutomationId="ComplianceFamilyScoresDataGrid"
+                  AutomationProperties.Name="Compliance family scores table"
                   ItemsSource="{Binding FamilyScores}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"

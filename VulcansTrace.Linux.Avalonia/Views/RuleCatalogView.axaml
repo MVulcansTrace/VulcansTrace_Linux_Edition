@@ -20,7 +20,8 @@
                      Width="320"
                      VerticalAlignment="Center"
                      Theme="{StaticResource VtInput}"
-                     AutomationProperties.AutomationId="RulesSearchTextBox"/>
+                     AutomationProperties.AutomationId="RulesSearchTextBox"
+                     AutomationProperties.Name="Search rules"/>
             <TextBlock Text="Total rules: " VerticalAlignment="Center" Margin="12,0,4,0" Foreground="{StaticResource VtTextMutedBrush}"/>
             <TextBlock Text="{Binding TotalRules}" VerticalAlignment="Center" Foreground="{StaticResource VtTextPrimaryBrush}" FontWeight="Bold"/>
             <Button Content="Edit Policy"
@@ -38,7 +39,8 @@
                        TextWrapping="Wrap"
                        Foreground="{StaticResource VtTextSecondaryBrush}"
                        FontSize="{StaticResource VtFontSizeSm}"
-                       AutomationProperties.AutomationId="RulePolicyStatusMessage"/>
+                       AutomationProperties.AutomationId="RulePolicyStatusMessage"
+                       AutomationProperties.Name="Rule policy status"/>
         </WrapPanel>
 
         <DataGrid Grid.Row="1"

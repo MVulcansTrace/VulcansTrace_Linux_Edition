@@ -30,6 +30,7 @@
       <Button Theme="{StaticResource VtSecondaryButton}"
               Command="{Binding ActionCommand, ElementName=Self}"
               AutomationProperties.AutomationId="{Binding ActionAutomationId, ElementName=Self}"
+              AutomationProperties.Name="{Binding ActionAutomationName, ElementName=Self}"
               IsVisible="{Binding ActionText, ElementName=Self, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
               HorizontalAlignment="Center"
               Margin="0,8,0,0">

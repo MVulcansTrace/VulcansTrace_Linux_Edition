@@ -53,6 +53,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-rocket-launch-outline"
                                  ActionAutomationId="CoverageEmptyStateAnalyzeButton"
+                                 ActionAutomationName="Run audit for rule coverage"
                                  IsVisible="{Binding !HasData}"/>
 
         <!-- Category breakdown grid -->

@@ -48,7 +48,7 @@
                           VerticalAlignment="Center"
                           Theme="{StaticResource VtComboBox}"
                           AutomationProperties.AutomationId="SeverityFilterComboBox"
-                          AutomationProperties.Name="Severity filter"
+                          AutomationProperties.Name="Findings severity filter"
                           AutomationProperties.LabeledBy="{Binding ElementName=SeverityFilterLabel}"
                           AutomationProperties.ItemStatus="{Binding SelectedSeverityFilter.Display}"/>
                 <Button Theme="{StaticResource VtGhostButton}"
@@ -56,7 +56,8 @@
                         FontSize="{StaticResource VtFontSizeSm}"
                         ToolTip.Tip="Show only pinned findings"
                         Command="{Binding TogglePinnedOnlyCommand}"
-                        AutomationProperties.AutomationId="FindingsPinnedOnlyButton">
+                        AutomationProperties.AutomationId="FindingsPinnedOnlyButton"
+                        AutomationProperties.Name="Show pinned findings only">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <i:Icon Value="mdi-pin" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                         <TextBlock Text="Pinned only" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
@@ -75,7 +76,8 @@
                            FontSize="{StaticResource VtFontSizeSm}"
                            VerticalAlignment="Center"
                            IsVisible="{Binding HasPinStatusMessage}"
-                           AutomationProperties.AutomationId="FindingsPinStatusMessage"/>
+                           AutomationProperties.AutomationId="FindingsPinStatusMessage"
+                           AutomationProperties.Name="Finding pin status"/>
             </StackPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,8,0,0" HorizontalAlignment="Right">
@@ -87,14 +89,16 @@
                            FontSize="{StaticResource VtFontSizeSm}"
                            VerticalAlignment="Center"
                            Margin="0,0,4,0"
-                           AutomationProperties.AutomationId="FindingsSelectedActionContext"/>
+                           AutomationProperties.AutomationId="FindingsSelectedActionContext"
+                           AutomationProperties.Name="Selected finding action context"/>
                 <Button Theme="{StaticResource VtGhostButton}"
                         Padding="8,4"
                         FontSize="{StaticResource VtFontSizeSm}"
                         ToolTip.Tip="Investigate with Security Agent"
                         Command="{Binding InvestigateCommand}"
                         CommandParameter="{Binding SelectedItem}"
-                        AutomationProperties.AutomationId="FindingsInvestigateButton">
+                        AutomationProperties.AutomationId="FindingsInvestigateButton"
+                        AutomationProperties.Name="Investigate selected finding">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <i:Icon Value="mdi-magnify" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                         <TextBlock Text="Investigate" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
@@ -106,7 +110,8 @@
                         ToolTip.Tip="Suppress (accept risk)"
                         Command="{Binding SuppressCommand}"
                         CommandParameter="{Binding SelectedItem}"
-                        AutomationProperties.AutomationId="FindingsSuppressButton">
+                        AutomationProperties.AutomationId="FindingsSuppressButton"
+                        AutomationProperties.Name="Suppress selected finding">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <i:Icon Value="mdi-volume-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                         <TextBlock Text="Suppress" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
@@ -118,7 +123,8 @@
                         ToolTip.Tip="Generate remediation plan"
                         Command="{Binding ResolveCommand}"
                         CommandParameter="{Binding SelectedItem}"
-                        AutomationProperties.AutomationId="FindingsResolveButton">
+                        AutomationProperties.AutomationId="FindingsResolveButton"
+                        AutomationProperties.Name="Resolve selected finding">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                         <TextBlock Text="Resolve" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
@@ -164,7 +170,7 @@
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding !IsPinned}"
                                         AutomationProperties.AutomationId="FindingsPinButton"
-                                        AutomationProperties.Name="{Binding PinTooltip}">
+                                        AutomationProperties.Name="Pin finding">
                                     <i:Icon Value="mdi-pin-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Theme="{StaticResource VtGhostButton}"
@@ -174,7 +180,7 @@
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding IsPinned}"
                                         AutomationProperties.AutomationId="FindingsUnpinButton"
-                                        AutomationProperties.Name="{Binding PinTooltip}">
+                                        AutomationProperties.Name="Unpin finding">
                                     <i:Icon Value="mdi-pin-off" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
                                 </Button>
                             </Panel>
@@ -219,6 +225,8 @@
                                        Description="Adjust the search box or severity filter to widen the results."/>
 
         <controls:EmptyStateView Grid.Row="1"
+                                 AutomationProperties.AutomationId="FindingsEmptyState"
+                                 AutomationProperties.Name="Findings empty state"
                                  Icon="mdi-magnify"
                                  Headline="{Binding EmptyStateHeadline}"
                                  Description="{Binding EmptyStateDescription}"
@@ -226,6 +234,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-rocket-launch-outline"
                                  ActionAutomationId="FindingsEmptyStateAnalyzeButton"
+                                 ActionAutomationName="Analyze logs from empty findings"
                                  IsVisible="{Binding !HasItems}"/>
     </Grid>
 </UserControl>

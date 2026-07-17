@@ -23,6 +23,8 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
 {
     private readonly EvidenceBuilder _evidenceBuilder;
     private readonly IDialogService _dialogService;
+    private readonly Func<string?> _exportPathOverride;
+    private readonly Func<CancellationToken, Task> _beforeBuildAsync;
     private CancellationTokenSource? _cancellationTokenSource;
 
     private string _signingKey = "";
@@ -90,10 +92,18 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="evidenceBuilder">Builder that creates the evidence bundle.</param>
     /// <param name="dialogService">Dialog service for UI prompts and messages.</param>
-    public EvidenceViewModel(EvidenceBuilder evidenceBuilder, IDialogService dialogService)
+    /// <param name="exportPathOverride">Optional export-path provider used by isolated automation scenarios.</param>
+    /// <param name="beforeBuildAsync">Optional cancellable pre-build hook used by deterministic automation scenarios.</param>
+    public EvidenceViewModel(
+        EvidenceBuilder evidenceBuilder,
+        IDialogService dialogService,
+        Func<string?>? exportPathOverride = null,
+        Func<CancellationToken, Task>? beforeBuildAsync = null)
     {
         _evidenceBuilder = evidenceBuilder;
         _dialogService = dialogService;
+        _exportPathOverride = exportPathOverride ?? ResolveScenarioExportPath;
+        _beforeBuildAsync = beforeBuildAsync ?? DelayForScenarioAsync;
 
         ExportEvidenceCommand = new AsyncRelayCommand(
             async _ => await ExportEvidenceAsync(),
@@ -150,6 +160,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     private void CancelExport()
     {
         _cancellationTokenSource?.Cancel();
+        CancelExportCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshCommandStates()
@@ -163,18 +174,39 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     {
         if (_lastResult == null) return;
 
-        IsBusy = true;
-        StatusChanged?.Invoke(this, "Exporting evidence bundle...");
+        var fileName = _exportPathOverride();
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            StatusChanged?.Invoke(this, "Choose evidence bundle location...");
+            fileName = await _dialogService.ShowSaveFileDialogAsync(
+                "Save Evidence Bundle",
+                "ZIP files (*.zip)|*.zip|All files (*.*)|*.*",
+                "VulcansTrace_Evidence.zip");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            StatusChanged?.Invoke(this, "Export cancelled by user.");
+            return;
+        }
 
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
 
+        IsBusy = true;
+        StatusChanged?.Invoke(this, "Exporting evidence bundle...");
+
         var signingKeyBytes = _signingKeyBytes ?? GenerateNewSigningKey();
 
         try
         {
-            await ExportEvidenceCoreAsync(signingKeyBytes, token);
+            await _beforeBuildAsync(token);
+            await ExportEvidenceCoreAsync(fileName, signingKeyBytes, token);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusChanged?.Invoke(this, "Export cancelled by user.");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -189,7 +221,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task ExportEvidenceCoreAsync(byte[] signingKeyBytes, CancellationToken token)
+    private async Task ExportEvidenceCoreAsync(string fileName, byte[] signingKeyBytes, CancellationToken token)
     {
         byte[] zipBytes;
         var failureAction = "build evidence bundle";
@@ -200,18 +232,6 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             var result = _lastResult ?? throw new InvalidOperationException("No analysis result is available for export.");
             var log = _logSnapshot;
             var ts = _analysisTimestamp;
-
-            StatusChanged?.Invoke(this, "Choose evidence bundle location...");
-            var fileName = await _dialogService.ShowSaveFileDialogAsync(
-                "Save Evidence Bundle",
-                "ZIP files (*.zip)|*.zip|All files (*.*)|*.*",
-                "VulcansTrace_Evidence.zip");
-
-            if (string.IsNullOrEmpty(fileName))
-            {
-                StatusChanged?.Invoke(this, "Export cancelled by user.");
-                return;
-            }
 
             token.ThrowIfCancellationRequested();
             StatusChanged?.Invoke(this, "Building evidence bundle...");
@@ -241,6 +261,25 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
             }
             return;
         }
+    }
+
+    private static string? ResolveScenarioExportPath()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VT_SCENARIO_ID")))
+            return null;
+
+        return Environment.GetEnvironmentVariable("VT_UI_TEST_EXPORT_PATH");
+    }
+
+    private static Task DelayForScenarioAsync(CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VT_SCENARIO_ID")))
+            return Task.CompletedTask;
+
+        var raw = Environment.GetEnvironmentVariable("VT_UI_TEST_EXPORT_DELAY_MS");
+        return int.TryParse(raw, out var milliseconds) && milliseconds > 0 && milliseconds <= 300_000
+            ? Task.Delay(milliseconds, token)
+            : Task.CompletedTask;
     }
 
     private byte[] GenerateNewSigningKey()

@@ -16,22 +16,26 @@
                     Command="{Binding ImportCommand}"
                     Theme="{StaticResource VtPrimaryButton}"
                     MinWidth="70"
-                    AutomationProperties.AutomationId="ThreatIntelImportButton"/>
+                    AutomationProperties.AutomationId="ThreatIntelImportButton"
+                    AutomationProperties.Name="Import threat intelligence"/>
             <Button Content="Remove"
                     Command="{Binding RemoveSelectedCommand}"
                     Theme="{StaticResource VtSecondaryButton}"
                     MinWidth="70"
-                    AutomationProperties.AutomationId="ThreatIntelRemoveButton"/>
+                    AutomationProperties.AutomationId="ThreatIntelRemoveButton"
+                    AutomationProperties.Name="Remove threat intelligence"/>
             <Button Content="Clear All"
                     Command="{Binding ClearCommand}"
                     Theme="{StaticResource VtSecondaryButton}"
                     MinWidth="70"
-                    AutomationProperties.AutomationId="ThreatIntelClearButton"/>
+                    AutomationProperties.AutomationId="ThreatIntelClearButton"
+                    AutomationProperties.Name="Clear threat intelligence"/>
             <Button Content="Refresh"
                     Command="{Binding RefreshCommand}"
                     Theme="{StaticResource VtSecondaryButton}"
                     MinWidth="70"
-                    AutomationProperties.AutomationId="ThreatIntelRefreshButton"/>
+                    AutomationProperties.AutomationId="ThreatIntelRefreshButton"
+                    AutomationProperties.Name="Refresh threat intelligence"/>
             <TextBlock Text="Type:"
                        VerticalAlignment="Center"
                        Margin="16,0,4,0"
@@ -40,7 +44,8 @@
                       SelectedItem="{Binding SelectedTypeFilter}"
                       Width="140"
                       VerticalAlignment="Center"
-                      AutomationProperties.AutomationId="ThreatIntelTypeFilterComboBox">
+                      AutomationProperties.AutomationId="ThreatIntelTypeFilterComboBox"
+                      AutomationProperties.Name="Threat intelligence type filter">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <TextBlock Text="{Binding Label}"/>
@@ -55,7 +60,8 @@
                      PlaceholderText="Filter value, source, description..."
                      Width="260"
                      VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="ThreatIntelSearchTextBox"/>
+                     AutomationProperties.AutomationId="ThreatIntelSearchTextBox"
+                     AutomationProperties.Name="Search threat intelligence"/>
         </StackPanel>
 
         <!-- Counts -->
@@ -75,7 +81,8 @@
                    FontSize="{StaticResource VtFontSizeSm}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,8"
-                   AutomationProperties.AutomationId="ThreatIntelStatusTextBlock"/>
+                   AutomationProperties.AutomationId="ThreatIntelStatusTextBlock"
+                   AutomationProperties.Name="Threat intelligence status"/>
 
         <!-- Empty state -->
         <controls:EmptyStateView Grid.Row="3"

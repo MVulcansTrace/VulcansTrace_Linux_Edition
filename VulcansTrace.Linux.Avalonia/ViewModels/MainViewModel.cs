@@ -369,9 +369,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the compare logs command.</summary>
     public AsyncRelayCommand CompareLogsCommand { get; }
 
-    /// <summary>Gets the command to select a navigation item.</summary>
-    public RelayCommand<NavigationItem> SelectNavigationCommand { get; }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
@@ -518,9 +515,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         Agent.NavigateToThreatIntelAction = NavigateToThreatIntel;
         SelectedNavigationItem = NavigationItems[0];
-
-        SelectNavigationCommand = new RelayCommand<NavigationItem>(
-            item => SelectedNavigationItem = item);
 
         InvestigateCommand = new AsyncRelayCommand(
             async parameter => await InvestigateFindingAsync(parameter),

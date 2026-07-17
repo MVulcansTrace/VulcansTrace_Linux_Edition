@@ -72,7 +72,7 @@
                         IsVisible="{Binding NewCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="New Findings" FontWeight="Bold" Foreground="{StaticResource VtSuccessBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                        <ItemsControl ItemsSource="{Binding NewFindings}">
+                        <ItemsControl ItemsSource="{Binding NewFindings}" AutomationProperties.AutomationId="AuditDiffNewFindingsList" AutomationProperties.Name="New audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
@@ -95,7 +95,7 @@
                         IsVisible="{Binding ResolvedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Resolved Findings" FontWeight="Bold" Foreground="{StaticResource VtTextSecondaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                        <ItemsControl ItemsSource="{Binding ResolvedFindings}">
+                        <ItemsControl ItemsSource="{Binding ResolvedFindings}" AutomationProperties.AutomationId="AuditDiffResolvedFindingsList" AutomationProperties.Name="Resolved audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
@@ -118,7 +118,7 @@
                         IsVisible="{Binding WorsenedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Worsened Severity" FontWeight="Bold" Foreground="{StaticResource VtDangerBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                        <ItemsControl ItemsSource="{Binding WorsenedFindings}">
+                        <ItemsControl ItemsSource="{Binding WorsenedFindings}" AutomationProperties.AutomationId="AuditDiffWorsenedFindingsList" AutomationProperties.Name="Worsened audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
@@ -145,7 +145,7 @@
                         IsVisible="{Binding ImprovedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Improved Severity" FontWeight="Bold" Foreground="{StaticResource VtPrimaryBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                        <ItemsControl ItemsSource="{Binding ImprovedFindings}">
+                        <ItemsControl ItemsSource="{Binding ImprovedFindings}" AutomationProperties.AutomationId="AuditDiffImprovedFindingsList" AutomationProperties.Name="Improved audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
@@ -172,7 +172,7 @@
                         IsVisible="{Binding ConfidenceChangedCount, Converter={StaticResource IntToBoolConverter}}">
                     <StackPanel Spacing="6">
                         <TextBlock Text="Changed Confidence" FontWeight="Bold" Foreground="{StaticResource VtInfoBrush}" FontSize="{StaticResource VtFontSizeMd}"/>
-                        <ItemsControl ItemsSource="{Binding ConfidenceChangedFindings}">
+                        <ItemsControl ItemsSource="{Binding ConfidenceChangedFindings}" AutomationProperties.AutomationId="AuditDiffConfidenceChangesList" AutomationProperties.Name="Audit finding confidence changes">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">

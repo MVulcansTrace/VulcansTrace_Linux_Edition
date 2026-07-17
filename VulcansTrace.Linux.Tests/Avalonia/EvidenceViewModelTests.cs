@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -153,6 +155,37 @@ public class EvidenceViewModelTests
 
         Assert.Contains("Export cancelled by user.", statuses);
         Assert.Empty(dialogService.Errors);
+    }
+
+    [AvaloniaFact]
+    public async Task CancelExport_DuringCancellableBuild_ClearsBusyWithoutWritingFile()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"vt-cancel-export-{Guid.NewGuid():N}.zip");
+        var dialogService = new TestDialogService();
+        var statuses = new List<string>();
+        var vm = new EvidenceViewModel(
+            BuildEvidenceBuilder(),
+            dialogService,
+            exportPathOverride: () => output,
+            beforeBuildAsync: token => Task.Delay(Timeout.InfiniteTimeSpan, token));
+        vm.StatusChanged += (_, status) => statuses.Add(status);
+        vm.SetEvidenceContext(new AnalysisResult(), "log", DateTime.UnixEpoch);
+
+        vm.ExportEvidenceCommand.Execute(null);
+        var deadline = Environment.TickCount64 + 2_000;
+        while (!vm.IsBusy && Environment.TickCount64 < deadline)
+            await Task.Delay(10);
+
+        Assert.True(vm.IsBusy);
+        Assert.True(vm.CancelExportCommand.CanExecute(null));
+
+        vm.CancelExportCommand.Execute(null);
+        await vm.ExportEvidenceCommand.ExecutionTask;
+
+        Assert.False(vm.IsBusy);
+        Assert.False(vm.CancelExportCommand.CanExecute(null));
+        Assert.Contains("Export cancelled by user.", statuses);
+        Assert.False(File.Exists(output));
     }
 
     private static EvidenceBuilder BuildEvidenceBuilder()

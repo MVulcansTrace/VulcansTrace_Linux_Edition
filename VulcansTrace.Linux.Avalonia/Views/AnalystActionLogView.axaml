@@ -13,7 +13,8 @@
       <Button Content="Refresh"
                Theme="{StaticResource VtSecondaryButton}"
                Command="{Binding RefreshCommand}"
-               AutomationProperties.AutomationId="AnalystActionLogRefreshButton"/>
+               AutomationProperties.AutomationId="AnalystActionLogRefreshButton"
+               AutomationProperties.Name="Refresh analyst action log"/>
       <Button Content="Export JSON"
                Theme="{StaticResource VtSecondaryButton}"
                Command="{Binding ExportCommand}"

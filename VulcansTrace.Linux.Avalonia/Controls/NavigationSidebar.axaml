@@ -10,6 +10,8 @@
   <Border BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <ListBox x:Name="NavListBox"
+               AutomationProperties.AutomationId="PrimaryNavigationList"
+               AutomationProperties.Name="Primary navigation"
                ItemsSource="{Binding NavigationItems}"
                SelectedItem="{Binding SelectedNavigationItem, Mode=TwoWay}"
                Background="Transparent"

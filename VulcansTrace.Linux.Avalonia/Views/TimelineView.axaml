@@ -42,7 +42,7 @@
                            Foreground="{StaticResource VtTextPrimaryBrush}"/>
             </Border>
             <Border Grid.Row="2" Grid.Column="0" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
-                <ItemsControl ItemsSource="{Binding RowLabels}" Margin="4,40,4,6">
+                <ItemsControl ItemsSource="{Binding RowLabels}" Margin="4,40,4,6" AutomationProperties.AutomationId="TimelineRowLabelsList" AutomationProperties.Name="Timeline row labels">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="8" />
@@ -86,13 +86,16 @@
                                Foreground="{StaticResource VtWarningBrush}"
                                TextWrapping="Wrap"/>
                     <controls:EmptyStateView IsVisible="{Binding !HasTimelineData}"
+                                             AutomationProperties.AutomationId="TimelineEmptyState"
+                                             AutomationProperties.Name="Timeline empty state"
                                              Icon="mdi-chart-timeline-variant"
                                              Headline="{Binding EmptyStateHeadline}"
                                              Description="{Binding EmptyStateDescription}"
                                              ActionText="{Binding EmptyStateActionText}"
                                              ActionCommand="{Binding EmptyStateActionCommand}"
                                              ActionIcon="mdi-rocket-launch-outline"
-                                             ActionAutomationId="TimelineEmptyStateAnalyzeButton"/>
+                                             ActionAutomationId="TimelineEmptyStateAnalyzeButton"
+                                             ActionAutomationName="Run audit for timeline"/>
 
                     <!-- Selected finding detail card -->
                     <Border Theme="{StaticResource VtCard}"
@@ -120,6 +123,8 @@
                                 </StackPanel>
                                 <Button Grid.Column="2"
                                         x:Name="CloseDetailButton"
+                                        AutomationProperties.AutomationId="TimelineCloseDetailButton"
+                                        AutomationProperties.Name="Close timeline finding details"
                                         Theme="{StaticResource VtGhostButton}"
                                         Padding="6"
                                         VerticalAlignment="Top">

@@ -12,16 +12,16 @@
     <Grid Margin="8" RowDefinitions="Auto,Auto,*">
         <!-- Toolbar -->
         <WrapPanel Grid.Row="0" Margin="0,0,0,8">
-            <Button Content="Add" Command="{Binding AddCommand}" Theme="{StaticResource VtPrimaryButton}" MinWidth="60" Margin="0,0,6,6"/>
-            <Button Content="Edit" Command="{Binding EditCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
-            <Button Content="Delete" Command="{Binding DeleteCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
-            <Button Content="Enable" Command="{Binding EnableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
-            <Button Content="Disable" Command="{Binding DisableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
-            <Button Content="Run Now" Command="{Binding RunNowCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="70" Margin="0,0,6,6"/>
-            <Button Content="Install Cron" Command="{Binding InstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
-            <Button Content="Uninstall Cron" Command="{Binding UninstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="90" Margin="0,0,6,6"/>
-            <Button Content="Open Output" Command="{Binding OpenOutputCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
-            <Button Content="Remediate" Command="{Binding RemediateCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+            <Button Content="Add" AutomationProperties.AutomationId="ScheduleAddButton" AutomationProperties.Name="Add schedule" Command="{Binding AddCommand}" Theme="{StaticResource VtPrimaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Edit" AutomationProperties.AutomationId="ScheduleEditButton" AutomationProperties.Name="Edit schedule" Command="{Binding EditCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Delete" AutomationProperties.AutomationId="ScheduleDeleteButton" AutomationProperties.Name="Delete schedule" Command="{Binding DeleteCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Enable" AutomationProperties.AutomationId="ScheduleEnableButton" AutomationProperties.Name="Enable schedule" Command="{Binding EnableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Disable" AutomationProperties.AutomationId="ScheduleDisableButton" AutomationProperties.Name="Disable schedule" Command="{Binding DisableCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="60" Margin="0,0,6,6"/>
+            <Button Content="Run Now" AutomationProperties.AutomationId="ScheduleRunNowButton" AutomationProperties.Name="Run schedule now" Command="{Binding RunNowCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="70" Margin="0,0,6,6"/>
+            <Button Content="Install Cron" AutomationProperties.AutomationId="ScheduleInstallCronButton" AutomationProperties.Name="Install schedule cron job" Command="{Binding InstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+            <Button Content="Uninstall Cron" AutomationProperties.AutomationId="ScheduleUninstallCronButton" AutomationProperties.Name="Uninstall schedule cron job" Command="{Binding UninstallCronCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="90" Margin="0,0,6,6"/>
+            <Button Content="Open Output" AutomationProperties.AutomationId="ScheduleOpenOutputButton" AutomationProperties.Name="Open schedule output" Command="{Binding OpenOutputCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
+            <Button Content="Remediate" AutomationProperties.AutomationId="ScheduleRemediateButton" AutomationProperties.Name="Remediate schedule finding" Command="{Binding RemediateCommand}" Theme="{StaticResource VtSecondaryButton}" MinWidth="80" Margin="0,0,6,6"/>
         </WrapPanel>
 
         <!-- Status -->
@@ -34,6 +34,8 @@
 
         <!-- Schedule list -->
         <DataGrid Grid.Row="2"
+                  AutomationProperties.AutomationId="SchedulesDataGrid"
+                  AutomationProperties.Name="Schedules table"
                   ItemsSource="{Binding Rows}"
                   SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                   AutoGenerateColumns="False"

@@ -12,6 +12,8 @@
     <Grid RowDefinitions="*">
         <!-- Empty state -->
         <controls:EmptyStateView Grid.Row="0"
+                                 AutomationProperties.AutomationId="IncidentStoryEmptyState"
+                                 AutomationProperties.Name="Incident story empty state"
                                  Icon="mdi-book-open-variant"
                                  Headline="{Binding EmptyStateHeadline}"
                                  Description="{Binding EmptyStateDescription}"
@@ -19,6 +21,7 @@
                                  ActionCommand="{Binding EmptyStateActionCommand}"
                                  ActionIcon="mdi-rocket-launch-outline"
                                  ActionAutomationId="IncidentStoryEmptyStateAnalyzeButton"
+                                 ActionAutomationName="Run audit for incident story"
                                  IsVisible="{Binding !HasStory}"/>
 
         <!-- Story content -->
@@ -88,7 +91,7 @@
                                    FontWeight="Bold"
                                    FontSize="{StaticResource VtFontSizeXl}"
                                    Margin="0,0,0,4"/>
-                        <ItemsControl ItemsSource="{Binding Recommendations}">
+                        <ItemsControl ItemsSource="{Binding Recommendations}" AutomationProperties.AutomationId="IncidentRecommendationsList" AutomationProperties.Name="Recommended incident response">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="4"/>
@@ -128,7 +131,7 @@
                                    FontSize="{StaticResource VtFontSizeSm}"
                                    TextWrapping="Wrap"
                                    Margin="0,0,0,2"/>
-                        <ItemsControl ItemsSource="{Binding PostureBeats}">
+                        <ItemsControl ItemsSource="{Binding PostureBeats}" AutomationProperties.AutomationId="IncidentPostureFindingsList" AutomationProperties.Name="Incident posture findings">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="4"/>
@@ -163,7 +166,7 @@
                                    FontWeight="Bold"
                                    FontSize="{StaticResource VtFontSizeXl}"
                                    Margin="0,0,0,4"/>
-                        <ItemsControl ItemsSource="{Binding TimelineBeats}">
+                        <ItemsControl ItemsSource="{Binding TimelineBeats}" AutomationProperties.AutomationId="IncidentTimelineList" AutomationProperties.Name="Incident timeline">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Spacing="4"/>

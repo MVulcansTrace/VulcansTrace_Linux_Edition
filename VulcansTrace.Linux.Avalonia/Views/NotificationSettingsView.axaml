@@ -67,22 +67,22 @@
                         </Grid.Styles>
                         
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Host:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EmailSmtpHost}" PlaceholderText="smtp.example.com" AutomationProperties.AutomationId="NotificationEmailHostTextBox"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EmailSmtpHost}" PlaceholderText="smtp.example.com" AutomationProperties.AutomationId="NotificationEmailHostTextBox" AutomationProperties.Name="SMTP host"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Port:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding EmailSmtpPort}" AutomationProperties.AutomationId="NotificationEmailPortTextBox"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding EmailSmtpPort}" AutomationProperties.AutomationId="NotificationEmailPortTextBox" AutomationProperties.Name="SMTP port"/>
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="From:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding EmailFrom}" PlaceholderText="vulcanstrace@example.com" AutomationProperties.AutomationId="NotificationEmailFromTextBox"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding EmailFrom}" PlaceholderText="vulcanstrace@example.com" AutomationProperties.AutomationId="NotificationEmailFromTextBox" AutomationProperties.Name="Notification email sender"/>
 
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="To:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding EmailTo}" PlaceholderText="admin@example.com" AutomationProperties.AutomationId="NotificationEmailToTextBox"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding EmailTo}" PlaceholderText="admin@example.com" AutomationProperties.AutomationId="NotificationEmailToTextBox" AutomationProperties.Name="Notification email recipient"/>
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Username:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding EmailUsername}" AutomationProperties.AutomationId="NotificationEmailUsernameTextBox"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding EmailUsername}" AutomationProperties.AutomationId="NotificationEmailUsernameTextBox" AutomationProperties.Name="SMTP username"/>
 
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="Password:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding EmailPassword}" PasswordChar="*" AutomationProperties.AutomationId="NotificationEmailPasswordTextBox"/>
+                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding EmailPassword}" PasswordChar="*" AutomationProperties.AutomationId="NotificationEmailPasswordTextBox" AutomationProperties.Name="SMTP password"/>
                     </Grid>
 
                     <CheckBox Content="Enable SSL/TLS"
@@ -104,7 +104,8 @@
                     
                     <TextBox Text="{Binding WebhookUrl}"
                              PlaceholderText="https://hooks.example.com/vulcanstrace"
-                             AutomationProperties.AutomationId="NotificationWebhookUrlTextBox"/>
+                             AutomationProperties.AutomationId="NotificationWebhookUrlTextBox"
+                             AutomationProperties.Name="Notification webhook URL"/>
                 </StackPanel>
             </Border>
 
@@ -112,7 +113,8 @@
                        Foreground="{StaticResource VtTextMutedBrush}"
                        FontSize="{StaticResource VtFontSizeSm}"
                        TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="NotificationSettingsStatusTextBlock"/>
+                       AutomationProperties.AutomationId="NotificationSettingsStatusTextBlock"
+                       AutomationProperties.Name="Notification settings status"/>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="Save"

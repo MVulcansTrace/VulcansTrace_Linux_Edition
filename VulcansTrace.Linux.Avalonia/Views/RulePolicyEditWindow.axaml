@@ -26,6 +26,8 @@
                   SelectedItem="{Binding SelectedRole, Mode=OneWay}"
                   SelectionChanged="RoleComboBox_SelectionChanged"
                   Theme="{StaticResource VtComboBox}"
+                  AutomationProperties.AutomationId="RulePolicyMachineRoleComboBox"
+                  AutomationProperties.Name="Rule policy machine role"
                   Margin="0,0,0,12"/>
 
         <StackPanel Grid.Row="5" Orientation="Vertical" Spacing="8" Margin="0,0,0,12">
@@ -36,7 +38,7 @@
 
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <CheckBox Content="Override Severity" IsChecked="{Binding HasSeverityOverride}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                <ComboBox ItemsSource="{Binding AvailableSeverities}" SelectedItem="{Binding SeverityOverride}" IsEnabled="{Binding HasSeverityOverride}" Theme="{StaticResource VtComboBox}"/>
+                <ComboBox ItemsSource="{Binding AvailableSeverities}" SelectedItem="{Binding SeverityOverride}" IsEnabled="{Binding HasSeverityOverride}" Theme="{StaticResource VtComboBox}" AutomationProperties.AutomationId="RulePolicySeverityComboBox" AutomationProperties.Name="Rule policy severity override"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -46,13 +48,13 @@
         </StackPanel>
 
         <TextBlock Grid.Row="6" Text="Parameters (one key=value per line, # comments allowed):" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,0,0,4"/>
-        <TextBox Grid.Row="7" Text="{Binding ParametersText}" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="treatDefaultAs=Fail&#x0a;expectedPublicPorts=22,80,443" Theme="{StaticResource VtInput}" Height="120" Margin="0,0,0,12"/>
+        <TextBox Grid.Row="7" Text="{Binding ParametersText}" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="treatDefaultAs=Fail&#x0a;expectedPublicPorts=22,80,443" Theme="{StaticResource VtInput}" Height="120" Margin="0,0,0,12" AutomationProperties.AutomationId="RulePolicyParametersInput" AutomationProperties.Name="Rule policy parameters"/>
 
         <TextBlock x:Name="ValidationError" Grid.Row="8" Text="{Binding ValidationMessage}" Foreground="{StaticResource VtDangerBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
         <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="SaveButton" Content="Save" MinWidth="80" Theme="{StaticResource VtPrimaryButton}" Click="SaveButton_Click"/>
-            <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" Theme="{StaticResource VtSecondaryButton}" Click="CancelButton_Click"/>
+            <Button x:Name="SaveButton" Content="Save" MinWidth="80" Theme="{StaticResource VtPrimaryButton}" Click="SaveButton_Click" AutomationProperties.AutomationId="RulePolicySaveButton" AutomationProperties.Name="Save rule policy"/>
+            <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" Theme="{StaticResource VtSecondaryButton}" Click="CancelButton_Click" AutomationProperties.AutomationId="RulePolicyCancelButton" AutomationProperties.Name="Cancel rule policy editing"/>
         </StackPanel>
     </Grid>
 </Window>

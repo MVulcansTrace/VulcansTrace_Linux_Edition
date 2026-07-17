@@ -22,7 +22,8 @@
                       Width="180"
                       VerticalAlignment="Center"
                       Theme="{StaticResource VtComboBox}"
-                      AutomationProperties.AutomationId="SuppressionsFilterComboBox">
+                      AutomationProperties.AutomationId="SuppressionsFilterComboBox"
+                      AutomationProperties.Name="Suppressions review filter">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <TextBlock Text="{Binding Converter={StaticResource ReviewFilterLabelConverter}}"/>
@@ -46,6 +47,7 @@
                   ItemsSource="{Binding ReviewQueueItems}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
+                  FrozenColumnCount="2"
                   IsVisible="{Binding HasReviewItems}"
 
                   CanUserResizeColumns="True"
@@ -69,17 +71,15 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="150" MinWidth="130" />
-                <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" MinWidth="180" />
-                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <!-- Keep row actions beside Status and frozen. The review grid
+                     is wider than its default viewport; when Actions was last,
+                     Remove was clipped until a horizontal scroll. -->
                 <DataGridTemplateColumn Header="Actions" Width="300" MinWidth="260" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <Button Content="Renew"
+                                        AutomationProperties.Name="Renew suppression"
                                         FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
                                         Theme="{StaticResource VtGhostButton}"
@@ -87,18 +87,21 @@
                                         CommandParameter="{Binding}"
                                         IsVisible="{Binding CanRenew}"/>
                                 <Button Content="Convert"
+                                        AutomationProperties.Name="Convert suppression duration"
                                         FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
                                         Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.ConvertDurationCommand}"
                                         CommandParameter="{Binding}"/>
                                 <Button Content="Edit"
+                                        AutomationProperties.Name="Edit suppression reason"
                                         FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
                                         Theme="{StaticResource VtGhostButton}"
                                         Command="{Binding $parent[DataGrid].DataContext.EditReasonCommand}"
                                         CommandParameter="{Binding}"/>
                                 <Button Content="Remove"
+                                        AutomationProperties.Name="Remove suppression"
                                         FontSize="{StaticResource VtFontSizeXs}"
                                         Padding="4,2"
                                         Theme="{StaticResource VtGhostButton}"
@@ -108,6 +111,12 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="150" MinWidth="130" />
+                <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" MinWidth="180" />
+                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
