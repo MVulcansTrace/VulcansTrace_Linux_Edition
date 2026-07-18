@@ -134,13 +134,18 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
-    public void MainWindowXaml_CompareLogsButton_UsesCodeBehindClickHandler()
+    public void MainWindowXaml_CompareLogsButton_UsesCommandBinding()
     {
         var xaml = ReadMainWindowXaml();
         var button = ExtractSelfClosingElementWithAutomationId(xaml, "CompareLogsButton");
 
-        Assert.Contains("Click=\"CompareLogsButton_Click\"", button);
-        Assert.DoesNotContain("Command=\"{Binding CompareLogsCommand}\"", button);
+        // The Compare Logs button binds directly to the VM command (consistent
+        // with every sibling toolbar button) rather than routing through a
+        // code-behind Click handler. The custom AsyncRelayCommand raises
+        // CanExecuteChanged on subscribe and on IsBusy transitions, so the
+        // binding gates the button correctly without code-behind help.
+        Assert.Contains("Command=\"{Binding CompareLogsCommand}\"", button);
+        Assert.DoesNotContain("Click=\"CompareLogsButton_Click\"", button);
     }
 
     [AvaloniaFact]

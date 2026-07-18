@@ -205,21 +205,22 @@
                                          FontSize="{StaticResource VtFontSizeSm}"
                                          VerticalAlignment="Center" />
                               <TextBlock Grid.Column="2"
-                                         Text="{Binding TotalFindings, StringFormat='findings: {0}'}"
+                                         Text="{Binding TotalFindings, StringFormat='Findings: {0}'}"
                                          Foreground="{StaticResource VtTextSecondaryBrush}"
                                          FontSize="{StaticResource VtFontSizeXs}"
                                          VerticalAlignment="Center" />
                               <TextBlock Grid.Column="3"
-                                         Text="{Binding PassedCount, StringFormat='passed: {0}'}"
+                                         Text="{Binding PassedCount, StringFormat='Passed: {0}'}"
                                          Foreground="{StaticResource VtSuccessBrush}"
                                          FontSize="{StaticResource VtFontSizeXs}"
                                          VerticalAlignment="Center" />
                               <TextBlock Grid.Column="4"
-                                         Text="exported"
+                                         Text="✓ Exported"
                                          Foreground="{StaticResource VtSuccessBrush}"
                                          FontSize="{StaticResource VtFontSizeXs}"
                                          IsVisible="{Binding Exported}"
-                                         VerticalAlignment="Center" />
+                                         VerticalAlignment="Center"
+                                         AutomationProperties.Name="Exported" />
                             </Grid>
                           </Border>
                         </DataTemplate>

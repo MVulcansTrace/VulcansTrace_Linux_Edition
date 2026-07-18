@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -65,14 +64,6 @@ public partial class MainWindow : Window
 
         // Defer control lookup until after layout
         Dispatcher.UIThread.Post(() => _mainContent = this.FindControl<ContentControl>("MainContent"));
-    }
-
-    private void CompareLogsButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainViewModel viewModel || !viewModel.CompareLogsCommand.CanExecute(null))
-            return;
-
-        viewModel.CompareLogsCommand.Execute(null);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
