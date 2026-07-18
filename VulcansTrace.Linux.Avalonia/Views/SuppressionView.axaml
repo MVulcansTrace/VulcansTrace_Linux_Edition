@@ -19,7 +19,7 @@
             <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <ComboBox ItemsSource="{Binding ReviewFilters}"
                       SelectedItem="{Binding SelectedReviewFilter}"
-                      Width="180"
+                      Width="220"
                       VerticalAlignment="Center"
                       Theme="{StaticResource VtComboBox}"
                       AutomationProperties.AutomationId="SuppressionsFilterComboBox"
