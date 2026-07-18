@@ -101,6 +101,10 @@ public class MainWindowAccessibilityContractTests
             agent,
             "AgentSlashHelpSearchInput",
             "Search Agent commands");
+        AssertAutomationName(
+            agent,
+            "AgentFilterEmptyState",
+            "Agent chat filter empty state");
 
         var notifications = LoadAvaloniaDocument(
             "Views/NotificationSettingsView.axaml");
@@ -111,6 +115,10 @@ public class MainWindowAccessibilityContractTests
 
         var rules = LoadAvaloniaDocument("Views/RuleCatalogView.axaml");
         AssertAutomationName(rules, "RulesSearchTextBox", "Search rules");
+        AssertAutomationName(
+            rules,
+            "RulesFilterEmptyState",
+            "Rule catalog filter empty state");
 
         var threatIntel = LoadAvaloniaDocument("Views/ThreatIntelView.axaml");
         AssertAutomationName(
@@ -119,6 +127,10 @@ public class MainWindowAccessibilityContractTests
             "Threat intelligence type filter");
 
         var findings = LoadAvaloniaDocument("Views/FindingsView.axaml");
+        AssertAutomationName(
+            findings,
+            "FindingsFilterEmptyState",
+            "Findings filter empty state");
         var emptyAction = findings.Descendants().Single(element =>
             Attribute(element, "ActionAutomationId")?.Value
                 == "FindingsEmptyStateAnalyzeButton");

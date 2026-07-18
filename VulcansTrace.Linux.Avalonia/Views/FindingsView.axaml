@@ -219,6 +219,8 @@
 
         <!-- Filter excluded everything: show a targeted hint instead of the never-analyzed empty state -->
         <controls:FilterEmptyStateView Grid.Row="1"
+                                       AutomationProperties.AutomationId="FindingsFilterEmptyState"
+                                       AutomationProperties.Name="Findings filter empty state"
                                        IsVisible="{Binding HasNoFilterMatches}"
                                        Icon="mdi-filter-remove-outline"
                                        Headline="No findings match your filter"

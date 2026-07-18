@@ -1181,6 +1181,8 @@
 
         <!-- Filter empty state -->
         <controls:FilterEmptyStateView Grid.Row="4"
+                                       AutomationProperties.AutomationId="AgentFilterEmptyState"
+                                       AutomationProperties.Name="Agent chat filter empty state"
                                        Icon="mdi-filter-remove-outline"
                                        Headline="No matching messages"
                                        Description="Try clearing the filters to see all results."

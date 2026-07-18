@@ -83,6 +83,8 @@
 
         <!-- Filter excluded everything: show a targeted hint instead of the never-loaded empty state. -->
         <controls:FilterEmptyStateView Grid.Row="1"
+                                       AutomationProperties.AutomationId="RulesFilterEmptyState"
+                                       AutomationProperties.Name="Rule catalog filter empty state"
                                        IsVisible="{Binding HasNoFilterMatches}"
                                        Icon="mdi-filter-remove-outline"
                                        Headline="No rules match your search"
