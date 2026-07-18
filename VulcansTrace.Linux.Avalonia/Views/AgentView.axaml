@@ -765,7 +765,7 @@
                                 <TextBlock Text="{Binding ImpactPreviewRiskBefore}"
                                            FontSize="{StaticResource VtFontSizeSm}"
                                            Foreground="{StaticResource VtWarningBrush}" />
-                                <TextBlock Text="->"
+                                <TextBlock Text="→"
                                            FontSize="{StaticResource VtFontSizeSm}"
                                            Foreground="{StaticResource VtTextMutedBrush}" />
                                 <TextBlock Text="{Binding ImpactPreviewExpectedRiskAfter}"
@@ -1159,7 +1159,7 @@
                 MaxWidth="900">
             <i:Icon Grid.Row="0"
                     Value="mdi-shield-search"
-                    FontSize="48"
+                    FontSize="{StaticResource VtIconSize2xl}"
                     Foreground="{StaticResource VtPrimaryBrush}"
                     HorizontalAlignment="Center" />
             <TextBlock Grid.Row="1"

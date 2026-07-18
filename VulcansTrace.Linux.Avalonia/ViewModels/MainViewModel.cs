@@ -692,7 +692,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
         if (Findings.SkippedLineCount > 0)
         {
-            SummaryText += $" ({Findings.SkippedLineCount} lines skipped)";
+            var linesWord = Findings.SkippedLineCount == 1 ? "line" : "lines";
+            SummaryText += $" ({Findings.SkippedLineCount} {linesWord} skipped)";
         }
         if (Findings.WarningCount > 0)
         {

@@ -185,7 +185,7 @@ public sealed class ThreatIntelViewModel : ViewModelBase
         OnPropertyChanged(nameof(TotalCount));
         OnPropertyChanged(nameof(IsEmpty));
         ClearCommand.RaiseCanExecuteChanged();
-        StatusMessage = _store.PersistenceWarning ?? (IsEmpty ? "No IOCs imported yet." : $"{TotalCount} IOC(s) loaded.");
+        StatusMessage = _store.PersistenceWarning ?? (IsEmpty ? "No IOCs imported yet." : $"{TotalCount} {(TotalCount == 1 ? "IOC" : "IOCs")} loaded.");
     }
 
     /// <summary>
@@ -332,7 +332,7 @@ public sealed class ThreatIntelViewModel : ViewModelBase
     {
         var parts = new List<string>
         {
-            $"Imported {result.ImportedCount} IOC(s) from {format.ToUpperInvariant()} bundle."
+            $"Imported {result.ImportedCount} {(result.ImportedCount == 1 ? "IOC" : "IOCs")} from {format.ToUpperInvariant()} bundle."
         };
 
         if (result.SkippedCount > 0)

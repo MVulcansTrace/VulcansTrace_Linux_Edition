@@ -2,12 +2,20 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
              xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls"
+             xmlns:conv="using:VulcansTrace.Linux.Avalonia.Converters"
              x:Class="VulcansTrace.Linux.Avalonia.Views.IncidentStoryView"
              x:DataType="vm:IncidentStoryViewModel">
 
     <Design.DataContext>
         <vm:IncidentStoryViewModel/>
     </Design.DataContext>
+
+    <UserControl.Resources>
+        <!-- Bound to CopyStatusIsError: true (failure) → red, false (success) → green. -->
+        <conv:BoolToBrushConverter x:Key="CopyStatusBrushConverter"
+                                   TrueBrush="{StaticResource VtDangerBrush}"
+                                   FalseBrush="{StaticResource VtSuccessBrush}"/>
+    </UserControl.Resources>
 
     <Grid RowDefinitions="*">
         <!-- Empty state -->
@@ -45,7 +53,7 @@
                     </StackPanel>
                 </Grid>
                 <TextBlock Text="{Binding CopyStatus}"
-                           Foreground="{StaticResource VtSuccessBrush}"
+                           Foreground="{Binding CopyStatusIsError, Converter={StaticResource CopyStatusBrushConverter}}"
                            FontSize="{StaticResource VtFontSizeSm}"
                            IsVisible="{Binding CopyStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 

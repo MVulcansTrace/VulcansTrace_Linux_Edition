@@ -325,6 +325,43 @@ public class ThreatIntelViewModelTests
         Assert.Empty(store.GetAll());
     }
 
+    [AvaloniaFact]
+    public void StatusMessage_SingularPluralization_WhenOneIocLoaded()
+    {
+        // Exactly one IOC: the status must say "1 IOC loaded" (singular),
+        // not the old always-plural "1 IOC(s) loaded." parenthetical.
+        var store = new InMemoryThreatIntelStore();
+        var vm = new ThreatIntelViewModel(store, new TestDialogService());
+
+        store.Import(new[]
+        {
+            new IocEntry { Type = IocType.IPv4, Value = "10.0.0.99", Source = "STIX" }
+        });
+        vm.Refresh();
+
+        Assert.Equal(1, vm.TotalCount);
+        Assert.Contains("1 IOC loaded", vm.StatusMessage);
+        Assert.DoesNotContain("IOC(s)", vm.StatusMessage);
+    }
+
+    [AvaloniaFact]
+    public void StatusMessage_PluralPluralization_WhenMultipleIocsLoaded()
+    {
+        // Multiple IOCs: the status must use the plural "IOCs loaded".
+        var store = new InMemoryThreatIntelStore();
+        var vm = new ThreatIntelViewModel(store, new TestDialogService());
+
+        store.Import(new[]
+        {
+            new IocEntry { Type = IocType.IPv4, Value = "10.0.0.99", Source = "STIX" },
+            new IocEntry { Type = IocType.Domain, Value = "evil.example.com", Source = "STIX" }
+        });
+        vm.Refresh();
+
+        Assert.Equal(2, vm.TotalCount);
+        Assert.Contains("2 IOCs loaded", vm.StatusMessage);
+    }
+
     private sealed class TestDialogService : IDialogService
     {
         public string? OpenFileResult { get; set; }

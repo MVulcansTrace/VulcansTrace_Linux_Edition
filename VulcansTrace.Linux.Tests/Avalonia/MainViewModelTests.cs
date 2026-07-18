@@ -259,6 +259,24 @@ also not a firewall line";
     }
 
     [AvaloniaFact]
+    public async Task SkippedLines_SingularPluralization_WhenOneLineSkipped()
+    {
+        // Exactly one unparseable line: the summary must say "1 line skipped"
+        // (singular), not the old always-plural "1 lines skipped".
+        _vm.LogText = @"kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22
+not a firewall line";
+        _vm.SelectedIntensity = _vm.Intensities[2];
+
+        _vm.AnalyzeCommand.Execute(null);
+        await WaitForBusyAsync(_vm);
+
+        Assert.NotNull(_vm.LastResult);
+        Assert.Equal(1, _vm.LastResult.SkippedLineCount);
+        Assert.Contains("1 line skipped", _vm.SummaryText);
+        Assert.DoesNotContain("1 lines skipped", _vm.SummaryText);
+    }
+
+    [AvaloniaFact]
     public async Task LogTextChangedAfterAnalysis_InvalidatesExportContext()
     {
         _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";

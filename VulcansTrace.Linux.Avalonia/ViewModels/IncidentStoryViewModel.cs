@@ -26,6 +26,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     private bool _hasCriticalChain;
     private string _markdown = string.Empty;
     private string _copyStatus = string.Empty;
+    private bool _copyStatusIsError;
     private bool _hasLoadedTraceMap;
 
     /// <summary>Gets the configuration-snapshot beats from the latest audit (System Posture section).</summary>
@@ -109,6 +110,26 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         private set => SetField(ref _copyStatus, value);
     }
 
+    /// <summary>
+    /// Gets whether <see cref="CopyStatus"/> reflects a failure (red) rather than
+    /// a success (green). Drives the foreground brush via BoolToBrushConverter.
+    /// </summary>
+    public bool CopyStatusIsError
+    {
+        get => _copyStatusIsError;
+        private set => SetField(ref _copyStatusIsError, value);
+    }
+
+    /// <summary>
+    /// Sets <see cref="CopyStatus"/> and <see cref="CopyStatusIsError"/> together so the
+    /// text and its color never drift. Every copy-status transition goes through this helper.
+    /// </summary>
+    private void SetCopyStatus(string text, bool isError)
+    {
+        CopyStatus = text;
+        CopyStatusIsError = isError;
+    }
+
     /// <summary>Gets the command that copies the incident story markdown to the clipboard.</summary>
     public AsyncRelayCommand CopyMarkdownCommand { get; }
 
@@ -123,7 +144,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         CopyMarkdownCommand = new AsyncRelayCommand(
             async _ => await CopyMarkdownAsync(),
             _ => HasStory,
-            ex => CopyStatus = $"Copy failed: {ErrorSanitizer.SanitizeException(ex)}");
+            ex => SetCopyStatus($"Copy failed: {ErrorSanitizer.SanitizeException(ex)}", isError: true));
     }
 
     /// <summary>
@@ -135,7 +156,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
         PostureBeats.Clear();
         TimelineBeats.Clear();
         Recommendations.Clear();
-        CopyStatus = string.Empty;
+        SetCopyStatus(string.Empty, isError: false);
 
         if (traceMap == null || traceMap.Findings.Count == 0)
         {
@@ -177,7 +198,7 @@ public sealed class IncidentStoryViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(Markdown))
         {
-            CopyStatus = "No story to copy.";
+            SetCopyStatus("No story to copy.", isError: true);
             return;
         }
 
@@ -190,12 +211,12 @@ public sealed class IncidentStoryViewModel : ViewModelBase
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(Markdown);
-                CopyStatus = "Markdown copied to clipboard.";
+                SetCopyStatus("Markdown copied to clipboard.", isError: false);
                 return;
             }
         }
 
-        CopyStatus = "Clipboard not available.";
+        SetCopyStatus("Clipboard not available.", isError: true);
     }
 
     private void RaiseEmptyStateText()
