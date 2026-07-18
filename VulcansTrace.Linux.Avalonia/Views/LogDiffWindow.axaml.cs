@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 
 namespace VulcansTrace.Linux.Avalonia.Views;
@@ -23,5 +24,10 @@ public partial class LogDiffWindow : Window
     public LogDiffWindow(LogDiffViewModel viewModel) : this()
     {
         DataContext = viewModel;
+    }
+
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }

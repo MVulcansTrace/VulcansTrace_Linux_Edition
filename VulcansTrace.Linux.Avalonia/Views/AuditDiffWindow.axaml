@@ -18,7 +18,7 @@
         <vm:AuditDiffViewModel/>
     </Design.DataContext>
 
-    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto">
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="Audit Comparison"
@@ -193,5 +193,16 @@
                 </Border>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Footer: close. Matches the close-button convention of RemediationPreviewWindow,
+             RulePolicyEditWindow, and ScheduleEditWindow so the dialog is dismissible
+             without relying on the window-frame gadget. -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+            <Button x:Name="CloseButton" Content="Close" MinWidth="100"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    Click="CloseButton_Click"
+                    AutomationProperties.AutomationId="AuditDiffCloseButton"
+                    AutomationProperties.Name="Close audit diff"/>
+        </StackPanel>
     </Grid>
 </Window>

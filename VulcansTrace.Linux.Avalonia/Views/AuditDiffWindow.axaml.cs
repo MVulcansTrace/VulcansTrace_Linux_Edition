@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 
@@ -26,5 +27,10 @@ public partial class AuditDiffWindow : Window
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }
