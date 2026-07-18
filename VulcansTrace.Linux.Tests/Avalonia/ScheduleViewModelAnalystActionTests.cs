@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.ComponentModel;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Notifications;
@@ -51,6 +53,94 @@ public class ScheduleViewModelAnalystActionTests
         Assert.Equal(schedule.Id, entry.Target);
     }
 
+    [Fact]
+    public void HasSelection_False_Initially_And_Notifies_OnSelection()
+    {
+        var store = new InMemoryScheduleStore();
+        var schedule = CreateSchedule(enabled: true);
+        store.Save(schedule);
+        var vm = CreateViewModel(store, new InMemoryAnalystActionStore());
+
+        // No row selected: the toolbar hint should be visible.
+        Assert.False(vm.HasSelection);
+
+        var fired = new List<string?>();
+        ((INotifyPropertyChanged)vm).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
+
+        vm.SelectedRow = vm.Rows.Single(r => r.Schedule.Id == schedule.Id);
+
+        // Selection landed and the computed flag re-notified so the hint swaps.
+        Assert.True(vm.HasSelection);
+        Assert.Contains(nameof(ScheduleViewModel.HasSelection), fired);
+
+        vm.SelectedRow = null;
+
+        Assert.False(vm.HasSelection);
+        // The notification fires on every transition (set-null is a real change here).
+        Assert.Equal(
+            2,
+            fired.Count(p => p == nameof(ScheduleViewModel.HasSelection)));
+    }
+
+    [Fact]
+    public void StatusOrHint_Suppressed_WhenNoRows_Exist()
+    {
+        // Empty store: never tell the user to "select a schedule" when none exist.
+        var vm = CreateViewModel(new InMemoryScheduleStore(), new InMemoryAnalystActionStore());
+        Assert.Equal("", vm.StatusOrHint);
+    }
+
+    [Fact]
+    public void StatusOrHint_ShowsHint_WhenRowsExist_ButNoneSelected()
+    {
+        var store = new InMemoryScheduleStore();
+        store.Save(CreateSchedule(enabled: true));
+        var vm = CreateViewModel(store, new InMemoryAnalystActionStore());
+
+        Assert.True(vm.HasRows);
+        Assert.False(vm.HasSelection);
+        Assert.Contains("Select a schedule", vm.StatusOrHint);
+    }
+
+    [Fact]
+    public void StatusOrHint_Empty_WhenRowSelected_AndNoStatusMessage()
+    {
+        var store = new InMemoryScheduleStore();
+        var schedule = CreateSchedule(enabled: true);
+        store.Save(schedule);
+        var vm = CreateViewModel(store, new InMemoryAnalystActionStore());
+        vm.SelectedRow = vm.Rows.Single(r => r.Schedule.Id == schedule.Id);
+
+        // Selection clears the hint; no status posted yet.
+        Assert.Equal("", vm.StatusOrHint);
+    }
+
+    [Fact]
+    public async Task StatusOrHint_StatusMessage_WinsOverHint_AfterDelete()
+    {
+        // The bug-1 regression: Delete leaves no selection AND posts a status, while
+        // other rows still exist (so the hint WOULD show if status didn't win). The
+        // status must appear alone, not concatenated with the hint.
+        var store = new InMemoryScheduleStore();
+        var toDelete = CreateSchedule(enabled: true, name: "Daily audit");
+        var survivor = CreateSchedule(enabled: true, name: "Weekly audit");
+        store.Save(toDelete);
+        store.Save(survivor);
+        var vm = CreateViewModel(store, new InMemoryAnalystActionStore());
+        vm.SelectedRow = vm.Rows.Single(r => r.Schedule.Id == toDelete.Id);
+
+        vm.DeleteCommand.Execute(null);
+        await vm.DeleteCommand.ExecutionTask;
+
+        Assert.Single(store.GetAll());         // survivor remains
+        Assert.True(vm.HasRows);               // so the hint is otherwise eligible
+        Assert.Null(vm.SelectedRow);           // selection cleared
+        Assert.False(vm.HasSelection);
+        // StatusMessage wins over the hint, with no concatenation.
+        Assert.Contains("deleted", vm.StatusOrHint);
+        Assert.DoesNotContain("Select a schedule", vm.StatusOrHint);
+    }
+
     private static ScheduleViewModel CreateViewModel(InMemoryScheduleStore store, InMemoryAnalystActionStore actionStore)
         => new(
             store,
@@ -60,11 +150,11 @@ public class ScheduleViewModelAnalystActionTests
             new TestDialogService(),
             new AnalystActionLogger(actionStore));
 
-    private static AuditSchedule CreateSchedule(bool enabled)
+    private static AuditSchedule CreateSchedule(bool enabled, string name = "Daily audit")
         => new()
         {
             Id = Guid.NewGuid().ToString("N"),
-            Name = "Daily audit",
+            Name = name,
             Intent = AgentIntent.FullAudit,
             CronExpression = "0 6 * * *",
             MachineRole = MachineRole.Workstation,

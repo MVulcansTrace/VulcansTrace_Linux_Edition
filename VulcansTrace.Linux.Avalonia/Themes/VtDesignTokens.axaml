@@ -366,6 +366,10 @@
 
     <ControlTheme x:Key="VtToolbarSeparator" TargetType="Border">
       <Setter Property="Width" Value="1" />
+      <!-- Fixed height + centered so the rule sits within the button cap height
+           rather than stretching the WrapPanel row (Buttons are ~35px). -->
+      <Setter Property="Height" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Background" Value="{StaticResource VtBorderDefaultBrush}" />
       <Setter Property="Margin" Value="4,0" />
     </ControlTheme>

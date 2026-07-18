@@ -49,6 +49,31 @@ public sealed class ScheduleViewModel : ViewModelBase
     public bool HasRows => Rows.Count > 0;
 
     /// <summary>
+    /// Gets a value indicating whether a schedule row is currently selected.
+    /// Drives the toolbar's selection-hint text in <see cref="ScheduleView"/>.
+    /// </summary>
+    public bool HasSelection => SelectedRow != null;
+
+    /// <summary>
+    /// Gets the single status line rendered under the Schedules toolbar, mirroring
+    /// <see cref="FindingsViewModel.SelectedFindingActionContext"/>. Priority:
+    /// a posted <see cref="StatusMessage"/> wins; otherwise the selection hint shows
+    /// only when a row COULD be selected (<see cref="HasRows"/> &amp;&amp; !<see cref="HasSelection"/>);
+    /// otherwise empty (never tell the user to "select a schedule" when none exist).
+    /// </summary>
+    public string StatusOrHint
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_statusMessage))
+                return _statusMessage;
+            if (HasRows && !HasSelection)
+                return "Select a schedule to enable editing, running, and cron actions.";
+            return "";
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the currently selected schedule row.
     /// </summary>
     public ScheduleRowViewModel? SelectedRow
@@ -67,6 +92,9 @@ public sealed class ScheduleViewModel : ViewModelBase
                 UninstallCronCommand.RaiseCanExecuteChanged();
                 OpenOutputCommand.RaiseCanExecuteChanged();
                 RemediateCommand.RaiseCanExecuteChanged();
+                // Re-notify the computed flags so the toolbar hint swaps on selection.
+                OnPropertyChanged(nameof(HasSelection));
+                OnPropertyChanged(nameof(StatusOrHint));
             }
         }
     }
@@ -77,7 +105,11 @@ public sealed class ScheduleViewModel : ViewModelBase
     public string StatusMessage
     {
         get => _statusMessage;
-        private set => SetField(ref _statusMessage, value);
+        private set
+        {
+            if (SetField(ref _statusMessage, value))
+                OnPropertyChanged(nameof(StatusOrHint));
+        }
     }
 
     /// <summary>Gets the command to add a new schedule.</summary>
@@ -195,6 +227,8 @@ public sealed class ScheduleViewModel : ViewModelBase
 
         // Re-notify the computed empty-state flag so the EmptyStateView/DataGrid swap cleanly.
         OnPropertyChanged(nameof(HasRows));
+        // HasRows feeds StatusOrHint (hint suppressed when nothing to select).
+        OnPropertyChanged(nameof(StatusOrHint));
 
         if (selectedId != null)
         {
