@@ -246,16 +246,17 @@ Invalid line without proper format";
     [Fact]
     public void Parse_IptablesLineWithTimestamp_ParsesExpectedDate()
     {
-        // Arrange
+        // Arrange — referenceDate pinned so the assertion is deterministic; a
+        // year-less syslog line is interpreted against the reference year.
         var logLine = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
 
         // Act
-        var result = _parser.Parse(logLine);
+        var result = _parser.Parse(logLine, new DateTime(2026, 7, 18));
 
         // Assert
         Assert.Single(result.Events);
         var evt = result.Events[0];
-        Assert.Equal(DateTime.Now.Year, evt.Timestamp.Year);
+        Assert.Equal(2026, evt.Timestamp.Year);
         Assert.Equal(1, evt.Timestamp.Month);
         Assert.Equal(19, evt.Timestamp.Day);
         Assert.Equal(10, evt.Timestamp.Hour);
@@ -593,17 +594,17 @@ kernel: Jan 19 10:15:34 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=T
     }
 
     [Fact]
-    public void ParseTimestamp_JanuaryLogInDecember_AdjustsToNextYear()
+    public void ParseTimestamp_JanuaryLogInDecember_StaysInReferenceYear()
     {
-        // Simulate parsing a January log line when "now" is December 2026.
-        // The Jan 10 timestamp with year 2026 would be ~11 months in the past,
-        // exceeding the 180-day threshold, so the parser should add 1 year → 2027.
+        // A January log line read in December is from January of the SAME year
+        // (11 months in the past). Logs record past events; the parser must never
+        // shift a line into the future.
         var logLine = "kernel: Jan 10 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
         var referenceDate = new DateTime(2026, 12, 20);
 
         var timestamp = LinuxIptablesParser.ParseTimestamp(logLine, referenceDate);
 
-        Assert.Equal(2027, timestamp.Year);
+        Assert.Equal(2026, timestamp.Year);
         Assert.Equal(1, timestamp.Month);
         Assert.Equal(10, timestamp.Day);
         Assert.Equal(10, timestamp.Hour);
@@ -612,16 +613,17 @@ kernel: Jan 19 10:15:34 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=T
     }
 
     [Fact]
-    public void ParseTimestamp_DecemberLogInJuly_NoAdjustment()
+    public void ParseTimestamp_DecemberLogInJuly_AdjustsToPreviousYear()
     {
-        // December log parsed in July: Dec 10 with year 2026 is only ~5 months
-        // in the future, which is less than the 180-day threshold. No adjustment.
+        // December log parsed in July: Dec 10 with the reference year would be
+        // ~5 months in the FUTURE — impossible for a log line — so the parser
+        // resolves it to the previous December.
         var logLine = "kernel: Dec 10 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
         var referenceDate = new DateTime(2026, 7, 1);
 
         var timestamp = LinuxIptablesParser.ParseTimestamp(logLine, referenceDate);
 
-        Assert.Equal(2026, timestamp.Year);
+        Assert.Equal(2025, timestamp.Year);
         Assert.Equal(12, timestamp.Month);
         Assert.Equal(10, timestamp.Day);
     }
@@ -713,15 +715,17 @@ kernel: Jan 19 10:15:34 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=T
     }
 
     [Fact]
-    public void Parse_WithReferenceDate_JanuaryLogInDecember_AdjustsYear()
+    public void Parse_WithReferenceDate_JanuaryLogInDecember_StaysInReferenceYear()
     {
+        // A January line read in December is from earlier that same year; the
+        // parser must not push it into the future.
         var logLine = "kernel: Jan 10 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22";
         var referenceDate = new DateTime(2026, 12, 20);
 
         var result = _parser.Parse(logLine, referenceDate);
 
         Assert.Single(result.Events);
-        Assert.Equal(2027, result.Events[0].Timestamp.Year);
+        Assert.Equal(2026, result.Events[0].Timestamp.Year);
     }
 
     [Theory]
@@ -794,19 +798,49 @@ kernel: Jan 19 10:15:34 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=T
     }
 
     [Fact]
-    public void ParseTimestamp_YearBoundaryExactly180Days_AdjustsCorrectly()
+    public void ParseTimestamp_WithinFutureSkewTolerance_StaysInReferenceYear()
     {
-        // 180 days threshold: log from Jan 1 parsed on July 1 (exactly 180 days apart)
-        // Should NOT adjust because threshold is > 180 days
-        var logLine = "kernel: Jan 1 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22";
+        // A line dated ~1 day ahead of the reference is within the clock-skew /
+        // timezone tolerance, so the reference year is kept.
+        var logLine = "kernel: Jul 2 09:59:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22";
+        var referenceDate = new DateTime(2026, 7, 1, 10, 0, 0);
+
+        var timestamp = LinuxIptablesParser.ParseTimestamp(logLine, referenceDate);
+
+        Assert.Equal(2026, timestamp.Year);
+        Assert.Equal(7, timestamp.Month);
+        Assert.Equal(2, timestamp.Day);
+    }
+
+    [Fact]
+    public void ParseTimestamp_BeyondFutureSkew_AdjustsToPreviousYear()
+    {
+        // A line dated more than a day ahead of the reference cannot be a real
+        // future event, so it resolves to the previous year's occurrence.
+        var logLine = "kernel: Jul 3 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22";
         var referenceDate = new DateTime(2026, 7, 1);
 
         var timestamp = LinuxIptablesParser.ParseTimestamp(logLine, referenceDate);
 
-        // Jan 1 2026 to Jul 1 2026 = 181 days, exceeding the 180-day threshold
-        Assert.Equal(2027, timestamp.Year);
+        Assert.Equal(2025, timestamp.Year);
+        Assert.Equal(7, timestamp.Month);
+        Assert.Equal(3, timestamp.Day);
+    }
+
+    [Fact]
+    public void ParseTimestamp_OldLogLine_NeverShiftedIntoNextYear()
+    {
+        // Regression (found 2026-07-18): the previous heuristic moved lines older
+        // than 180 days into NEXT year — a January line read on 2026-07-18 was
+        // stamped 2027. Historical lines must stay in the past.
+        var logLine = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22";
+        var referenceDate = new DateTime(2026, 7, 18);
+
+        var timestamp = LinuxIptablesParser.ParseTimestamp(logLine, referenceDate);
+
+        Assert.Equal(2026, timestamp.Year);
         Assert.Equal(1, timestamp.Month);
-        Assert.Equal(1, timestamp.Day);
+        Assert.Equal(19, timestamp.Day);
     }
 
     [Fact]

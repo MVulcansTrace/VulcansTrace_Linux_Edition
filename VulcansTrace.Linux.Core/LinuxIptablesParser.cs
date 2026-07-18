@@ -8,7 +8,7 @@ namespace VulcansTrace.Linux.Core
     public class LinuxIptablesParser
     {
         private const string UnknownAction = "UNKNOWN";
-        private const int FutureTimestampThresholdDays = 180;
+        private const int FutureSkewToleranceDays = 1;
         private readonly ILogSink _logSink;
 
         private static readonly Regex TimestampRegex = new(
@@ -185,13 +185,15 @@ namespace VulcansTrace.Linux.Core
 
             if (DateTime.TryParseExact(candidate, formats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsed))
             {
-                if (parsed > now.AddDays(FutureTimestampThresholdDays))
+                // Syslog lines carry no year, so assume the reference year. If that
+                // lands more than a day in the future, the line is from the previous
+                // year (a day's tolerance covers clock skew and timezone offsets
+                // between the logging host and this machine). Never shift a line
+                // forward: logs record past events, so a future timestamp is always
+                // the wrong guess.
+                if (parsed > now.AddDays(FutureSkewToleranceDays))
                 {
                     parsed = parsed.AddYears(-1);
-                }
-                else if (parsed < now.AddDays(-FutureTimestampThresholdDays))
-                {
-                    parsed = parsed.AddYears(1);
                 }
 
                 return DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified);
