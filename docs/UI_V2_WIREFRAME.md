@@ -1,0 +1,275 @@
+# VulcansTrace UI v2 — Wireframe Spec (DRAFT, iterating)
+
+Status: blueprint. Not yet implemented. Supersedes nothing; iterate freely.
+Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
+
+Design goals:
+1. Two zones (nav sidebar + content) — the left control panel dies.
+2. Agent-first home: the hero *is* the log input and the chat input.
+3. One canonical home per action — zero duplicate accessible names.
+4. Computer-Use legibility is a build-time contract, not a hope.
+
+---
+
+## 1. Agent home — empty state
+
+```
+┌──────────────────┬────────────────────────────────────────────────────────────────────┐
+│ ◇ VulcansTrace   │ 🛡 Security Agent            ● Online              [⋯ Session ▾]  │ ← (A)
+│              [≪] │                                                                    │
+├──────────────────┼────────────────────────────────────────────────────────────────────┤
+│                  │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐        │
+│ ▾ ANALYSIS       │ │🔍 Findings │ │⚠ High/Crit │ │⚠ Warnings  │ │⛔ Parse Err│ ← (B)  │
+│   Agent        ● │ │     0      │ │     0      │ │     0      │ │     0      │        │
+│   Findings       │ │ cur. scan  │ │ cur. scan  │ │    none    │ │    none    │        │
+│   Timeline       │ └────────────┘ └────────────┘ └────────────┘ └────────────┘        │
+│   Incident Story │                                                                    │
+│                  │ What would you like to check?                              ← (C)  │
+│ ▾ MANAGEMENT     │ ┌────────────────────────────────────────────────┐ ┌───────────┐   │
+│   Rules          │ │ Ask anything, or paste firewall log lines…     │ │ 💬 Chat   │ ← (D)
+│   Threat Intel   │ └────────────────────────────────────────────────┘ └───────────┘   │
+│   Suppressions   │ [ Scan latest auth.log ] [ Why is port 443 flagged? ] [ Sweep rest ] │
+│   Coverage       │                                                     chips ← (E)    │
+│   Compliance     │ ▸ Scan options                                             ← (F)   │
+│   Risk           │                                                                    │
+│                  │                                                                    │
+│ ▾ OPERATIONS     │                                                                    │
+│   Schedules      │                                                                    │
+│   Notifications  │                                                                    │
+│   Live Stream    │                                                                    │
+│   Doctor         │                                                                    │
+│                  │                                                                    │
+│ ▾ SYSTEM         │                                                                    │
+│   Analyst Log    │                                                                    │
+│   Parse Errors   │                                                                    │
+│   Logs           │                                                                    │
+└──────────────────┴────────────────────────────────────────────────────────────────────┘
+```
+
+## 2. Agent home — results state (hero morphed, input NEVER moves)
+
+```
+┌──────────────────┬────────────────────────────────────────────────────────────────────┐
+│ ◇ VulcansTrace   │ 🛡 Security Agent      ● Analyzing… 40%  [Cancel]  [⋯ Session ▾]  │ ← (G)
+├──────────────────┼────────────────────────────────────────────────────────────────────┤
+│                  │ ┌────────────────────────────────────────────────┐ ┌───────────┐   │
+│  (nav unchanged) │ │ 42 log lines pasted — analyze this             │ │ 🚀 Analyze│ ← (D')
+│                  │ └────────────────────────────────────────────────┘ └───────────┘   │
+│                  │ ── Analysis · Jul 18 16:42 · Medium · Workstation ─────────────     │
+│                  │ ┌──────────────────────────────────────────────────────────────┐    │
+│                  │ │ 🤖 Done. 9 findings — 7 High/Critical, 1 warning.            │    │
+│                  │ │ [ Findings 9 ] [ High/Crit 7 ] [ Warnings 1 ] [ Errors 0 ]   │ ← (H)
+│                  │ └──────────────────────────────────────────────────────────────┘    │
+│                  │ ┌──────────────────────────────────────────────────────────────┐    │
+│                  │ │ 🔴 CRITICAL · Port Scan                            12:00–12:20│ ← (I)
+│                  │ │ Port scan detected from 45.33.32.156 → multiple ports         │    │
+│                  │ │ [ Open in Findings ]                          [ Suppress ▾ ]  │    │
+│                  │ └──────────────────────────────────────────────────────────────┘    │
+│                  │ ┌──────────────────────────────────────────────────────────────┐    │
+│                  │ │ 🟠 HIGH · C2 Channel · interval-beacon pattern …              │    │
+│                  │ └──────────────────────────────────────────────────────────────┘    │
+│                  │ ▸ 6 more findings — open Findings view                     ← (J) │
+│                  │                                                                    │
+│                  │  …follow-up agent messages append here…                            │
+└──────────────────┴────────────────────────────────────────────────────────────────────┘
+```
+
+## 3. Sidebar collapsed to icon rail (SplitView compact mode)
+
+```
+┌─────┐
+│ ◇   │   Logo
+│ [≫] │   Expand toggle (AutomationId: SidebarCollapseToggle)
+│ 🔍  │   ANALYSIS group — click opens flyout with the 4 items
+│ 🛡  │   MANAGEMENT group flyout
+│ ⚙  │   OPERATIONS group flyout
+│ ℹ   │   SYSTEM group flyout
+└─────┘   Flyout items are the SAME ListBoxItems (same AutomationIds), re-parented.
+```
+
+## 4. Findings view — banner cards replace global banners
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Findings                                                                      │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │ ⚠ 1 warning detected during analysis — [View]                  [✕ Dismiss]│ │ ← (K)
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│ [ All severities ▾ ] [ All rules ▾ ] [ Search findings…            ]        │
+│ ───────────────────────────────────────────────────────────────────────────  │
+│ 🔴 Port Scan · CRITICAL · 45.33.32.156 → multiple ports · 12:00–12:20        │
+│ 🟠 C2 Channel · HIGH · beacon pattern · interval 60s ± 0.5                   │
+│ …                                                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Annotations
+
+### (A) Status bar
+- Always visible, all views. Left: agent identity. Center: status text.
+- Status states: `● Online` (idle) / `● Analyzing… {pct}%` (busy) / `● Offline` (no LLM).
+- Right: `⋯ Session tools` MenuFlyout = Export Evidence, Compare Logs, Copy Signing Key.
+  One canonical home each; ids unchanged from today (`ExportEvidenceButton` etc.) so existing scenarios keep working.
+- Replaces: floating "Working..." text, the WrapPanel button row, the HMAC card's duplicate
+  "Copy signing key".
+
+### (B) KPI strip — 4 cards
+- Dropped: Skipped Lines (moves to System → Logs page as a detail row).
+- Calm when zero (muted, no glow); severity accent glow only when nonzero.
+- Every card is a Button, click-through to Findings with the matching filter applied.
+  Ids: `KpiFindingsCard`, `KpiHighCriticalCard`, `KpiWarningsCard`, `KpiParseErrorsCard`.
+
+### (C) Hero header
+- "What would you like to check?" — shrinks/collapses once a thread exists (animation, one-way).
+  The input box does NOT move when this happens.
+
+### (D) Hero input — the core element
+- `AutomationId: HeroInputBox`, multiline-capable, fixed position under the header.
+- Intent detection (ViewModel heuristic): ≥3 pasted lines matching syslog/firewall patterns
+  → primary button label flips `Chat` → `Analyze` (`HeroPrimaryButton`).
+  Deterministic: same content, same label. No hidden modes.
+- Fallback if users find the flip confusing: two chips above the box (`Ask` / `Analyze a log`).
+  Decide after first hands-on.
+- Scan options (intensity, machine role) ride along on Analyze; defaults come from settings.
+
+### (E) Suggested-prompt chips
+- `WrapPanel` of prompt Buttons (`PromptChipItems`), NOT filters. Filters live in Findings.
+- Content: static list first; later, context-aware (e.g., after analysis: "Triage Criticals first").
+- Clicking a chip fills the input box (does NOT auto-send).
+
+### (F) Scan options row
+- Collapsed by default (`ScanOptionsExpander`, named toggle!). Contains Intensity + Machine role combos
+  (ids unchanged: `IntensityComboBox`, `MachineRoleComboBox`) + `Advanced…` button opening a dialog
+  with the 13 numerics (they leave the sidebar forever).
+- Session HMAC key info moves into the Advanced dialog (read-only masked) + Session tools menu (copy action).
+
+### (G) Busy state
+- Status center becomes `Analyzing… {pct}%`; `Cancel` button appears next to it ONLY while busy —
+  declared `runtime-gated` in the manifest (pattern already established).
+- Everything else stays put. No panel collapses during busy (kills the tools-panel auto-collapse bug class).
+
+### (H) Summary card
+- First thread entry after an analysis. KPI chips are the same click-through actions as (B).
+- `AutomationId: AnalysisSummaryCard`; chips reuse KPI ids + `Summary` prefix
+  (`SummaryFindingsChip`, …) — no name collision with (B).
+
+### (I) Finding cards (inline in thread)
+- Top N (≤3) findings rendered as cards: severity dot, rule name, one-line evidence, time range.
+- Actions: `Open in Findings` (deep link, applies filter), `Suppress ▾`.
+- Ids: `FindingCard{RuleId}`, `FindingCardOpen{RuleId}`, `FindingCardSuppress{RuleId}`.
+
+### (J) "6 more findings" link
+- Deep link to Findings view, unfiltered. `AutomationId: ThreadMoreFindingsLink`.
+
+### (K) Findings banner cards
+- Global warnings/parse-error banners die. They become dismissible cards at top of the Findings view,
+  plus one agent thread message linking there.
+- `AutomationId: FindingsWarningsCard`, `FindingsParseErrorsCard`, dismiss = `…DismissButton`.
+- KPI cards + nav aliases stay single-sourced (no "Warnings" nav item).
+
+---
+
+## Computer-Use contract (baked into Phase 1, not retrofitted)
+
+1. Every actionable element has an `AutomationProperties.AutomationId` and a unique
+   `AutomationProperties.Name`. CI test walks the live a11y tree and fails on violations
+   (missing id, duplicate name among actionables).
+2. Nav group headers are real ToggleButtons with ids: `NavGroupAnalysisToggle`,
+   `NavGroupManagementToggle`, `NavGroupOperationsToggle`, `NavGroupSystemToggle`.
+3. Runtime-gated elements (only `CancelAnalysisButton`, busy progress) are declared in
+   `features/vulcanstrace.scenarios.json` as runtime-gated.
+4. Timeline keeps its canvas, but ships an accessible companion list
+   (`TimelineEventsList`, invisible-to-sighted-users option: collapsed by default,
+   expands as a normal list view of the same events).
+5. No interactive text below ~11px (OCR floor). Muted decorative text exempt.
+6. Prefer `IsEnabled=False` over `IsVisible=False` for anything a script might target.
+7. One canonical name per action, repo-wide (dedup test in #1 covers it).
+
+The contract above makes the UI *findable*. The three affordances below (M1–M3)
+make it *self-describing* — state that is told, not inferred. Each kills a
+failure class from the Computer-Use saga.
+
+## Machine legibility (the "walk in the park" layer)
+
+Not pixel work — app-side affordances layered on top of the contract.
+
+### (M1) App state node — told, not inferred
+- One hidden-but-accessible node at the root of the a11y tree,
+  `AutomationId: AppStateNode`, carrying a compact JSON snapshot:
+  `{"view":"agent","busy":false,"last_op":"analyze","last_result":"ok","findings":9,"high_critical":7,"warnings":1}`
+- Updated from a single choke point in MainViewModel on every state transition.
+- Readiness assertions become `wait until state.busy == false` instead of OCR
+  polling / quiescence windows. Kills: settle/wait tuning, the "22 seconds
+  later" race class.
+- `AgentStatusIndicator` (visible status-bar text) is the human projection of
+  the SAME state — one source of truth, two renderings, never divergent.
+- Payload is append-only across versions: add fields, never rename or remove.
+
+### (M2) Action journal feed — outcome receipts
+- The Analyst Action Log already records operations; promote it to a machine
+  feed with structured entries: `{op, status, detail}`, e.g.
+  `export_evidence → ok → /path/evidence.zip`.
+- Exposed as `ActionJournalList` with per-entry `ActionJournalEntry` ids.
+- Assertions read the receipt instead of verifying side effects. Filesystem/zip
+  verification stays, but as a separate integrity check — not the primary signal.
+- Kills: the export-verification assertion class that forced zip support into
+  the harness.
+
+### (M3) Machine mode — `VT_MACHINE_MODE=1`
+- One env flag (same philosophy as the `VT_SCENARIO_ID` export hook) rendering
+  the deterministic variant of the SAME app:
+  - animations off (instant settle)
+  - toasts/transient notifications become journal entries (see M2)
+  - popups/flyouts render as inline panels where feasible
+  - identical views, ids, commands, and state machine — presentation only
+- Honest tradeoff: machine-mode runs prove bindings, commands, and flows — not
+  the pretty pixels. A small set of human-mode smoke scenarios covers rendering.
+- Kills: popup-outside-the-a11y-tree sagas, animation-timing flakes, toast races.
+
+### Phasing note
+M1 and M3 are cheap (one ViewModel choke point + env-flag branches at
+presentation seams). M2 mostly exists — it needs structured entries and stable
+ids. All three land in Phase 1 next to the contract test, so scenarios written
+against v2 target them from day one.
+
+## Element inventory (ids stable from day one)
+
+| Element                    | AutomationId                | Notes                              |
+|---------------------------|-----------------------------|------------------------------------|
+| Sidebar nav list          | `PrimaryNavigationList`     | unchanged from today               |
+| Sidebar collapse toggle   | `SidebarCollapseToggle`     | new                                |
+| Group toggles             | `NavGroup{Group}Toggle`     | new, ×4                            |
+| Agent status text         | `AgentStatusIndicator`      | new                                |
+| Session tools menu        | `SessionToolsMenu`          | new flyout host                    |
+| Export Evidence           | `ExportEvidenceButton`      | moved, id unchanged                |
+| Compare Logs              | `CompareLogsButton`         | moved, id unchanged                |
+| Copy Signing Key          | `CopySigningKeyButton`      | moved, id unchanged; HMAC dup dies |
+| KPI cards                 | `Kpi*Card` ×4               | now buttons (click-through)        |
+| Hero input                | `HeroInputBox`              | new                                |
+| Hero primary button       | `HeroPrimaryButton`         | label Chat ↔ Analyze               |
+| Prompt chips              | `PromptChipItems`           | new                                |
+| Scan options expander     | `ScanOptionsExpander`       | named toggle                       |
+| Intensity / Machine role  | `IntensityComboBox`, `MachineRoleComboBox` | unchanged      |
+| Advanced scan dialog      | `AdvancedScanOptionsButton` → dialog | 13 numerics move here   |
+| Cancel (busy only)        | `CancelAnalysisButton`      | runtime-gated                      |
+| Thread list               | `AnalysisThreadList`        | new                                |
+| Summary card + chips      | `AnalysisSummaryCard`, `Summary*Chip` | new                     |
+| Finding cards             | `FindingCard*`              | new, per-rule suffixes             |
+| Findings banner cards     | `FindingsWarningsCard`, `FindingsParseErrorsCard` | replaces global banners |
+| Timeline companion list   | `TimelineEventsList`        | Phase 4                            |
+| App state node            | `AppStateNode`              | hidden a11y node, JSON state (M1)  |
+| Action journal feed       | `ActionJournalList`, `ActionJournalEntry` | structured receipts (M2) |
+
+## Open questions (iterate here)
+
+1. Chat/Analyze auto-flip vs explicit Ask/Analyze chips — decide after hands-on.
+2. Cancel placement: status bar (drawn) vs next to Analyze button. Leaning status bar.
+3. Prompt chips: static list vs context-aware rotation. Start static.
+4. "Logs" page under SYSTEM: raw log browser + Skipped Lines detail — scope later.
+5. Icon-rail flyouts vs always-expanded rail on wide screens.
+6. What happens to the old left panel's Active Suppressions list — a Suppressions-view
+   summary card, or a thread message after analysis? Leaning: Suppressions view owns it.
+7. M3 coverage check: does "toasts become journal entries" cover ALL transient UI,
+   or are there other popups that need inline-panel treatment? Audit during Phase 1.

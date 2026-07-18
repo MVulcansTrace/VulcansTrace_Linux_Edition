@@ -229,4 +229,199 @@ public class MainWindowAccessibilityContractTests
             relativePath));
         return XDocument.Load(baseDirectoryPath);
     }
+
+    // ── Automation-id / accessible-name ratchet ─────────────────────────
+    // Baselines for the UI v2 accessibility contract: every actionable
+    // control that ships WITHOUT an AutomationProperties.AutomationId, and
+    // every accessible name that is not unique. Both lists only SHRINK:
+    // fixing a control means deleting its line; a new violation fails the
+    // build. Entry format: "{file}|{tag}|{key}" where the key is the best
+    // stable attribute (x:Name, accessible name, Content/Header literal,
+    // Command, Click, ToolTip).
+    private static readonly string[] MissingAutomationIdBaseline =
+    {
+        "MainWindow.axaml|Expander|Scan configuration",
+        "MainWindow.axaml|Expander|Advanced",
+        "MainWindow.axaml|Button|Copy signing key",
+        "MainWindow.axaml|Expander|Active Suppressions",
+        "MainWindow.axaml|Button|Remove suppression",
+        "Views/AgentView.axaml|Expander|Audit History",
+        "Views/AgentView.axaml|Expander|Remediation Sessions",
+        "Views/AgentView.axaml|Button|{Binding PinTooltip}",
+        "Views/AgentView.axaml|Button|{Binding Label}",
+        "Views/AgentView.axaml|Button|{Binding Label}",
+        "Views/AgentView.axaml|ListBox|ChatListBox",
+        "Views/AgentView.axaml|Button|Copy code block",
+        "Views/AgentView.axaml|Button|{Binding CommandText}",
+        "Views/AgentView.axaml|Button|{Binding CommandText}",
+        "Views/CommandRow.axaml|Button|Copy command",
+        "Views/IncidentStoryView.axaml|Button|Copy Markdown",
+        "Views/LiveStreamView.axaml|Button|Start",
+        "Views/LiveStreamView.axaml|Button|Stop",
+        "Views/RemediationPreviewWindow.axaml|Button|ExecuteButton",
+        "Views/RemediationPreviewWindow.axaml|Button|CloseButton",
+        "Views/RulePolicyEditWindow.axaml|CheckBox|Override Enabled",
+        "Views/RulePolicyEditWindow.axaml|CheckBox|Enabled",
+        "Views/RulePolicyEditWindow.axaml|CheckBox|Override Severity",
+        "Views/RulePolicyEditWindow.axaml|CheckBox|Override Auto-Pass",
+        "Views/RulePolicyEditWindow.axaml|CheckBox|Auto-Pass",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Notify on critical findings",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Enabled",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Autonomous drift response",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Require signed alerts (skip unsigned drift alerts when no signing key is set)",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Allow human-approved remediation",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Permit service restarts",
+        "Views/ScheduleEditWindow.axaml|CheckBox|Permit package install/remove",
+        "Views/SuppressionView.axaml|Button|Renew suppression",
+        "Views/SuppressionView.axaml|Button|Convert suppression duration",
+        "Views/SuppressionView.axaml|Button|Edit suppression reason",
+        "Views/SuppressionView.axaml|Button|Remove suppression",
+        "Views/TimelineView.axaml|ToggleButton|TraceMapToggle",
+        "Views/TimelineView.axaml|ToggleButton|HostGroupToggle",
+    };
+
+    private static readonly string[] DuplicateAccessibleNameBaseline =
+    {
+        "Enabled",
+        "Remove suppression",
+    };
+
+    [Fact]
+    public void ActionableControls_WithoutAutomationId_MatchRatchetBaseline()
+    {
+        var violations = CollectMissingAutomationIds()
+            .OrderBy(v => v, StringComparer.Ordinal)
+            .ToArray();
+        var expected = MissingAutomationIdBaseline
+            .OrderBy(v => v, StringComparer.Ordinal)
+            .ToArray();
+        if (expected.SequenceEqual(violations))
+            return;
+
+        var added = violations.Except(expected, StringComparer.Ordinal).ToArray();
+        var stale = expected.Except(violations, StringComparer.Ordinal).ToArray();
+        Assert.Fail(
+            "automation-id ratchet drifted.\n"
+                + "New violations (give the control an AutomationId; "
+                + "do NOT grow the baseline):\n  "
+                + string.Join("\n  ", added)
+                + "\nFixed or moved (shrink MissingAutomationIdBaseline):\n  "
+                + string.Join("\n  ", stale));
+    }
+
+    [Fact]
+    public void AccessibleNames_AreUniqueExceptRatchetBaseline()
+    {
+        var duplicated = CollectAccessibleNames()
+            .GroupBy(name => name, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var expected = DuplicateAccessibleNameBaseline
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        if (expected.SequenceEqual(duplicated))
+            return;
+
+        var added = duplicated.Except(expected, StringComparer.Ordinal).ToArray();
+        var stale = expected.Except(duplicated, StringComparer.Ordinal).ToArray();
+        Assert.Fail(
+            "accessible-name uniqueness ratchet drifted.\n"
+                + "New duplicate names (rename one control; "
+                + "do NOT grow the baseline):\n  "
+                + string.Join("\n  ", added)
+                + "\nResolved duplicates (shrink DuplicateAccessibleNameBaseline):\n  "
+                + string.Join("\n  ", stale));
+    }
+
+    private static readonly HashSet<string> ActionableTags = new(StringComparer.Ordinal)
+    {
+        "Button", "ToggleButton", "ComboBox", "TextBox", "Expander", "MenuItem",
+        "NumericUpDown", "ListBox", "DataGrid", "AutoCompleteBox", "TabItem",
+        "RadioButton", "CheckBox", "Slider",
+    };
+
+    private static readonly HashSet<string> ContentNamedTags = new(StringComparer.Ordinal)
+    {
+        "Button", "ToggleButton", "MenuItem", "RadioButton", "CheckBox", "TabItem",
+    };
+
+    private static IEnumerable<string> CollectMissingAutomationIds()
+    {
+        foreach (var (relativePath, document) in LoadAllAvaloniaDocuments())
+        {
+            foreach (var element in document.Descendants())
+            {
+                if (!ActionableTags.Contains(element.Name.LocalName))
+                    continue;
+                if (Attribute(element, "AutomationProperties.AutomationId") is not null)
+                    continue;
+                var key = Attribute(element, "Name")?.Value
+                    ?? Attribute(element, "AutomationProperties.Name")?.Value
+                    ?? Literal(Attribute(element, "Content")?.Value)
+                    ?? Literal(Attribute(element, "Header")?.Value)
+                    ?? Attribute(element, "Command")?.Value
+                    ?? Attribute(element, "Click")?.Value
+                    ?? Attribute(element, "ToolTip.Tip")?.Value
+                    ?? "?";
+                yield return $"{relativePath}|{element.Name.LocalName}|{key}";
+            }
+        }
+    }
+
+    private static IEnumerable<string> CollectAccessibleNames()
+    {
+        foreach (var (_, document) in LoadAllAvaloniaDocuments())
+        {
+            foreach (var element in document.Descendants())
+            {
+                if (!ActionableTags.Contains(element.Name.LocalName))
+                    continue;
+                var automationName = Attribute(element, "AutomationProperties.Name")?.Value;
+                if (!string.IsNullOrEmpty(automationName) && Literal(automationName) is not null)
+                {
+                    yield return automationName;
+                    continue;
+                }
+                if (!ContentNamedTags.Contains(element.Name.LocalName))
+                    continue;
+                var content = Literal(Attribute(element, "Content")?.Value);
+                if (content is not null)
+                    yield return content;
+            }
+        }
+    }
+
+    private static string? Literal(string? value)
+    {
+        return !string.IsNullOrEmpty(value) && !value.StartsWith('{') ? value : null;
+    }
+
+    private static IEnumerable<(string RelativePath, XDocument Document)> LoadAllAvaloniaDocuments()
+    {
+        var root = AvaloniaProjectDirectory();
+        var files = Directory.GetFiles(root, "*.axaml", SearchOption.AllDirectories)
+            .OrderBy(file => file, StringComparer.Ordinal);
+        foreach (var file in files)
+        {
+            var relative = Path.GetRelativePath(root, file)
+                .Replace(Path.DirectorySeparatorChar, '/');
+            if (relative.StartsWith("bin/") || relative.StartsWith("obj/"))
+                continue;
+            yield return (relative, XDocument.Load(file));
+        }
+    }
+
+    private static string AvaloniaProjectDirectory()
+    {
+        var currentDirectoryPath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "VulcansTrace.Linux.Avalonia");
+        if (Directory.Exists(currentDirectoryPath))
+            return currentDirectoryPath;
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../VulcansTrace.Linux.Avalonia"));
+    }
 }
