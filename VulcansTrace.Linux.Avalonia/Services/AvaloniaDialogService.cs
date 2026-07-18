@@ -37,8 +37,20 @@ public sealed class AvaloniaDialogService : IDialogService
     /// </summary>
     /// <param name="message">The message to display.</param>
     /// <param name="title">The dialog title.</param>
+    /// <remarks>
+    /// In machine mode the modal is suppressed: it steals focus and blocks the
+    /// a11y tree for harnesses, and outcomes are already mirrored into
+    /// persistent status text (e.g. SummaryText). Errors and confirmation
+    /// dialogs are NOT suppressed.
+    /// </remarks>
     public void ShowMessage(string message, string title)
     {
+        if (MachineMode.IsEnabled)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[machine-mode] informational dialog suppressed: {title}: {message}");
+            return;
+        }
         _ = ShowDialogAsync(message, title, isError: false)
             .ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted);
     }

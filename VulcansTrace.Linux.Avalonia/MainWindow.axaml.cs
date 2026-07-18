@@ -102,6 +102,10 @@ public partial class MainWindow : Window
     {
         if (_mainContent == null) return;
 
+        // Machine mode: instant content switch so harnesses never observe a
+        // mid-fade tree (and never wait on animation timing).
+        if (Services.MachineMode.IsEnabled) return;
+
         // Cancel any in-flight transition so rapid navigation doesn't stack animations.
         var previousTransition = _transitionCts;
         var transitionCts = new CancellationTokenSource();
