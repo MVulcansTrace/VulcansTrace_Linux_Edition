@@ -733,6 +733,51 @@ not a firewall line";
         Assert.Equal(_vm.PromptChips.Count, _vm.PromptChips.Select(c => c.AutomationId).Distinct().Count());
     }
 
+    // ── UI v2 Phase 3: icon rail ─────────────────────────────────────────────
+
+    [AvaloniaFact]
+    public void ToggleSidebarCommand_TogglesCollapsedStateAndIcon()
+    {
+        if (MachineMode.IsEnabled)
+        {
+            // Machine mode pins the sidebar expanded (a11y contract stability).
+            Assert.False(_vm.ShowSidebarCollapseToggle);
+            _vm.ToggleSidebarCommand.Execute(null);
+            Assert.False(_vm.IsSidebarCollapsed);
+            return;
+        }
+
+        Assert.True(_vm.ShowSidebarCollapseToggle);
+        Assert.False(_vm.IsSidebarCollapsed);
+        Assert.Equal("mdi-chevron-double-left", _vm.SidebarCollapseToggleIcon);
+
+        _vm.ToggleSidebarCommand.Execute(null);
+        Assert.True(_vm.IsSidebarCollapsed);
+        Assert.Equal("mdi-chevron-double-right", _vm.SidebarCollapseToggleIcon);
+
+        _vm.ToggleSidebarCommand.Execute(null);
+        Assert.False(_vm.IsSidebarCollapsed);
+    }
+
+    [AvaloniaFact]
+    public void NavigationItems_HaveNavigateCommand()
+    {
+        Assert.All(_vm.NavigationItems, item => Assert.NotNull(item.NavigateCommand));
+
+        var findings = _vm.NavigationItems.First(i => i.Label == "Findings");
+        findings.NavigateCommand!.Execute(findings);
+        Assert.Same(findings, _vm.SelectedNavigationItem);
+    }
+
+    [AvaloniaFact]
+    public void NavigationGroups_ExposeRailMetadata()
+    {
+        var analysis = _vm.NavigationGroups[0];
+        Assert.Equal("NavGroupAnalysisRailButton", analysis.RailAutomationId);
+        Assert.Equal("mdi-magnify", analysis.RailIcon);
+        Assert.All(_vm.NavigationGroups, group => Assert.False(string.IsNullOrEmpty(group.RailIcon)));
+    }
+
     private static async Task WaitForBusyAsync(MainViewModel vm, int timeoutMs = 10000)
     {
         var deadline = Environment.TickCount64 + timeoutMs;

@@ -1,9 +1,12 @@
 # VulcansTrace UI v2 — Wireframe Spec (DRAFT, iterating)
 
-Status: **Phase 2 implemented (2026-07-19)** — thread cards (summary card,
-finding cards, more-link), Findings banner cards replacing the global banners
-and the Warnings/Parse Errors nav aliases, advanced scan dialog, hero/agent
-compaction in results state. Phase 1 shipped 2026-07-18. Phases 3–4 open.
+Status: **Phase 3 implemented (2026-07-19)** — unified single hero input with
+Chat↔Analyze intent flip (LogSnippetDetector), prompt chips + slash palette in
+the hero, query-cancel in the status bar, and the icon rail with click-opened
+group flyouts (M3 machine mode pins the sidebar expanded). Phase 1 shipped
+2026-07-18, Phase 2 2026-07-19. **VTCU harness sync (Phase A) + live UI review
+done 2026-07-20** (findings A–E recorded in the Phase 3 amendments below; B
+fixed). Phase 4 open.
 
 > ## Amendments discovered during Phase 1 implementation
 > 1. **No toasts exist.** Transient feedback was modal `IDialogService.ShowMessage`
@@ -59,6 +62,59 @@ compaction in results state. Phase 1 shipped 2026-07-18. Phases 3–4 open.
 > 8. **Hero chat↔analyze flip and icon rail deferred to Phase 3** (user call):
 >    the two-box split stays; prompt chips land with the flip since their
 >    content depends on it.
+>
+> ## Amendments discovered during Phase 3 implementation
+> 1. **Single-box Chat↔Analyze flip SHIPPED** (resolves Phase-1 amendment #2 +
+>    open question #1's first half, and supersedes Phase-2 amendment #8's
+>    deferral): one `HeroInputBox` replaces the log box + chat box;
+>    `LogSnippetDetector` (≥3 log-looking lines → Analyze, else Chat) drives the
+>    primary button; prompt chips fill without sending; the slash palette moved
+>    into the hero; query-cancel moved to the status bar. NOTE: analysis results
+>    can no longer be wiped by a chat send — invalidation is gated to log
+>    changes only.
+> 2. **Icon rail SHIPPED with group flyouts** (resolves Phase-1 amendment #6 +
+>    open question #5): `SidebarCollapseToggle` collapses 220→56px; the four
+>    group buttons open `MenuFlyout`s re-using the nav `ListBoxItem`s (same
+>    AutomationIds, re-parented, as §3 specced). M3 machine mode pins the
+>    sidebar expanded, so the contract/scenarios never see the rail.
+> 3. **Live UI review (2026-07-20, driven via VTCU) — findings → dispositions:**
+>    - **(A) Split input/output IA** — input is pinned top (hero) while the
+>      transcript sits in the agent card below, so the reading surface is
+>      squeezed under stacked chrome and the eyes jump per turn. NOT changed in
+>      Phase 3; recorded as a design principle — *input lives with its thread* —
+>      that gates Phase 4 (any new surface taking input must colocate it with
+>      its thread). A full relocation of the existing hero input is deferred,
+>      gated on hands-on/CI evidence (results-state hero compaction already
+>      softens it).
+>    - **(B) Empty-state redundancy + stale microcopy + duplicated identity** —
+>      FIXED 2026-07-20: the agent-panel header no longer repeats the name +
+>      status the status bar carries (now an onboarding avatar+tagline strip
+>      that hides when a thread is active), and the empty-state line that read
+>      "type your own question below" now points at the hero input above.
+>    - **(C) Sidebar section-header hierarchy inversion** — SHIPPED 2026-07-20:
+>      the loud blue group bars were the default theme painting the group
+>      toggle's *checked* (expanded) state on its template ContentPresenter; a
+>      `/template/ ContentPresenter#PART_ContentPresenter` override keeps the
+>      header quiet, so the accent now belongs to the selected item only.
+>    - **(D) Icon-rail discoverability** — SHIPPED 2026-07-20 (active-indicator
+>      half): the rail button now carries a left-accent bar that tracks the
+>      selected page's group (same left-accent language as the expanded sidebar)
+>      via a new `NavigationGroup.IsActive`, and its tooltip is bound to the
+>      group name. The flyout still light-dismisses on window re-activation (a
+>      static observe never sees it — the harness asserts it via in-act
+>      `control_added`); that part is unchanged.
+>    - **(E) Disabled buttons read as "broken" / transcript right gutter /
+>      persistent collapsed Agent Tools bar in results state** → DEFERRED to the
+>      finding-A / Phase-C layout decision: E2/E3 sit in the same hero/transcript
+>      zone as the deferred split-input/output rework (A), so doing them now
+>      risks rework, and E1 (disabled-button hints) is marginal/speculative.
+>      Not in the 2026-07-20 polish pass (C + D shipped; see that commit).
+> 4. **OCR-disambiguation gotcha (harness, tied to B):** the empty-state
+>    microcopy contains the substring "Agent Tools", so an unregioned
+>    `click_text "Agent Tools"` matches it instead of the toggle bar; the
+>    harness now region-constrains that click. Not a product defect — recorded
+>    so future OCR drives region-constrain around the empty-state copy.
+>
 
 Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
 
@@ -323,12 +379,17 @@ against v2 target them from day one.
 
 ## Open questions (iterate here)
 
-1. Chat/Analyze auto-flip vs explicit Ask/Analyze chips — decide after hands-on.
+1. ~~Chat/Analyze auto-flip vs explicit Ask/Analyze chips~~ — RESOLVED: auto-flip
+   shipped in Phase 3 (LogSnippetDetector: ≥3 log-looking lines → Analyze, else
+   Chat); explicit Ask/Analyze chips remain the documented fallback, gated on
+   hands-on/CI evidence (not built preemptively).
 2. ~~Cancel placement~~ — RESOLVED: status bar, next to Cancel (busy-gated).
 3. Prompt chips: static list vs context-aware rotation. Start static.
 4. "Logs" page under SYSTEM: raw log browser + Skipped Lines detail — scope later.
-5. Icon-rail flyouts vs always-expanded rail on wide screens — rail deferred to
-   Phase 2; groups shipped collapsible-but-expanded-by-default.
+5. ~~Icon-rail flyouts vs always-expanded rail on wide screens~~ — RESOLVED: rail
+   shipped in Phase 3 with click-opened group `MenuFlyout`s re-using the nav
+   labels; the always-expanded-on-wide alternative was not implemented; M3
+   machine mode pins the sidebar expanded.
 6. ~~Active Suppressions location~~ — RESOLVED: Suppressions view owns it (top
    expander), remove button renamed "Remove active suppression" (killed the
    duplicate accessible name).

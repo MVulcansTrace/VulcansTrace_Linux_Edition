@@ -4,12 +4,31 @@
              xmlns:models="using:VulcansTrace.Linux.Avalonia.Models"
              x:Class="VulcansTrace.Linux.Avalonia.Controls.NavigationSidebar"
              x:CompileBindings="False"
-             Width="220"
              Background="{StaticResource VtBackground900Brush}">
 
   <Border BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <ItemsControl x:Name="NavItemsControl"
+    <Grid RowDefinitions="Auto,*">
+      <!-- Collapse toggle (UI v2 Phase 3 icon rail): single home for
+           rail expand/collapse. Hidden in machine mode, where the sidebar
+           always stays expanded so the a11y contract and scenarios are stable. -->
+      <Button Grid.Row="0"
+              Command="{Binding ToggleSidebarCommand}"
+              IsVisible="{Binding ShowSidebarCollapseToggle}"
+              AutomationProperties.AutomationId="SidebarCollapseToggle"
+              AutomationProperties.Name="Toggle sidebar"
+              Theme="{StaticResource VtGhostButton}"
+              HorizontalAlignment="Right"
+              Margin="0,4,8,0"
+              Padding="8,4"
+              ToolTip.Tip="Collapse or expand the sidebar">
+        <i:Icon Value="{Binding SidebarCollapseToggleIcon}" FontSize="{StaticResource VtIconSizeSm}" />
+      </Button>
+
+      <Grid Grid.Row="1">
+        <!-- Expanded sidebar (default) -->
+        <Border IsVisible="{Binding !IsSidebarCollapsed}" Width="220">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="NavItemsControl"
                     AutomationProperties.AutomationId="PrimaryNavigationList"
                     AutomationProperties.Name="Primary navigation"
                     ItemsSource="{Binding NavigationGroups}"
@@ -34,6 +53,34 @@
             <Setter Property="RenderTransform">
               <RotateTransform Angle="180"/>
             </Setter>
+          </Style>
+          <!-- The group toggle is checked while its group is expanded; the default
+               theme paints that checked state with the primary (accent) brush,
+               which turned the section header into a loud blue bar that
+               out-shouted the selected nav item (the same accent). Keep the
+               header quiet in every state so the accent belongs to the selected
+               item only. -->
+          <Style Selector="ToggleButton.group-toggle:checked">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:checked:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:pressed">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <!-- The default theme paints the checked band on the template's
+               ContentPresenter (not the control Background), exactly as it does
+               for ListBoxItem:selected above — so suppress it there too, or the
+               blue bar survives the control-level override. -->
+          <Style Selector="ToggleButton.group-toggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
           </Style>
           <Style Selector="ListBoxItem">
             <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
@@ -163,6 +210,62 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-    </ScrollViewer>
+          </ScrollViewer>
+        </Border>
+
+        <!-- Icon rail (collapsed): one icon button per group; the group's items
+             ride a flyout with the SAME labels (the expanded list is hidden in
+             rail mode, so accessible names never duplicate). Flyout items are
+             reachable while open — proven by the Session tools scenarios. -->
+        <Border IsVisible="{Binding IsSidebarCollapsed}" Width="56">
+          <StackPanel Margin="0,8">
+            <ItemsControl ItemsSource="{Binding NavigationGroups}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="models:NavigationGroup">
+                  <Button AutomationProperties.AutomationId="{Binding RailAutomationId}"
+                          AutomationProperties.Name="{Binding ToggleAccessibleName}"
+                          Theme="{StaticResource VtGhostButton}"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          VerticalContentAlignment="Stretch"
+                          Padding="0,10"
+                          ToolTip.Tip="{Binding Name}">
+                    <Grid>
+                      <!-- Active-group indicator: the rail otherwise gives no cue
+                           which group the selected page belongs to. Uses the same
+                           left-accent language as the expanded sidebar's selected
+                           row so the two modes read consistently. -->
+                      <Border IsVisible="{Binding IsActive}"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Stretch"
+                              Width="3"
+                              Margin="0,2"
+                              CornerRadius="0,2,2,0"
+                              Background="{StaticResource VtPrimaryBrush}" />
+                      <i:Icon Value="{Binding RailIcon}"
+                              FontSize="{StaticResource VtIconSizeMd}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+                    </Grid>
+                    <Button.Flyout>
+                      <MenuFlyout ItemsSource="{Binding Items}" Placement="RightEdgeAlignedTop">
+                        <MenuFlyout.ItemContainerTheme>
+                          <ControlTheme TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding Label}" />
+                            <Setter Property="Command" Value="{Binding NavigateCommand}" />
+                            <Setter Property="CommandParameter" Value="{Binding}" />
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                          </ControlTheme>
+                        </MenuFlyout.ItemContainerTheme>
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
   </Border>
 </UserControl>

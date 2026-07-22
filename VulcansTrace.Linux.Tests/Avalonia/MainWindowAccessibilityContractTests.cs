@@ -145,6 +145,17 @@ public class MainWindowAccessibilityContractTests
             Attribute(element, "AutomationProperties.AutomationId")?.Value
                 == "{Binding ListAutomationId}");
         Assert.Equal("ListBox", list.Name.LocalName);
+
+        // Icon rail (UI v2 Phase 3): the collapse toggle is the single home for
+        // rail expand/collapse; rail group buttons bind per-group metadata and
+        // open flyouts with the same item labels.
+        AssertAutomationName(sidebar, "SidebarCollapseToggle", "Toggle sidebar");
+        var railButton = sidebar.Descendants().Single(element =>
+            Attribute(element, "AutomationProperties.AutomationId")?.Value
+                == "{Binding RailAutomationId}");
+        Assert.Equal(
+            "{Binding ToggleAccessibleName}",
+            Attribute(railButton, "AutomationProperties.Name")?.Value);
     }
 
     [Fact]

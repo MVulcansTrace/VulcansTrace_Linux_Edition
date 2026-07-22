@@ -86,6 +86,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private AnalysisResult? _lastResult;
     private bool _analysisCancelRequested;
     private NavigationItem? _selectedNavigationItem;
+    private bool _isSidebarCollapsed;
     private object? _selectedContent;
 
     /// <summary>Gets the last analysis result.</summary>
@@ -161,8 +162,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                     ThreatIntel.Refresh();
                 }
                 RefreshAppState();
+                RefreshActiveNavigationGroup();
             }
         }
+    }
+
+    private void RefreshActiveNavigationGroup()
+    {
+        var selected = _selectedNavigationItem;
+        foreach (var group in NavigationGroups)
+            group.IsActive = selected != null && group.Items.Contains(selected);
     }
 
     /// <summary>Gets or sets the content displayed in the main area.</summary>
@@ -183,6 +192,33 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// visibility (the hero only lives on the Agent home).
     /// </summary>
     public bool IsAgentHomeVisible => ReferenceEquals(_selectedContent, Agent);
+
+    /// <summary>
+    /// Gets whether the sidebar is collapsed to the icon rail (UI v2 Phase 3).
+    /// In-memory only; machine mode always keeps it expanded.
+    /// </summary>
+    public bool IsSidebarCollapsed
+    {
+        get => _isSidebarCollapsed;
+        private set
+        {
+            if (SetField(ref _isSidebarCollapsed, value))
+            {
+                OnPropertyChanged(nameof(SidebarCollapseToggleIcon));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets whether the sidebar collapse toggle is shown. Hidden in machine
+    /// mode, where the sidebar always stays expanded (a11y contract stability).
+    /// </summary>
+    public bool ShowSidebarCollapseToggle => !MachineMode.IsEnabled;
+
+    /// <summary>Gets the collapse toggle's chevron icon for the current state.</summary>
+    public string SidebarCollapseToggleIcon => IsSidebarCollapsed
+        ? "mdi-chevron-double-right"
+        : "mdi-chevron-double-left";
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -497,6 +533,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the prompt-chip command: fills the hero input without sending.</summary>
     public RelayCommand PromptChipCommand { get; }
 
+    /// <summary>
+    /// Gets the command that selects a navigation item by instance. Wired into
+    /// each item's <see cref="NavigationItem.NavigateCommand"/> so icon-rail
+    /// flyout items can navigate without reaching the window DataContext.
+    /// </summary>
+    public RelayCommand SelectNavigationItemCommand { get; }
+
+    /// <summary>Gets the command that collapses/expands the sidebar icon rail.</summary>
+    public RelayCommand ToggleSidebarCommand { get; }
+
     /// <summary>Gets the cancel command.</summary>
     public RelayCommand CancelCommand { get; }
 
@@ -597,6 +643,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 if (parameter is PromptChip chip)
                 {
                     LogText = chip.Label;
+                }
+            });
+        SelectNavigationItemCommand = new RelayCommand(
+            parameter =>
+            {
+                if (parameter is NavigationItem navItem)
+                {
+                    SelectedNavigationItem = navItem;
+                }
+            });
+        ToggleSidebarCommand = new RelayCommand(
+            _ =>
+            {
+                // Machine mode pins the sidebar expanded — scenarios and the
+                // a11y contract never see the icon rail.
+                if (!MachineMode.IsEnabled)
+                {
+                    IsSidebarCollapsed = !IsSidebarCollapsed;
                 }
             });
         KpiNavigateCommand = new RelayCommand(parameter => NavigateToKpi(parameter as string));
@@ -705,6 +769,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 NavigationGroups.Add(currentGroup);
             }
             currentGroup.Items.Add(item);
+        }
+
+        // Icon-rail flyouts (UI v2 Phase 3) invoke the item's own command —
+        // popup DataContexts cannot reach the window's MainViewModel.
+        foreach (var item in NavigationItems)
+        {
+            item.NavigateCommand = SelectNavigationItemCommand;
         }
 
         Agent.NavigateToThreatIntelAction = NavigateToThreatIntel;

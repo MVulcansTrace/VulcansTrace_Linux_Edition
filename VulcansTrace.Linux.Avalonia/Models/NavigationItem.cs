@@ -1,4 +1,5 @@
 using System;
+using System.Windows.Input;
 
 namespace VulcansTrace.Linux.Avalonia.Models;
 
@@ -21,4 +22,11 @@ public sealed class NavigationItem
 
     /// <summary>Whether this item is currently selected.</summary>
     public bool IsSelected { get; set; }
+
+    /// <summary>
+    /// Command that selects this item. Used by the icon-rail flyouts (UI v2
+    /// Phase 3): popup DataContexts cannot reach the window's MainViewModel,
+    /// so the item carries its own navigation command.
+    /// </summary>
+    public ICommand? NavigateCommand { get; set; }
 }
