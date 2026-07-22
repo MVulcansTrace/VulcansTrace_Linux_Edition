@@ -456,5 +456,18 @@
                             Content="{Binding SelectedContent}" />
         </Border>
 
+        <!-- Machine-readable app state for harnesses: the JSON snapshot rides
+             the TextBlock's own text (its automation peer reports Text as the
+             accessible name; AutomationProperties.* does not reach AT-SPI on
+             Avalonia/Linux). Effectively invisible: 1px, transparent text. -->
+        <TextBlock Grid.Row="1" Grid.Column="4"
+                   AutomationProperties.AutomationId="AppStateNode"
+                   Text="{Binding AppStateJson, Mode=OneWay}"
+                   Foreground="Transparent"
+                   FontSize="1"
+                   Height="1"
+                   IsHitTestVisible="False"
+                   Focusable="False"/>
+
     </Grid>
 </Window>

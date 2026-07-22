@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -54,11 +55,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly EventHandler _evidenceExportCompletedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
     private readonly PropertyChangedEventHandler _agentPropertyChangedHandler;
+    private readonly EventHandler _analystActionStoreChangedHandler;
     private readonly EventHandler<LiveAnalysisResult> _liveResultHandler;
     private readonly EventHandler<DemoCompletedEventArgs> _demoCompletedHandler;
 
     private string _logText = "";
     private string _summaryText = "";
+    private string _appStateJson = "{}";
+    private AnalystActionEntry? _lastAction;
     private string _botIntroText = "";
     private string _advisorMessage = "";
     private int _portScanCap;
@@ -150,6 +154,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 {
                     ThreatIntel.Refresh();
                 }
+                RefreshAppState();
             }
         }
     }
@@ -192,7 +197,51 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string SummaryText
     {
         get => _summaryText;
-        set => SetField(ref _summaryText, value);
+        set
+        {
+            if (SetField(ref _summaryText, value))
+            {
+                RefreshAppState();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the machine-readable application state snapshot (JSON).
+    /// </summary>
+    /// <remarks>
+    /// Surfaced to harnesses through the AppStateNode automation peer in
+    /// MainWindow.axaml. Payload is append-only across versions: add fields,
+    /// never rename or remove. Refreshed from the few properties that compose
+    /// it, so it can never diverge from what the human UI shows.
+    /// </remarks>
+    public string AppStateJson
+    {
+        get => _appStateJson;
+        private set => SetField(ref _appStateJson, value);
+    }
+
+    private void RefreshAppState()
+    {
+        AppStateJson = JsonSerializer.Serialize(new
+        {
+            view = SelectedNavigationItem?.Label ?? "",
+            busy = _isBusy,
+            agent_busy = Agent?.IsBusy ?? false,
+            summary = _summaryText,
+            findings = Findings?.FindingsCount ?? 0,
+            high_critical = Findings?.HighCriticalCount ?? 0,
+            warnings = Findings?.WarningCount ?? 0,
+            parse_errors = Findings?.ParseErrorCount ?? 0,
+            last_action = _lastAction is null
+                ? null
+                : new
+                {
+                    op = _lastAction.ActionType,
+                    target = _lastAction.Target ?? "",
+                    ts = _lastAction.TimestampUtc.ToString("O"),
+                },
+        });
     }
 
     /// <summary>Gets or sets the bot intro text.</summary>
@@ -234,6 +283,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 CancelCommand.RaiseCanExecuteChanged();
                 CompareLogsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(IsNotBusy));
+                RefreshAppState();
             }
         }
     }
@@ -407,6 +457,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _traceMapCorrelator = traceMapCorrelator;
         _analystActionStore = analystActionStore ?? new InMemoryAnalystActionStore();
         _analystActionLogger = analystActionLogger ?? new AnalystActionLogger(_analystActionStore);
+        _lastAction = _analystActionStore.GetAll().FirstOrDefault();
+        _analystActionStoreChangedHandler = (_, _) =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                _lastAction = _analystActionStore.GetAll().FirstOrDefault();
+                RefreshAppState();
+            });
+        _analystActionStore.Changed += _analystActionStoreChangedHandler;
 
         // Initialize commands first (before setting properties that trigger RaiseCanExecuteChanged)
         AnalyzeCommand = new AsyncRelayCommand(
@@ -424,7 +482,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings = new FindingsViewModel(_pinnedFindingStore);
         Timeline = new TimelineViewModel();
         IncidentStory = new IncidentStoryViewModel();
-        Evidence = new EvidenceViewModel(evidenceBuilder, dialogService);
+        Evidence = new EvidenceViewModel(evidenceBuilder, dialogService, analystActionLogger: _analystActionLogger);
         Agent = new AgentViewModel(agent, auditHistoryStore, _remediationPlanBuilder, remediationExecutor, sessionStore, threatIntelStore, dialogService, memoryStore, _pinnedMessageStore, _analystActionLogger)
         {
             SelectedFindingProvider = () => Findings.SelectedItem?.Finding,
@@ -1091,6 +1149,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             Agent.NotifySelectedFindingChanged();
         }
+        if (e.PropertyName is nameof(FindingsViewModel.FindingsCount)
+            or nameof(FindingsViewModel.HighCriticalCount)
+            or nameof(FindingsViewModel.WarningCount)
+            or nameof(FindingsViewModel.ParseErrorCount))
+        {
+            RefreshAppState();
+        }
     }
 
     private void OnAgentPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1099,6 +1164,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             InvestigateCommand?.RaiseCanExecuteChanged();
             VerifyFindingCommand?.RaiseCanExecuteChanged();
+            RefreshAppState();
         }
     }
 
@@ -1349,6 +1415,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
+
+        _analystActionStore.Changed -= _analystActionStoreChangedHandler;
 
         if (Evidence != null)
         {

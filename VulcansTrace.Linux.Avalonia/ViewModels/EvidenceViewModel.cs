@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
@@ -23,6 +24,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
 {
     private readonly EvidenceBuilder _evidenceBuilder;
     private readonly IDialogService _dialogService;
+    private readonly AnalystActionLogger? _analystActionLogger;
     private readonly Func<string?> _exportPathOverride;
     private readonly Func<CancellationToken, Task> _beforeBuildAsync;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -94,14 +96,17 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
     /// <param name="dialogService">Dialog service for UI prompts and messages.</param>
     /// <param name="exportPathOverride">Optional export-path provider used by isolated automation scenarios.</param>
     /// <param name="beforeBuildAsync">Optional cancellable pre-build hook used by deterministic automation scenarios.</param>
+    /// <param name="analystActionLogger">Optional journal logger; successful exports are recorded as EvidenceExported receipts.</param>
     public EvidenceViewModel(
         EvidenceBuilder evidenceBuilder,
         IDialogService dialogService,
         Func<string?>? exportPathOverride = null,
-        Func<CancellationToken, Task>? beforeBuildAsync = null)
+        Func<CancellationToken, Task>? beforeBuildAsync = null,
+        AnalystActionLogger? analystActionLogger = null)
     {
         _evidenceBuilder = evidenceBuilder;
         _dialogService = dialogService;
+        _analystActionLogger = analystActionLogger;
         _exportPathOverride = exportPathOverride ?? ResolveScenarioExportPath;
         _beforeBuildAsync = beforeBuildAsync ?? DelayForScenarioAsync;
 
@@ -246,6 +251,11 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
                 _dialogService.ShowMessage("Evidence bundle saved.", "VulcansTrace");
                 StatusChanged?.Invoke(this, "Evidence bundle saved.");
                 ExportCompleted?.Invoke(this, EventArgs.Empty);
+                if (_analystActionLogger is not null)
+                {
+                    // The journal receipt harnesses assert on (M2): op + path.
+                    await _analystActionLogger.LogEvidenceExportedAsync("avalonia", fileName);
+                }
             }
         }
         catch (Exception ex)

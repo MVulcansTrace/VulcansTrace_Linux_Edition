@@ -1,8 +1,10 @@
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
 using VulcansTrace.Linux.Agent;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Findings;
 using VulcansTrace.Linux.Agent.Messages;
@@ -23,6 +25,7 @@ using VulcansTrace.Linux.Engine.Live;
 using VulcansTrace.Linux.Evidence;
 using VulcansTrace.Linux.Evidence.Formatters;
 using Xunit;
+using static VulcansTrace.Linux.Tests.Avalonia.TestDispatcher;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
@@ -49,6 +52,54 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Same(_vm.SuppressCommand, _vm.Findings.SuppressCommand);
         Assert.Same(_vm.ResolveCommand, _vm.Findings.ResolveCommand);
         Assert.Same(_vm.VerifyFindingCommand, _vm.Findings.VerifyFindingCommand);
+    }
+
+    [AvaloniaFact]
+    public void AppStateJson_InitialSnapshot_ReflectsAgentHomeIdleState()
+    {
+        using var doc = JsonDocument.Parse(_vm.AppStateJson);
+        var root = doc.RootElement;
+        Assert.Equal("Agent", root.GetProperty("view").GetString());
+        Assert.False(root.GetProperty("busy").GetBoolean());
+        Assert.False(root.GetProperty("agent_busy").GetBoolean());
+        Assert.Equal(_vm.SummaryText, root.GetProperty("summary").GetString());
+        Assert.Equal(0, root.GetProperty("findings").GetInt32());
+    }
+
+    [AvaloniaFact]
+    public void AppStateJson_UpdatesOnSummaryBusyAndNavigation()
+    {
+        _vm.SummaryText = "Analysis complete: 3 findings";
+        _vm.IsBusy = true;
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Findings");
+
+        using var doc = JsonDocument.Parse(_vm.AppStateJson);
+        var root = doc.RootElement;
+        Assert.Equal("Findings", root.GetProperty("view").GetString());
+        Assert.True(root.GetProperty("busy").GetBoolean());
+        Assert.Equal("Analysis complete: 3 findings", root.GetProperty("summary").GetString());
+    }
+
+    [AvaloniaFact]
+    public void AppStateJson_SurfacesLatestJournalEntryAsLastAction()
+    {
+        var store = new InMemoryAnalystActionStore();
+        using var vm = BuildViewModel(analystActionStore: store);
+
+        store.Append(new AnalystActionEntry
+        {
+            Id = "abc123",
+            TimestampUtc = new DateTime(2026, 7, 18, 12, 0, 0, DateTimeKind.Utc),
+            Actor = "avalonia",
+            ActionType = AnalystActionType.EvidenceExported,
+            Target = "/tmp/evidence.zip"
+        });
+        FlushDispatcher();
+
+        using var doc = JsonDocument.Parse(vm.AppStateJson);
+        var lastAction = doc.RootElement.GetProperty("last_action");
+        Assert.Equal(AnalystActionType.EvidenceExported, lastAction.GetProperty("op").GetString());
+        Assert.Equal("/tmp/evidence.zip", lastAction.GetProperty("target").GetString());
     }
 
     [AvaloniaFact]
@@ -381,7 +432,8 @@ not a firewall line";
         ISuppressionStore? suppressionStore = null,
         IAgent? agent = null,
         IDetector[]? baselineDetectors = null,
-        IThreatIntelStore? threatIntelStore = null)
+        IThreatIntelStore? threatIntelStore = null,
+        IAnalystActionStore? analystActionStore = null)
     {
         var logNormalizer = new LogNormalizer();
         var profileProvider = new AnalysisProfileProvider();
@@ -446,7 +498,8 @@ not a firewall line";
             remediationExecutor,
             new TraceMapCorrelator(),
             liveStreamAnalyzer,
-            threatIntelStore: threatIntelStore);
+            threatIntelStore: threatIntelStore,
+            analystActionStore: analystActionStore);
     }
 
     private static string ReadMainWindowXaml()

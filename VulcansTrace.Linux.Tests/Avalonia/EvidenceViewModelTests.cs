@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using VulcansTrace.Linux.Agent.Actions;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
 using VulcansTrace.Linux.Core;
@@ -186,6 +187,28 @@ public class EvidenceViewModelTests
         Assert.False(vm.CancelExportCommand.CanExecute(null));
         Assert.Contains("Export cancelled by user.", statuses);
         Assert.False(File.Exists(output));
+    }
+
+    [AvaloniaFact]
+    public async Task ExportEvidenceAsync_LogsAnalystActionReceiptWithPath()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"vt-export-receipt-{Guid.NewGuid():N}.zip");
+        var store = new InMemoryAnalystActionStore();
+        var logger = new AnalystActionLogger(store);
+        var vm = new EvidenceViewModel(
+            BuildEvidenceBuilder(),
+            new TestDialogService(),
+            exportPathOverride: () => output,
+            analystActionLogger: logger);
+        vm.SetEvidenceContext(new AnalysisResult(), "log", DateTime.UnixEpoch);
+
+        vm.ExportEvidenceCommand.Execute(null);
+        await vm.ExportEvidenceCommand.ExecutionTask;
+
+        var entry = Assert.Single(store.GetAll());
+        Assert.Equal(AnalystActionType.EvidenceExported, entry.ActionType);
+        Assert.Equal(output, entry.Target);
+        Assert.Equal("avalonia", entry.Actor);
     }
 
     private static EvidenceBuilder BuildEvidenceBuilder()

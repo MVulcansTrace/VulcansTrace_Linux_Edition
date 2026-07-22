@@ -24,6 +24,7 @@
                Command="{Binding ClearCommand}"
                AutomationProperties.AutomationId="AnalystActionLogClearButton"/>
       <TextBlock Text="{Binding StatusMessage}"
+                 AutomationProperties.AutomationId="AnalystActionLogStatusMessage"
                  VerticalAlignment="Center"
                  Foreground="{StaticResource VtTextSecondaryBrush}"
                  FontSize="{StaticResource VtFontSizeSm}"
