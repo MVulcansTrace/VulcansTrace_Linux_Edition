@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -23,6 +24,7 @@ using VulcansTrace.Linux.Agent.Findings;
 using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.Live;
+using VulcansTrace.Linux.Core.Parsing;
 using VulcansTrace.Linux.Core.ThreatIntel;
 using VulcansTrace.Linux.Engine;
 using VulcansTrace.Linux.Engine.Configuration;
@@ -60,6 +62,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private readonly EventHandler<DemoCompletedEventArgs> _demoCompletedHandler;
 
     private string _logText = "";
+    private bool _syncingLogTextFromAgent;
     private string _summaryText = "";
     private string _appStateJson = "{}";
     private AnalystActionEntry? _lastAction;
@@ -184,7 +187,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
 
-    /// <summary>Gets or sets the raw log text to analyze.</summary>
+    /// <summary>
+    /// Gets or sets the unified hero input text (UI v2 Phase 3). One box serves
+    /// both intents: chat questions and pasted logs. The text mirrors into
+    /// <see cref="AgentViewModel.UserQuery"/> (drives the slash palette and the
+    /// chat send path); <see cref="AgentViewModel.LogText"/> — the log context
+    /// handed to agent operations — only receives the text when it actually
+    /// looks like logs (see <see cref="IsLogIntent"/>). Agent-side writes to
+    /// UserQuery (send-clears, slash execution, history recall) flow back into
+    /// this property via the back-mirror in OnAgentPropertyChanged.
+    /// </summary>
     public string LogText
     {
         get => _logText;
@@ -192,9 +204,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             if (SetField(ref _logText, value))
             {
-                Agent.LogText = value;
+                Agent.UserQuery = value;
+                Agent.LogText = IsLogIntent ? value : string.Empty;
 
-                if (!IsBusy && _lastResult != null)
+                // Invalidation is for LOG changes only: chat text never makes
+                // analysis results stale, and neither does the agent-originated
+                // back-mirror (a chat send clearing the box is not "log changed").
+                if (!_syncingLogTextFromAgent
+                    && (IsLogIntent || string.IsNullOrWhiteSpace(value))
+                    && !IsBusy
+                    && _lastResult != null)
                 {
                     InvalidateAnalysisContext("Log changed. Re-run analysis to refresh findings and exports.");
                 }
@@ -204,9 +223,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                     AdvisorMessage = string.Empty;
                 }
                 AnalyzeCommand.RaiseCanExecuteChanged();
+                HeroPrimaryCommand.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(IsLogIntent));
+                OnPropertyChanged(nameof(HeroPrimaryLabel));
+                OnPropertyChanged(nameof(HeroPrimaryIcon));
             }
         }
     }
+
+    /// <summary>
+    /// Gets whether the hero input currently looks like a pasted log snippet
+    /// (deterministic — same content, same intent). When true, the hero primary
+    /// action is Analyze; otherwise it is Chat.
+    /// </summary>
+    public bool IsLogIntent => LogSnippetDetector.HasLogIntent(_logText);
+
+    /// <summary>Gets the hero primary button label for the current intent.</summary>
+    public string HeroPrimaryLabel => IsLogIntent ? "Analyze" : "Chat";
+
+    /// <summary>Gets the hero primary button icon for the current intent.</summary>
+    public string HeroPrimaryIcon => IsLogIntent ? "mdi-rocket-launch-outline" : "mdi-chat-processing-outline";
+
+    /// <summary>
+    /// Gets the suggested-prompt chips shown under the hero input in the empty
+    /// state. Clicking a chip fills the input — it never auto-sends.
+    /// </summary>
+    public IReadOnlyList<PromptChip> PromptChips { get; } = new[]
+    {
+        new PromptChip("Scan latest auth.log", "PromptChipScanAuthLog"),
+        new PromptChip("Why is port 443 flagged?", "PromptChipWhyPort443"),
+        new PromptChip("Summarize failed logins", "PromptChipFailedLogins")
+    };
 
     /// <summary>Gets or sets the summary status text.</summary>
     public string SummaryText
@@ -283,8 +330,31 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public bool HasAdvisorMessage
     {
         get => _hasAdvisorMessage;
-        private set => SetField(ref _hasAdvisorMessage, value);
+        private set
+        {
+            if (SetField(ref _hasAdvisorMessage, value))
+            {
+                OnPropertyChanged(nameof(ShowAdvisorTip));
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets whether the agent thread has content beyond the welcome message.
+    /// </summary>
+    public bool IsAgentThreadActive => !Agent.HasOnlyWelcomeMessage;
+
+    /// <summary>
+    /// Gets whether the hero intro block is shown. UI v2 Phase 2 hero compaction:
+    /// once a thread exists, the intro collapses so the thread gets the space.
+    /// </summary>
+    public bool ShowHeroIntro => !IsAgentThreadActive;
+
+    /// <summary>
+    /// Gets whether the hero advisor tip is shown: a tip exists and the thread is
+    /// still empty (once the thread exists, the summary card supersedes the tip).
+    /// </summary>
+    public bool ShowAdvisorTip => HasAdvisorMessage && !IsAgentThreadActive;
 
     /// <summary>Gets whether an analysis is in progress.</summary>
     public bool IsBusy
@@ -295,6 +365,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetField(ref _isBusy, value))
             {
                 AnalyzeCommand.RaiseCanExecuteChanged();
+                HeroPrimaryCommand.RaiseCanExecuteChanged();
                 CancelCommand.RaiseCanExecuteChanged();
                 CompareLogsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(IsNotBusy));
@@ -416,11 +487,33 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the analyze command.</summary>
     public AsyncRelayCommand AnalyzeCommand { get; }
 
+    /// <summary>
+    /// Gets the hero primary command (UI v2 Phase 3): routes to Analyze or Chat
+    /// based on <see cref="IsLogIntent"/>. The button label/icon flip with the
+    /// intent — one box, one button, no hidden modes.
+    /// </summary>
+    public RelayCommand HeroPrimaryCommand { get; }
+
+    /// <summary>Gets the prompt-chip command: fills the hero input without sending.</summary>
+    public RelayCommand PromptChipCommand { get; }
+
     /// <summary>Gets the cancel command.</summary>
     public RelayCommand CancelCommand { get; }
 
     /// <summary>Gets the KPI card click-through navigation command.</summary>
     public RelayCommand KpiNavigateCommand { get; }
+
+    /// <summary>Gets the finding-card deep-link command: opens a finding in the Findings view.</summary>
+    public RelayCommand OpenFindingCommand { get; }
+
+    /// <summary>Gets the command that opens the advanced scan options dialog.</summary>
+    public RelayCommand AdvancedScanOptionsCommand { get; }
+
+    /// <summary>
+    /// Gets or sets the action that shows the advanced scan options dialog. Wired by
+    /// MainWindow (the view layer owns window creation); the command invokes it.
+    /// </summary>
+    public Action? ShowAdvancedScanOptionsAction { get; set; }
 
     /// <summary>Gets the investigate selected finding command.</summary>
     public AsyncRelayCommand InvestigateCommand { get; }
@@ -495,7 +588,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 IsBusy = false;
             });
         CancelCommand = new RelayCommand(_ => CancelAnalysis(), _ => CanCancel());
+        HeroPrimaryCommand = new RelayCommand(
+            _ => ExecuteHeroPrimary(),
+            _ => CanExecuteHeroPrimary());
+        PromptChipCommand = new RelayCommand(
+            parameter =>
+            {
+                if (parameter is PromptChip chip)
+                {
+                    LogText = chip.Label;
+                }
+            });
         KpiNavigateCommand = new RelayCommand(parameter => NavigateToKpi(parameter as string));
+        OpenFindingCommand = new RelayCommand(OpenFindingInFindings);
+        AdvancedScanOptionsCommand = new RelayCommand(_ => ShowAdvancedScanOptionsAction?.Invoke());
 
         // Initialize child ViewModels
         Findings = new FindingsViewModel(_pinnedFindingStore);
@@ -586,9 +692,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Notifications", Icon = "mdi-bell", Content = NotificationSettings, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "ACCOUNTABILITY" });
-        NavigationItems.Add(new NavigationItem { Label = "Parse Errors", Icon = "mdi-alert-circle", Content = Findings, Group = "SYSTEM" });
-        NavigationItems.Add(new NavigationItem { Label = "Warnings", Icon = "mdi-alert", Content = Findings, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "SYSTEM" });
 
         // Collapsible sidebar groups: a presentation projection of the flat
         // list, which stays the canonical model for selection and lookups.
@@ -675,6 +779,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private bool CanAnalyze() =>
         !_isBusy && !string.IsNullOrWhiteSpace(_logText) && _selectedIntensity != null;
+
+    private bool CanExecuteHeroPrimary() =>
+        IsLogIntent
+            ? CanAnalyze()
+            : !Agent.IsBusy && !string.IsNullOrWhiteSpace(_logText);
+
+    private void ExecuteHeroPrimary()
+    {
+        if (IsLogIntent)
+        {
+            // Analyze path keeps the input text (re-runnable — the results-state
+            // wireframe shows the box still holding what was analyzed; the
+            // summary card in the thread records the outcome).
+            AnalyzeCommand.Execute(null);
+        }
+        else
+        {
+            // Chat path: SendQueryAsync snapshots the query synchronously, then
+            // clears UserQuery — the back-mirror clears the hero input in turn.
+            Agent.SendQueryCommand.Execute(null);
+        }
+    }
 
     private bool CanCancel() => _isBusy && _cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested;
 
@@ -766,6 +892,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline.LoadAnalysisResult(result, traceMap.Edges);
         IncidentStory.LoadTraceMap(traceMap);
         RiskScorecard.LoadScorecard(result.RiskScorecard);
+        PostAnalysisSummaryCard($"Analysis · {DateTime.Now:MMM d HH:mm} · {_selectedIntensity.Level} · {_selectedMachineRole}");
+        PostFindingCards();
         InjectCountermeasureMessages(traceMap);
 
         // Build summary text
@@ -967,10 +1095,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 SelectNavigationItem("Findings");
                 break;
             case "warnings":
-                SelectNavigationItem("Warnings");
+                // UI v2 Phase 2: warnings live on the Findings view banner card now;
+                // the dedicated nav item is gone. KPI click-through re-reveals a
+                // dismissed card.
+                SelectNavigationItem("Findings");
+                Findings.RevealWarningsCard();
                 break;
             case "parse-errors":
-                SelectNavigationItem("Parse Errors");
+                SelectNavigationItem("Findings");
+                Findings.RevealParseErrorsCard();
                 break;
         }
     }
@@ -982,6 +1115,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             SelectedNavigationItem = item;
         }
+    }
+
+    /// <summary>
+    /// Finding-card deep link: land on the Findings view with no severity filter
+    /// hiding the target, then select the card's finding.
+    /// </summary>
+    private void OpenFindingInFindings(object? parameter)
+    {
+        if (parameter is not FindingItemViewModel item)
+            return;
+        Findings.SelectedSeverityFilter = Findings.SeverityFilters[0];
+        SelectNavigationItem("Findings");
+        Findings.SelectedItem = item;
     }
 
     /// Opens the Threat Intel management view and refreshes it from the shared store first.
@@ -1068,6 +1214,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
         IncidentStory.LoadTraceMap(agentTraceMap);
+        PostAnalysisSummaryCard($"Analysis · {agentResult.UtcTimestamp.ToLocalTime():MMM d HH:mm} · Agent audit");
+        PostFindingCards();
         InjectCountermeasureMessages(agentTraceMap);
         Suppressions.Refresh();
         RuleCoverage.LoadResults(agentResult);
@@ -1075,6 +1223,87 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RiskScorecard.LoadScorecard(agentResult.RiskScorecard);
         ThreatIntel.Refresh();
         SummaryText = agentResult.Summary;
+    }
+
+    /// <summary>
+    /// UI v2 Phase 2: posts the structured analysis summary card to the agent thread.
+    /// Runs on both analysis paths (log paste and agent audit) after Findings.LoadResults,
+    /// so the card counts always match the KPI strip. The chips mirror the KPI cards —
+    /// same navigate command, same parameters.
+    /// </summary>
+    private void PostAnalysisSummaryCard(string contextLine)
+    {
+        var findings = Findings.FindingsCount;
+        var highCritical = Findings.HighCriticalCount;
+        var warnings = Findings.WarningCount;
+        var parseErrors = Findings.ParseErrorCount;
+
+        var summaryLine = findings == 0
+            ? "Done. No findings."
+            : $"Done. {findings} {(findings == 1 ? "finding" : "findings")} — {highCritical} High/Critical, {warnings} {(warnings == 1 ? "warning" : "warnings")}.";
+
+        var chips = new List<SummaryChipViewModel>
+        {
+            new()
+            {
+                Label = $"Findings {findings}",
+                AutomationId = "SummaryFindingsChip",
+                AccessibleName = $"Open all {findings} findings",
+                CommandParameter = "findings"
+            },
+            new()
+            {
+                Label = $"High/Crit {highCritical}",
+                AutomationId = "SummaryHighCriticalChip",
+                AccessibleName = $"Open {highCritical} high and critical findings",
+                CommandParameter = "high-critical"
+            },
+            new()
+            {
+                Label = $"Warnings {warnings}",
+                AutomationId = "SummaryWarningsChip",
+                AccessibleName = $"Open {warnings} warnings",
+                CommandParameter = "warnings"
+            },
+            new()
+            {
+                Label = $"Errors {parseErrors}",
+                AutomationId = "SummaryParseErrorsChip",
+                AccessibleName = $"Open {parseErrors} parse errors",
+                CommandParameter = "parse-errors"
+            }
+        };
+
+        Agent.AddAnalysisSummaryCard(contextLine, summaryLine, chips, KpiNavigateCommand);
+    }
+
+    /// <summary>
+    /// UI v2 Phase 2: posts the top findings as inline thread cards (at most 3, highest
+    /// severity first, one card per rule) plus a "N more findings" deep link. Runs after
+    /// the summary card on both analysis paths. Cards wrap the same FindingItemViewModel
+    /// instances the Findings view shows, so Open selects the exact item there.
+    /// </summary>
+    private void PostFindingCards()
+    {
+        const int maxCards = 3;
+        var seen = new HashSet<string>();
+        var shown = 0;
+        foreach (var item in Findings.Items.OrderByDescending(i => i.Finding.Severity))
+        {
+            var key = item.RuleId.Length > 0 ? item.RuleId : item.GetHashCode().ToString();
+            if (!seen.Add(key))
+                continue;
+            Agent.AddFindingCard(item, OpenFindingCommand, SuppressCommand);
+            shown++;
+            if (shown == maxCards)
+                break;
+        }
+
+        var remaining = Findings.Items.Count - shown;
+        if (remaining > 0)
+        {
+            Agent.AddMoreFindingsLink(remaining, KpiNavigateCommand, "findings");
+        }
     }
 
     private void OnDemoCompleted(DemoCompletedEventArgs e)
@@ -1235,7 +1464,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             InvestigateCommand?.RaiseCanExecuteChanged();
             VerifyFindingCommand?.RaiseCanExecuteChanged();
+            HeroPrimaryCommand.RaiseCanExecuteChanged();
             RefreshAppState();
+        }
+        else if (e.PropertyName == nameof(AgentViewModel.UserQuery))
+        {
+            // Back-mirror (UI v2 Phase 3): agent-side writes to UserQuery —
+            // send-clears, slash-command execution, history recall — flow back
+            // into the hero input. The LogText setter mirrors right back into
+            // UserQuery, but SetField no-ops on equal values, so this cannot
+            // loop. Agent-originated syncs must not invalidate the analysis
+            // context (a chat send clearing the box is not "log changed").
+            if (Agent.UserQuery != _logText)
+            {
+                _syncingLogTextFromAgent = true;
+                try
+                {
+                    LogText = Agent.UserQuery;
+                }
+                finally
+                {
+                    _syncingLogTextFromAgent = false;
+                }
+            }
+        }
+        else if (e.PropertyName == nameof(AgentViewModel.HasOnlyWelcomeMessage))
+        {
+            // Hero compaction (UI v2 Phase 2): the thread existing collapses the hero intro.
+            OnPropertyChanged(nameof(IsAgentThreadActive));
+            OnPropertyChanged(nameof(ShowHeroIntro));
+            OnPropertyChanged(nameof(ShowAdvisorTip));
         }
     }
 

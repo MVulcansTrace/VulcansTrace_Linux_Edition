@@ -29,6 +29,8 @@ public sealed class FindingsViewModel : ViewModelBase
     private bool _showPinnedOnly;
     private bool _hasWarnings;
     private bool _hasParseErrors;
+    private bool _warningsCardDismissed;
+    private bool _parseErrorsCardDismissed;
     private bool _hasLoadedResults;
     private FindingItemViewModel? _selectedItem;
     private ICommand? _investigateCommand;
@@ -90,6 +92,12 @@ public sealed class FindingsViewModel : ViewModelBase
 
     /// <summary>Gets the command used to toggle pin/unpin on the selected finding.</summary>
     public RelayCommand TogglePinSelectedCommand { get; }
+
+    /// <summary>Gets the command used to dismiss the warnings banner card.</summary>
+    public RelayCommand DismissWarningsCardCommand { get; }
+
+    /// <summary>Gets the command used to dismiss the parse-errors banner card.</summary>
+    public RelayCommand DismissParseErrorsCardCommand { get; }
 
     /// <summary>Gets or sets whether only pinned findings are shown.</summary>
     public bool ShowPinnedOnly
@@ -305,15 +313,70 @@ public sealed class FindingsViewModel : ViewModelBase
     public bool HasWarnings
     {
         get => _hasWarnings;
-        private set => SetField(ref _hasWarnings, value);
+        private set
+        {
+            if (SetField(ref _hasWarnings, value))
+            {
+                OnPropertyChanged(nameof(ShowWarningsCard));
+            }
+        }
     }
 
     /// <summary>Gets whether there are any parse errors.</summary>
     public bool HasParseErrors
     {
         get => _hasParseErrors;
-        private set => SetField(ref _hasParseErrors, value);
+        private set
+        {
+            if (SetField(ref _hasParseErrors, value))
+            {
+                OnPropertyChanged(nameof(ShowParseErrorsCard));
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets whether the warnings banner card is shown at the top of the Findings view
+    /// (UI v2 Phase 2): there are warnings and the card was not dismissed.
+    /// </summary>
+    public bool ShowWarningsCard => HasWarnings && !WarningsCardDismissed;
+
+    /// <summary>Gets whether the parse-errors banner card is shown at the top of the Findings view.</summary>
+    public bool ShowParseErrorsCard => HasParseErrors && !ParseErrorsCardDismissed;
+
+    /// <summary>Gets whether the warnings banner card was dismissed for the current results.</summary>
+    public bool WarningsCardDismissed
+    {
+        get => _warningsCardDismissed;
+        private set
+        {
+            if (SetField(ref _warningsCardDismissed, value))
+            {
+                OnPropertyChanged(nameof(ShowWarningsCard));
+            }
+        }
+    }
+
+    /// <summary>Gets whether the parse-errors banner card was dismissed for the current results.</summary>
+    public bool ParseErrorsCardDismissed
+    {
+        get => _parseErrorsCardDismissed;
+        private set
+        {
+            if (SetField(ref _parseErrorsCardDismissed, value))
+            {
+                OnPropertyChanged(nameof(ShowParseErrorsCard));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Brings back the warnings banner card (KPI click-through re-reveals a dismissed card).
+    /// </summary>
+    public void RevealWarningsCard() => WarningsCardDismissed = false;
+
+    /// <summary>Brings back the parse-errors banner card.</summary>
+    public void RevealParseErrorsCard() => ParseErrorsCardDismissed = false;
 
     /// <summary>Gets or sets the selected finding item.</summary>
     public FindingItemViewModel? SelectedItem
@@ -376,6 +439,9 @@ public sealed class FindingsViewModel : ViewModelBase
         TogglePinSelectedCommand = new RelayCommand(
             _ => TogglePinSelected(),
             _ => SelectedItem != null);
+
+        DismissWarningsCardCommand = new RelayCommand(_ => WarningsCardDismissed = true);
+        DismissParseErrorsCardCommand = new RelayCommand(_ => ParseErrorsCardDismissed = true);
 
         RefreshPinnedCount();
         RefreshPinStatusMessage();
@@ -446,6 +512,9 @@ public sealed class FindingsViewModel : ViewModelBase
         // Update statistics
         HasLoadedResults = true;
         LiveFindingsCount = 0;
+        // Fresh results re-show the banner cards (dismissal is per-result-set, not sticky).
+        WarningsCardDismissed = false;
+        ParseErrorsCardDismissed = false;
         FindingsCount = result.Findings.Count;
         HighCriticalCount = result.Findings.Count(f => f.Severity >= Severity.High);
         WarningCount = result.Warnings.Count;

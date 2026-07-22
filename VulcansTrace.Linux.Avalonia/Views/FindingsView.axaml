@@ -15,10 +15,160 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,8">
+        <!-- Banner cards (UI v2 Phase 2): warnings / parse errors for the current
+             result set. Dismissible per result set; KPI click-through re-reveals them. -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <Border Theme="{StaticResource VtCard}"
+                    Background="{StaticResource VtSeverityMediumBgBrush}"
+                    BorderBrush="{StaticResource VtSeverityMediumBrush}"
+                    Padding="8"
+                    Margin="0,0,0,8"
+                    IsVisible="{Binding ShowWarningsCard}"
+                    AutomationProperties.AutomationId="FindingsWarningsCard"
+                    AutomationProperties.Name="Analysis warnings card">
+                <StackPanel Spacing="4">
+                    <StackPanel.Styles>
+                        <Style Selector="ToggleButton:checked Path#FindingsWarningsChevron">
+                            <Setter Property="RenderTransform">
+                                <RotateTransform Angle="180"/>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Styles>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ToggleButton x:Name="WarningsCardToggle"
+                                      Grid.Column="0"
+                                      AutomationProperties.AutomationId="FindingsWarningsCardToggle"
+                                      AutomationProperties.Name="Toggle warnings list"
+                                      IsChecked="False"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Padding="0"
+                                      HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding WarningCount, StringFormat='({0})'}" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Path Grid.Column="1"
+                                      Name="FindingsWarningsChevron"
+                                      Data="M 0 0 L 8 8 L 16 0"
+                                      Stroke="{StaticResource VtSeverityMediumBrush}"
+                                      StrokeThickness="2"
+                                      VerticalAlignment="Center"
+                                      RenderTransformOrigin="0.5,0.5">
+                                    <Path.RenderTransform>
+                                        <RotateTransform Angle="0"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                            </Grid>
+                        </ToggleButton>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource VtGhostButton}"
+                                Padding="6,2"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Dismiss"
+                                Command="{Binding DismissWarningsCardCommand}"
+                                AutomationProperties.AutomationId="FindingsWarningsCardDismissButton"
+                                AutomationProperties.Name="Dismiss warnings card">
+                            <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        </Button>
+                    </Grid>
+                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsChecked, ElementName=WarningsCardToggle, FallbackValue=False}">
+                        <ItemsControl ItemsSource="{Binding Warnings}"
+                                      AutomationProperties.AutomationId="FindingsWarningsList"
+                                      AutomationProperties.Name="Analysis warnings list">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock TextWrapping="Wrap">
+                                        <Run Text="* " Foreground="{StaticResource VtSeverityMediumBrush}"/>
+                                        <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
+            <Border Theme="{StaticResource VtCard}"
+                    Background="{StaticResource VtSeverityCriticalBgBrush}"
+                    BorderBrush="{StaticResource VtSeverityCriticalBrush}"
+                    Padding="8"
+                    IsVisible="{Binding ShowParseErrorsCard}"
+                    AutomationProperties.AutomationId="FindingsParseErrorsCard"
+                    AutomationProperties.Name="Analysis parse errors card">
+                <StackPanel Spacing="4">
+                    <StackPanel.Styles>
+                        <Style Selector="ToggleButton:checked Path#FindingsParseErrorsChevron">
+                            <Setter Property="RenderTransform">
+                                <RotateTransform Angle="180"/>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Styles>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ToggleButton x:Name="ParseErrorsCardToggle"
+                                      Grid.Column="0"
+                                      AutomationProperties.AutomationId="FindingsParseErrorsCardToggle"
+                                      AutomationProperties.Name="Toggle parse errors list"
+                                      IsChecked="True"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Padding="0"
+                                      HorizontalAlignment="Stretch">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="{StaticResource VtSeverityCriticalBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ParseErrorCount, StringFormat='({0})'}" Foreground="{StaticResource VtSeverityCriticalBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Path Grid.Column="1"
+                                      Name="FindingsParseErrorsChevron"
+                                      Data="M 0 0 L 8 8 L 16 0"
+                                      Stroke="{StaticResource VtSeverityCriticalBrush}"
+                                      StrokeThickness="2"
+                                      VerticalAlignment="Center"
+                                      RenderTransformOrigin="0.5,0.5">
+                                    <Path.RenderTransform>
+                                        <RotateTransform Angle="180"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                            </Grid>
+                        </ToggleButton>
+                        <Button Grid.Column="1"
+                                Theme="{StaticResource VtGhostButton}"
+                                Padding="6,2"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Dismiss"
+                                Command="{Binding DismissParseErrorsCardCommand}"
+                                AutomationProperties.AutomationId="FindingsParseErrorsCardDismissButton"
+                                AutomationProperties.Name="Dismiss parse errors card">
+                            <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        </Button>
+                    </Grid>
+                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsChecked, ElementName=ParseErrorsCardToggle, FallbackValue=False}">
+                        <ItemsControl ItemsSource="{Binding ParseErrors}"
+                                      AutomationProperties.AutomationId="FindingsParseErrorsList"
+                                      AutomationProperties.Name="Analysis parse errors list">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock TextWrapping="Wrap">
+                                        <Run Text="* " Foreground="{StaticResource VtSeverityCriticalBrush}"/>
+                                        <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -146,7 +296,7 @@
             </StackPanel>
         </Grid>
 
-        <DataGrid x:Name="FindingsDataGrid" Grid.Row="1"
+        <DataGrid x:Name="FindingsDataGrid" Grid.Row="2"
                   ItemsSource="{Binding FilteredItems}"
                   SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                   AutoGenerateColumns="False"

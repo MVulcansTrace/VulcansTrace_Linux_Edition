@@ -373,6 +373,82 @@ internal sealed class AgentResultPresenter
         _messages.Add(message);
     }
 
+    /// <summary>
+    /// Posts the structured "analysis complete" summary card to the thread (UI v2 Phase 2).
+    /// The chips reuse the KPI-strip navigate command and its parameters.
+    /// </summary>
+    public AnalysisSummaryCardMessageViewModel AddAnalysisSummaryCard(
+        string headerLine,
+        string summaryLine,
+        IReadOnlyList<SummaryChipViewModel> chips,
+        ICommand? navigateCommand)
+    {
+        var message = new AnalysisSummaryCardMessageViewModel
+        {
+            Text = summaryLine,
+            IsUser = false,
+            IsInfo = true,
+            Timestamp = DateTime.Now,
+            HeaderLine = headerLine,
+            SummaryLine = summaryLine,
+            Chips = chips,
+            NavigateCommand = navigateCommand
+        };
+        ConfigureMessage(message);
+        _messages.Add(message);
+        return message;
+    }
+
+    /// <summary>
+    /// Posts a per-finding card to the thread (UI v2 Phase 2). The card wraps the same
+    /// <see cref="FindingItemViewModel"/> display model the Findings view uses, so both
+    /// render identical text for the same finding.
+    /// </summary>
+    public FindingCardMessageViewModel AddFindingCard(
+        FindingItemViewModel item,
+        ICommand? openCommand,
+        ICommand? suppressCommand)
+    {
+        var message = new FindingCardMessageViewModel(item)
+        {
+            Text = $"[{item.Severity}] {item.ShortDescription}",
+            IsUser = false,
+            IsInfo = false,
+            Severity = item.Finding.Severity,
+            Category = item.Category,
+            Timestamp = DateTime.Now,
+            OpenCommand = openCommand,
+            SuppressCommand = suppressCommand
+        };
+        ConfigureMessage(message);
+        _messages.Add(message);
+        return message;
+    }
+
+    /// <summary>
+    /// Posts the "N more findings" deep link to the thread (UI v2 Phase 2), after the
+    /// per-finding cards, when the finding count exceeds the inline card limit.
+    /// </summary>
+    public MoreFindingsLinkMessageViewModel AddMoreFindingsLink(
+        int remainingCount,
+        ICommand? openCommand,
+        object? commandParameter)
+    {
+        var message = new MoreFindingsLinkMessageViewModel
+        {
+            Text = $"{remainingCount} more findings — open Findings view",
+            IsUser = false,
+            IsInfo = true,
+            Timestamp = DateTime.Now,
+            RemainingCount = remainingCount,
+            OpenCommand = openCommand,
+            CommandParameter = commandParameter
+        };
+        ConfigureMessage(message);
+        _messages.Add(message);
+        return message;
+    }
+
     private AgentMessageViewModel AddAgentFindingGroupSummary(IReadOnlyList<Finding> findings)
     {
         var critical = findings.Where(f => f.Severity == Severity.Critical).Sum(GetRawFindingCount);

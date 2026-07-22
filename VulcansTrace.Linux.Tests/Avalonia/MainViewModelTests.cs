@@ -96,7 +96,7 @@ public class MainViewModelTests : IAsyncLifetime
     public void NavigationGroups_ProjectFlatListWithToggleMetadata()
     {
         Assert.Equal(
-            new[] { "ANALYSIS", "MANAGEMENT", "OPERATIONS", "ACCOUNTABILITY", "SYSTEM" },
+            new[] { "ANALYSIS", "MANAGEMENT", "OPERATIONS", "SYSTEM" },
             _vm.NavigationGroups.Select(g => g.Name).ToArray());
         Assert.Equal(_vm.NavigationItems.Count, _vm.NavigationGroups.Sum(g => g.Items.Count));
         Assert.All(_vm.NavigationGroups, group => Assert.True(group.IsExpanded));
@@ -108,6 +108,12 @@ public class MainViewModelTests : IAsyncLifetime
         Assert.Equal("Agent", analysis.Items[0].Label);
         // Same instances as the flat list — selection state stays shared.
         Assert.Same(_vm.NavigationItems[0], analysis.Items[0]);
+
+        // SYSTEM keeps the Analyst Action Log after the Warnings / Parse Errors
+        // nav aliases were removed (UI v2 Phase 2).
+        var system = _vm.NavigationGroups[3];
+        Assert.Equal("NavGroupSystemToggle", system.ToggleAutomationId);
+        Assert.Contains(system.Items, i => i.Label == "Analyst Action Log");
     }
 
     [AvaloniaFact]
@@ -131,13 +137,27 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
-    public void KpiNavigate_WarningsAndParseErrors_SelectTheirViews()
-    {
+    public void KpiNavigate_WarningsAndParseErrors_SelectFindingsView(){
+        // The dedicated Warnings / Parse Errors nav items are gone (UI v2 Phase 2);
+        // both routes land on Findings, where the banner cards live.
         _vm.KpiNavigateCommand.Execute("warnings");
-        Assert.Equal("Warnings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
 
         _vm.KpiNavigateCommand.Execute("parse-errors");
-        Assert.Equal("Parse Errors", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+
+        Assert.DoesNotContain(_vm.NavigationItems, i => i.Label is "Warnings" or "Parse Errors");
+    }
+
+    [AvaloniaFact]
+    public void AdvancedScanOptionsCommand_InvokesWiredAction()
+    {
+        var invoked = 0;
+        _vm.ShowAdvancedScanOptionsAction = () => invoked++;
+
+        _vm.AdvancedScanOptionsCommand.Execute(null);
+
+        Assert.Equal(1, invoked);
     }
 
     [AvaloniaFact]
@@ -306,6 +326,101 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
+    public async Task AnalyzeAsync_PostsSummaryCardToAgentThread()
+    {
+        _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
+        _vm.SelectedIntensity = _vm.Intensities[2];
+
+        _vm.AnalyzeCommand.Execute(null);
+        await WaitForBusyAsync(_vm);
+
+        var card = _vm.Agent.Messages.OfType<AnalysisSummaryCardMessageViewModel>().Single();
+        Assert.StartsWith("Analysis ·", card.HeaderLine);
+        // Posting the card ends the welcome state: the overlay must not cover the thread,
+        // and the stale welcome hint is removed from the transcript.
+        Assert.False(_vm.Agent.HasOnlyWelcomeMessage);
+        Assert.DoesNotContain(_vm.Agent.Messages, m => m.Text.StartsWith("Ask me about", StringComparison.Ordinal));
+        // Hero compaction: the intro and advisor tip collapse once the thread exists.
+        Assert.True(_vm.IsAgentThreadActive);
+        Assert.False(_vm.ShowHeroIntro);
+        Assert.False(_vm.ShowAdvisorTip);
+        Assert.StartsWith("Done.", card.SummaryLine);
+        Assert.Equal(4, card.Chips.Count);
+        Assert.Equal("SummaryFindingsChip", card.Chips[0].AutomationId);
+        Assert.Equal("SummaryHighCriticalChip", card.Chips[1].AutomationId);
+        Assert.Equal("SummaryWarningsChip", card.Chips[2].AutomationId);
+        Assert.Equal("SummaryParseErrorsChip", card.Chips[3].AutomationId);
+        Assert.Same(_vm.KpiNavigateCommand, card.NavigateCommand);
+
+        // Chip click-through mirrors the KPI strip: navigate to Findings.
+        card.NavigateCommand!.Execute(card.Chips[0].CommandParameter);
+        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+    }
+
+    [AvaloniaFact]
+    public async Task AgentAuditCompleted_PostsSummaryCardToAgentThread()
+    {
+        _vm.Agent.FullAuditCommand.Execute(null);
+        await _vm.Agent.FullAuditCommand.ExecutionTask!;
+
+        var card = _vm.Agent.Messages.OfType<AnalysisSummaryCardMessageViewModel>().Single();
+        Assert.Contains("Agent audit", card.HeaderLine);
+        Assert.Equal(4, card.Chips.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task AnalyzeAsync_PostsFindingCardsAndMoreLink()
+    {
+        var now = DateTime.UtcNow;
+        Finding MakeFinding(string ruleId, Severity severity) => new()
+        {
+            RuleId = ruleId,
+            Category = "Firewall",
+            Severity = severity,
+            Confidence = DetectionConfidence.High,
+            SourceHost = "localhost",
+            Target = "target",
+            TimeRangeStart = now,
+            TimeRangeEnd = now,
+            ShortDescription = $"{ruleId} description",
+            Details = "details"
+        };
+        var detector = new StaticFindingsDetector(
+            MakeFinding("FW-LOW", Severity.Low),
+            MakeFinding("FW-CRIT", Severity.Critical),
+            MakeFinding("FW-HIGH", Severity.High),
+            MakeFinding("FW-MED", Severity.Medium));
+        using var vm = BuildViewModel(baselineDetectors: [detector]);
+        vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
+        vm.SelectedIntensity = vm.Intensities[2];
+
+        vm.AnalyzeCommand.Execute(null);
+        await WaitForBusyAsync(vm);
+
+        // Cards mirror the top-3 by severity of whatever the Findings view holds,
+        // one per rule, wired to the deep-link and suppress commands.
+        var cards = vm.Agent.Messages.OfType<FindingCardMessageViewModel>().ToList();
+        var expectedTop = vm.Findings.Items
+            .OrderByDescending(i => i.Finding.Severity)
+            .Take(3)
+            .Select(i => i.RuleId)
+            .ToList();
+        Assert.Equal(expectedTop, cards.Select(c => c.Item.RuleId).ToList());
+        Assert.All(cards, c => Assert.Same(vm.OpenFindingCommand, c.OpenCommand));
+        Assert.All(cards, c => Assert.Same(vm.SuppressCommand, c.SuppressCommand));
+        Assert.All(cards, c => Assert.Contains(vm.Findings.Items, i => ReferenceEquals(i, c.Item)));
+
+        var link = vm.Agent.Messages.OfType<MoreFindingsLinkMessageViewModel>().Single();
+        Assert.Equal(vm.Findings.Items.Count - 3, link.RemainingCount);
+        Assert.Same(vm.KpiNavigateCommand, link.OpenCommand);
+
+        // Deep link lands on the Findings view with the card's finding selected.
+        cards[1].OpenCommand!.Execute(cards[1].Item);
+        Assert.Equal("Findings", vm.SelectedNavigationItem?.Label);
+        Assert.Same(cards[1].Item, vm.Findings.SelectedItem);
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Timing")]
     public async Task CancelCommand_CancelsActiveAnalysis()
     {
@@ -415,7 +530,13 @@ not a firewall line";
         Assert.True(_vm.Evidence.ExportEvidenceCommand.CanExecute(null));
         Assert.NotEmpty(_vm.Evidence.SigningKey);
 
-        _vm.LogText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.20 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=443";
+        // Replacing the logs with new log content (UI v2 Phase 3: log-intent
+        // text, ≥3 log-looking lines) marks the previous results stale.
+        _vm.LogText = """
+            kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.20 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=443
+            kernel: Jan 19 10:15:33 server IN=eth0 SRC=192.168.1.20 DST=192.168.1.1 PROTO=TCP SPT=54322 DPT=443
+            kernel: Jan 19 10:15:34 server IN=eth0 SRC=192.168.1.20 DST=192.168.1.1 PROTO=TCP SPT=54323 DPT=443
+            """;
 
         Assert.Null(_vm.LastResult);
         Assert.False(_vm.Evidence.ExportEvidenceCommand.CanExecute(null));
@@ -470,6 +591,146 @@ not a firewall line";
         Assert.Equal(FindingCategories.Flood, _vm.Findings.Items[0].Finding.Category);
         Assert.DoesNotContain(_vm.Findings.Items, item => item.Finding.Category == FindingCategories.PortScan);
         Assert.True(_vm.Evidence.ExportEvidenceCommand.CanExecute(null));
+    }
+
+    // ── UI v2 Phase 3: unified hero input (Chat ↔ Analyze intent flip) ──────
+
+    private const string HeroSyslogLine = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.10 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22";
+
+    [AvaloniaFact]
+    public void HeroInput_ChatText_KeepsChatIntent()
+    {
+        _vm.LogText = "Why is port 443 flagged?";
+
+        Assert.False(_vm.IsLogIntent);
+        Assert.Equal("Chat", _vm.HeroPrimaryLabel);
+        Assert.Equal("mdi-chat-processing-outline", _vm.HeroPrimaryIcon);
+    }
+
+    [AvaloniaFact]
+    public void HeroInput_LogSnippet_FlipsToAnalyzeIntentAndBack()
+    {
+        _vm.LogText = string.Join('\n', HeroSyslogLine, HeroSyslogLine, HeroSyslogLine);
+
+        Assert.True(_vm.IsLogIntent);
+        Assert.Equal("Analyze", _vm.HeroPrimaryLabel);
+        Assert.Equal("mdi-rocket-launch-outline", _vm.HeroPrimaryIcon);
+
+        _vm.LogText = "just a question now";
+
+        Assert.False(_vm.IsLogIntent);
+        Assert.Equal("Chat", _vm.HeroPrimaryLabel);
+    }
+
+    [AvaloniaFact]
+    public void HeroInput_MirrorsIntoAgentUserQuery()
+    {
+        _vm.LogText = "check ssh";
+
+        Assert.Equal("check ssh", _vm.Agent.UserQuery);
+        // Chat text is not handed to agent operations as log context.
+        Assert.Equal(string.Empty, _vm.Agent.LogText);
+    }
+
+    [AvaloniaFact]
+    public void HeroInput_LogSnippet_MirrorsIntoAgentLogContext()
+    {
+        var text = string.Join('\n', HeroSyslogLine, HeroSyslogLine, HeroSyslogLine);
+
+        _vm.LogText = text;
+
+        Assert.Equal(text, _vm.Agent.LogText);
+        Assert.Equal(text, _vm.Agent.UserQuery);
+    }
+
+    [AvaloniaFact]
+    public void AgentUserQuery_BackMirror_UpdatesHeroInput()
+    {
+        _vm.Agent.UserQuery = "/firewall";
+        Assert.Equal("/firewall", _vm.LogText);
+
+        // Send-clears and slash-command clears flow back into the hero box.
+        _vm.Agent.UserQuery = string.Empty;
+        Assert.Equal(string.Empty, _vm.LogText);
+    }
+
+    [AvaloniaFact]
+    public void HeroPrimaryCommand_EmptyInput_IsDisabled()
+    {
+        Assert.False(_vm.HeroPrimaryCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task HeroPrimaryCommand_ChatText_DispatchesChatAndClearsInput()
+    {
+        _vm.LogText = "is my system secure?";
+        Assert.True(_vm.HeroPrimaryCommand.CanExecute(null));
+
+        _vm.HeroPrimaryCommand.Execute(null);
+        await _vm.Agent.SendQueryCommand.ExecutionTask;
+
+        // SendQueryAsync cleared UserQuery; the back-mirror cleared the hero input.
+        Assert.Equal(string.Empty, _vm.LogText);
+        Assert.Equal(string.Empty, _vm.Agent.UserQuery);
+        Assert.Contains(_vm.Agent.Messages, m => m.IsUser && m.Text == "is my system secure?");
+    }
+
+    [AvaloniaFact]
+    public async Task HeroPrimaryCommand_LogText_DispatchesAnalysisAndKeepsInput()
+    {
+        var text = string.Join('\n', HeroSyslogLine, HeroSyslogLine, HeroSyslogLine);
+        _vm.LogText = text;
+        _vm.SelectedIntensity = _vm.Intensities[2];
+        Assert.True(_vm.HeroPrimaryCommand.CanExecute(null));
+
+        _vm.HeroPrimaryCommand.Execute(null);
+        await WaitForBusyAsync(_vm);
+
+        Assert.NotNull(_vm.LastResult);
+        // Analyze keeps the input (re-runnable); the summary card records what ran.
+        Assert.Equal(text, _vm.LogText);
+    }
+
+    [AvaloniaFact]
+    public async Task ChatSendAfterAnalysis_KeepsAnalysisContext()
+    {
+        _vm.LogText = string.Join('\n', HeroSyslogLine, HeroSyslogLine, HeroSyslogLine);
+        _vm.SelectedIntensity = _vm.Intensities[2];
+        _vm.AnalyzeCommand.Execute(null);
+        await WaitForBusyAsync(_vm);
+        Assert.NotNull(_vm.LastResult);
+        var summaryAfterAnalysis = _vm.SummaryText;
+
+        // Asking a follow-up question is not a log change — results must survive.
+        _vm.LogText = "what should I look at first?";
+        Assert.NotNull(_vm.LastResult);
+
+        _vm.HeroPrimaryCommand.Execute(null);
+        await _vm.Agent.SendQueryCommand.ExecutionTask;
+
+        Assert.NotNull(_vm.LastResult);
+        Assert.Equal(summaryAfterAnalysis, _vm.SummaryText);
+    }
+
+    [AvaloniaFact]
+    public void PromptChip_FillsInputWithoutSending()
+    {
+        var chip = _vm.PromptChips[1];
+
+        _vm.PromptChipCommand.Execute(chip);
+
+        Assert.Equal(chip.Label, _vm.LogText);
+        Assert.Equal(chip.Label, _vm.Agent.UserQuery);
+        Assert.False(_vm.IsLogIntent);
+        // Fill-only: nothing was sent — the thread is still welcome-only.
+        Assert.True(_vm.Agent.HasOnlyWelcomeMessage);
+    }
+
+    [AvaloniaFact]
+    public void PromptChips_HaveUniqueAutomationIds()
+    {
+        Assert.Equal(3, _vm.PromptChips.Count);
+        Assert.Equal(_vm.PromptChips.Count, _vm.PromptChips.Select(c => c.AutomationId).Distinct().Count());
     }
 
     private static async Task WaitForBusyAsync(MainViewModel vm, int timeoutMs = 10000)
@@ -806,5 +1067,15 @@ not a firewall line";
                 Thread.Sleep(10);
             }
         }
+    }
+
+    private sealed class StaticFindingsDetector : IDetector
+    {
+        private readonly IReadOnlyList<Finding> _findings;
+
+        public StaticFindingsDetector(params Finding[] findings) => _findings = findings;
+
+        public DetectionResult Detect(IReadOnlyList<UnifiedEvent> events, AnalysisProfile profile, CancellationToken cancellationToken) =>
+            new(new List<Finding>(_findings));
     }
 }

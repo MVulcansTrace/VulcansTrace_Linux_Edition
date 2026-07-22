@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using VulcansTrace.Linux.Agent.Explanations;
 using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
@@ -871,5 +872,109 @@ public class AgentResultPresenterTests
 
         var message = Assert.Single(harness.Messages);
         Assert.False(string.IsNullOrWhiteSpace(message.MessageId));
+    }
+
+    [AvaloniaFact]
+    public void AddAnalysisSummaryCard_AddsCardMessageWithPayload()
+    {
+        var harness = new PresenterHarness();
+        var chips = new[]
+        {
+            new SummaryChipViewModel
+            {
+                Label = "Findings 9",
+                AutomationId = "SummaryFindingsChip",
+                AccessibleName = "Open all 9 findings",
+                CommandParameter = "findings"
+            },
+            new SummaryChipViewModel
+            {
+                Label = "High/Crit 7",
+                AutomationId = "SummaryHighCriticalChip",
+                AccessibleName = "Open 7 high and critical findings",
+                CommandParameter = "high-critical"
+            }
+        };
+        ICommand navigate = new RelayCommand<object?>(_ => { });
+
+        var card = harness.Presenter.AddAnalysisSummaryCard(
+            "Analysis · Jul 18 16:42 · Medium · Workstation",
+            "Done. 9 findings — 7 High/Critical, 1 warning.",
+            chips,
+            navigate);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.Same(card, message);
+        Assert.IsType<AnalysisSummaryCardMessageViewModel>(message);
+        Assert.Equal("Analysis · Jul 18 16:42 · Medium · Workstation", card.HeaderLine);
+        Assert.Equal("Done. 9 findings — 7 High/Critical, 1 warning.", card.SummaryLine);
+        Assert.Equal(2, card.Chips.Count);
+        Assert.Same(navigate, card.NavigateCommand);
+        Assert.True(card.IsInfo);
+        Assert.False(card.IsUser);
+        // Text mirrors the summary line so pin/copy and the generic automation name stay sane.
+        Assert.Equal(card.SummaryLine, card.Text);
+        Assert.False(string.IsNullOrWhiteSpace(card.MessageId));
+    }
+
+    [AvaloniaFact]
+    public void AddFindingCard_AddsCardMessageWithStableIdsAndCommands()
+    {
+        var harness = new PresenterHarness();
+        var item = new FindingItemViewModel(CreateFinding("FW-001", "Firewall", Severity.Critical, "Firewall disabled"));
+        ICommand open = new RelayCommand<object?>(_ => { });
+        ICommand suppress = new RelayCommand<object?>(_ => { });
+
+        var card = harness.Presenter.AddFindingCard(item, open, suppress);
+
+        var message = Assert.Single(harness.Messages);
+        Assert.Same(card, message);
+        Assert.IsType<FindingCardMessageViewModel>(message);
+        Assert.Same(item, card.Item);
+        Assert.Equal("FW-001", card.IdSuffix);
+        Assert.Equal("FindingCardFW-001", card.CardAutomationId);
+        Assert.Equal("FindingCardOpenFW-001", card.OpenAutomationId);
+        Assert.Equal("FindingCardSuppressFW-001", card.SuppressAutomationId);
+        Assert.Equal("Open FW-001 in Findings", card.OpenAccessibleName);
+        Assert.Equal("Suppress FW-001", card.SuppressAccessibleName);
+        Assert.Equal("Critical · Firewall", card.Header);
+        Assert.Same(open, card.OpenCommand);
+        Assert.Same(suppress, card.SuppressCommand);
+        Assert.Equal(Severity.Critical, card.Severity);
+        Assert.Equal("Firewall", card.Category);
+        Assert.Equal("[Critical] Firewall disabled", card.Text);
+        Assert.False(string.IsNullOrWhiteSpace(card.MessageId));
+    }
+
+    [AvaloniaFact]
+    public void AddFindingCard_WithoutRuleId_FallsBackToMessageIdSuffix()
+    {
+        var harness = new PresenterHarness();
+        var item = new FindingItemViewModel(CreateFinding("", "Firewall", Severity.Low, "No rule"));
+
+        var card = harness.Presenter.AddFindingCard(item, null, null);
+
+        Assert.Equal(card.MessageId, card.IdSuffix);
+        Assert.Equal($"FindingCard{card.MessageId}", card.CardAutomationId);
+    }
+
+    [AvaloniaFact]
+    public void AddMoreFindingsLink_AddsLinkMessage()
+    {
+        var harness = new PresenterHarness();
+        ICommand open = new RelayCommand<object?>(_ => { });
+
+        var link = harness.Presenter.AddMoreFindingsLink(6, open, "findings");
+
+        var message = Assert.Single(harness.Messages);
+        Assert.Same(link, message);
+        Assert.IsType<MoreFindingsLinkMessageViewModel>(message);
+        Assert.Equal(6, link.RemainingCount);
+        Assert.Equal("6 more findings — open Findings view", link.LinkText);
+        Assert.Equal("6 more findings — open Findings view", link.Text);
+        Assert.Same(open, link.OpenCommand);
+        Assert.Equal("findings", link.CommandParameter);
+        Assert.True(link.IsInfo);
+        Assert.False(string.IsNullOrWhiteSpace(link.MessageId));
     }
 }

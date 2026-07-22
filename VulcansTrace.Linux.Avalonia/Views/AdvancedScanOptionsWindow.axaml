@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="VulcansTrace.Linux.Avalonia.Views.AdvancedScanOptionsWindow"
+        x:CompileBindings="False"
+        Title="Advanced scan options"
+        Width="560"
+        Height="640"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        AutomationProperties.AutomationId="AdvancedScanOptionsWindow"
+        AutomationProperties.Name="Advanced scan options">
+
+    <!-- Advanced scan options dialog (UI v2 Phase 2): the detector numerics and the
+         session HMAC info moved here from the hero scan-options expander.
+         DataContext is the MainViewModel; all bindings are uncompiled. -->
+
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Row="0"
+                   Text="Advanced scan options"
+                   FontSize="{StaticResource VtFontSize2xl}"
+                   FontWeight="Bold"
+                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                   Margin="0,0,0,12"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}" AutomationProperties.AutomationId="PortScanMaxEntriesInput" AutomationProperties.Name="Port scan maximum events per source"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Min distinct ports:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}" AutomationProperties.AutomationId="PortScanMinPortsInput" AutomationProperties.Name="Port scan minimum distinct ports"/>
+                </Grid>
+
+                <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Min events:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}" AutomationProperties.AutomationId="FloodMinEventsInput" AutomationProperties.Name="Flood minimum events"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Window (seconds):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}" AutomationProperties.AutomationId="FloodWindowSecondsInput" AutomationProperties.Name="Flood window seconds"/>
+                </Grid>
+
+                <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Min spike attempts:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}" AutomationProperties.AutomationId="PrivilegeSpikeMinAttemptsInput" AutomationProperties.Name="Privilege spike minimum attempts"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Spike window (minutes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}" AutomationProperties.AutomationId="PrivilegeSpikeWindowMinutesInput" AutomationProperties.Name="Privilege spike window minutes"/>
+                </Grid>
+
+                <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Min group size:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}" AutomationProperties.AutomationId="C2MinGroupSizeInput" AutomationProperties.Name="C2 minimum group size"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Interval tolerance (seconds):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}" AutomationProperties.AutomationId="C2ToleranceSecondsInput" AutomationProperties.Name="C2 interval tolerance seconds"/>
+                </Grid>
+
+                <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Large threshold (bytes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}" AutomationProperties.AutomationId="PacketSizeLargeThresholdInput" AutomationProperties.Name="Large packet size threshold bytes"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Small threshold (bytes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}" AutomationProperties.AutomationId="PacketSizeSmallThresholdInput" AutomationProperties.Name="Small packet size threshold bytes"/>
+                </Grid>
+
+                <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto" Margin="8,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Window (minutes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}" AutomationProperties.AutomationId="InterfaceHoppingWindowMinutesInput" AutomationProperties.Name="Interface hopping window minutes"/>
+                </Grid>
+
+                <Border Background="{StaticResource VtBackground900Brush}"
+                        BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource VtRadiusMd}"
+                        Padding="10"
+                        Margin="0,12,0,0">
+                    <StackPanel Orientation="Vertical" Spacing="4">
+                        <TextBlock Text="Session HMAC Key" FontWeight="SemiBold" FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}"/>
+                        <TextBlock Text="Copy this key (Session tools, top right) if you need to verify signed evidence outside of VulcansTrace."
+                                   FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Leave any field at 0 to use the profile default for the selected intensity."
+                           FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" Margin="0,12,0,4" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2"
+                Theme="{StaticResource VtGhostButton}"
+                Content="Close"
+                Padding="12,6"
+                Margin="0,12,0,0"
+                HorizontalAlignment="Right"
+                Click="CloseButton_Click"
+                AutomationProperties.AutomationId="AdvancedScanOptionsCloseButton"
+                AutomationProperties.Name="Close advanced scan options"/>
+    </Grid>
+</Window>

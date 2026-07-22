@@ -391,8 +391,20 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public bool HasOnlyWelcomeMessage
     {
         get => _hasOnlyWelcomeMessage;
-        private set => SetField(ref _hasOnlyWelcomeMessage, value);
+        private set
+        {
+            if (SetField(ref _hasOnlyWelcomeMessage, value))
+            {
+                OnPropertyChanged(nameof(IsThreadActive));
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets whether the thread has content beyond the welcome state. Drives the
+    /// results-state compaction of the agent header (UI v2 Phase 2).
+    /// </summary>
+    public bool IsThreadActive => !HasOnlyWelcomeMessage;
 
     /// <summary>Gets whether the agent tools panel is expanded.</summary>
     public bool IsAgentToolsPanelOpen
@@ -1705,6 +1717,55 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private void AddUserMessage(string text) => _presenter.AddUserMessage(text);
     private void AddAgentMessage(string text, bool isInfo, bool isError = false) => _presenter.AddAgentMessage(text, isInfo, isError);
     private void AddAgentFinding(Finding finding) => _presenter.AddAgentFinding(finding);
+
+    /// <summary>
+    /// Posts the structured analysis summary card to the thread (UI v2 Phase 2). Called by
+    /// MainViewModel when an analysis completes, on either path (log paste or agent audit).
+    /// </summary>
+    public AnalysisSummaryCardMessageViewModel AddAnalysisSummaryCard(
+        string headerLine,
+        string summaryLine,
+        IReadOnlyList<SummaryChipViewModel> chips,
+        ICommand? navigateCommand)
+    {
+        // The welcome hint is stale once real analysis content arrives; dropping it
+        // keeps the thread compact and the scroll position deterministic.
+        if (HasOnlyWelcomeMessage && Messages.Count == 1)
+        {
+            Messages.RemoveAt(0);
+        }
+
+        // Card content ends the welcome state even though it arrives outside the
+        // agent conversation flow (log-paste analysis posts from MainViewModel).
+        MarkChatInteracted();
+        return _presenter.AddAnalysisSummaryCard(headerLine, summaryLine, chips, navigateCommand);
+    }
+
+    /// <summary>
+    /// Posts a per-finding card to the thread (UI v2 Phase 2). Called by MainViewModel
+    /// after the summary card, for the top findings of the completed analysis.
+    /// </summary>
+    public FindingCardMessageViewModel AddFindingCard(
+        FindingItemViewModel item,
+        ICommand? openCommand,
+        ICommand? suppressCommand)
+    {
+        MarkChatInteracted();
+        return _presenter.AddFindingCard(item, openCommand, suppressCommand);
+    }
+
+    /// <summary>
+    /// Posts the "N more findings" deep link to the thread (UI v2 Phase 2). Called by
+    /// MainViewModel after the per-finding cards when more findings remain.
+    /// </summary>
+    public MoreFindingsLinkMessageViewModel AddMoreFindingsLink(
+        int remainingCount,
+        ICommand? openCommand,
+        object? commandParameter)
+    {
+        MarkChatInteracted();
+        return _presenter.AddMoreFindingsLink(remainingCount, openCommand, commandParameter);
+    }
 
     /// <summary>
     /// Posts a single informational message to the Agent transcript from outside the

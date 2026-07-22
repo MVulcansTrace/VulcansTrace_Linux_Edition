@@ -60,6 +60,60 @@ public class FindingsViewModelTests
     }
 
     [AvaloniaFact]
+    public void BannerCards_DismissHidesAndRevealRestores()
+    {
+        var vm = new FindingsViewModel();
+        vm.LoadResults(new AnalysisResult
+        {
+            Warnings = ["warn-1"],
+            ParseErrorCount = 1,
+            ParseErrors = ["err-1"]
+        });
+
+        Assert.True(vm.ShowWarningsCard);
+        Assert.True(vm.ShowParseErrorsCard);
+
+        vm.DismissWarningsCardCommand.Execute(null);
+        vm.DismissParseErrorsCardCommand.Execute(null);
+
+        Assert.False(vm.ShowWarningsCard);
+        Assert.False(vm.ShowParseErrorsCard);
+        Assert.True(vm.WarningsCardDismissed);
+        Assert.True(vm.ParseErrorsCardDismissed);
+
+        // KPI click-through re-reveals a dismissed card.
+        vm.RevealWarningsCard();
+        vm.RevealParseErrorsCard();
+
+        Assert.True(vm.ShowWarningsCard);
+        Assert.True(vm.ShowParseErrorsCard);
+    }
+
+    [AvaloniaFact]
+    public void BannerCards_NewResultsResetDismissal()
+    {
+        var vm = new FindingsViewModel();
+        vm.LoadResults(new AnalysisResult { Warnings = ["warn-1"] });
+        vm.DismissWarningsCardCommand.Execute(null);
+        Assert.False(vm.ShowWarningsCard);
+
+        vm.LoadResults(new AnalysisResult { Warnings = ["warn-2"] });
+
+        Assert.True(vm.ShowWarningsCard);
+        Assert.False(vm.WarningsCardDismissed);
+    }
+
+    [AvaloniaFact]
+    public void BannerCards_HiddenWithoutWarningsOrParseErrors()
+    {
+        var vm = new FindingsViewModel();
+        vm.LoadResults(new AnalysisResult());
+
+        Assert.False(vm.ShowWarningsCard);
+        Assert.False(vm.ShowParseErrorsCard);
+    }
+
+    [AvaloniaFact]
     public void LoadResults_WithHomePathInWarningsAndParseErrors_SanitizesThem()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

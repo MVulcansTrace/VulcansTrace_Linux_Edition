@@ -17,9 +17,11 @@ using VulcansTrace.Linux.Core;
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
 
 /// <summary>
-/// Represents a single message in the agent chat panel.
+/// Represents a single message in the agent chat panel. Not sealed: UI v2 Phase 2
+/// introduces structured card messages (summary card, finding card) as subclasses
+/// so the chat ListBox can select per-kind DataTemplates by runtime type.
 /// </summary>
-public sealed class AgentMessageViewModel : ViewModelBase
+public class AgentMessageViewModel : ViewModelBase
 {
     private string _text = "";
     private string _details = "";

@@ -1,8 +1,9 @@
 # VulcansTrace UI v2 — Wireframe Spec (DRAFT, iterating)
 
-Status: **Phase 1 implemented (2026-07-18)** — two-zone shell, status bar,
-session tools menu, agent-home hero, collapsible nav groups, KPI click-through,
-and the M1–M3 machine-legibility layer are live and verified. Phases 2–4 open.
+Status: **Phase 2 implemented (2026-07-19)** — thread cards (summary card,
+finding cards, more-link), Findings banner cards replacing the global banners
+and the Warnings/Parse Errors nav aliases, advanced scan dialog, hero/agent
+compaction in results state. Phase 1 shipped 2026-07-18. Phases 3–4 open.
 
 > ## Amendments discovered during Phase 1 implementation
 > 1. **No toasts exist.** Transient feedback was modal `IDialogService.ShowMessage`
@@ -28,6 +29,36 @@ and the M1–M3 machine-legibility layer are live and verified. Phases 2–4 ope
 >    text could be absorbed by the window node, swallowing short control labels;
 >    fixed via ranking (text match → tightness) + length-bounded substring
 >    matching.
+>
+> ## Amendments discovered during Phase 2 implementation
+> 1. **AT-SPI tree freezes at startup for list items.** On Avalonia 12.0.5/Linux,
+>    items added to an ItemsControl after the initial tree sync never get
+>    automation peers (verified with cards, plain chat sends, and a resize
+>    nudge; `childCount` of the chat list stays frozen). Dynamic thread content
+>    is therefore asserted via OCR-visible text in scenarios; peer names only
+>    work for startup content. Per-kind ids still ship on the card controls —
+>    they light up the day the bridge syncs properly.
+> 2. **Chat ListBox is non-virtualizing now.** Virtualization dropped peers for
+>    off-viewport items; the thread is bounded, so every item stays realized
+>    (and OCR-visible when scrolled to).
+> 3. **Welcome message is removed on first card post** and card posts force the
+>    chat scroll-to-end — the near-bottom gate stranded the view at the top
+>    because cards arrive without a preceding user message.
+> 4. **Results-state compaction:** once a thread exists, the hero intro and
+>    advisor tip collapse (summary card supersedes the tip) and the agent
+>    header subtitle hides — the thread was squeezed to a 28px viewport by
+>    hero + agent chrome before this.
+> 5. **Finding cards carry the RuleId as visible muted text** — peer names
+>    can't be reached (amendment 1), so the machine-legible identifier is
+>    on-screen text readable by OCR.
+> 6. **Scenario action coords are window-relative.** The harness adds the
+>    window origin before driving xdotool; the summary-card scenario scrolls
+>    the thread with window-relative coords.
+> 7. **Summary card posts on BOTH analysis paths** (log paste and agent audit);
+>    before, the log-paste path never wrote to the agent thread at all.
+> 8. **Hero chat↔analyze flip and icon rail deferred to Phase 3** (user call):
+>    the two-box split stays; prompt chips land with the flip since their
+>    content depends on it.
 
 Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
 

@@ -88,85 +88,6 @@
                                   GlowBrush="{StaticResource VtBackground700Brush}"
                                   TrendText="{Binding Findings.SkippedLineSubtitle, Mode=OneWay}"/>
             </UniformGrid>
-
-            <Border Background="{StaticResource VtSeverityMediumBgBrush}"
-                    BorderBrush="{StaticResource VtSeverityMediumBrush}"
-                    BorderThickness="1"
-                    Padding="8"
-                    CornerRadius="{StaticResource VtRadiusLg}"
-                    IsVisible="{Binding Findings.HasWarnings}">
-                <StackPanel Spacing="4">
-                    <StackPanel.Styles>
-                        <Style Selector="ToggleButton:checked Path#WarningChevron">
-                            <Setter Property="RenderTransform">
-                                <RotateTransform Angle="180"/>
-                            </Setter>
-                        </Style>
-                    </StackPanel.Styles>
-                    <ToggleButton x:Name="WarningToggle"
-                                  AutomationProperties.AutomationId="AnalysisWarningsToggle"
-                                  AutomationProperties.Name="Toggle analysis warnings"
-                                  IsChecked="False"
-                                  Background="Transparent"
-                                  BorderThickness="0"
-                                  Padding="0"
-                                  HorizontalAlignment="Stretch">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="Warnings detected during analysis:" FontWeight="Bold" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding Findings.WarningCount, StringFormat='({0})'}" Foreground="{StaticResource VtSeverityMediumBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <Path Grid.Column="1"
-                                  Name="WarningChevron"
-                                  Data="M 0 0 L 8 8 L 16 0"
-                                  Stroke="{StaticResource VtSeverityMediumBrush}"
-                                  StrokeThickness="2"
-                                  VerticalAlignment="Center"
-                                  RenderTransformOrigin="0.5,0.5">
-                                <Path.RenderTransform>
-                                    <RotateTransform Angle="0"/>
-                                </Path.RenderTransform>
-                            </Path>
-                        </Grid>
-                    </ToggleButton>
-                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsChecked, ElementName=WarningToggle, FallbackValue=False}">
-                        <ItemsControl ItemsSource="{Binding Findings.Warnings}"
-                                      AutomationProperties.AutomationId="AnalysisWarningsList"
-                                      AutomationProperties.Name="Analysis warnings">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock TextWrapping="Wrap">
-                                        <Run Text="* " Foreground="{StaticResource VtSeverityMediumBrush}"/>
-                                        <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                                    </TextBlock>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </StackPanel>
-            </Border>
-            <Border Background="{StaticResource VtSeverityCriticalBgBrush}"
-                    BorderBrush="{StaticResource VtSeverityCriticalBrush}"
-                    BorderThickness="1"
-                    Padding="8"
-                    CornerRadius="{StaticResource VtRadiusLg}"
-                    IsVisible="{Binding Findings.HasParseErrors}">
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Parse errors detected in the log:" FontWeight="Bold" Foreground="{StaticResource VtSeverityCriticalBrush}" />
-                    <ItemsControl ItemsSource="{Binding Findings.ParseErrors}"
-                                  AutomationProperties.AutomationId="AnalysisParseErrorsList"
-                                  AutomationProperties.Name="Analysis parse errors">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock TextWrapping="Wrap">
-                                    <Run Text="* " Foreground="{StaticResource VtSeverityCriticalBrush}"/>
-                                    <Run Text="{Binding}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
         </StackPanel>
 
         <!-- Sidebar navigation -->
@@ -216,6 +137,15 @@
                                 AutomationProperties.Name="Cancel audit"
                                 Command="{Binding CancelCommand}"
                                 IsVisible="{Binding IsBusy}"
+                                Padding="10,2"
+                                FontSize="{StaticResource VtFontSizeSm}"
+                                VerticalAlignment="Center"/>
+                        <Button Content="Cancel"
+                                Theme="{StaticResource VtSecondaryButton}"
+                                AutomationProperties.AutomationId="CancelAgentQueryButton"
+                                AutomationProperties.Name="Cancel agent query"
+                                Command="{Binding Agent.CancelQueryCommand}"
+                                IsVisible="{Binding Agent.IsBusy}"
                                 Padding="10,2"
                                 FontSize="{StaticResource VtFontSizeSm}"
                                 VerticalAlignment="Center"/>

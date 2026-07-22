@@ -8,11 +8,25 @@ public class MainWindowAccessibilityContractTests
     [Fact]
     public void PrimaryAnalysisControls_ExposeStableAccessibleNamesAndLabels()
     {
-        // Log input, Analyze, and scan options live in the agent-home hero
-        // panel since the two-zone shell rewrite.
+        // The unified hero input, flipping primary action, slash surfaces, and
+        // scan options live in the agent-home hero panel (UI v2 Phase 3).
         var document = LoadAvaloniaDocument("Controls/HeroPanel.axaml");
 
-        AssertAutomationName(document, "AnalyzeButton", "Analyze");
+        AssertAutomationName(document, "HeroInputBox", "Agent input");
+        // The primary button's accessible name is intent-bound (Chat ↔ Analyze);
+        // the flip is deterministic — same content, same label.
+        var primary = document.Descendants().Single(element =>
+            Attribute(element, "AutomationProperties.AutomationId")?.Value
+                == "HeroPrimaryButton");
+        Assert.Equal(
+            "{Binding HeroPrimaryLabel}",
+            Attribute(primary, "AutomationProperties.Name")?.Value);
+        AssertAutomationName(document, "AgentSlashHelpButton", "Command help");
+        AssertAutomationName(
+            document,
+            "AgentSlashCommandPaletteList",
+            "Agent slash command palette");
+        AssertAutomationName(document, "PromptChipItems", "Suggested prompts");
         AssertLabeledControl(
             document,
             "IntensityComboBox",
@@ -25,6 +39,20 @@ public class MainWindowAccessibilityContractTests
             "Machine role",
             "MachineRoleLabel",
             "Machine role:");
+
+        // The advanced numerics live in a dialog since Phase 2; the hero keeps
+        // only intensity + role plus the dialog launcher.
+        AssertAutomationName(document, "AdvancedScanOptionsButton", "Advanced scan options");
+    }
+
+    [Fact]
+    public void AdvancedScanOptionsDialog_ExposesStableAccessibleMetadata()
+    {
+        var dialog = LoadAvaloniaDocument("Views/AdvancedScanOptionsWindow.axaml");
+
+        AssertAutomationName(dialog, "AdvancedScanOptionsCloseButton", "Close advanced scan options");
+        AssertAutomationName(dialog, "PortScanMinPortsInput", "Port scan minimum distinct ports");
+        AssertAutomationName(dialog, "FloodMinEventsInput", "Flood minimum events");
     }
 
     [Fact]
@@ -32,6 +60,9 @@ public class MainWindowAccessibilityContractTests
     {
         var mainWindow = LoadAvaloniaDocument("MainWindow.axaml");
         AssertAutomationName(mainWindow, "CancelButton", "Cancel audit");
+        // Agent-query cancel moved to the status bar when the bottom chat input
+        // was retired (UI v2 Phase 3) — same accessible name, single home.
+        AssertAutomationName(mainWindow, "CancelAgentQueryButton", "Cancel agent query");
 
         var suppressions = LoadAvaloniaDocument("Views/SuppressionView.axaml");
         AssertCommandName(
@@ -52,10 +83,6 @@ public class MainWindowAccessibilityContractTests
             agent,
             "AgentChatSeverityFilter",
             "Agent chat severity filter");
-        AssertAutomationName(
-            agent,
-            "AgentCancelButton",
-            "Cancel agent query");
         AssertCommandName(agent, "{Binding CopyCommand}", "Copy code block");
 
         var findings = LoadAvaloniaDocument("Views/FindingsView.axaml");
@@ -268,6 +295,7 @@ public class MainWindowAccessibilityContractTests
     // Command, Click, ToolTip).
     private static readonly string[] MissingAutomationIdBaseline =
     {
+        "Controls/HeroPanel.axaml|Button|{Binding CommandText}",
         "Views/AgentView.axaml|Expander|Audit History",
         "Views/AgentView.axaml|Expander|Remediation Sessions",
         "Views/AgentView.axaml|Button|{Binding PinTooltip}",
@@ -275,7 +303,6 @@ public class MainWindowAccessibilityContractTests
         "Views/AgentView.axaml|Button|{Binding Label}",
         "Views/AgentView.axaml|ListBox|ChatListBox",
         "Views/AgentView.axaml|Button|Copy code block",
-        "Views/AgentView.axaml|Button|{Binding CommandText}",
         "Views/AgentView.axaml|Button|{Binding CommandText}",
         "Views/CommandRow.axaml|Button|Copy command",
         "Views/IncidentStoryView.axaml|Button|Copy Markdown",

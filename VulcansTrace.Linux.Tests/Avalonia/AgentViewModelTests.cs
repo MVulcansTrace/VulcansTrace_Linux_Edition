@@ -1,7 +1,15 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Optris.Icons.Avalonia;
+using Optris.Icons.Avalonia.MaterialDesign;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Explanations;
@@ -16,6 +24,7 @@ using VulcansTrace.Linux.Agent.ThreatIntel;
 using VulcansTrace.Linux.Avalonia.Converters;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
+using VulcansTrace.Linux.Avalonia.Views;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Core.ThreatIntel;
 
@@ -1289,10 +1298,6 @@ public class AgentViewModelTests
 
         foreach (var automationId in new[]
         {
-            "AgentQueryInput",
-            "AgentSendButton",
-            "AgentCancelButton",
-            "AgentSlashHelpButton",
             "AgentToolsToggleButton",
             "AgentChatSeverityFilter",
             "AgentChatCategoryFilter",
@@ -1303,6 +1308,13 @@ public class AgentViewModelTests
         {
             Assert.Contains($"AutomationProperties.AutomationId=\"{automationId}\"", xaml);
         }
+
+        // The chat input row was retired in UI v2 Phase 3: the query box,
+        // send/cancel buttons, slash help, and the slash palette moved to the
+        // hero panel (HeroInputBox / HeroPrimaryButton / CancelAgentQueryButton).
+        Assert.DoesNotContain("AgentQueryInput", xaml);
+        Assert.DoesNotContain("AgentSendButton", xaml);
+        Assert.DoesNotContain("AgentCancelButton", xaml);
 
         var panelIds = vm.ToolPanelAnalysisActions
             .Concat(vm.ToolPanelRunCheckActions)
@@ -2452,6 +2464,83 @@ public class AgentViewModelTests
         Details = "detail",
         RuleId = "FW-001"
     };
+
+    [AvaloniaFact]
+    public void ChatList_CardMessages_RenderWithAutomationIds()
+    {
+        // View-level realization test: the card DataTemplates must actually produce
+        // visuals carrying the automation ids (a live AT-SPI absence first proved
+        // the need — vm-level tests cannot see template resolution failures).
+        // The headless TestApp skips App.axaml.cs, so register the icon provider
+        // the same way the real app startup does — before any view resolves icons.
+        IconProvider.Current.Register<MaterialDesignIconProvider>();
+
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        var chips = new[]
+        {
+            new SummaryChipViewModel
+            {
+                Label = "Findings 1",
+                AutomationId = "SummaryFindingsChip",
+                AccessibleName = "Open all 1 findings",
+                CommandParameter = "findings"
+            }
+        };
+        vm.AddAnalysisSummaryCard("Analysis · test", "Done. 1 finding — 1 High/Critical, 0 warnings.", chips, null);
+        var finding = new Finding
+        {
+            RuleId = "ENG-POLICY-001",
+            Category = "PolicyViolation",
+            Severity = Severity.High,
+            SourceHost = "localhost",
+            Target = "target",
+            TimeRangeStart = DateTime.UtcNow,
+            TimeRangeEnd = DateTime.UtcNow,
+            ShortDescription = "Disallowed outbound port 21",
+            Details = "details"
+        };
+        vm.AddFindingCard(new FindingItemViewModel(finding), null, null);
+        vm.AddMoreFindingsLink(2, null, "findings");
+
+        var window = new Window
+        {
+            Width = 1400,
+            Height = 1000,
+            Content = new AgentView { DataContext = vm }
+        };
+        try
+        {
+            // The headless TestApp lacks the app-level resources, and StaticResource
+            // inside deferred DataTemplate content resolves against the application:
+            // mirror the converters there (App.axaml declares the same keys).
+            var app = Application.Current!;
+            app.Resources["SeverityToBrushConverter"] = new SeverityToBrushConverter();
+            app.Resources["SeverityToForegroundBrushConverter"] = new SeverityToForegroundBrushConverter();
+            app.Resources["IntToBoolConverter"] = new IntToBoolConverter();
+            window.Styles.Add(new StyleInclude((Uri?)null)
+            {
+                Source = new Uri("avares://VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml")
+            });
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var ids = window.GetVisualDescendants()
+                .Select(AutomationProperties.GetAutomationId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.Contains("AnalysisSummaryCard", ids);
+            Assert.Contains("SummaryFindingsChip", ids);
+            Assert.Contains("FindingCardENG-POLICY-001", ids);
+            Assert.Contains("FindingCardOpenENG-POLICY-001", ids);
+            Assert.Contains("FindingCardSuppressENG-POLICY-001", ids);
+            Assert.Contains("ThreadMoreFindingsLink", ids);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 
     private class StubAgent : IAgent
     {
