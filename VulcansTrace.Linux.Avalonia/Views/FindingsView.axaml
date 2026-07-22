@@ -230,7 +230,8 @@
                            AutomationProperties.Name="Finding pin status"/>
             </StackPanel>
 
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,8,0,0" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,8,0,0" HorizontalAlignment="Right"
+                        IsVisible="{Binding HasSelectedItem}">
                 <TextBlock Text="{Binding SelectedFindingActionContext}"
                            MaxWidth="400"
                            TextTrimming="CharacterEllipsis"
@@ -368,7 +369,7 @@
         </DataGrid>
 
         <!-- Filter excluded everything: show a targeted hint instead of the never-analyzed empty state -->
-        <controls:FilterEmptyStateView Grid.Row="1"
+        <controls:FilterEmptyStateView Grid.Row="2"
                                        AutomationProperties.AutomationId="FindingsFilterEmptyState"
                                        AutomationProperties.Name="Findings filter empty state"
                                        IsVisible="{Binding HasNoFilterMatches}"
@@ -376,7 +377,7 @@
                                        Headline="No findings match your filter"
                                        Description="Adjust the search box or severity filter to widen the results."/>
 
-        <controls:EmptyStateView Grid.Row="1"
+        <controls:EmptyStateView Grid.Row="2"
                                  AutomationProperties.AutomationId="FindingsEmptyState"
                                  AutomationProperties.Name="Findings empty state"
                                  Icon="mdi-magnify"

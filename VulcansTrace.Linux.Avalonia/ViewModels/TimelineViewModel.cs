@@ -75,6 +75,13 @@ public class TimelineViewModel : ViewModelBase
     /// <summary>Gets or sets the text of the empty-state action button.</summary>
     public string EmptyStateActionText { get; set; } = "Analyze";
 
+    /// <summary>
+    /// Selects a timeline finding from the accessible companion list — the same selection a
+    /// canvas marker click makes, so keyboard / assistive-tech users can drive the detail
+    /// card and canvas highlight too.
+    /// </summary>
+    public ICommand SelectEntryCommand { get; }
+
     public DateTime? MinTime { get; set; }
     public DateTime? MaxTime { get; set; }
 
@@ -242,6 +249,13 @@ public class TimelineViewModel : ViewModelBase
     public TimelineViewModel()
     {
         TimelineEntries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTimelineData));
+        SelectEntryCommand = new RelayCommand(p =>
+        {
+            if (p is TimelineEntry entry)
+            {
+                SelectedFindingId = entry.FindingId;
+            }
+        });
     }
 
     /// <summary>
@@ -576,6 +590,14 @@ public class TimelineEntry
     public string SourceHost { get; set; } = string.Empty;
     public string Target { get; set; } = string.Empty;
     public Guid FindingId { get; set; }
+
+    /// <summary>
+    /// Stable per-finding automation id for the companion-list row, so the row satisfies the
+    /// actionable-control automation-id ratchet and is addressable by id when the harness can
+    /// see it (the row's accessible name comes from <c>TimelineEntryLabelConverter</c>).
+    /// </summary>
+    public string EventAutomationId => FindingId == Guid.Empty ? string.Empty : $"TimelineEvent{FindingId:N}";
+
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public string Description { get; set; } = string.Empty;

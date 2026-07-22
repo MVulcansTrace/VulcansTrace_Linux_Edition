@@ -95,7 +95,8 @@ namespace VulcansTrace.Linux.Core
                     Events = Array.Empty<UnifiedEvent>(),
                     Errors = new[] { "Unknown log format. Supported: iptables, nftables" },
                     TotalLines = lines.Length,
-                    SkippedLineCount = lines.Length
+                    SkippedLineCount = lines.Length,
+                    SkippedLines = AllLinesSkipped(lines, "Unknown log format")
                 },
                 _ => throw new NotSupportedException($"Format {detectedFormat} not supported")
             };
@@ -173,12 +174,15 @@ namespace VulcansTrace.Linux.Core
             var errors = new List<string>();
             var warnings = new List<string> { "Mixed log formats detected; parsed each line using its detected format." };
             var skippedCount = 0;
+            var skippedLines = new List<SkippedLine>();
 
-            foreach (var line in lines)
+            for (var i = 0; i < lines.Length; i++)
             {
+                var line = lines[i];
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var result = DetectLineFormat(line) switch
+                var fmt = DetectLineFormat(line);
+                var result = fmt switch
                 {
                     LogFormat.Iptables => _iptablesParser.ParseLines(new[] { line }, referenceDate, cancellationToken),
                     LogFormat.Nftables => _nftablesParser.ParseLines(new[] { line }, cancellationToken),
@@ -193,6 +197,16 @@ namespace VulcansTrace.Linux.Core
                 errors.AddRange(result.Errors);
                 // Skip per-parser "1 of 1 lines skipped" warnings — they're noisy in
                 // mixed-format mode. Track skips via SkippedLineCount and summarize below.
+                if (result.SkippedLineCount > 0)
+                {
+                    skippedLines.Add(new SkippedLine(
+                        i + 1,
+                        line,
+                        fmt == LogFormat.Unknown
+                            ? "Unknown log format"
+                            : "Missing required SRC/DST/PROTO fields"));
+                }
+
                 skippedCount += result.SkippedLineCount;
             }
 
@@ -207,8 +221,20 @@ namespace VulcansTrace.Linux.Core
                 Errors = errors.ToArray(),
                 Warnings = warnings.ToArray(),
                 TotalLines = lines.Length,
-                SkippedLineCount = skippedCount
+                SkippedLineCount = skippedCount,
+                SkippedLines = skippedLines.ToArray()
             };
+        }
+
+        private static SkippedLine[] AllLinesSkipped(string[] lines, string reason)
+        {
+            var skipped = new SkippedLine[lines.Length];
+            for (var i = 0; i < lines.Length; i++)
+            {
+                skipped[i] = new SkippedLine(i + 1, lines[i], reason);
+            }
+
+            return skipped;
         }
     }
 

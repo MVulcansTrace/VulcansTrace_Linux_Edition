@@ -13,6 +13,7 @@ public sealed record AnalysisResult
     private int _parsedLines;
     private int _parseErrorCount;
     private int _skippedLineCount;
+    private IReadOnlyList<SkippedLine> _skippedLines = Array.Empty<SkippedLine>();
     private IReadOnlyList<string> _parseErrors = Array.Empty<string>();
     private IReadOnlyList<UnifiedEvent> _entries = Array.Empty<UnifiedEvent>();
     private IReadOnlyList<Finding> _findings = Array.Empty<Finding>();
@@ -47,6 +48,13 @@ public sealed record AnalysisResult
     {
         get => _skippedLineCount;
         init => _skippedLineCount = ValidateNonNegative(value, nameof(SkippedLineCount));
+    }
+
+    /// <summary>Gets the individual skipped lines (line number + raw text + reason) for the System → Logs "Skipped Lines" detail. Empty when none were skipped.</summary>
+    public IReadOnlyList<SkippedLine> SkippedLines
+    {
+        get => _skippedLines;
+        init => _skippedLines = value ?? Array.Empty<SkippedLine>();
     }
 
     /// <summary>Gets the collection of parse errors.</summary>

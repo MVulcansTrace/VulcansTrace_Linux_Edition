@@ -36,7 +36,8 @@
         </Grid.ColumnDefinitions>
 
         <!-- Summary and warnings (spans all 3 columns: sidebar, splitter, content) -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12"
+                    IsVisible="{Binding ShowKpiStrip, Mode=OneWay}">
             <UniformGrid Columns="5" Margin="0,0,0,12">
                 <controls:KpiCard Icon="mdi-chart-box"
                                   Label="Findings"
@@ -124,6 +125,17 @@
                                    Foreground="{StaticResource VtTextSecondaryBrush}"
                                    FontSize="{StaticResource VtFontSizeSm}"
                                    VerticalAlignment="Center"/>
+                        <!-- Current page title (every page except the Agent home,
+                             where the brand + hero already identify the view). -->
+                        <Border Width="1" Height="16" Background="{StaticResource VtBorderDefaultBrush}" VerticalAlignment="Center"
+                                IsVisible="{Binding !IsAgentHomeVisible, Mode=OneWay}"/>
+                        <TextBlock Text="{Binding CurrentPageTitle, Mode=OneWay}"
+                                   FontWeight="SemiBold"
+                                   FontSize="{StaticResource VtFontSizeLg}"
+                                   Foreground="{StaticResource VtTextPrimaryBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,0,0"
+                                   IsVisible="{Binding !IsAgentHomeVisible, Mode=OneWay}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0">

@@ -71,9 +71,18 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Policy" Binding="{Binding PolicyOverrideDisplay}" Width="120" MinWidth="100" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}" Width="140" MinWidth="130" />
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="Auto" MinWidth="80" />
+                <DataGridTemplateColumn Header="Policy" Width="Auto" MinWidth="70">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding PolicyOverrideDisplay}"
+                                       Foreground="{StaticResource VtTextMutedBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="4,0"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource CategoryLabelConverter}}" Width="Auto" MinWidth="100" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="2*" MinWidth="180" />
                 <DataGridTextColumn Header="What It Checks" Binding="{Binding WhatItChecks}" Width="2*" MinWidth="180" />
                 <DataGridTextColumn Header="MITRE" Binding="{Binding MitreTechniquesDisplay}" Width="Auto" MinWidth="110" />

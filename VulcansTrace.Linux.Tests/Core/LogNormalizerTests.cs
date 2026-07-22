@@ -130,6 +130,42 @@ kernel: Jan 19 10:15:33 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=T
     }
 
     [Fact]
+    public void Normalize_UnknownFormat_PopulatesSkippedLinesDetail()
+    {
+        // Arrange
+        var logText = "Unknown log format line\nAnother garbage line\nThird bad line";
+
+        // Act
+        var result = _normalizer.Normalize(logText);
+
+        // Assert - every input line is retained as a skipped line with its 1-based
+        // number + raw text, so the System -> Logs "Skipped Lines" detail can show them.
+        Assert.Equal(3, result.SkippedLines.Length);
+        Assert.Equal(new SkippedLine(1, "Unknown log format line", "Unknown log format"), result.SkippedLines[0]);
+        Assert.Equal(new SkippedLine(2, "Another garbage line", "Unknown log format"), result.SkippedLines[1]);
+        Assert.Equal(new SkippedLine(3, "Third bad line", "Unknown log format"), result.SkippedLines[2]);
+    }
+
+    [Fact]
+    public void Normalize_MixedFormatsWithGarbageLine_RecordsSkippedLineAtGlobalIndex()
+    {
+        // Arrange - an iptables line + an nftables line forces mixed mode; the third
+        // line matches no format and must be recorded at its global line index (3).
+        var logText = "kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22\n2026-01-19T10:15:32.123456+00:00 nf_tables: INPUT IN=eth0 SRC=192.168.1.100 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22\nthis line matches no format";
+
+        // Act
+        var result = _normalizer.Normalize(logText);
+
+        // Assert
+        Assert.Equal(2, result.Events.Length);
+        Assert.Equal(1, result.SkippedLineCount);
+        var skipped = Assert.Single(result.SkippedLines);
+        Assert.Equal(3, skipped.LineNumber);
+        Assert.Equal("this line matches no format", skipped.Text);
+        Assert.Equal("Unknown log format", skipped.Reason);
+    }
+
+    [Fact]
     public void Normalize_EmptyInput_ReturnsCleanEmptyResult()
     {
         // Arrange

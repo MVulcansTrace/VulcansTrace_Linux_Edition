@@ -948,7 +948,7 @@ public class FindingsViewModelTests
         vm.Clear();
 
         Assert.Equal(0, vm.LiveFindingsCount);
-        Assert.Equal("current scan", vm.FindingsSubtitle);
+        Assert.Equal("none", vm.FindingsSubtitle);
     }
 
     [AvaloniaFact]

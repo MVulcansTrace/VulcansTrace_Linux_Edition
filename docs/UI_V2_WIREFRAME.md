@@ -115,6 +115,27 @@ fixed). Phase 4 open.
 >    harness now region-constrains that click. Not a product defect — recorded
 >    so future OCR drives region-constrain around the empty-state copy.
 >
+> ## Amendments discovered during Phase 4 implementation
+> 1. **Timeline accessible companion list SHIPPED** (`TimelineEventsList`): the
+>    canvas markers are drawn in code-behind with no automation peer, so an
+>    always-realized, height-capped panel below the trace map exposes every event
+>    as a named, id-bearing `Button` (`EventAutomationId` per finding) that selects
+>    the same finding a marker click would. It is always realized rather than
+>    collapsed-by-default: the harness's Linux AT-SPI walk does not traverse this
+>    panel (verified live — the rows are visible and OCR-readable but absent from
+>    the scene), so a collapsed container would hide them from any consumer that
+>    relies on the harness, and the always-realized panel doubles as a useful
+>    complementary textual event list for sighted users. Real screen readers see
+>    the rows in either container.
+> 2. **No same-commit harness scenario for the companion list** (documented
+>    exception to the same-commit rule — its precondition is not met): because the
+>    harness scene cannot see the panel, a name/role scenario cannot verify it, and
+>    an OCR-only assertion would be a fragile visibility check rather than an a11y
+>    contract. The contract is instead code-guaranteed (real buttons +
+>    `AutomationProperties.Name`/`AutomationId` + the automation-id ratchet). A
+>    proper scenario becomes possible once the harness AT-SPI walk traverses this
+>    panel (tracked as a VTCU backlog item).
+>
 
 Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
 
@@ -385,7 +406,11 @@ against v2 target them from day one.
    hands-on/CI evidence (not built preemptively).
 2. ~~Cancel placement~~ — RESOLVED: status bar, next to Cancel (busy-gated).
 3. Prompt chips: static list vs context-aware rotation. Start static.
-4. "Logs" page under SYSTEM: raw log browser + Skipped Lines detail — scope later.
+4. ~~"Logs" page under SYSTEM: raw log browser + Skipped Lines detail~~ — RESOLVED:
+   shipped in Phase 4 (C3) as the System → Logs page (read-only raw-log browser +
+   per-line Skipped Lines detail from `AnalysisResult.SkippedLines`). The harness
+   sees the page only via OCR (Avalonia realized-after-sync AT-SPI gap), so its
+   contract is code-guaranteed (no same-commit scenario), mirroring C2.
 5. ~~Icon-rail flyouts vs always-expanded rail on wide screens~~ — RESOLVED: rail
    shipped in Phase 3 with click-opened group `MenuFlyout`s re-using the nav
    labels; the always-expanded-on-wide alternative was not implemented; M3

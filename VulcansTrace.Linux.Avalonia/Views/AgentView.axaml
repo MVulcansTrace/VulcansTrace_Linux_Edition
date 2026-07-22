@@ -39,26 +39,15 @@
     <conv:BoolToDoubleConverter x:Key="BoolToOpacity" TrueValue="1" FalseValue="0" />
   </UserControl.Resources>
 
-  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="24">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="24">
 
-    <!-- Header: onboarding strip only. The live agent identity (name + status)
-         lives in the top status bar, so it is not repeated here. -->
-    <Border Grid.Row="0"
-            Theme="{StaticResource VtCard}"
-            Padding="16,12"
-            Margin="0,0,0,12"
-            IsVisible="{Binding !IsThreadActive}">
-      <StackPanel Orientation="Horizontal" Spacing="12">
-        <controls:VtAgentAvatar AvatarSize="36" AvatarFontSize="{StaticResource VtFontSizeSm}" />
-        <TextBlock Text="Ask in plain language, get audits, explanations, and remediation plans."
-                   FontSize="{StaticResource VtFontSizeSm}"
-                   Foreground="{StaticResource VtTextSecondaryBrush}"
-                   VerticalAlignment="Center" />
-      </StackPanel>
-    </Border>
+    <!-- The onboarding capability strip was removed: this view only ever shows
+         on the Agent home, where the hero panel already greets and invites
+         input — the strip was a redundant second prompt that muddied the
+         empty state (two stacked assistant intros above it). -->
 
     <!-- Agent Tools toggle -->
-    <Border Grid.Row="1"
+    <Border Grid.Row="0"
             Theme="{StaticResource VtCard}"
             Padding="12"
             Margin="0,0,0,12">
@@ -78,7 +67,7 @@
     </Border>
 
     <!-- Agent Tools panel -->
-    <Border Grid.Row="2"
+    <Border Grid.Row="1"
             Theme="{StaticResource VtAgentToolsPanel}"
             Margin="0,0,0,12"
             MaxHeight="{Binding IsAgentToolsPanelOpen, Converter={StaticResource BoolToMaxHeight}}"
@@ -397,10 +386,11 @@
     </Border>
 
     <!-- Chat -->
-    <Border Grid.Row="3"
+    <Border Grid.Row="2"
             Theme="{StaticResource VtCard}"
             Padding="0"
-            Margin="0,0,0,12">
+            Margin="0,0,0,12"
+            Focusable="False">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
         <Border Grid.Row="0"
                 Background="{StaticResource VtWarningMutedBrush}"
@@ -419,7 +409,8 @@
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     Spacing="8"
-                    Margin="16,16,16,12">
+                    Margin="16,16,16,12"
+                    IsVisible="{Binding !HasOnlyWelcomeMessage}">
           <TextBlock x:Name="SeverityFilterLabel" Text="Severity:" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}" />
           <ComboBox ItemsSource="{Binding ChatSeverityFilters}"
                     SelectedItem="{Binding SelectedChatSeverityFilter}"
@@ -1274,7 +1265,7 @@
                        HorizontalAlignment="Center"
                        Margin="0,16,0,0" />
             <TextBlock Grid.Row="2"
-                       Text="Open Agent Tools to run a check, or type a question in the input above."
+                       Text="Open Agent Tools to run a check, or type a question in the box at the top."
                        FontSize="{StaticResource VtFontSizeSm}"
                        Foreground="{StaticResource VtTextSecondaryBrush}"
                        HorizontalAlignment="Center"

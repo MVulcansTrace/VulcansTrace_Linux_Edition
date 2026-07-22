@@ -174,6 +174,16 @@ namespace VulcansTrace.Linux.Core
     }
 
     /// <summary>
+    /// A log line the parser could not turn into a <see cref="UnifiedEvent"/>, retained so
+    /// the UI (System → Logs, "Skipped Lines" detail) can show exactly which input lines
+    /// were skipped and why.
+    /// </summary>
+    /// <param name="LineNumber">1-based line number in the original input.</param>
+    /// <param name="Text">The raw, unmodified line text.</param>
+    /// <param name="Reason">Short human-readable reason the line was skipped.</param>
+    public sealed record SkippedLine(int LineNumber, string Text, string Reason);
+
+    /// <summary>
     /// Result of parsing raw log text
     /// </summary>
     public class ParseResult
@@ -192,6 +202,9 @@ namespace VulcansTrace.Linux.Core
 
         /// <summary>Gets or sets the number of lines skipped because they lacked required fields (SRC/DST/PROTO). A summary warning is emitted when any lines are skipped.</summary>
         public int SkippedLineCount { get; set; }
+
+        /// <summary>Gets or sets the individual skipped lines (line number + raw text + reason) for the System → Logs "Skipped Lines" detail. Empty when none were skipped.</summary>
+        public SkippedLine[] SkippedLines { get; set; } = Array.Empty<SkippedLine>();
 
         /// <summary>Gets the number of parsed events.</summary>
         public int ParsedCount => Events.Length;

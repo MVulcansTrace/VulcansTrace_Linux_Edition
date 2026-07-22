@@ -241,7 +241,9 @@ public sealed class FindingsViewModel : ViewModelBase
     /// <summary>Gets the subtitle for the Findings KPI card, separating scan vs. live counts.</summary>
     public string FindingsSubtitle => LiveFindingsCount > 0
         ? $"{FindingsCount - LiveFindingsCount} scan + {LiveFindingsCount} live"
-        : "current scan";
+        : FindingsCount > 0
+            ? "current scan"
+            : "none";
 
     /// <summary>Gets the count of High and Critical severity findings.</summary>
     public int HighCriticalCount

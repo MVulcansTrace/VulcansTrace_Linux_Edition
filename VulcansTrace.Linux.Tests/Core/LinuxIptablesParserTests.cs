@@ -68,6 +68,23 @@ Invalid line without proper format";
     }
 
     [Fact]
+    public void Parse_InvalidLine_PopulatesSkippedLineDetail()
+    {
+        // Arrange
+        var logText = @"kernel: Jan 19 10:15:32 server IN=eth0 SRC=192.168.1.100 DST=192.168.1.1 PROTO=TCP SPT=54321 DPT=22
+Invalid line without proper format";
+
+        // Act
+        var result = _parser.Parse(logText);
+
+        // Assert - the skipped line is retained with its 1-based number + raw text.
+        var skipped = Assert.Single(result.SkippedLines);
+        Assert.Equal(2, skipped.LineNumber);
+        Assert.Equal("Invalid line without proper format", skipped.Text);
+        Assert.Contains("SRC/DST/PROTO", skipped.Reason);
+    }
+
+    [Fact]
     public void Parse_IptablesLineWithInvalidPort_AddsParseError()
     {
         // Arrange

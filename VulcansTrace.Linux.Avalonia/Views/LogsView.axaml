@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.LogsView"
+             x:DataType="vm:LogsViewModel">
+
+  <Design.DataContext>
+    <vm:LogsViewModel/>
+  </Design.DataContext>
+
+  <Grid RowDefinitions="Auto,*" Margin="0,0,0,8">
+    <TextBlock Grid.Row="0"
+               Text="{Binding StatusMessage}"
+               IsVisible="{Binding HasRawLog}"
+               AutomationProperties.AutomationId="LogsStatusMessage"
+               AutomationProperties.Name="Logs status"
+               Foreground="{StaticResource VtTextSecondaryBrush}"
+               FontSize="{StaticResource VtFontSizeSm}"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap"/>
+
+    <!-- Empty state: the last analysis had no raw log (e.g. an agent audit) or none has run. -->
+    <TextBlock Grid.Row="1"
+               Text="No raw log available — paste a firewall log and analyze to populate this view."
+               IsVisible="{Binding !HasRawLog}"
+               AutomationProperties.AutomationId="LogsEmptyState"
+               AutomationProperties.Name="Logs empty state"
+               Foreground="{StaticResource VtTextMutedBrush}"
+               FontSize="{StaticResource VtFontSizeMd}"
+               VerticalAlignment="Center"
+               HorizontalAlignment="Center"
+               TextWrapping="Wrap"/>
+
+    <!-- Populated: raw log browser + skipped-lines detail. -->
+    <Grid Grid.Row="1" IsVisible="{Binding HasRawLog}" RowDefinitions="Auto,*,Auto">
+      <TextBlock Grid.Row="0"
+                 Text="Raw log"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource VtTextSecondaryBrush}"
+                 Margin="0,0,0,4"/>
+      <TextBox Grid.Row="1"
+               Text="{Binding RawLog}"
+               IsReadOnly="True"
+               AcceptsReturn="True"
+               TextWrapping="NoWrap"
+               FontFamily="{StaticResource VtFontFamilyMono}"
+               FontSize="{StaticResource VtFontSizeSm}"
+               AutomationProperties.AutomationId="LogsRawLog"
+               AutomationProperties.Name="Raw log text"/>
+      <StackPanel Grid.Row="2" Margin="0,12,0,0">
+        <TextBlock Text="{Binding SkippedLinesHeader}"
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                   Margin="0,0,0,4"/>
+        <DataGrid ItemsSource="{Binding SkippedLines}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True"
+                  IsVisible="{Binding HasSkippedLines}"
+                  MaxHeight="240"
+                  AutomationProperties.AutomationId="LogsSkippedLinesDataGrid"
+                  AutomationProperties.Name="Skipped lines">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Line" Binding="{Binding LineNumber}" Width="80" MinWidth="70"/>
+            <DataGridTextColumn Header="Skipped line" Binding="{Binding Text}" Width="*" MinWidth="240"/>
+            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="320" MinWidth="200"/>
+          </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="No lines were skipped."
+                   IsVisible="{Binding !HasSkippedLines}"
+                   Foreground="{StaticResource VtTextMutedBrush}"
+                   FontSize="{StaticResource VtFontSizeSm}"/>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -11,8 +11,12 @@
         <vm:TimelineViewModel/>
     </Design.DataContext>
 
+    <UserControl.Resources>
+        <conv:TimelineEntryLabelConverter x:Key="TimelineEntryLabelConverter" />
+    </UserControl.Resources>
+
     <ScrollViewer>
-        <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="150,*">
+        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" ColumnDefinitions="150,*">
             <!-- Toolbar -->
             <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                         Orientation="Horizontal"
@@ -65,7 +69,8 @@
             </Border>
 
             <!-- Timeline visualization area -->
-            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource VtBackground800Brush}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,0,1">
+            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource VtBackground800Brush}" BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,0,1"
+                    IsVisible="{Binding HasTimelineData}">
                 <TextBlock Text="{Binding TimeRangeLabel}"
                            Margin="8,4"
                            FontSize="{StaticResource VtFontSizeMd}"
@@ -85,17 +90,6 @@
                                FontSize="{StaticResource VtFontSizeSm}"
                                Foreground="{StaticResource VtWarningBrush}"
                                TextWrapping="Wrap"/>
-                    <controls:EmptyStateView IsVisible="{Binding !HasTimelineData}"
-                                             AutomationProperties.AutomationId="TimelineEmptyState"
-                                             AutomationProperties.Name="Timeline empty state"
-                                             Icon="mdi-chart-timeline-variant"
-                                             Headline="{Binding EmptyStateHeadline}"
-                                             Description="{Binding EmptyStateDescription}"
-                                             ActionText="{Binding EmptyStateActionText}"
-                                             ActionCommand="{Binding EmptyStateActionCommand}"
-                                             ActionIcon="mdi-rocket-launch-outline"
-                                             ActionAutomationId="TimelineEmptyStateAnalyzeButton"
-                                             ActionAutomationName="Run audit for timeline"/>
 
                     <!-- Selected finding detail card -->
                     <Border Theme="{StaticResource VtCard}"
@@ -204,6 +198,76 @@
                            TextWrapping="Wrap"
                            FontStyle="Italic"/>
             </Border>
+
+            <!-- Accessible companion list (UI v2 Phase 4): the canvas markers are drawn in
+                 code-behind and carry no automation peer, so this always-realized list exposes
+                 every timeline event as a named, activatable control that selects the same
+                 finding a marker click would. It is intentionally always realized (not in an
+                 Expander): the harness's AT-SPI walk does not traverse Expander content, so a
+                 collapsed-by-default container would hide the events from the accessibility
+                 tree. The compact capped height keeps the sighted footprint small. -->
+            <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                    IsVisible="{Binding HasTimelineData}"
+                    Background="{StaticResource VtBackground800Brush}"
+                    BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="8"
+                    Margin="0,8,0,0">
+              <Grid RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0"
+                           Text="Timeline events"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           AutomationProperties.AutomationId="TimelineEventsHeader"
+                           Margin="0,0,0,4" />
+                <ScrollViewer Grid.Row="1" MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding TimelineEntries}"
+                                AutomationProperties.AutomationId="TimelineEventsList"
+                                AutomationProperties.Name="Timeline events list">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:TimelineEntry">
+                        <Button Command="{ReflectionBinding DataContext.SelectEntryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{CompiledBinding}"
+                                AutomationProperties.AutomationId="{CompiledBinding EventAutomationId}"
+                                AutomationProperties.Name="{CompiledBinding Converter={StaticResource TimelineEntryLabelConverter}}"
+                                Theme="{StaticResource VtGhostButton}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Margin="0,2"
+                                Padding="8,6">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse Width="10" Height="10" VerticalAlignment="Center"
+                                     Fill="{CompiledBinding Severity, Converter={StaticResource SeverityToBrushConverter}}" />
+                            <TextBlock Text="{CompiledBinding Category, Converter={StaticResource CategoryLabelConverter}}"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource VtTextPrimaryBrush}" />
+                            <TextBlock Text="{CompiledBinding Severity}"
+                                       Foreground="{CompiledBinding Severity, Converter={StaticResource SeverityToForegroundBrushConverter}}" />
+                            <TextBlock Text="{CompiledBinding FormattedTimeRange}"
+                                       FontFamily="{StaticResource VtFontFamilyMono}"
+                                       Foreground="{StaticResource VtTextMutedBrush}" />
+                          </StackPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Grid>
+            </Border>
+
+            <!-- Empty state (outside the height-constrained Canvas so it's visible when CanvasHeight=0) -->
+            <controls:EmptyStateView Grid.Row="2" Grid.ColumnSpan="2"
+                                     IsVisible="{Binding !HasTimelineData}"
+                                     AutomationProperties.AutomationId="TimelineEmptyState"
+                                     AutomationProperties.Name="Timeline empty state"
+                                     Icon="mdi-chart-timeline-variant"
+                                     Headline="{Binding EmptyStateHeadline}"
+                                     Description="{Binding EmptyStateDescription}"
+                                     ActionText="{Binding EmptyStateActionText}"
+                                     ActionCommand="{Binding EmptyStateActionCommand}"
+                                     ActionIcon="mdi-rocket-launch-outline"
+                                     ActionAutomationId="TimelineEmptyStateAnalyzeButton"
+                                     ActionAutomationName="Run audit for timeline"/>
         </Grid>
     </ScrollViewer>
 </UserControl>

@@ -142,6 +142,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for the analyst action audit log.</summary>
     public AnalystActionLogViewModel AnalystActionLog { get; }
 
+    /// <summary>Gets the child ViewModel for the System → Logs page (raw log browser + skipped-lines detail).</summary>
+    public LogsViewModel Logs { get; }
+
     /// <summary>Gets the sidebar navigation items.</summary>
     public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
 
@@ -163,6 +166,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 }
                 RefreshAppState();
                 RefreshActiveNavigationGroup();
+                CurrentPageTitle = value?.Label ?? string.Empty;
             }
         }
     }
@@ -183,6 +187,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetField(ref _selectedContent, value))
             {
                 OnPropertyChanged(nameof(IsAgentHomeVisible));
+                OnPropertyChanged(nameof(ShowKpiStrip));
             }
         }
     }
@@ -192,6 +197,27 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// visibility (the hero only lives on the Agent home).
     /// </summary>
     public bool IsAgentHomeVisible => ReferenceEquals(_selectedContent, Agent);
+
+    public bool ShowKpiStrip =>
+        ReferenceEquals(_selectedContent, Agent) ||
+        ReferenceEquals(_selectedContent, Findings) ||
+        ReferenceEquals(_selectedContent, Timeline) ||
+        ReferenceEquals(_selectedContent, IncidentStory);
+
+    private string _currentPageTitle = string.Empty;
+
+    /// <summary>
+    /// Label of the selected navigation item, for the header page title.
+    /// Backed by a settable field (updated in <see cref="SelectedNavigationItem"/>)
+    /// rather than a computed getter or a <c>SelectedNavigationItem.Label</c>
+    /// binding path, so the compiled header binding reliably subscribes and
+    /// never dereferences a null intermediate.
+    /// </summary>
+    public string CurrentPageTitle
+    {
+        get => _currentPageTitle;
+        private set => SetField(ref _currentPageTitle, value);
+    }
 
     /// <summary>
     /// Gets whether the sidebar is collapsed to the icon rail (UI v2 Phase 3).
@@ -719,6 +745,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         LiveStream = new LiveStreamViewModel(liveStreamAnalyzer, () => SelectedIntensity?.Level ?? IntensityLevel.Medium);
         Doctor = new DoctorViewModel(doctorService ?? new DoctorService(System.Array.Empty<IScanner>()));
         AnalystActionLog = new AnalystActionLogViewModel(_analystActionStore, dialogService);
+        Logs = new LogsViewModel();
 
         // Wire empty-state action commands
         Findings.EmptyStateActionCommand = AnalyzeCommand;
@@ -747,7 +774,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog, Group = "MANAGEMENT" });
-        NavigationItems.Add(new NavigationItem { Label = "Threat Intel", Icon = "mdi-forest-fire", Content = ThreatIntel, Group = "" });
+        NavigationItems.Add(new NavigationItem { Label = "Threat Intel", Icon = "mdi-radar", Content = ThreatIntel, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Suppressions", Icon = "mdi-volume-off", Content = Suppressions, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Coverage", Icon = "mdi-bullseye-arrow", Content = RuleCoverage, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Compliance", Icon = "mdi-clipboard-check", Content = ComplianceScorecard, Group = "" });
@@ -756,7 +783,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Notifications", Icon = "mdi-bell", Content = NotificationSettings, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream, Group = "" });
         NavigationItems.Add(new NavigationItem { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "SYSTEM" });
+        NavigationItems.Add(new NavigationItem { Label = "Logs", Icon = "mdi-text-box-outline", Content = Logs, Group = "SYSTEM" });
+        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "" });
 
         // Collapsible sidebar groups: a presentation projection of the flat
         // list, which stays the canonical model for selection and lookups.
@@ -827,7 +855,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             });
 
         BotIntroText = "Hi, I'm VulcansTrace. Paste a Linux firewall log, choose scan intensity, and I'll flag port scans, floods, lateral movement, beaconing, policy violations, novelty destinations, plus advanced signals like C2 channels and admin access spikes at higher intensities.";
-        SummaryText = "Paste a Linux firewall log and choose an intensity to begin.";
+        // Leave SummaryText empty at startup. The status bar's center is a
+        // transient operation/analysis line, not a home hint (the hero greeting
+        // carries onboarding). Seeding the onboarding line here leaked it onto
+        // every page's header until the next operation overwrote it.
 
         Intensities.Add(new IntensityOption("Low - Critical Threat Triage", IntensityLevel.Low));
         Intensities.Add(new IntensityOption("Medium - Investigation Review", IntensityLevel.Medium));
@@ -961,6 +992,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(_lastResult, logSnapshot, lastAnalysisTimestampUtc, traceMap: traceMap);
         Findings.LoadResults(result);
         Timeline.LoadAnalysisResult(result, traceMap.Edges);
+        Logs.Load(result, logSnapshot);
         IncidentStory.LoadTraceMap(traceMap);
         RiskScorecard.LoadScorecard(result.RiskScorecard);
         PostAnalysisSummaryCard($"Analysis · {DateTime.Now:MMM d HH:mm} · {_selectedIntensity.Level} · {_selectedMachineRole}");
@@ -1284,6 +1316,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(analysisResult, "Agent audit — no raw log", agentResult.UtcTimestamp, remediationMarkdown, agentTraceMap);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
+        Logs.Load(analysisResult, string.Empty);
         IncidentStory.LoadTraceMap(agentTraceMap);
         PostAnalysisSummaryCard($"Analysis · {agentResult.UtcTimestamp.ToLocalTime():MMM d HH:mm} · Agent audit");
         PostFindingCards();
@@ -1408,6 +1441,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Evidence.SetEvidenceContext(analysisResult, $"Synthetic demo: {e.ScenarioName}", e.EndTime, traceMap: traceMap);
         Findings.LoadResults(analysisResult);
         Timeline.LoadAnalysisResult(analysisResult, traceMap.Edges);
+        Logs.Load(analysisResult, string.Empty);
         IncidentStory.LoadTraceMap(traceMap);
         RiskScorecard.LoadScorecard(analysisResult.RiskScorecard);
 

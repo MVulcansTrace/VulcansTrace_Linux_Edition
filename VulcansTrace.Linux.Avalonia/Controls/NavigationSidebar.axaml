@@ -21,7 +21,7 @@
               Margin="0,4,8,0"
               Padding="8,4"
               ToolTip.Tip="Collapse or expand the sidebar">
-        <i:Icon Value="{Binding SidebarCollapseToggleIcon}" FontSize="{StaticResource VtIconSizeSm}" />
+        <i:Icon Value="{Binding SidebarCollapseToggleIcon}" FontSize="{StaticResource VtIconSizeXl}" />
       </Button>
 
       <Grid Grid.Row="1">
@@ -49,10 +49,8 @@
           <Style Selector="ToggleButton.group-toggle:pointerover TextBlock.group-header">
             <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
           </Style>
-          <Style Selector="ToggleButton.group-toggle:checked Path#NavGroupChevron">
-            <Setter Property="RenderTransform">
-              <RotateTransform Angle="180"/>
-            </Setter>
+          <Style Selector="ToggleButton.group-toggle:pointerover i|Icon.group-chevron">
+            <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
           </Style>
           <!-- The group toggle is checked while its group is expanded; the default
                theme paints that checked state with the primary (accent) brush,
@@ -172,12 +170,18 @@
                   <TextBlock Text="{Binding Name}"
                              Classes="group-header"
                              VerticalAlignment="Center" />
-                  <Path Name="NavGroupChevron"
-                        Data="M 0 0 L 8 8 L 16 0"
-                        Stroke="{StaticResource VtTextMutedBrush}"
-                        StrokeThickness="2"
-                        VerticalAlignment="Center"
-                        RenderTransformOrigin="0.5,0.5" />
+                  <i:Icon Classes="group-chevron"
+                          Value="mdi-chevron-up"
+                          FontSize="{StaticResource VtIconSizeLg}"
+                          Foreground="{StaticResource VtTextMutedBrush}"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding IsExpanded}" />
+                  <i:Icon Classes="group-chevron"
+                          Value="mdi-chevron-down"
+                          FontSize="{StaticResource VtIconSizeLg}"
+                          Foreground="{StaticResource VtTextMutedBrush}"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding !IsExpanded}" />
                 </StackPanel>
               </ToggleButton>
 

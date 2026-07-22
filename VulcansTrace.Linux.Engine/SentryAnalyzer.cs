@@ -96,6 +96,7 @@ public sealed class SentryAnalyzer
                 TotalLines = normalized.TotalLines,
                 ParseErrorCount = normalized.Errors.Length,
                 SkippedLineCount = normalized.SkippedLineCount,
+                SkippedLines = normalized.SkippedLines,
                 ParsedLines = 0,
                 TimeRangeStart = DateTime.MinValue,
                 TimeRangeEnd = DateTime.MinValue,
@@ -122,6 +123,7 @@ public sealed class SentryAnalyzer
             normalized.TotalLines,
             normalized.Errors.Length,
             normalized.SkippedLineCount,
+            normalized.SkippedLines,
             errorsToKeep);
     }
 
@@ -162,6 +164,7 @@ public sealed class SentryAnalyzer
             totalLines: events.Count,
             parseErrorCount: 0,
             skippedLineCount: 0,
+            skippedLines: Array.Empty<Core.SkippedLine>(),
             parseErrors: Array.Empty<string>());
     }
 
@@ -258,6 +261,7 @@ public sealed class SentryAnalyzer
         int totalLines,
         int parseErrorCount,
         int skippedLineCount,
+        IReadOnlyList<Core.SkippedLine> skippedLines,
         IReadOnlyList<string> parseErrors)
     {
         var timeRangeStart = events.Count > 0 ? events.Min(e => e.Timestamp) : DateTime.MinValue;
@@ -268,6 +272,7 @@ public sealed class SentryAnalyzer
             TotalLines = totalLines,
             ParseErrorCount = parseErrorCount,
             SkippedLineCount = skippedLineCount,
+            SkippedLines = skippedLines,
             ParsedLines = events.Count,
             TimeRangeStart = timeRangeStart,
             TimeRangeEnd = timeRangeEnd,

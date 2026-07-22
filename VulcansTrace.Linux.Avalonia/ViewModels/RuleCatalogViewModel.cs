@@ -180,7 +180,7 @@ public sealed class RuleCatalogViewModel : ViewModelBase
     private static string DescribeOverride(RulePolicy? policy)
     {
         if (policy is null)
-            return string.Empty;
+            return "\u2014";
 
         var parts = new List<string>();
         if (policy.Enabled is { } enabled)

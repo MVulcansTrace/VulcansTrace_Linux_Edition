@@ -39,6 +39,7 @@ namespace VulcansTrace.Linux.Core
             var errors = new List<string>();
             var warnings = new List<string>();
             var skippedCount = 0;
+            var skippedLines = new List<SkippedLine>();
 
             for (var i = 0; i < lines.Length; i++)
             {
@@ -64,6 +65,7 @@ namespace VulcansTrace.Linux.Core
                     else
                     {
                         skippedCount++;
+                        skippedLines.Add(new SkippedLine(i + 1, line, "Missing required SRC/DST/PROTO fields"));
                     }
                 }
                 catch (Exception ex) when (ex is FormatException || ex is ArgumentException)
@@ -87,7 +89,8 @@ namespace VulcansTrace.Linux.Core
                 Errors = errors.ToArray(),
                 Warnings = warnings.ToArray(),
                 TotalLines = lines.Length,
-                SkippedLineCount = skippedCount
+                SkippedLineCount = skippedCount,
+                SkippedLines = skippedLines.ToArray()
             };
         }
 
