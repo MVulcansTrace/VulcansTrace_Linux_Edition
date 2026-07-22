@@ -12,10 +12,80 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+        <!-- Active suppressions (moved from the old main-window left column;
+             the DataContext is the same SuppressionViewModel) -->
+        <Expander Grid.Row="0"
+                  Header="Active Suppressions"
+                  IsExpanded="True"
+                  Theme="{StaticResource VtExpander}"
+                  AutomationProperties.AutomationId="ActiveSuppressionsExpander"
+                  AutomationProperties.Name="Active suppressions"
+                  Margin="0,0,0,8">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="No active suppressions."
+                           IsVisible="{Binding IsEmpty}"
+                           Foreground="{StaticResource VtTextMutedBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           Margin="0,4,0,4"/>
+                <ItemsControl ItemsSource="{Binding Entries}" MaxHeight="160"
+                              AutomationProperties.AutomationId="ActiveSuppressionsList"
+                              AutomationProperties.Name="Active suppressions"
+                              IsVisible="{Binding !IsEmpty}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding RuleId}"
+                                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                                           FontSize="{StaticResource VtFontSizeSm}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Target}"
+                                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                                           FontSize="{StaticResource VtFontSizeSm}"
+                                           Margin="8,0,8,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Reason}"
+                                           Foreground="{StaticResource VtTextMutedBrush}"
+                                           FontSize="{StaticResource VtFontSizeXs}"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="120"
+                                           VerticalAlignment="Center"/>
+                                <Button Grid.Column="3"
+                                        Content="Remove"
+                                        AutomationProperties.AutomationId="ActiveSuppressionRemoveButton"
+                                        AutomationProperties.Name="Remove active suppression"
+                                        FontSize="{StaticResource VtFontSizeXs}"
+                                        Padding="4,2"
+                                        Theme="{StaticResource VtGhostButton}"
+                                        Command="{Binding $parent[ItemsControl].DataContext.RemoveSuppressionCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding StatusMessage}"
+                           IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           AutomationProperties.AutomationId="ActiveSuppressionsStatusMessage"
+                           AutomationProperties.Name="Active suppressions status"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           Margin="0,6,0,0"/>
+            </StackPanel>
+        </Expander>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
             <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource VtTextSecondaryBrush}"/>
             <ComboBox ItemsSource="{Binding ReviewFilters}"
                       SelectedItem="{Binding SelectedReviewFilter}"
@@ -37,13 +107,13 @@
         </StackPanel>
 
         <!-- Empty state -->
-        <controls:EmptyStateView Grid.Row="1"
+        <controls:EmptyStateView Grid.Row="2"
                                  Icon="mdi-shield-off-outline"
                                  Headline="No suppressions to review"
                                  Description="Accepted risks appear here when they need review — expiring soon, expired, or stale. Suppress a finding from the Findings tab to add one."
                                  IsVisible="{Binding !HasReviewItems}"/>
 
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="2"
                   ItemsSource="{Binding ReviewQueueItems}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"

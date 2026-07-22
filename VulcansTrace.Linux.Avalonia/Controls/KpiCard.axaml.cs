@@ -59,6 +59,24 @@ public partial class KpiCard : UserControl
         AvaloniaProperty.Register<KpiCard, bool>(nameof(IsAlert));
 
     /// <summary>
+    /// Defines the <see cref="Command"/> property (click-through; card is inert when unset).
+    /// </summary>
+    public static readonly StyledProperty<System.Windows.Input.ICommand?> CommandProperty =
+        AvaloniaProperty.Register<KpiCard, System.Windows.Input.ICommand?>(nameof(Command));
+
+    /// <summary>
+    /// Defines the <see cref="CommandParameter"/> property.
+    /// </summary>
+    public static readonly StyledProperty<object?> CommandParameterProperty =
+        AvaloniaProperty.Register<KpiCard, object?>(nameof(CommandParameter));
+
+    /// <summary>
+    /// Defines the <see cref="CardAutomationId"/> property for the click-through overlay.
+    /// </summary>
+    public static readonly StyledProperty<string> CardAutomationIdProperty =
+        AvaloniaProperty.Register<KpiCard, string>(nameof(CardAutomationId));
+
+    /// <summary>
     /// Gets or sets the Material Design icon glyph name (e.g., "mdi-chart-box").
     /// </summary>
     public string Icon
@@ -119,6 +137,30 @@ public partial class KpiCard : UserControl
     {
         get => GetValue(IsAlertProperty);
         set => SetValue(IsAlertProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the command invoked when the card is clicked. When null the
+    /// card is inert (no click-through overlay).
+    /// </summary>
+    public System.Windows.Input.ICommand? Command
+    {
+        get => GetValue(CommandProperty);
+        set => SetValue(CommandProperty, value);
+    }
+
+    /// <summary>Gets or sets the parameter passed to <see cref="Command"/>.</summary>
+    public object? CommandParameter
+    {
+        get => GetValue(CommandParameterProperty);
+        set => SetValue(CommandParameterProperty, value);
+    }
+
+    /// <summary>Gets or sets the automation id of the click-through overlay button.</summary>
+    public string CardAutomationId
+    {
+        get => GetValue(CardAutomationIdProperty);
+        set => SetValue(CardAutomationIdProperty, value);
     }
 
     /// <summary>

@@ -141,6 +141,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the sidebar navigation items.</summary>
     public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
 
+    /// <summary>Gets the collapsible sidebar groups (projection of <see cref="NavigationItems"/>).</summary>
+    public ObservableCollection<NavigationGroup> NavigationGroups { get; } = new();
+
     /// <summary>Gets or sets the currently selected navigation item.</summary>
     public NavigationItem? SelectedNavigationItem
     {
@@ -163,8 +166,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public object? SelectedContent
     {
         get => _selectedContent;
-        private set => SetField(ref _selectedContent, value);
+        private set
+        {
+            if (SetField(ref _selectedContent, value))
+            {
+                OnPropertyChanged(nameof(IsAgentHomeVisible));
+            }
+        }
     }
+
+    /// <summary>
+    /// Gets whether the Agent home content is selected — drives hero panel
+    /// visibility (the hero only lives on the Agent home).
+    /// </summary>
+    public bool IsAgentHomeVisible => ReferenceEquals(_selectedContent, Agent);
 
     /// <summary>Gets the available intensity options.</summary>
     public ObservableCollection<IntensityOption> Intensities { get; } = new();
@@ -404,6 +419,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the cancel command.</summary>
     public RelayCommand CancelCommand { get; }
 
+    /// <summary>Gets the KPI card click-through navigation command.</summary>
+    public RelayCommand KpiNavigateCommand { get; }
+
     /// <summary>Gets the investigate selected finding command.</summary>
     public AsyncRelayCommand InvestigateCommand { get; }
 
@@ -477,6 +495,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 IsBusy = false;
             });
         CancelCommand = new RelayCommand(_ => CancelAnalysis(), _ => CanCancel());
+        KpiNavigateCommand = new RelayCommand(parameter => NavigateToKpi(parameter as string));
 
         // Initialize child ViewModels
         Findings = new FindingsViewModel(_pinnedFindingStore);
@@ -570,6 +589,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "ACCOUNTABILITY" });
         NavigationItems.Add(new NavigationItem { Label = "Parse Errors", Icon = "mdi-alert-circle", Content = Findings, Group = "SYSTEM" });
         NavigationItems.Add(new NavigationItem { Label = "Warnings", Icon = "mdi-alert", Content = Findings, Group = "" });
+
+        // Collapsible sidebar groups: a presentation projection of the flat
+        // list, which stays the canonical model for selection and lookups.
+        NavigationGroup? currentGroup = null;
+        foreach (var item in NavigationItems)
+        {
+            if (!string.IsNullOrEmpty(item.Group) || currentGroup is null)
+            {
+                currentGroup = new NavigationGroup { Name = item.Group };
+                NavigationGroups.Add(currentGroup);
+            }
+            currentGroup.Items.Add(item);
+        }
 
         Agent.NavigateToThreatIntelAction = NavigateToThreatIntel;
         SelectedNavigationItem = NavigationItems[0];
@@ -913,6 +945,45 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// <summary>
+    /// KPI card click-through: navigate to the matching view, applying the
+    /// matching findings severity filter where one exists.
+    /// </summary>
+    private void NavigateToKpi(string? key)
+    {
+        switch (key)
+        {
+            case "findings":
+                Findings.SelectedSeverityFilter = Findings.SeverityFilters[0];
+                SelectNavigationItem("Findings");
+                break;
+            case "high-critical":
+                var highCritical = Findings.SeverityFilters.FirstOrDefault(
+                    filter => filter.MinSeverity == Severity.High);
+                if (highCritical != null)
+                {
+                    Findings.SelectedSeverityFilter = highCritical;
+                }
+                SelectNavigationItem("Findings");
+                break;
+            case "warnings":
+                SelectNavigationItem("Warnings");
+                break;
+            case "parse-errors":
+                SelectNavigationItem("Parse Errors");
+                break;
+        }
+    }
+
+    private void SelectNavigationItem(string label)
+    {
+        var item = NavigationItems.FirstOrDefault(i => i.Label == label);
+        if (item != null)
+        {
+            SelectedNavigationItem = item;
+        }
+    }
+
     /// Opens the Threat Intel management view and refreshes it from the shared store first.
     /// </summary>
     public void NavigateToThreatIntel()

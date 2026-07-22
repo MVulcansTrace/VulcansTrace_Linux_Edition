@@ -25,6 +25,7 @@
                AutomationProperties.AutomationId="AnalystActionLogClearButton"/>
       <TextBlock Text="{Binding StatusMessage}"
                  AutomationProperties.AutomationId="AnalystActionLogStatusMessage"
+                 AutomationProperties.Name="Analyst action log status"
                  VerticalAlignment="Center"
                  Foreground="{StaticResource VtTextSecondaryBrush}"
                  FontSize="{StaticResource VtFontSizeSm}"

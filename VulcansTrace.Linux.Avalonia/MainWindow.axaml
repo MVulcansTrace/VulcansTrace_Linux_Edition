@@ -30,15 +30,13 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2.5*" MinWidth="280"/>
+            <ColumnDefinition Width="Auto" MinWidth="200"/>
             <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="1.5*" MinWidth="160" MaxWidth="260"/>
-            <ColumnDefinition Width="5"/>
-            <ColumnDefinition Width="6.5*" MinWidth="500"/>
+            <ColumnDefinition Width="*" MinWidth="500"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Summary and warnings (spans all 5 columns: panel, splitter, sidebar, splitter, content) -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Vertical" Margin="0,0,0,12">
+        <!-- Summary and warnings (spans all 3 columns: sidebar, splitter, content) -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12">
             <UniformGrid Columns="5" Margin="0,0,0,12">
                 <controls:KpiCard Icon="mdi-chart-box"
                                   Label="Findings"
@@ -46,6 +44,9 @@
                                   AccentBrush="{StaticResource VtKpiFindingsBrush}"
                                   GlowBrush="{StaticResource VtPrimaryGlowBrush}"
                                   TrendText="{Binding Findings.FindingsSubtitle, Mode=OneWay}"
+                                  CardAutomationId="KpiFindingsCard"
+                                  Command="{Binding KpiNavigateCommand}"
+                                  CommandParameter="findings"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-alert-octagon"
                                   Label="High / Critical"
@@ -54,6 +55,9 @@
                                   GlowBrush="{StaticResource VtSeverityCriticalBgBrush}"
                                   TrendText="{Binding Findings.HighCriticalSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.HighCriticalCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
+                                  CardAutomationId="KpiHighCriticalCard"
+                                  Command="{Binding KpiNavigateCommand}"
+                                  CommandParameter="high-critical"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-alert"
                                   Label="Warnings"
@@ -62,6 +66,9 @@
                                   GlowBrush="{StaticResource VtWarningMutedBrush}"
                                   TrendText="{Binding Findings.WarningSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.WarningCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
+                                  CardAutomationId="KpiWarningsCard"
+                                  Command="{Binding KpiNavigateCommand}"
+                                  CommandParameter="warnings"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-file-document-alert-outline"
                                   Label="Parse Errors"
@@ -70,6 +77,9 @@
                                   GlowBrush="{StaticResource VtSeverityHighBgBrush}"
                                   TrendText="{Binding Findings.ParseErrorSubtitle, Mode=OneWay}"
                                   IsAlert="{Binding Findings.ParseErrorCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
+                                  CardAutomationId="KpiParseErrorsCard"
+                                  Command="{Binding KpiNavigateCommand}"
+                                  CommandParameter="parse-errors"
                                   Margin="0,0,8,0"/>
                 <controls:KpiCard Icon="mdi-skip-next-outline"
                                   Label="Skipped Lines"
@@ -159,315 +169,126 @@
             </Border>
         </StackPanel>
 
-        <!-- Left: bot + controls -->
-        <ScrollViewer Grid.Row="1" Grid.Column="0" Margin="0,0,16,0">
-            <Border Theme="{StaticResource VtCard}" Padding="16">
-                <StackPanel Spacing="16">
-                    <!-- Bot intro -->
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Ellipse Width="40" Height="40" Margin="0,0,12,0" VerticalAlignment="Top">
-                            <Ellipse.Fill>
-                                <ImageBrush Source="/Assets/VulcansTraceAvatar.png"/>
-                            </Ellipse.Fill>
-                        </Ellipse>
-                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="VulcansTrace" FontWeight="Bold" FontSize="{StaticResource VtFontSizeMd}" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                            <TextBlock Text="{Binding BotIntroText}" TextWrapping="Wrap" FontSize="{StaticResource VtFontSizeMd}" Foreground="{StaticResource VtTextSecondaryBrush}" LineHeight="22"/>
-                        </StackPanel>
-                    </Grid>
+        <!-- Sidebar navigation -->
+        <controls:NavigationSidebar Grid.Row="1" Grid.Column="0" />
 
-                    <!-- Advisor tip -->
-                    <Border IsVisible="{Binding HasAdvisorMessage}"
-                            Background="{StaticResource VtBackground800Brush}"
-                            BorderBrush="{StaticResource VtBorderDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{StaticResource VtRadiusXl}"
-                            Padding="8"
-                            HorizontalAlignment="Stretch">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Tip:" FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" Foreground="{StaticResource VtPrimaryBrush}"/>
-                            <ScrollViewer Grid.Column="1"
-                                          MaxHeight="140"
-                                          VerticalScrollBarVisibility="Auto"
-                                          VerticalAlignment="Top">
-                                <TextBlock Text="{Binding AdvisorMessage}" TextWrapping="Wrap" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                            </ScrollViewer>
-                        </Grid>
-                    </Border>
-
-                    <!-- Log Source -->
-                    <StackPanel Spacing="10">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <i:Icon Value="mdi-file-document-edit-outline" FontSize="{StaticResource VtIconSizeSm}" Foreground="{StaticResource VtPrimaryBrush}"/>
-                            <TextBlock Text="Log Source" FontWeight="SemiBold" FontSize="{StaticResource VtFontSizeMd}" Foreground="{StaticResource VtTextPrimaryBrush}" VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <TextBox Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
-                                 PlaceholderText="Paste or type firewall log lines here..."
-                                 AcceptsReturn="True"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                 Height="220"
-                                 FontFamily="{StaticResource VtFontFamilyMono}"
-                                 FontSize="{StaticResource VtFontSizeSm}"
-                                 Theme="{StaticResource VtInput}"
-                                 AutomationProperties.AutomationId="LogTextBox"
-                                 AutomationProperties.Name="Firewall Log Input"/>
-
-                        <Button Theme="{StaticResource VtPrimaryButton}"
-                                AutomationProperties.AutomationId="AnalyzeButton"
-                                AutomationProperties.Name="Analyze"
-                                Command="{Binding AnalyzeCommand}"
-                                HorizontalAlignment="Stretch"
-                                Height="44">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <i:Icon Value="mdi-rocket-launch-outline" FontSize="{StaticResource VtIconSizeMd}" VerticalAlignment="Center"/>
-                                <TextBlock Text="Analyze" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <WrapPanel Orientation="Horizontal">
-                            <Button Content="Cancel"
-                                    Theme="{StaticResource VtSecondaryButton}"
-                                    AutomationProperties.AutomationId="CancelButton"
-                                    AutomationProperties.Name="Cancel audit"
-                                    Command="{Binding CancelCommand}"
-                                    Margin="0,0,8,8"/>
-                            <Button Content="Export Evidence"
-                                    Theme="{StaticResource VtSecondaryButton}"
-                                    AutomationProperties.AutomationId="ExportEvidenceButton"
-                                    Command="{Binding Evidence.ExportEvidenceCommand}"
-                                    Margin="0,0,8,8"/>
-                            <Button Content="Copy Signing Key"
-                                    Theme="{StaticResource VtGhostButton}"
-                                    ToolTip.Tip="Copy the session HMAC key used to sign exported evidence (needed to verify signatures externally)"
-                                    AutomationProperties.AutomationId="CopySigningKeyButton"
-                                    Command="{Binding Evidence.CopySigningKeyCommand}"
-                                    Margin="0,0,8,8"/>
-                            <Button Content="Compare Logs"
-                                    Theme="{StaticResource VtSecondaryButton}"
-                                    ToolTip.Tip="Compare two log files for differences"
-                                    Command="{Binding CompareLogsCommand}"
-                                    AutomationProperties.AutomationId="CompareLogsButton"
-                                    Margin="0,0,8,8"/>
-                            <Button Content="Cancel Export"
-                                    Theme="{StaticResource VtSecondaryButton}"
-                                    IsVisible="{Binding Evidence.IsBusy}"
-                                    AutomationProperties.AutomationId="CancelExportButton"
-                                    Command="{Binding Evidence.CancelExportCommand}"
-                                    Margin="0,0,8,8"/>
-                            <TextBlock Text="{Binding Suppressions.StatusMessage}"
-                                       VerticalAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource VtTextSecondaryBrush}"
-                                       FontSize="{StaticResource VtFontSizeSm}"/>
-                        </WrapPanel>
-                    </StackPanel>
-
-                    <!-- Scan configuration -->
-                    <Expander Header="Scan configuration" IsExpanded="False" Theme="{StaticResource VtExpander}">
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Name="ScanIntensityLabel"
-                                       Text="Scan intensity:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                            <ComboBox ItemsSource="{Binding Intensities}"
-                                      SelectedItem="{Binding SelectedIntensity}"
-                                      AutomationProperties.AutomationId="IntensityComboBox"
-                                      AutomationProperties.Name="Scan intensity"
-                                      AutomationProperties.LabeledBy="{Binding ElementName=ScanIntensityLabel}"
-                                      Theme="{StaticResource VtComboBox}"/>
-                            <TextBlock Text="Low shows only High/Critical findings. Medium shows Medium+. High shows all severities."
-                                       Foreground="{StaticResource VtTextSecondaryBrush}"
-                                       FontSize="{StaticResource VtFontSizeSm}"
-                                       TextWrapping="Wrap"/>
-
-                            <TextBlock x:Name="MachineRoleLabel"
-                                       Text="Machine role:" FontWeight="Bold" Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                            <ComboBox ItemsSource="{Binding MachineRoles}"
-                                      SelectedItem="{Binding SelectedMachineRole}"
-                                      AutomationProperties.AutomationId="MachineRoleComboBox"
-                                      AutomationProperties.Name="Machine role"
-                                      AutomationProperties.LabeledBy="{Binding ElementName=MachineRoleLabel}"
-                                      Theme="{StaticResource VtComboBox}"/>
-
-                            <Expander Header="Advanced" Theme="{StaticResource VtExpander}">
-                                <ScrollViewer MaxHeight="320">
-                                    <StackPanel>
-                                        <TextBlock Text="Port Scan" FontWeight="SemiBold" Margin="0,4,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Max events/source (0 = unbounded):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMaxEntriesPerSource}" AutomationProperties.AutomationId="PortScanMaxEntriesInput" AutomationProperties.Name="Port scan maximum events per source"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Min distinct ports:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PortScanMinPorts}" AutomationProperties.AutomationId="PortScanMinPortsInput" AutomationProperties.Name="Port scan minimum distinct ports"/>
-                                        </Grid>
-
-                                        <TextBlock Text="Flood / DoS" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Min events:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodMinEvents}" AutomationProperties.AutomationId="FloodMinEventsInput" AutomationProperties.Name="Flood minimum events"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Window (seconds):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding FloodWindowSeconds}" AutomationProperties.AutomationId="FloodWindowSecondsInput" AutomationProperties.Name="Flood window seconds"/>
-                                        </Grid>
-
-                                        <TextBlock Text="Privilege Escalation" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Min spike attempts:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeMinAttempts}" AutomationProperties.AutomationId="PrivilegeSpikeMinAttemptsInput" AutomationProperties.Name="Privilege spike minimum attempts"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Spike window (minutes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PrivilegeSpikeWindowMinutes}" AutomationProperties.AutomationId="PrivilegeSpikeWindowMinutesInput" AutomationProperties.Name="Privilege spike window minutes"/>
-                                        </Grid>
-
-                                        <TextBlock Text="C2 Channel" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Min group size:" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding C2MinGroupSize}" AutomationProperties.AutomationId="C2MinGroupSizeInput" AutomationProperties.Name="C2 minimum group size"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Interval tolerance (seconds):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="0.5" Value="{Binding C2ToleranceSeconds}" AutomationProperties.AutomationId="C2ToleranceSecondsInput" AutomationProperties.Name="C2 interval tolerance seconds"/>
-                                        </Grid>
-
-                                        <TextBlock Text="Packet Size" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Large threshold (bytes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeLargeThreshold}" AutomationProperties.AutomationId="PacketSizeLargeThresholdInput" AutomationProperties.Name="Large packet size threshold bytes"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Small threshold (bytes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="1" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding PacketSizeSmallThreshold}" AutomationProperties.AutomationId="PacketSizeSmallThresholdInput" AutomationProperties.Name="Small packet size threshold bytes"/>
-                                        </Grid>
-
-                                        <TextBlock Text="Interface Hopping" FontWeight="SemiBold" Margin="0,12,0,4" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto" Margin="8,0,0,0">
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Window (minutes):" VerticalAlignment="Center" Margin="0,2,12,2" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                            <NumericUpDown Grid.Row="0" Grid.Column="1" Width="90" VerticalAlignment="Center" Theme="{StaticResource VtNumericUpDown}" Minimum="0" Increment="1" Value="{Binding InterfaceHoppingWindowMinutes}" AutomationProperties.AutomationId="InterfaceHoppingWindowMinutesInput" AutomationProperties.Name="Interface hopping window minutes"/>
-                                        </Grid>
-
-                                        <Border Background="{StaticResource VtBackground900Brush}"
-                                                BorderBrush="{StaticResource VtBorderDefaultBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="{StaticResource VtRadiusMd}"
-                                                Padding="10"
-                                                Margin="0,12,0,0">
-                                            <StackPanel Orientation="Vertical" Spacing="4">
-                                                <TextBlock Text="Session HMAC Key" FontWeight="SemiBold" FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-                                                    <TextBlock Text="{Binding Evidence.MaskedSigningKey}" FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" VerticalAlignment="Center"/>
-                                                    <Button Content="Copy signing key" Command="{Binding Evidence.CopySigningKeyCommand}" Theme="{StaticResource VtGhostButton}" FontSize="{StaticResource VtFontSizeXs}" Padding="6,2" ToolTip.Tip="Copies full signing key to clipboard"/>
-                                                </StackPanel>
-                                                <TextBlock Text="Copy this key if you need to verify signed evidence outside of VulcansTrace."
-                                                           FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <TextBlock Text="Leave any field at 0 to use the profile default for the selected intensity."
-                                                   FontSize="{StaticResource VtFontSizeXs}" Foreground="{StaticResource VtTextMutedBrush}" Margin="0,12,0,4" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Expander>
-                        </StackPanel>
-                    </Expander>
-
-                    <!-- Active Suppressions -->
-                    <Expander Header="Active Suppressions" IsExpanded="True" Theme="{StaticResource VtExpander}">
-                        <StackPanel Orientation="Vertical">
-                            <TextBlock Text="No active suppressions."
-                                       IsVisible="{Binding Suppressions.IsEmpty}"
-                                       Foreground="{StaticResource VtTextMutedBrush}"
-                                       FontSize="{StaticResource VtFontSizeSm}"
-                                       Margin="0,4,0,4"/>
-                            <ItemsControl ItemsSource="{Binding Suppressions.Entries}" MaxHeight="120"
-                                          AutomationProperties.AutomationId="ActiveSuppressionsList"
-                                          AutomationProperties.Name="Active suppressions"
-                                          IsVisible="{Binding !Suppressions.IsEmpty}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Spacing="4"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
-                                            <TextBlock Grid.Column="0"
-                                                       Text="{Binding RuleId}"
-                                                       Foreground="{StaticResource VtTextPrimaryBrush}"
-                                                       FontSize="{StaticResource VtFontSizeSm}"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Target}"
-                                                       Foreground="{StaticResource VtTextSecondaryBrush}"
-                                                       FontSize="{StaticResource VtFontSizeSm}"
-                                                       Margin="8,0,8,0"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2"
-                                                       Text="{Binding Reason}"
-                                                       Foreground="{StaticResource VtTextMutedBrush}"
-                                                       FontSize="{StaticResource VtFontSizeXs}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxWidth="120"
-                                                       VerticalAlignment="Center"/>
-                                            <Button Grid.Column="3"
-                                                    Content="Remove"
-                                                    AutomationProperties.Name="Remove suppression"
-                                                    FontSize="{StaticResource VtFontSizeXs}"
-                                                    Padding="4,2"
-                                                    Theme="{StaticResource VtGhostButton}"
-                                                    Command="{Binding $parent[ItemsControl].DataContext.Suppressions.RemoveSuppressionCommand}"
-                                                    CommandParameter="{Binding}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Expander>
-
-                    <!-- Status -->
-                    <StackPanel Orientation="Horizontal" IsVisible="{Binding IsBusy}">
-                        <ProgressBar Height="6" Width="140" IsIndeterminate="True" VerticalAlignment="Center" AutomationProperties.AutomationId="AnalysisBusyProgress" AutomationProperties.Name="Analysis progress"/>
-                        <TextBlock Text="Working..." Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-        </ScrollViewer>
-
-        <!-- Left splitter -->
+        <!-- Splitter -->
         <GridSplitter Grid.Row="1" Grid.Column="1"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch"
                       ResizeDirection="Columns"
                       Background="{StaticResource VtBorderDefaultBrush}"/>
 
-        <!-- Sidebar navigation -->
-        <controls:NavigationSidebar Grid.Row="1" Grid.Column="2" />
+        <!-- Content zone: status bar, hero (agent home only), main content -->
+        <Grid Grid.Row="1" Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Right splitter -->
-        <GridSplitter Grid.Row="1" Grid.Column="3"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch"
-                      ResizeDirection="Columns"
-                      Background="{StaticResource VtBorderDefaultBrush}"/>
+            <!-- Status bar: agent presence left, progress/summary center,
+                 session tools right -->
+            <Border Grid.Row="0"
+                    Theme="{StaticResource VtCard}"
+                    Padding="10,4"
+                    Margin="0,0,0,6">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeMd}" Foreground="{StaticResource VtPrimaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Security Agent" FontWeight="SemiBold" Foreground="{StaticResource VtTextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Agent.AgentStatus, Mode=OneWay}"
+                                   AutomationProperties.AutomationId="AgentStatusIndicator"
+                                   AutomationProperties.Name="Agent status"
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeSm}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
 
-        <!-- Main content area -->
-        <Border Grid.Row="1" Grid.Column="4"
-                Theme="{StaticResource VtCard}"
-                Padding="12"
-                Margin="0,0,0,0">
-            <ContentControl x:Name="MainContent"
-                            Content="{Binding SelectedContent}" />
-        </Border>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0">
+                        <ProgressBar Height="6" Width="140" IsIndeterminate="True" VerticalAlignment="Center"
+                                     IsVisible="{Binding IsBusy}"
+                                     AutomationProperties.AutomationId="AnalysisBusyProgress"
+                                     AutomationProperties.Name="Analysis progress"/>
+                        <Button Content="Cancel"
+                                Theme="{StaticResource VtSecondaryButton}"
+                                AutomationProperties.AutomationId="CancelButton"
+                                AutomationProperties.Name="Cancel audit"
+                                Command="{Binding CancelCommand}"
+                                IsVisible="{Binding IsBusy}"
+                                Padding="10,2"
+                                FontSize="{StaticResource VtFontSizeSm}"
+                                VerticalAlignment="Center"/>
+                        <Button Content="Cancel Export"
+                                Theme="{StaticResource VtSecondaryButton}"
+                                AutomationProperties.AutomationId="CancelExportButton"
+                                Command="{Binding Evidence.CancelExportCommand}"
+                                IsVisible="{Binding Evidence.IsBusy}"
+                                Padding="10,2"
+                                FontSize="{StaticResource VtFontSizeSm}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SummaryText}"
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeSm}"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
 
-        <!-- Machine-readable app state for harnesses: the JSON snapshot rides
-             the TextBlock's own text (its automation peer reports Text as the
-             accessible name; AutomationProperties.* does not reach AT-SPI on
-             Avalonia/Linux). Effectively invisible: 1px, transparent text. -->
-        <TextBlock Grid.Row="1" Grid.Column="4"
-                   AutomationProperties.AutomationId="AppStateNode"
-                   Text="{Binding AppStateJson, Mode=OneWay}"
-                   Foreground="Transparent"
-                   FontSize="1"
-                   Height="1"
-                   IsHitTestVisible="False"
-                   Focusable="False"/>
+                    <Button Grid.Column="2"
+                            Theme="{StaticResource VtSecondaryButton}"
+                            AutomationProperties.AutomationId="SessionToolsMenu"
+                            AutomationProperties.Name="Session tools"
+                            VerticalAlignment="Center">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <i:Icon Value="mdi-dots-horizontal" FontSize="{StaticResource VtIconSizeMd}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Session tools" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Export Evidence"
+                                          Command="{Binding Evidence.ExportEvidenceCommand}"
+                                          AutomationProperties.AutomationId="ExportEvidenceButton"/>
+                                <MenuItem Header="Compare Logs"
+                                          Command="{Binding CompareLogsCommand}"
+                                          ToolTip.Tip="Compare two log files for differences"
+                                          AutomationProperties.AutomationId="CompareLogsButton"/>
+                                <MenuItem Header="Copy Signing Key"
+                                          Command="{Binding Evidence.CopySigningKeyCommand}"
+                                          ToolTip.Tip="Copy the session HMAC key used to sign exported evidence (needed to verify signatures externally)"
+                                          AutomationProperties.AutomationId="CopySigningKeyButton"/>
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Agent-home hero (log input + analyze + scan options) -->
+            <controls:HeroPanel Grid.Row="1"
+                                IsVisible="{Binding IsAgentHomeVisible, Mode=OneWay}"/>
+
+            <!-- Main content area -->
+            <Border Grid.Row="2"
+                    Theme="{StaticResource VtCard}"
+                    Padding="12">
+                <ContentControl x:Name="MainContent"
+                                Content="{Binding SelectedContent}" />
+            </Border>
+
+            <!-- Machine-readable app state for harnesses: the JSON snapshot rides
+                 the TextBlock's own text (its automation peer reports Text as the
+                 accessible name; AutomationProperties.* does not reach AT-SPI on
+                 Avalonia/Linux). Effectively invisible: 1px, transparent text. -->
+            <TextBlock Grid.Row="2"
+                       AutomationProperties.AutomationId="AppStateNode"
+                       Text="{Binding AppStateJson, Mode=OneWay}"
+                       Foreground="Transparent"
+                       FontSize="1"
+                       Height="1"
+                       IsHitTestVisible="False"
+                       Focusable="False"/>
+        </Grid>
 
     </Grid>
 </Window>

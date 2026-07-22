@@ -9,15 +9,32 @@
 
   <Border BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <ListBox x:Name="NavListBox"
-               AutomationProperties.AutomationId="PrimaryNavigationList"
-               AutomationProperties.Name="Primary navigation"
-               ItemsSource="{Binding NavigationItems}"
-               SelectedItem="{Binding SelectedNavigationItem, Mode=TwoWay}"
-               Background="Transparent"
-               BorderThickness="0"
-               Padding="0,8">
-        <ListBox.Styles>
+      <ItemsControl x:Name="NavItemsControl"
+                    AutomationProperties.AutomationId="PrimaryNavigationList"
+                    AutomationProperties.Name="Primary navigation"
+                    ItemsSource="{Binding NavigationGroups}"
+                    Padding="0,8">
+        <ItemsControl.Styles>
+          <Style Selector="TextBlock.group-header">
+            <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
+            <Setter Property="FontSize" Value="{StaticResource VtFontSizeXs}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:pointerover TextBlock.group-header">
+            <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
+          </Style>
+          <Style Selector="ToggleButton.group-toggle:checked Path#NavGroupChevron">
+            <Setter Property="RenderTransform">
+              <RotateTransform Angle="180"/>
+            </Setter>
+          </Style>
           <Style Selector="ListBoxItem">
             <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
             <Setter Property="Padding" Value="0" />
@@ -71,19 +88,13 @@
           <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
           </Style>
-          <Style Selector="TextBlock.group-header">
-            <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
-            <Setter Property="FontSize" Value="{StaticResource VtFontSizeXs}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LetterSpacing" Value="1" />
-          </Style>
           <Style Selector="ListBoxItem:selected i|Icon">
             <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.1)" />
             <Setter Property="Transitions">
               <Transitions>
                 <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
               </Transitions>
             </Setter>
           </Style>
@@ -94,43 +105,64 @@
             <Setter Property="Transitions">
               <Transitions>
                 <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
               </Transitions>
             </Setter>
           </Style>
-        </ListBox.Styles>
-        <ListBox.ItemTemplate>
-          <DataTemplate DataType="models:NavigationItem">
+        </ItemsControl.Styles>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="models:NavigationGroup">
             <StackPanel>
-              <!-- Group header with separator -->
-              <Border Margin="12,16,12,0"
-                      BorderBrush="{StaticResource VtBorderDefaultBrush}"
-                      BorderThickness="0,1,0,0"
-                      IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                      Opacity="0.5" />
-              <TextBlock Text="{Binding Group}"
-                         Classes="group-header"
-                         Margin="16,12,16,4"
-                         IsVisible="{Binding Group, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-
-              <!-- Navigation item content: the highlight row. The group header
-                   above lives outside this Border, so it is never highlighted. -->
-              <Border Classes="nav-row" Padding="12,8,12,8">
-                <StackPanel Classes="nav-content" Orientation="Horizontal" Spacing="10">
-                  <i:Icon Value="{Binding Icon}"
-                          FontSize="{StaticResource VtIconSizeMd}"
-                          Foreground="{StaticResource VtTextSecondaryBrush}" />
-                  <TextBlock Text="{Binding Label}"
-                             Classes="nav-label"
-                             VerticalAlignment="Center"
-                             Foreground="{StaticResource VtTextSecondaryBrush}"
-                             FontSize="{StaticResource VtFontSizeMd}" />
+              <!-- Group header: expand/collapse toggle (groups default expanded) -->
+              <ToggleButton Classes="group-toggle"
+                            IsChecked="{Binding IsExpanded}"
+                            AutomationProperties.AutomationId="{Binding ToggleAutomationId}"
+                            AutomationProperties.Name="{Binding ToggleAccessibleName}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="16,2,16,4">
+                  <TextBlock Text="{Binding Name}"
+                             Classes="group-header"
+                             VerticalAlignment="Center" />
+                  <Path Name="NavGroupChevron"
+                        Data="M 0 0 L 8 8 L 16 0"
+                        Stroke="{StaticResource VtTextMutedBrush}"
+                        StrokeThickness="2"
+                        VerticalAlignment="Center"
+                        RenderTransformOrigin="0.5,0.5" />
                 </StackPanel>
-              </Border>
+              </ToggleButton>
+
+              <!-- Group items -->
+              <ListBox ItemsSource="{Binding Items}"
+                       IsVisible="{Binding IsExpanded}"
+                       SelectedItem="{Binding $parent[UserControl].DataContext.SelectedNavigationItem, Mode=TwoWay}"
+                       AutomationProperties.AutomationId="{Binding ListAutomationId}"
+                       Background="Transparent"
+                       BorderThickness="0">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="models:NavigationItem">
+                    <!-- Navigation item content: the highlight row. -->
+                    <Border Classes="nav-row" Padding="12,8,12,8">
+                      <StackPanel Classes="nav-content" Orientation="Horizontal" Spacing="10">
+                        <i:Icon Value="{Binding Icon}"
+                                FontSize="{StaticResource VtIconSizeMd}"
+                                Foreground="{StaticResource VtTextSecondaryBrush}" />
+                        <TextBlock Text="{Binding Label}"
+                                   Classes="nav-label"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeMd}" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
             </StackPanel>
           </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </ScrollViewer>
   </Border>
 </UserControl>

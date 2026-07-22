@@ -97,7 +97,7 @@
             IsHitTestVisible="{Binding IsAgentToolsPanelOpen}">
       <ScrollViewer VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled"
-                    MaxHeight="520">
+                    MaxHeight="470">
         <WrapPanel Orientation="Horizontal">
           <!-- Analysis -->
           <StackPanel Orientation="Vertical" Spacing="8" MinWidth="220" MaxWidth="380" Margin="0,0,24,12">

@@ -43,6 +43,22 @@
                    FontSize="{StaticResource VtFontSizeXs}"
                    Foreground="{StaticResource VtTextSecondaryBrush}"/>
       </StackPanel>
+
+      <!-- Click-through overlay: a transparent button covering the card when a
+           Command is set (cards without a Command stay inert). -->
+      <Button Background="Transparent"
+              BorderThickness="0"
+              Cursor="Hand"
+              Padding="0"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              HorizontalContentAlignment="Stretch"
+              VerticalContentAlignment="Stretch"
+              Command="{Binding Command, ElementName=Self}"
+              CommandParameter="{Binding CommandParameter, ElementName=Self}"
+              AutomationProperties.AutomationId="{Binding CardAutomationId, ElementName=Self}"
+              AutomationProperties.Name="{Binding Label, ElementName=Self}"
+              IsVisible="{Binding Command, ElementName=Self, Converter={x:Static ObjectConverters.IsNotNull}}"/>
     </Grid>
   </Border>
 </UserControl>

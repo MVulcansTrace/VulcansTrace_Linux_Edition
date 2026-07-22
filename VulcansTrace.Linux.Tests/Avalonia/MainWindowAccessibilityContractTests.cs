@@ -8,7 +8,9 @@ public class MainWindowAccessibilityContractTests
     [Fact]
     public void PrimaryAnalysisControls_ExposeStableAccessibleNamesAndLabels()
     {
-        var document = LoadMainWindow();
+        // Log input, Analyze, and scan options live in the agent-home hero
+        // panel since the two-zone shell rewrite.
+        var document = LoadAvaloniaDocument("Controls/HeroPanel.axaml");
 
         AssertAutomationName(document, "AnalyzeButton", "Analyze");
         AssertLabeledControl(
@@ -30,10 +32,12 @@ public class MainWindowAccessibilityContractTests
     {
         var mainWindow = LoadAvaloniaDocument("MainWindow.axaml");
         AssertAutomationName(mainWindow, "CancelButton", "Cancel audit");
+
+        var suppressions = LoadAvaloniaDocument("Views/SuppressionView.axaml");
         AssertCommandName(
-            mainWindow,
-            "{Binding $parent[ItemsControl].DataContext.Suppressions.RemoveSuppressionCommand}",
-            "Remove suppression");
+            suppressions,
+            "{Binding $parent[ItemsControl].DataContext.RemoveSuppressionCommand}",
+            "Remove active suppression");
 
         var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
         AssertAutomationName(
@@ -90,6 +94,30 @@ public class MainWindowAccessibilityContractTests
             actionLog,
             "AnalystActionLogRefreshButton",
             "Refresh analyst action log");
+    }
+
+    [Fact]
+    public void SidebarNavigation_GroupsExposeBoundToggleMetadata()
+    {
+        var sidebar = LoadAvaloniaDocument("Controls/NavigationSidebar.axaml");
+
+        AssertAutomationName(sidebar, "PrimaryNavigationList", "Primary navigation");
+
+        // Group expand/collapse toggles get their automation metadata from the
+        // NavigationGroup model (verified concretely in MainViewModelTests).
+        var toggle = sidebar.Descendants().Single(element =>
+            Attribute(element, "AutomationProperties.AutomationId")?.Value
+                == "{Binding ToggleAutomationId}");
+        Assert.Equal(
+            "{Binding ToggleAccessibleName}",
+            Attribute(toggle, "AutomationProperties.Name")?.Value);
+        Assert.Equal("ToggleButton", toggle.Name.LocalName);
+
+        // Each group's item list gets a per-group id the same way.
+        var list = sidebar.Descendants().Single(element =>
+            Attribute(element, "AutomationProperties.AutomationId")?.Value
+                == "{Binding ListAutomationId}");
+        Assert.Equal("ListBox", list.Name.LocalName);
     }
 
     [Fact]
@@ -240,11 +268,6 @@ public class MainWindowAccessibilityContractTests
     // Command, Click, ToolTip).
     private static readonly string[] MissingAutomationIdBaseline =
     {
-        "MainWindow.axaml|Expander|Scan configuration",
-        "MainWindow.axaml|Expander|Advanced",
-        "MainWindow.axaml|Button|Copy signing key",
-        "MainWindow.axaml|Expander|Active Suppressions",
-        "MainWindow.axaml|Button|Remove suppression",
         "Views/AgentView.axaml|Expander|Audit History",
         "Views/AgentView.axaml|Expander|Remediation Sessions",
         "Views/AgentView.axaml|Button|{Binding PinTooltip}",
@@ -283,7 +306,6 @@ public class MainWindowAccessibilityContractTests
     private static readonly string[] DuplicateAccessibleNameBaseline =
     {
         "Enabled",
-        "Remove suppression",
     };
 
     [Fact]

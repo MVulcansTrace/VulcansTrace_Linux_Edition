@@ -1,6 +1,34 @@
 # VulcansTrace UI v2 — Wireframe Spec (DRAFT, iterating)
 
-Status: blueprint. Not yet implemented. Supersedes nothing; iterate freely.
+Status: **Phase 1 implemented (2026-07-18)** — two-zone shell, status bar,
+session tools menu, agent-home hero, collapsible nav groups, KPI click-through,
+and the M1–M3 machine-legibility layer are live and verified. Phases 2–4 open.
+
+> ## Amendments discovered during Phase 1 implementation
+> 1. **No toasts exist.** Transient feedback was modal `IDialogService.ShowMessage`
+>    dialogs; M3 machine mode suppresses *informational* modals instead of the
+>    specced "toasts → journal" (errors/confirmations stay modal).
+> 2. **Hero is titled "New analysis"**, not "What would you like to check?" —
+>    the agent chat welcome overlay already owns that line; duplicating it was
+>    worse. Single-box Chat↔Analyze intent flip deferred (open question #1).
+> 3. **Cancel Export lives in the status bar** next to Cancel (both busy-gated),
+>    not in the Session tools menu — menu items vanish when the flyout closes,
+>    which made busy-state assertions impossible.
+> 4. **M2 shape:** receipts ride `last_action` in the AppStateNode payload plus
+>    `EvidenceExported` journal entries (the Avalonia app previously logged
+>    nothing for exports — CLI-only).
+> 5. **Platform facts measured live (Avalonia 12.0.5/Linux):**
+>    `AutomationProperties.AutomationId` never reaches AT-SPI (1/180 nodes);
+>    accessible NAME is the live selector currency. Fully transparent
+>    (Opacity=0) elements get no automation peer. A TextBlock's peer reports
+>    its `Text` as the name, so AppStateNode's JSON rides the Text binding.
+> 6. **Icon rail deferred to Phase 2** (flyout a11y needs validation; groups
+>    shipped expanded-by-default instead).
+> 7. **Computer-Use scene fusion fix** (found via this redesign): paragraph
+>    text could be absorbed by the window node, swallowing short control labels;
+>    fixed via ranking (text match → tightness) + length-bounded substring
+>    matching.
+
 Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
 
 Design goals:
@@ -265,11 +293,15 @@ against v2 target them from day one.
 ## Open questions (iterate here)
 
 1. Chat/Analyze auto-flip vs explicit Ask/Analyze chips — decide after hands-on.
-2. Cancel placement: status bar (drawn) vs next to Analyze button. Leaning status bar.
+2. ~~Cancel placement~~ — RESOLVED: status bar, next to Cancel (busy-gated).
 3. Prompt chips: static list vs context-aware rotation. Start static.
 4. "Logs" page under SYSTEM: raw log browser + Skipped Lines detail — scope later.
-5. Icon-rail flyouts vs always-expanded rail on wide screens.
-6. What happens to the old left panel's Active Suppressions list — a Suppressions-view
-   summary card, or a thread message after analysis? Leaning: Suppressions view owns it.
+5. Icon-rail flyouts vs always-expanded rail on wide screens — rail deferred to
+   Phase 2; groups shipped collapsible-but-expanded-by-default.
+6. ~~Active Suppressions location~~ — RESOLVED: Suppressions view owns it (top
+   expander), remove button renamed "Remove active suppression" (killed the
+   duplicate accessible name).
 7. M3 coverage check: does "toasts become journal entries" cover ALL transient UI,
    or are there other popups that need inline-panel treatment? Audit during Phase 1.
+   → Phase 1 finding: no toasts exist; informational modals are the only
+   transient UI and are suppressed by machine mode.

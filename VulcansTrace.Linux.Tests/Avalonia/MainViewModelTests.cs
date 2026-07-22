@@ -81,6 +81,76 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
+    public void IsAgentHomeVisible_TracksSelectedContent()
+    {
+        Assert.True(_vm.IsAgentHomeVisible);
+
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Findings");
+        Assert.False(_vm.IsAgentHomeVisible);
+
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Agent");
+        Assert.True(_vm.IsAgentHomeVisible);
+    }
+
+    [AvaloniaFact]
+    public void NavigationGroups_ProjectFlatListWithToggleMetadata()
+    {
+        Assert.Equal(
+            new[] { "ANALYSIS", "MANAGEMENT", "OPERATIONS", "ACCOUNTABILITY", "SYSTEM" },
+            _vm.NavigationGroups.Select(g => g.Name).ToArray());
+        Assert.Equal(_vm.NavigationItems.Count, _vm.NavigationGroups.Sum(g => g.Items.Count));
+        Assert.All(_vm.NavigationGroups, group => Assert.True(group.IsExpanded));
+
+        var analysis = _vm.NavigationGroups[0];
+        Assert.Equal("NavGroupAnalysisToggle", analysis.ToggleAutomationId);
+        Assert.Equal("Analysis navigation group", analysis.ToggleAccessibleName);
+        Assert.Equal("NavGroupAnalysisList", analysis.ListAutomationId);
+        Assert.Equal("Agent", analysis.Items[0].Label);
+        // Same instances as the flat list — selection state stays shared.
+        Assert.Same(_vm.NavigationItems[0], analysis.Items[0]);
+    }
+
+    [AvaloniaFact]
+    public void KpiNavigate_Findings_ResetsSeverityFilterAndSelectsFindings()
+    {
+        _vm.Findings.SelectedSeverityFilter = _vm.Findings.SeverityFilters[1];
+
+        _vm.KpiNavigateCommand.Execute("findings");
+
+        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("All severities", _vm.Findings.SelectedSeverityFilter?.Display);
+    }
+
+    [AvaloniaFact]
+    public void KpiNavigate_HighCritical_AppliesSeverityFilterAndSelectsFindings()
+    {
+        _vm.KpiNavigateCommand.Execute("high-critical");
+
+        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("High & Critical only", _vm.Findings.SelectedSeverityFilter?.Display);
+    }
+
+    [AvaloniaFact]
+    public void KpiNavigate_WarningsAndParseErrors_SelectTheirViews()
+    {
+        _vm.KpiNavigateCommand.Execute("warnings");
+        Assert.Equal("Warnings", _vm.SelectedNavigationItem?.Label);
+
+        _vm.KpiNavigateCommand.Execute("parse-errors");
+        Assert.Equal("Parse Errors", _vm.SelectedNavigationItem?.Label);
+    }
+
+    [AvaloniaFact]
+    public void KpiNavigate_UnknownKey_IsANoOp()
+    {
+        var before = _vm.SelectedNavigationItem;
+
+        _vm.KpiNavigateCommand.Execute("nonsense");
+
+        Assert.Same(before, _vm.SelectedNavigationItem);
+    }
+
+    [AvaloniaFact]
     public void AppStateJson_SurfacesLatestJournalEntryAsLastAction()
     {
         var store = new InMemoryAnalystActionStore();
