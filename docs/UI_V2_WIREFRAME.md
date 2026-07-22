@@ -1,12 +1,12 @@
 # VulcansTrace UI v2 — Wireframe Spec (DRAFT, iterating)
 
-Status: **Phase 3 implemented (2026-07-19)** — unified single hero input with
-Chat↔Analyze intent flip (LogSnippetDetector), prompt chips + slash palette in
-the hero, query-cancel in the status bar, and the icon rail with click-opened
-group flyouts (M3 machine mode pins the sidebar expanded). Phase 1 shipped
-2026-07-18, Phase 2 2026-07-19. **VTCU harness sync (Phase A) + live UI review
-done 2026-07-20** (findings A–E recorded in the Phase 3 amendments below; B
-fixed). Phase 4 open.
+Status: **Agent-first information architecture implemented (2026-07-21).** The
+Agent conversation is now the permanent workspace. Running, result, and error
+artifacts share the page with the thread; compact suggested actions replace the
+dashboard landing page; Context/Evidence/Runs tabs replace the stacked
+inspector; and five product destinations replace the sixteen-item sidebar. The
+earlier Phase 1–4 notes below remain implementation history and are superseded
+by the current-state section.
 
 > ## Amendments discovered during Phase 1 implementation
 > 1. **No toasts exist.** Transient feedback was modal `IDialogService.ShowMessage`
@@ -135,13 +135,58 @@ fixed). Phase 4 open.
 >    `AutomationProperties.Name`/`AutomationId` + the automation-id ratchet). A
 >    proper scenario becomes possible once the harness AT-SPI walk traverses this
 >    panel (tracked as a VTCU backlog item).
+
+> ## Current-state supersession — Agent-first workspace (2026-07-21)
+> 1. **The input now lives with the thread.** `AgentComposerInput` and
+>    `ComposerRunButton` replace the mounted hero controls. The same
+>    `MainViewModel.LogText` and `HeroPrimaryCommand` still provide the
+>    deterministic Chat↔Analyze behavior; `/` palette and scan intensity are
+>    colocated in the composer.
+> 2. **The Agent never disappears.** The transcript is permanently mounted.
+>    Idle suggestions, running progress, selected results, and errors render as
+>    compact artifacts above it. A completed zero-finding audit shows
+>    `AgentCleanAuditState`; cancellation remains neutral.
+> 3. **Telemetry is a five-pill command strip.** Findings, High / Critical,
+>    Warnings, Parse Errors, and Skipped are clickable and route to the correct
+>    destination and inner capability tab.
+> 4. **The transcript keeps capability parity.** Markdown paragraphs, code-copy
+>    controls, verification commands, impact preview, backup/apply/rollback,
+>    countermeasures, remediation verification/timeline, and suggested actions
+>    remain available.
+> 5. **The inspector is contextual.** Context owns session and selected-finding
+>    detail; Evidence owns pinned findings/messages; Runs owns baseline, history,
+>    comparisons, and remediation sessions. Scan profile exists only in the
+>    composer, and focused checks live in one composer flyout.
+> 6. **Navigation describes products, not implementation features.** The sidebar
+>    exposes Agent, Investigations, Policy & Intelligence, Operations, and System.
+>    `NavigationHubViewModel` preserves the existing Findings, Timeline, Rules,
+>    Threat Intel, Live Stream, Logs, Doctor, and other view models as inner tabs,
+>    so deep links and automation state still identify the active leaf surface.
+> 7. **Progress and cancellation remain truthful across runners.** The shared
+>    status bar is hidden on an idle Agent page but returns while main log
+>    analysis or evidence export is busy. Agent operations use the workspace
+>    Running state and `CurrentOperationTitle`.
+> 8. **Trace Pulse is the signature state language.** A thin state-colored line
+>    begins at the Agent identity and the avatar ring reflects actual operation
+>    progress: muted when ready, blue while investigating, green when completed,
+>    and red when blocked. The running copy streams the real progress detail;
+>    completion gets one restrained outward pulse. Optional motion is disabled
+>    in machine mode and by `VT_REDUCED_MOTION=1`.
+>    The inner mark is a code-native V + signal trace rather than a literal
+>    monogram. It appears on Agent-owned surfaces only; the user composer stays
+>    visually neutral. The canonical welcome leads with readiness and capability
+>    instead of repeating the identity already present in the header.
+> 9. **Power features stay quiet until requested.** `Ctrl+K` opens the Agent
+>    command palette from any destination and returns focus to Agent. When the
+>    workspace narrows below the two-pane breakpoint, Context/Evidence/Runs use
+>    the same inspector as a dismissible drawer instead of squeezing the thread.
 >
 
 Source: discussion 2026-07-18 (crowding critique + user blueprint v1 + recommendations).
 
 Design goals:
 1. Two zones (nav sidebar + content) — the left control panel dies.
-2. Agent-first home: the hero *is* the log input and the chat input.
+2. Agent-first home: the sticky composer is both the log input and chat input.
 3. One canonical home per action — zero duplicate accessible names.
 4. Computer-Use legibility is a build-time contract, not a hope.
 
@@ -244,27 +289,31 @@ Design goals:
 ## Annotations
 
 ### (A) Status bar
-- Always visible, all views. Left: agent identity. Center: status text.
+- Visible on non-Agent views and while shared main-analysis/evidence work is
+  busy on the Agent view. The Agent workspace owns its idle header and its own
+  running-state progress.
 - Status states: `● Online` (idle) / `● Analyzing… {pct}%` (busy) / `● Offline` (no LLM).
 - Right: `⋯ Session tools` MenuFlyout = Export Evidence, Compare Logs, Copy Signing Key.
   One canonical home each; ids unchanged from today (`ExportEvidenceButton` etc.) so existing scenarios keep working.
 - Replaces: floating "Working..." text, the WrapPanel button row, the HMAC card's duplicate
   "Copy signing key".
 
-### (B) KPI strip — 4 cards
-- Dropped: Skipped Lines (moves to System → Logs page as a detail row).
-- Calm when zero (muted, no glow); severity accent glow only when nonzero.
-- Every card is a Button, click-through to Findings with the matching filter applied.
-  Ids: `KpiFindingsCard`, `KpiHighCriticalCard`, `KpiWarningsCard`, `KpiParseErrorsCard`.
+### (B) Telemetry strip — 5 pills
+- Findings, High / Critical, Warnings, Parse Errors, and Skipped remain visible.
+- Every pill is a Button. The first four route to Findings with the relevant
+  filter/card; Skipped routes to System → Logs.
+- Ids: `KpiFindingsButton`, `KpiHighCriticalButton`, `KpiWarningsButton`,
+  `KpiParseErrorsButton`, `KpiSkippedButton`.
 
 ### (C) Hero header
-- "What would you like to check?" — shrinks/collapses once a thread exists (animation, one-way).
-  The input box does NOT move when this happens.
+- Historical Phase 3 layout. The mounted idle state now uses mission cards and
+  the composer remains sticky at the bottom through every state.
 
 ### (D) Hero input — the core element
-- `AutomationId: HeroInputBox`, multiline-capable, fixed position under the header.
+- Superseded by `AgentComposerInput`, multiline-capable and fixed at the bottom
+  of the Agent workspace.
 - Intent detection (ViewModel heuristic): ≥3 pasted lines matching syslog/firewall patterns
-  → primary button label flips `Chat` → `Analyze` (`HeroPrimaryButton`).
+  → primary button label flips `Chat` → `Analyze` (`ComposerRunButton`).
   Deterministic: same content, same label. No hidden modes.
 - Fallback if users find the flip confusing: two chips above the box (`Ask` / `Analyze a log`).
   Decide after first hands-on.
@@ -276,15 +325,15 @@ Design goals:
 - Clicking a chip fills the input box (does NOT auto-send).
 
 ### (F) Scan options row
-- Collapsed by default (`ScanOptionsExpander`, named toggle!). Contains Intensity + Machine role combos
-  (ids unchanged: `IntensityComboBox`, `MachineRoleComboBox`) + `Advanced…` button opening a dialog
-  with the 13 numerics (they leave the sidebar forever).
+- The composer exposes `ComposerIntensitySelector` and
+  `AdvancedScanOptionsButton`. The advanced dialog owns the detailed numerics
+  and machine-role selection.
 - Session HMAC key info moves into the Advanced dialog (read-only masked) + Session tools menu (copy action).
 
 ### (G) Busy state
-- Status center becomes `Analyzing… {pct}%`; `Cancel` button appears next to it ONLY while busy —
-  declared `runtime-gated` in the manifest (pattern already established).
-- Everything else stays put. No panel collapses during busy (kills the tools-panel auto-collapse bug class).
+- Agent operations switch the workspace to `ScanProgressView`; its title,
+  phase checklist, activity, elapsed time, and cancel command are live. Main
+  log analysis and evidence export continue to use the shared status bar.
 
 ### (H) Summary card
 - First thread entry after an analysis. KPI chips are the same click-through actions as (B).
@@ -378,16 +427,15 @@ against v2 target them from day one.
 | Sidebar collapse toggle   | `SidebarCollapseToggle`     | new                                |
 | Group toggles             | `NavGroup{Group}Toggle`     | new, ×4                            |
 | Agent status text         | `AgentStatusIndicator`      | new                                |
-| Session tools menu        | `SessionToolsMenu`          | new flyout host                    |
+| Shared session tools menu | `SessionToolsMenu`          | evidence/log/signing flyout          |
+| Agent session tools menu  | `AgentSessionToolsMenu`     | audit/baseline/threat-intel flyout   |
 | Export Evidence           | `ExportEvidenceButton`      | moved, id unchanged                |
 | Compare Logs              | `CompareLogsButton`         | moved, id unchanged                |
 | Copy Signing Key          | `CopySigningKeyButton`      | moved, id unchanged; HMAC dup dies |
-| KPI cards                 | `Kpi*Card` ×4               | now buttons (click-through)        |
-| Hero input                | `HeroInputBox`              | new                                |
-| Hero primary button       | `HeroPrimaryButton`         | label Chat ↔ Analyze               |
-| Prompt chips              | `PromptChipItems`           | new                                |
-| Scan options expander     | `ScanOptionsExpander`       | named toggle                       |
-| Intensity / Machine role  | `IntensityComboBox`, `MachineRoleComboBox` | unchanged      |
+| Telemetry pills           | `Kpi*Button` ×5             | command-backed click-through       |
+| Agent input               | `AgentComposerInput`        | sticky multiline composer          |
+| Agent primary button      | `ComposerRunButton`         | label Chat ↔ Analyze               |
+| Scan intensity            | `ComposerIntensitySelector` | live profile binding               |
 | Advanced scan dialog      | `AdvancedScanOptionsButton` → dialog | 13 numerics move here   |
 | Cancel (busy only)        | `CancelAnalysisButton`      | runtime-gated                      |
 | Thread list               | `AnalysisThreadList`        | new                                |
@@ -395,6 +443,8 @@ against v2 target them from day one.
 | Finding cards             | `FindingCard*`              | new, per-rule suffixes             |
 | Findings banner cards     | `FindingsWarningsCard`, `FindingsParseErrorsCard` | replaces global banners |
 | Timeline companion list   | `TimelineEventsList`        | Phase 4                            |
+| Clean audit state         | `AgentCleanAuditState`      | completed audit, zero findings     |
+| Error state               | `AgentErrorState`           | failed operation recovery surface  |
 | App state node            | `AppStateNode`              | hidden a11y node, JSON state (M1)  |
 | Action journal feed       | `ActionJournalList`, `ActionJournalEntry` | structured receipts (M2) |
 

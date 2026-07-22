@@ -6,11 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
+using Avalonia.VisualTree;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Avalonia.Services;
 using VulcansTrace.Linux.Avalonia.ViewModels;
@@ -50,11 +53,58 @@ public partial class MainWindow : Window
         };
         DataContext = viewModel;
 
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Closed += OnClosed;
 
         // Defer control lookup until after layout
         Dispatcher.UIThread.Post(() => _mainContent = this.FindControl<ContentControl>("MainContent"));
+    }
+
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        if (e.Key == Key.K &&
+            e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            if (vm.Agent.IsSlashHelpOpen)
+            {
+                vm.Agent.CloseSlashHelpCommand.Execute(null);
+            }
+            else
+            {
+                // The palette belongs to the Agent workspace. Invoking it from
+                // another destination intentionally returns to Agent first.
+                if (!vm.IsAgentHomeVisible && vm.NavigationItems.Count > 0)
+                    vm.SelectedNavigationItem = vm.NavigationItems[0];
+
+                vm.Agent.OpenSlashHelpCommand.Execute(null);
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape && vm.Agent.IsSlashHelpOpen)
+        {
+            vm.Agent.CloseSlashHelpCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            var agentView = _mainContent?
+                .GetVisualDescendants()
+                .OfType<Views.AgentView>()
+                .FirstOrDefault();
+            if (agentView?.TryCloseInspectorDrawer() == true)
+                e.Handled = true;
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

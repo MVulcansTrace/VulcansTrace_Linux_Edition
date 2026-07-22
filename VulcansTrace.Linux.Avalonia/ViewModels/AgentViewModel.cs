@@ -31,6 +31,9 @@ namespace VulcansTrace.Linux.Avalonia.ViewModels;
 /// </summary>
 public sealed class AgentViewModel : ViewModelBase, IDisposable
 {
+    private const string WelcomeMessage =
+        "Ready when you are. I can audit this system, analyze Linux logs, investigate targets, and help remediate what I find.";
+
     private CancellationTokenSource? _streamingCts;
     private List<AgentMessageViewModel>? _currentStreamingBatch;
     private ITypewriterScheduler _typewriterScheduler;
@@ -87,10 +90,22 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private string _pinMessageStatusMessage = string.Empty;
     private readonly Dictionary<string, AgentMessageViewModel> _messagesById = new(StringComparer.OrdinalIgnoreCase);
 
+    // ── Page state machine fields ──────────────────────────────────────
+    private DispatcherTimer? _elapsedTimer;
+    private DateTime _operationStartTime;
+    private string _elapsedDisplay = string.Empty;
+    private FindingItemViewModel? _selectedResultFinding;
+    private bool _isTranscriptOpen = true;
+    private bool _lastOperationFailed;
+    private string _currentOperationTitle = "Agent operation";
+    private string _scanProfileName = "Low - Critical Threat Triage";
+    private string _scanProfileDescription = "Shows High and Critical findings for rapid triage.";
+    private string _baselineStatusText = "Baseline: Not configured";
+
     /// <summary>Gets the collection of chat messages.</summary>
     public ObservableCollection<AgentMessageViewModel> Messages { get; } = new();
 
-    /// <summary>Gets the collection of pinned messages shown in Agent Tools.</summary>
+    /// <summary>Gets the collection of pinned messages shown under Evidence.</summary>
     public ObservableCollection<AgentMessageViewModel> PinnedMessages { get; } = new();
 
     /// <summary>
@@ -128,16 +143,16 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets quick-check actions for the "Export" group.</summary>
     public ObservableCollection<AgentQuickAction> QuickActionsExport { get; } = new();
 
-    /// <summary>Gets actions shown in the Agent Tools panel under "Analysis".</summary>
+    /// <summary>Gets the programmatic action catalog for analysis actions.</summary>
     public ObservableCollection<AgentQuickAction> ToolPanelAnalysisActions { get; } = new();
 
-    /// <summary>Gets actions shown in the Agent Tools panel under "Run checks".</summary>
+    /// <summary>Gets the programmatic action catalog for focused checks.</summary>
     public ObservableCollection<AgentQuickAction> ToolPanelRunCheckActions { get; } = new();
 
-    /// <summary>Gets actions shown in the Agent Tools panel under "Baseline".</summary>
+    /// <summary>Gets the programmatic action catalog for baseline operations.</summary>
     public ObservableCollection<AgentQuickAction> ToolPanelBaselineActions { get; } = new();
 
-    /// <summary>Gets actions shown in the Agent Tools panel under "Export".</summary>
+    /// <summary>Gets the programmatic action catalog for export operations.</summary>
     public ObservableCollection<AgentQuickAction> ToolPanelExportActions { get; } = new();
 
     /// <summary>Gets the filtered slash-command palette items.</summary>
@@ -291,6 +306,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 ExecuteSlashCommandCommand.RaiseCanExecuteChanged();
                 CancelQueryCommand.RaiseCanExecuteChanged();
                 FullAuditCommand.RaiseCanExecuteChanged();
+                PrepareLogAnalysisCommand.RaiseCanExecuteChanged();
+                PrepareInvestigationCommand.RaiseCanExecuteChanged();
                 FirewallCommand.RaiseCanExecuteChanged();
                 PortsCommand.RaiseCanExecuteChanged();
                 ServicesCommand.RaiseCanExecuteChanged();
@@ -316,8 +333,311 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanExportThreatIntel));
                 OnPropertyChanged(nameof(CanBatchAutoFix));
                 OnPropertyChanged(nameof(CanCompareAudits));
+                if (value)
+                {
+                    _lastOperationFailed = false;
+                    CurrentOperationTitle = "Agent operation";
+                    StartElapsedTimer();
+                }
+                else
+                {
+                    StopElapsedTimer();
+                    _lastOperationFailed = _operationRunner.LastFailed;
+                }
+                NotifyPageStateChanged();
             }
         }
+    }
+
+    // ── Page state machine ─────────────────────────────────────────────
+
+    /// <summary>Gets the high-level visual state of the workspace.</summary>
+    public AgentPageState CurrentPageState
+    {
+        get
+        {
+            if (_isBusy) return AgentPageState.Running;
+            if (_lastOperationFailed) return AgentPageState.Error;
+            if (_resultState.HasCompletedAudit)
+                return AgentPageState.Results;
+            return AgentPageState.Idle;
+        }
+    }
+
+    /// <summary>True when the workspace should show the idle hero + mission cards.</summary>
+    public bool IsIdleState => CurrentPageState == AgentPageState.Idle;
+
+    /// <summary>True when the workspace should show the running progress view.</summary>
+    public bool IsRunningState => CurrentPageState == AgentPageState.Running;
+
+    /// <summary>True when the workspace should show the results master-detail.</summary>
+    public bool IsResultsState => CurrentPageState == AgentPageState.Results;
+
+    /// <summary>True when the workspace should show an error state.</summary>
+    public bool IsErrorState => CurrentPageState == AgentPageState.Error;
+
+    /// <summary>Gets whether the compact idle suggestions are visible above the transcript.</summary>
+    public bool ShowIdleWorkspace => IsIdleState;
+
+    /// <summary>Gets whether running progress is visible above the transcript.</summary>
+    public bool ShowRunningWorkspace => IsRunningState;
+
+    /// <summary>Gets whether the latest result artifact is visible above the transcript.</summary>
+    public bool ShowResultsWorkspace => IsResultsState;
+
+    /// <summary>Gets whether the latest error artifact is visible above the transcript.</summary>
+    public bool ShowErrorWorkspace => IsErrorState;
+
+    /// <summary>Gets the semantic Trace Pulse progress shown around the Agent avatar.</summary>
+    public double TracePulseProgress => CurrentPageState switch
+    {
+        AgentPageState.Running => AuditProgressPercent,
+        AgentPageState.Results or AgentPageState.Error => 100,
+        _ => 0
+    };
+
+    /// <summary>Gets whether the Trace Pulse should rotate while progress is unknown.</summary>
+    public bool TracePulseIsIndeterminate => IsRunningState && AuditProgressIsIndeterminate;
+
+    /// <summary>Gets the concise, truthful Agent state used in the header.</summary>
+    public string TracePulseStatusText => CurrentPageState switch
+    {
+        AgentPageState.Running => "Investigating",
+        AgentPageState.Results => "Completed",
+        AgentPageState.Error => "Blocked",
+        _ => "Ready"
+    };
+
+    /// <summary>Gets the live detail carried by the Trace Pulse state.</summary>
+    public string TracePulseDetailText => CurrentPageState switch
+    {
+        AgentPageState.Running when !string.IsNullOrWhiteSpace(AuditProgressMessage) => AuditProgressMessage,
+        AgentPageState.Running => CurrentOperationTitle,
+        AgentPageState.Results => ActiveFindingCount == 1
+            ? "1 active finding in the latest run"
+            : $"{ActiveFindingCount} active findings in the latest run",
+        AgentPageState.Error => "Review the recovery context in the conversation",
+        _ => "Conversation and investigation workspace"
+    };
+
+    /// <summary>Gets a screen-reader description of the Trace Pulse state.</summary>
+    public string TracePulseAccessibleName => $"Agent {TracePulseStatusText}: {TracePulseDetailText}";
+
+    /// <summary>
+    /// Whether the transcript is available. Agent-first layout keeps it open;
+    /// the property remains for command/test compatibility.
+    /// </summary>
+    public bool IsTranscriptOpen
+    {
+        get => _isTranscriptOpen;
+        set
+        {
+            if (SetField(ref _isTranscriptOpen, value))
+            {
+                OnPropertyChanged(nameof(ShowIdleWorkspace));
+                OnPropertyChanged(nameof(ShowRunningWorkspace));
+                OnPropertyChanged(nameof(ShowResultsWorkspace));
+                OnPropertyChanged(nameof(ShowErrorWorkspace));
+            }
+        }
+    }
+
+    /// <summary>Elapsed time display string (e.g. "1:23") updated during operations.</summary>
+    public string ElapsedDisplay
+    {
+        get => _elapsedDisplay;
+        private set => SetField(ref _elapsedDisplay, value);
+    }
+
+    /// <summary>Gets the truthful label for the operation currently reporting progress.</summary>
+    public string CurrentOperationTitle
+    {
+        get => _currentOperationTitle;
+        private set
+        {
+            if (SetField(ref _currentOperationTitle, value))
+            {
+                OnPropertyChanged(nameof(TracePulseDetailText));
+                OnPropertyChanged(nameof(TracePulseAccessibleName));
+            }
+        }
+    }
+
+    /// <summary>Phase step items for the running-state checklist.</summary>
+    public ObservableCollection<PhaseStepViewModel> PhaseSteps { get; } = new();
+
+    /// <summary>Findings adapted for the results-state DataGrid.</summary>
+    public ObservableCollection<FindingItemViewModel> ResultFindings { get; } = new();
+
+    /// <summary>The finding selected in the results DataGrid, driving the detail pane.</summary>
+    public FindingItemViewModel? SelectedResultFinding
+    {
+        get => _selectedResultFinding;
+        set
+        {
+            if (SetField(ref _selectedResultFinding, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedResultFinding));
+                OnPropertyChanged(nameof(SelectedResultFindingPinLabel));
+                ExplainSelectedCommand?.RaiseCanExecuteChanged();
+                VerifySelectedCommand?.RaiseCanExecuteChanged();
+                ToggleResultFindingPinCommand?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Whether a finding is selected in the results pane.</summary>
+    public bool HasSelectedResultFinding => _selectedResultFinding != null;
+
+    /// <summary>Gets whether the completed audit contains findings.</summary>
+    public bool HasResultFindings => ResultFindings.Count > 0;
+
+    /// <summary>Gets whether the completed audit finished cleanly with no findings.</summary>
+    public bool HasNoResultFindings => _resultState.HasCompletedAudit && ResultFindings.Count == 0;
+
+    /// <summary>Gets the pin action label for the selected result finding.</summary>
+    public string SelectedResultFindingPinLabel => SelectedResultFinding?.IsPinned == true ? "Unpin" : "Pin";
+
+    /// <summary>Pinned findings for the inspector panel.</summary>
+    public ObservableCollection<VulcansTrace.Linux.Agent.Findings.PinnedFinding> InspectorPinnedFindings { get; } = new();
+
+    /// <summary>Whether there are pinned findings to show.</summary>
+    public bool HasInspectorPinnedFindings => InspectorPinnedFindings.Count > 0;
+
+    /// <summary>Whether session data (results) exists.</summary>
+    public bool HasSessionData => _resultState.LastResult != null;
+
+    /// <summary>Gets a human-readable session data status.</summary>
+    public string SessionDataStatusText => HasSessionData ? "Loaded" : "None";
+
+    /// <summary>Gets the active finding count for the current session.</summary>
+    public int ActiveFindingCount => _resultState.LastResult?.AgentFindings.Count ?? 0;
+
+    /// <summary>Gets a truthful status label for the current session.</summary>
+    public string CurrentSessionStatus => CurrentPageState switch
+    {
+        AgentPageState.Running => "Running",
+        AgentPageState.Results => "Completed",
+        AgentPageState.Error => "Error",
+        _ => "Idle"
+    };
+
+    /// <summary>Formatted session creation time.</summary>
+    public string SessionCreatedDisplay => _resultState.LastResult != null
+        ? _resultState.LastResult.UtcTimestamp.ToLocalTime().ToString("g")
+        : "Not started";
+
+    /// <summary>Scan profile display name derived from the current intensity.</summary>
+    public string ScanProfileName
+    {
+        get => _scanProfileName;
+        private set => SetField(ref _scanProfileName, value);
+    }
+
+    /// <summary>Scan profile description text.</summary>
+    public string ScanProfileDescription
+    {
+        get => _scanProfileDescription;
+        private set => SetField(ref _scanProfileDescription, value);
+    }
+
+    /// <summary>Gets the active baseline status shown in the application chrome.</summary>
+    public string BaselineStatusText
+    {
+        get => _baselineStatusText;
+        private set => SetField(ref _baselineStatusText, value);
+    }
+
+    /// <summary>Updates the Agent inspector to match the actual analysis intensity.</summary>
+    public void UpdateScanProfile(string name, string description)
+    {
+        ScanProfileName = name;
+        ScanProfileDescription = description;
+    }
+
+    private void NotifyPageStateChanged()
+    {
+        OnPropertyChanged(nameof(CurrentPageState));
+        OnPropertyChanged(nameof(IsIdleState));
+        OnPropertyChanged(nameof(IsRunningState));
+        OnPropertyChanged(nameof(IsResultsState));
+        OnPropertyChanged(nameof(IsErrorState));
+        OnPropertyChanged(nameof(ShowIdleWorkspace));
+        OnPropertyChanged(nameof(ShowRunningWorkspace));
+        OnPropertyChanged(nameof(ShowResultsWorkspace));
+        OnPropertyChanged(nameof(ShowErrorWorkspace));
+        OnPropertyChanged(nameof(HasSessionData));
+        OnPropertyChanged(nameof(SessionDataStatusText));
+        OnPropertyChanged(nameof(ActiveFindingCount));
+        OnPropertyChanged(nameof(CurrentSessionStatus));
+        OnPropertyChanged(nameof(SessionCreatedDisplay));
+        OnPropertyChanged(nameof(TracePulseProgress));
+        OnPropertyChanged(nameof(TracePulseIsIndeterminate));
+        OnPropertyChanged(nameof(TracePulseStatusText));
+        OnPropertyChanged(nameof(TracePulseDetailText));
+        OnPropertyChanged(nameof(TracePulseAccessibleName));
+    }
+
+    private void StartElapsedTimer()
+    {
+        _operationStartTime = DateTime.UtcNow;
+        ElapsedDisplay = "0:00";
+        _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _elapsedTimer.Tick += (_, _) =>
+        {
+            var elapsed = DateTime.UtcNow - _operationStartTime;
+            ElapsedDisplay = elapsed.TotalHours >= 1
+                ? $"{(int)elapsed.TotalHours}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}"
+                : $"{(int)elapsed.TotalMinutes}:{elapsed.Seconds:D2}";
+        };
+        _elapsedTimer.Start();
+    }
+
+    private void StopElapsedTimer()
+    {
+        _elapsedTimer?.Stop();
+        _elapsedTimer = null;
+    }
+
+    private void PopulateResultFindings()
+    {
+        ResultFindings.Clear();
+        SelectedResultFinding = null;
+        var findings = _resultState.LastResult?.AgentFindings;
+        if (findings != null)
+        {
+            foreach (var f in findings)
+            {
+                ResultFindings.Add(new FindingItemViewModel(f));
+            }
+        }
+        OnPropertyChanged(nameof(HasResultFindings));
+        OnPropertyChanged(nameof(HasNoResultFindings));
+    }
+
+    /// <summary>Clears the results-grid selection when another finding surface takes focus.</summary>
+    public void ClearResultSelection() => SelectedResultFinding = null;
+
+    /// <summary>Reloads the inspector's pinned findings from the shared application store.</summary>
+    public void RefreshInspectorPinnedFindings()
+    {
+        InspectorPinnedFindings.Clear();
+        var pinned = PinnedFindingsProvider?.Invoke() ?? Array.Empty<VulcansTrace.Linux.Agent.Findings.PinnedFinding>();
+        foreach (var finding in pinned)
+            InspectorPinnedFindings.Add(finding);
+        OnPropertyChanged(nameof(HasInspectorPinnedFindings));
+    }
+
+    private void ToggleSelectedResultFindingPin()
+    {
+        var selected = SelectedResultFinding;
+        if (selected == null || RequestToggleResultFindingPin == null)
+            return;
+
+        RequestToggleResultFindingPin(selected);
+        OnPropertyChanged(nameof(SelectedResultFindingPinLabel));
+        RefreshInspectorPinnedFindings();
+        ToggleResultFindingPinCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>Gets the current agent status for the header badge.</summary>
@@ -331,21 +651,41 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public double AuditProgressPercent
     {
         get => _auditProgressPercent;
-        private set => SetField(ref _auditProgressPercent, value);
+        private set
+        {
+            if (SetField(ref _auditProgressPercent, value))
+            {
+                OnPropertyChanged(nameof(TracePulseProgress));
+                OnPropertyChanged(nameof(TracePulseAccessibleName));
+            }
+        }
     }
 
     /// <summary>Gets the current audit progress message.</summary>
     public string AuditProgressMessage
     {
         get => _auditProgressMessage;
-        private set => SetField(ref _auditProgressMessage, value);
+        private set
+        {
+            if (SetField(ref _auditProgressMessage, value))
+            {
+                OnPropertyChanged(nameof(TracePulseDetailText));
+                OnPropertyChanged(nameof(TracePulseAccessibleName));
+            }
+        }
     }
 
     /// <summary>Gets whether the progress bar should be indeterminate.</summary>
     public bool AuditProgressIsIndeterminate
     {
         get => _auditProgressIsIndeterminate;
-        private set => SetField(ref _auditProgressIsIndeterminate, value);
+        private set
+        {
+            if (SetField(ref _auditProgressIsIndeterminate, value))
+            {
+                OnPropertyChanged(nameof(TracePulseIsIndeterminate));
+            }
+        }
     }
 
     /// <summary>Gets whether to show the determinate audit progress UI.</summary>
@@ -368,7 +708,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets whether there are any pinned messages.</summary>
     public bool HasPinnedMessages => PinnedMessageCount > 0;
 
-    /// <summary>Gets the formatted pinned message count label for the Agent Tools panel.</summary>
+    /// <summary>Gets the formatted pinned message count label for the Evidence tab.</summary>
     public string PinnedMessageCountLabel => PinnedMessageCount > 0 ? $"({PinnedMessageCount})" : string.Empty;
 
     /// <summary>Gets the latest pinned-message persistence warning, if any.</summary>
@@ -666,10 +1006,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public bool LastOperationSucceeded => _operationRunner.LastSucceeded;
 
     /// <summary>Gets whether the selected UI finding can be explained now.</summary>
-    public bool CanExplainSelected => !_isBusy && SelectedFindingProvider?.Invoke() != null;
+    public bool CanExplainSelected => !_isBusy && GetSelectedFinding() != null;
 
     /// <summary>Gets whether the selected UI finding can be verified now.</summary>
-    public bool CanVerifySelected => !_isBusy && SelectedFindingProvider?.Invoke() is Finding f && !string.IsNullOrWhiteSpace(f.RuleId);
+    public bool CanVerifySelected => !_isBusy && GetSelectedFinding() is Finding f && !string.IsNullOrWhiteSpace(f.RuleId);
 
     /// <summary>Gets whether the latest agent result is an audit that can be exported.</summary>
     public bool CanExportAudit => !_isBusy && _resultState.IsExportableAudit;
@@ -709,6 +1049,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Raised when an agent audit completes successfully.</summary>
     public event EventHandler<AgentResult>? AuditCompleted;
 
+    /// <summary>Raised when a mission card requests focus for the shared composer.</summary>
+    public event EventHandler? ComposerFocusRequested;
+
     /// <summary>Gets the command to send a query to the agent.</summary>
     public AsyncRelayCommand SendQueryCommand { get; }
 
@@ -720,6 +1063,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to run a full audit.</summary>
     public AsyncRelayCommand FullAuditCommand { get; }
+
+    /// <summary>Gets the command that prepares the composer for pasted-log analysis.</summary>
+    public RelayCommand PrepareLogAnalysisCommand { get; }
+
+    /// <summary>Gets the command that prepares the composer for a targeted investigation.</summary>
+    public RelayCommand PrepareInvestigationCommand { get; }
 
     /// <summary>Gets the command to run a firewall check.</summary>
     public AsyncRelayCommand FirewallCommand { get; }
@@ -808,6 +1157,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to toggle the agent tools panel.</summary>
     public RelayCommand ToggleAgentToolsPanelCommand { get; }
 
+    /// <summary>Gets the command to toggle the chat transcript panel.</summary>
+    public RelayCommand ToggleTranscriptCommand { get; }
+
+    /// <summary>Gets the command to pin or unpin the selected result finding.</summary>
+    public RelayCommand ToggleResultFindingPinCommand { get; }
+
     /// <summary>Gets the command to pin or unpin a chat message.</summary>
     public AsyncRelayCommand<AgentMessageViewModel> TogglePinMessageCommand { get; }
 
@@ -843,6 +1198,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// Set by the parent ViewModel to handle the format selection and save dialog.
     /// </summary>
     public Func<Task<bool>>? RequestExportThreatIntel { get; set; }
+
+    /// <summary>Callback that toggles a result finding in the shared pinned-finding store.</summary>
+    public Action<FindingItemViewModel>? RequestToggleResultFindingPin { get; set; }
+
+    /// <summary>Provider for the shared pinned-finding collection displayed by the inspector.</summary>
+    public Func<IReadOnlyList<VulcansTrace.Linux.Agent.Findings.PinnedFinding>>? PinnedFindingsProvider { get; set; }
 
     /// <summary>
     /// Callback invoked when the user requests to show an audit diff.
@@ -971,6 +1332,25 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             async _ => await RunQuickAuditAsync(AgentIntent.FullAudit, "Run a full audit"),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
+
+        PrepareLogAnalysisCommand = new RelayCommand(
+            _ =>
+            {
+                IsTranscriptOpen = true;
+                UserQuery = string.Empty;
+                ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
+            },
+            _ => !_isBusy);
+
+        PrepareInvestigationCommand = new RelayCommand(
+            _ =>
+            {
+                IsTranscriptOpen = true;
+                if (string.IsNullOrWhiteSpace(UserQuery))
+                    UserQuery = "Investigate ";
+                ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
+            },
+            _ => !_isBusy);
 
         FirewallCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.FirewallCheck, "Check my firewall"),
@@ -1112,6 +1492,14 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => IsAgentToolsPanelOpen = !IsAgentToolsPanelOpen,
             _ => true);
 
+        ToggleTranscriptCommand = new RelayCommand(
+            _ => IsTranscriptOpen = !IsTranscriptOpen,
+            _ => true);
+
+        ToggleResultFindingPinCommand = new RelayCommand(
+            _ => ToggleSelectedResultFindingPin(),
+            _ => !_isBusy && SelectedResultFinding != null && RequestToggleResultFindingPin != null);
+
         TogglePinMessageCommand = new AsyncRelayCommand<AgentMessageViewModel>(
             async msg => await TogglePinMessageAsync(msg),
             msg => msg != null,
@@ -1141,8 +1529,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         InitializeQuickActions();
         InitializeSlashCommands();
 
-        // Welcome message
-        AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
+        // The permanent header owns identity; the first reply leads with
+        // readiness and concrete capabilities instead of repeating its name.
+        AddAgentMessage(WelcomeMessage, false);
         RefreshPinnedMessages();
         _historyCoordinator.ShowPersistenceWarningIfAny();
         ShowMemoryPersistenceWarningIfAny();
@@ -1323,7 +1712,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         SelectedChatSeverityFilter = ChatSeverityFilters[0];
         SelectedChatCategoryFilter = null;
         ClearChatSearch();
-        AddAgentMessage("Ask me about your system security. Try: \"Is my system secure?\" or \"Check my firewall\"", false);
+        AddAgentMessage(WelcomeMessage, false);
         HasOnlyWelcomeMessage = true;
         RefreshActiveFilterChips();
         return Task.CompletedTask;
@@ -1541,6 +1930,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
+            CurrentOperationTitle = query;
             var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, progress, token);
             SetLastResult(result);
 
@@ -1564,6 +1954,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
+            CurrentOperationTitle = displayQuery;
             var result = await _agent.RunAuditAsync(intent, LogText, progress, token);
             SetLastResult(result);
 
@@ -1576,7 +1967,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private async Task ExplainSelectedAsync()
     {
         BeginChatAction();
-        var selected = SelectedFindingProvider?.Invoke();
+        var selected = GetSelectedFinding();
         if (selected == null)
         {
             AddAgentMessage("No finding is selected. Select a finding from the list first.", true);
@@ -1587,6 +1978,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = "Explain selected finding";
             var result = await _agent.ExplainFindingAsync(selected, token);
             SetLastResult(result);
 
@@ -1600,7 +1992,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private async Task VerifySelectedAsync()
     {
         BeginChatAction();
-        var selected = SelectedFindingProvider?.Invoke();
+        var selected = GetSelectedFinding();
         if (selected == null || string.IsNullOrWhiteSpace(selected.RuleId))
         {
             AddAgentMessage("Select a finding with a rule ID to verify remediation.", true);
@@ -1611,6 +2003,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = $"Verify {selected.RuleId}";
             var result = await _agent.VerifyFindingAsync(selected.RuleId, token);
             SetLastResult(result);
 
@@ -1620,6 +2013,9 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             });
         });
     }
+
+    private Finding? GetSelectedFinding() =>
+        SelectedResultFinding?.Finding ?? SelectedFindingProvider?.Invoke();
 
     private const int TypewriterCharsPerTick = 3;
     private const int DefaultTypewriterTickMilliseconds = 30;
@@ -1783,6 +2179,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         UiThread.Run(() =>
         {
+            if (result.Baseline is not null)
+                BaselineStatusText = $"Baseline: {result.Baseline.Name}";
             _resultState.SetLastResult(result, _agent.LastResult);
             ShowMemoryPersistenceWarningIfAny();
         });
@@ -1981,6 +2379,8 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanExportSession));
         OnPropertyChanged(nameof(CanExportThreatIntel));
         OnPropertyChanged(nameof(CanBatchAutoFix));
+        NotifyPageStateChanged();
+        PopulateResultFindings();
     }
 
     private void PublishAuditCompleted(AgentResult result)
@@ -2007,6 +2407,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
+            CurrentOperationTitle = "Set baseline";
             // Pass empty name so the agent generates it from the last audit intent,
             // avoiding wrong intent (e.g. CheckDrift) in the name.
             var result = await _agent.SetBaselineAsync("", null, progress, token);
@@ -2028,6 +2429,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
+            CurrentOperationTitle = $"Check drift ({intent})";
             var result = await _agent.CheckDriftAsync(intent, null, progress, token);
             SetLastResult(result);
 
@@ -2044,6 +2446,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = "Show baseline";
             var result = await _agent.GetBaselineAsync(intent, token);
             SetLastResult(result);
 
@@ -2063,6 +2466,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = "Run log comparison demo";
             await ShowLogDiffDemoAction();
         });
     }
@@ -2089,6 +2493,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(token =>
         {
+            CurrentOperationTitle = "Import threat intelligence demo";
             var result = StixParser.Parse(json);
             _threatIntelStore.Import(result.Entries);
             var msg = $"Imported {result.ImportedCount} demo IOC(s). Open the Threat Intel view to review.";
@@ -2107,6 +2512,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async (progress, token) =>
         {
+            CurrentOperationTitle = $"Verify remediation session {sessionId}";
             var result = await _agent.VerifyRemediationAsync(sessionId, progress, token);
             SetLastResult(result);
 
@@ -2162,6 +2568,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = "Export remediation session";
             var formatter = new RemediationMarkdownFormatter();
             var markdown = formatter.FormatSession(session);
 
@@ -2203,6 +2610,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async _ =>
         {
+            CurrentOperationTitle = "Export threat intelligence";
             var exported = await exportCallback();
             if (exported)
             {
@@ -2271,6 +2679,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = "List remediation sessions";
             var result = await _agent.ListRemediationSessionsAsync(token);
             SetLastResult(result);
 
@@ -2295,6 +2704,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = $"Resume session {session.SessionId}";
             var result = await _agent.LoadRemediationSessionAsync(session.SessionId, token);
             SetLastResult(result);
 
@@ -2319,6 +2729,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         await _operationRunner.RunAsync(async token =>
         {
+            CurrentOperationTitle = $"Delete session {session.SessionId}";
             var result = await _agent.DeleteRemediationSessionAsync(session.SessionId, token);
 
             Dispatcher.UIThread.Post(() =>
@@ -2637,7 +3048,35 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         AuditProgressPercent = progress.PercentComplete;
         AuditProgressMessage = progress.FormatMessage();
         AuditProgressIsIndeterminate = progress.IsIndeterminate;
+        CurrentOperationTitle = string.IsNullOrWhiteSpace(progress.Phase)
+            ? "Agent operation"
+            : progress.Phase;
         OnPropertyChanged(nameof(ShowAuditProgress));
+        UpdatePhaseSteps(progress);
+    }
+
+    private static readonly string[] KnownPhases =
+    {
+        "Scanning system", "Evaluating rules", "Assembling findings",
+        "Validating findings", "Analyzing logs", "Building summary",
+        "Correlating posture", "Building attack chains", "Finalizing result",
+        "Detecting recurring issues", "Updating memory", "Updating coverage",
+        "Computing trajectory", "Surfacing remediation wisdom", "Composing narrative"
+    };
+
+    private void UpdatePhaseSteps(AgentAuditProgress progress)
+    {
+        PhaseSteps.Clear();
+        var total = progress.TotalSteps > 0 ? progress.TotalSteps : KnownPhases.Length;
+        for (int i = 0; i < total; i++)
+        {
+            var name = i < KnownPhases.Length ? KnownPhases[i] : $"Phase {i + 1}";
+            PhaseStepState state;
+            if (i < progress.StepIndex) state = PhaseStepState.Completed;
+            else if (i == progress.StepIndex) state = PhaseStepState.Active;
+            else state = PhaseStepState.Pending;
+            PhaseSteps.Add(new PhaseStepViewModel { Name = name, State = state });
+        }
     }
 
     private void OnMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -2674,6 +3113,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         CancelActiveStreamers();
+        StopElapsedTimer();
         _operationRunner.Dispose();
     }
 }
@@ -2694,4 +3134,31 @@ public sealed class ChatFilterChipViewModel : ViewModelBase
 
     /// <summary>Gets or sets the command invoked when the chip is removed.</summary>
     public ICommand RemoveCommand { get; set; } = new RelayCommand(_ => { });
+}
+
+/// <summary>State of a single phase step in the running-state checklist.</summary>
+public enum PhaseStepState
+{
+    Completed,
+    Active,
+    Pending
+}
+
+/// <summary>View model for a single phase step in the scan progress checklist.</summary>
+public sealed class PhaseStepViewModel : ViewModelBase
+{
+    /// <summary>Gets or sets the phase name.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the step state.</summary>
+    public PhaseStepState State { get; set; }
+
+    /// <summary>True when this step is completed.</summary>
+    public bool IsCompleted => State == PhaseStepState.Completed;
+
+    /// <summary>True when this step is currently active.</summary>
+    public bool IsActive => State == PhaseStepState.Active;
+
+    /// <summary>True when this step is pending.</summary>
+    public bool IsPending => State == PhaseStepState.Pending;
 }

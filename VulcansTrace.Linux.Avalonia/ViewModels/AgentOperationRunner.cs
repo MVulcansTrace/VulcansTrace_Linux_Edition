@@ -14,6 +14,7 @@ internal sealed class AgentOperationRunner : IDisposable
     private readonly Action<AgentAuditProgress> _onProgress;
     private CancellationTokenSource? _cts;
     private bool _lastSucceeded = true;
+    private bool _lastFailed;
 
     public AgentOperationRunner(
         Action<bool> setBusy,
@@ -36,6 +37,12 @@ internal sealed class AgentOperationRunner : IDisposable
     /// Gets whether the most recent operation completed without throwing or being cancelled.
     /// </summary>
     public bool LastSucceeded => _lastSucceeded;
+
+    /// <summary>
+    /// Gets whether the most recent operation ended with an exception. User-requested
+    /// cancellation is intentionally not treated as a failure.
+    /// </summary>
+    public bool LastFailed => _lastFailed;
 
     public void Cancel()
     {
@@ -63,6 +70,7 @@ internal sealed class AgentOperationRunner : IDisposable
         _setBusy(true);
         _clearPrivilegeWarning();
         _lastSucceeded = false;
+        _lastFailed = false;
 
         // Use a lightweight IProgress<T> implementation that explicitly marshals to the UI thread.
         // This keeps the dispatcher hop in one obvious place and avoids relying on a captured
@@ -81,6 +89,7 @@ internal sealed class AgentOperationRunner : IDisposable
         }
         catch (Exception ex)
         {
+            _lastFailed = true;
             UiThread.Run(() => _addAgentMessage($"Agent error: {ex.Message}", true, true));
         }
         finally

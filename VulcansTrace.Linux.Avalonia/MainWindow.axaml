@@ -35,61 +35,55 @@
             <ColumnDefinition Width="*" MinWidth="500"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Summary and warnings (spans all 3 columns: sidebar, splitter, content) -->
-        <StackPanel Grid.Row="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,0,0,12"
-                    IsVisible="{Binding ShowKpiStrip, Mode=OneWay}">
-            <UniformGrid Columns="5" Margin="0,0,0,12">
-                <controls:KpiCard Icon="mdi-chart-box"
-                                  Label="Findings"
-                                  Value="{Binding Findings.FindingsCount, Mode=OneWay}"
-                                  AccentBrush="{StaticResource VtKpiFindingsBrush}"
-                                  GlowBrush="{StaticResource VtPrimaryGlowBrush}"
-                                  TrendText="{Binding Findings.FindingsSubtitle, Mode=OneWay}"
-                                  CardAutomationId="KpiFindingsCard"
-                                  Command="{Binding KpiNavigateCommand}"
-                                  CommandParameter="findings"
-                                  Margin="0,0,8,0"/>
-                <controls:KpiCard Icon="mdi-alert-octagon"
-                                  Label="High / Critical"
-                                  Value="{Binding Findings.HighCriticalCount, Mode=OneWay}"
-                                  AccentBrush="{StaticResource VtSeverityCriticalBrush}"
-                                  GlowBrush="{StaticResource VtSeverityCriticalBgBrush}"
-                                  TrendText="{Binding Findings.HighCriticalSubtitle, Mode=OneWay}"
-                                  IsAlert="{Binding Findings.HighCriticalCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
-                                  CardAutomationId="KpiHighCriticalCard"
-                                  Command="{Binding KpiNavigateCommand}"
-                                  CommandParameter="high-critical"
-                                  Margin="0,0,8,0"/>
-                <controls:KpiCard Icon="mdi-alert"
-                                  Label="Warnings"
-                                  Value="{Binding Findings.WarningCount, Mode=OneWay}"
-                                  AccentBrush="{StaticResource VtSeverityMediumBrush}"
-                                  GlowBrush="{StaticResource VtWarningMutedBrush}"
-                                  TrendText="{Binding Findings.WarningSubtitle, Mode=OneWay}"
-                                  IsAlert="{Binding Findings.WarningCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
-                                  CardAutomationId="KpiWarningsCard"
-                                  Command="{Binding KpiNavigateCommand}"
-                                  CommandParameter="warnings"
-                                  Margin="0,0,8,0"/>
-                <controls:KpiCard Icon="mdi-file-document-alert-outline"
-                                  Label="Parse Errors"
-                                  Value="{Binding Findings.ParseErrorCount, Mode=OneWay}"
-                                  AccentBrush="{StaticResource VtSeverityHighBrush}"
-                                  GlowBrush="{StaticResource VtSeverityHighBgBrush}"
-                                  TrendText="{Binding Findings.ParseErrorSubtitle, Mode=OneWay}"
-                                  IsAlert="{Binding Findings.ParseErrorCount, Mode=OneWay, Converter={StaticResource IntToBoolConverter}}"
-                                  CardAutomationId="KpiParseErrorsCard"
-                                  Command="{Binding KpiNavigateCommand}"
-                                  CommandParameter="parse-errors"
-                                  Margin="0,0,8,0"/>
-                <controls:KpiCard Icon="mdi-skip-next-outline"
-                                  Label="Skipped Lines"
-                                  Value="{Binding Findings.SkippedLineCount, Mode=OneWay}"
-                                  AccentBrush="{StaticResource VtKpiSkippedBrush}"
-                                  GlowBrush="{StaticResource VtBackground700Brush}"
-                                  TrendText="{Binding Findings.SkippedLineSubtitle, Mode=OneWay}"/>
-            </UniformGrid>
-        </StackPanel>
+        <!-- Telemetry strip (compact pills replacing KPI cards) -->
+        <Grid Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,12"
+              IsVisible="{Binding ShowKpiStrip, Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <controls:TelemetryPill Icon="mdi-chart-box" Label="Findings"
+                    Value="{Binding Findings.FindingsCount, Mode=OneWay}"
+                    AccentBrush="{StaticResource VtKpiFindingsBrush}"
+                    Command="{Binding KpiNavigateCommand}" CommandParameter="findings"
+                    PillAutomationId="KpiFindingsButton"/>
+                <controls:TelemetryPill Icon="mdi-alert-octagon" Label="High / Critical"
+                    Value="{Binding Findings.HighCriticalCount, Mode=OneWay}"
+                    AccentBrush="{StaticResource VtSeverityCriticalBrush}"
+                    Command="{Binding KpiNavigateCommand}" CommandParameter="high-critical"
+                    PillAutomationId="KpiHighCriticalButton"/>
+                <controls:TelemetryPill Icon="mdi-alert" Label="Warnings"
+                    Value="{Binding Findings.WarningCount, Mode=OneWay}"
+                    AccentBrush="{StaticResource VtSeverityMediumBrush}"
+                    Command="{Binding KpiNavigateCommand}" CommandParameter="warnings"
+                    PillAutomationId="KpiWarningsButton"/>
+                <controls:TelemetryPill Icon="mdi-file-document-alert-outline" Label="Parse Errors"
+                    Value="{Binding Findings.ParseErrorCount, Mode=OneWay}"
+                    AccentBrush="{StaticResource VtSeverityHighBrush}"
+                    Command="{Binding KpiNavigateCommand}" CommandParameter="parse-errors"
+                    PillAutomationId="KpiParseErrorsButton"/>
+                <controls:TelemetryPill Icon="mdi-skip-next-outline" Label="Skipped"
+                    Value="{Binding Findings.SkippedLineCount, Mode=OneWay}"
+                    AccentBrush="{StaticResource VtKpiSkippedBrush}"
+                    Command="{Binding KpiNavigateCommand}" CommandParameter="skipped"
+                    PillAutomationId="KpiSkippedButton"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center"
+                        IsVisible="{Binding !IsAgentHomeVisible, Mode=OneWay}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Agent.BaselineStatusText, Mode=OneWay}"
+                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                               FontSize="{StaticResource VtFontSizeSm}"
+                               VerticalAlignment="Center"
+                               AutomationProperties.AutomationId="BaselineStatusText"/>
+                </StackPanel>
+                <TextBlock Text="{Binding Agent.AgentStatus, StringFormat='Agent: {0}'}"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
 
         <!-- Sidebar navigation -->
         <controls:NavigationSidebar Grid.Row="1" Grid.Column="0" />
@@ -101,20 +95,19 @@
                       ResizeDirection="Columns"
                       Background="{StaticResource VtBorderDefaultBrush}"/>
 
-        <!-- Content zone: status bar, hero (agent home only), main content -->
+        <!-- Content zone: status bar (non-agent pages), main content -->
         <Grid Grid.Row="1" Grid.Column="2">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Status bar: agent presence left, progress/summary center,
-                 session tools right -->
+            <!-- Remains visible on the Agent page while main analysis/evidence work is running. -->
             <Border Grid.Row="0"
                     Theme="{StaticResource VtCard}"
                     Padding="10,4"
-                    Margin="0,0,0,6">
+                    Margin="0,0,0,6"
+                    IsVisible="{Binding ShowStatusBar, Mode=OneWay}">
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <i:Icon Value="mdi-shield-check-outline" FontSize="{StaticResource VtIconSizeMd}" Foreground="{StaticResource VtPrimaryBrush}" VerticalAlignment="Center"/>
@@ -206,12 +199,8 @@
                 </Grid>
             </Border>
 
-            <!-- Agent-home hero (log input + analyze + scan options) -->
-            <controls:HeroPanel Grid.Row="1"
-                                IsVisible="{Binding IsAgentHomeVisible, Mode=OneWay}"/>
-
             <!-- Main content area -->
-            <Border Grid.Row="2"
+            <Border Grid.Row="1"
                     Theme="{StaticResource VtCard}"
                     Padding="12">
                 <ContentControl x:Name="MainContent"
@@ -222,7 +211,7 @@
                  the TextBlock's own text (its automation peer reports Text as the
                  accessible name; AutomationProperties.* does not reach AT-SPI on
                  Avalonia/Linux). Effectively invisible: 1px, transparent text. -->
-            <TextBlock Grid.Row="2"
+            <TextBlock Grid.Row="1"
                        AutomationProperties.AutomationId="AppStateNode"
                        Text="{Binding AppStateJson, Mode=OneWay}"
                        Foreground="Transparent"

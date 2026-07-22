@@ -35,6 +35,9 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 [Collection(AvaloniaUiTestCollection.Name)]
 public class AgentViewModelTests
 {
+    private const string ExpectedWelcomeMessage =
+        "Ready when you are. I can audit this system, analyze Linux logs, investigate targets, and help remediate what I find.";
+
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
 
     [AvaloniaFact]
@@ -971,6 +974,7 @@ public class AgentViewModelTests
         Assert.Contains("MessageBubbleBorderBrush", xaml);
         Assert.Contains("MessageBubbleForeground", xaml);
         Assert.Contains("FormattedBlocks", xaml);
+        Assert.Contains("AgentStreamingMessage", xaml);
     }
 
     [AvaloniaFact]
@@ -1066,7 +1070,7 @@ public class AgentViewModelTests
         FlushDispatcher();
 
         Assert.DoesNotContain(vm.Messages, m => m.Text == "old");
-        Assert.Contains(vm.Messages, m => m.Text.Contains("Ask me about your system security", StringComparison.Ordinal));
+        Assert.Equal(ExpectedWelcomeMessage, Assert.Single(vm.Messages).Text);
     }
 
     [AvaloniaFact]
@@ -1075,6 +1079,7 @@ public class AgentViewModelTests
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         Assert.True(vm.HasOnlyWelcomeMessage);
+        Assert.Equal(ExpectedWelcomeMessage, Assert.Single(vm.Messages).Text);
     }
 
     [AvaloniaFact]
@@ -1173,6 +1178,7 @@ public class AgentViewModelTests
         FlushDispatcher();
 
         Assert.True(vm.HasOnlyWelcomeMessage);
+        Assert.Equal(ExpectedWelcomeMessage, Assert.Single(vm.Messages).Text);
     }
 
     [AvaloniaFact]
@@ -1293,29 +1299,35 @@ public class AgentViewModelTests
     [AvaloniaFact]
     public void AgentViewXaml_ExposesFeatureParityControls()
     {
-        var xaml = ReadAgentViewXaml();
+        var xaml = ReadAgentViewXaml() + ReadAgentComposerXaml();
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
         foreach (var automationId in new[]
         {
-            "AgentToolsToggleButton",
+            "AgentSessionToolsMenu",
+            "AgentConversation",
+            "AgentInspectorTabs",
             "AgentChatSeverityFilter",
             "AgentChatCategoryFilter",
             "AgentClearChatFiltersButton",
+            "FocusedCheckFirewall",
+            "FocusedCheckPorts",
+            "FocusedCheckServices",
+            "FocusedCheckProcesses",
+            "AgentCheckDriftButton",
             "AgentDeployCountermeasuresButton",
-            "AgentVerifyRemediationButton"
+            "AgentVerifyRemediationButton",
+            "AgentRemediationSessionsList",
+            "AgentPinnedMessagesList",
+            "AgentCompareSelectedAuditsButton",
+            "AgentErrorState",
+            "AgentCleanAuditState"
         })
         {
             Assert.Contains($"AutomationProperties.AutomationId=\"{automationId}\"", xaml);
         }
 
-        // The chat input row was retired in UI v2 Phase 3: the query box,
-        // send/cancel buttons, slash help, and the slash palette moved to the
-        // hero panel (HeroInputBox / HeroPrimaryButton / CancelAgentQueryButton).
-        Assert.DoesNotContain("AgentQueryInput", xaml);
-        Assert.DoesNotContain("AgentSendButton", xaml);
-        Assert.DoesNotContain("AgentCancelButton", xaml);
-
+        // The ViewModel still exposes tool panel action collections for programmatic access.
         var panelIds = vm.ToolPanelAnalysisActions
             .Concat(vm.ToolPanelRunCheckActions)
             .Concat(vm.ToolPanelBaselineActions)
@@ -1336,36 +1348,30 @@ public class AgentViewModelTests
             Assert.Contains(automationId, panelIds);
         }
 
-        Assert.Contains("Header=\"Audit History\"", xaml);
-        Assert.Contains("Header=\"Remediation Sessions\"", xaml);
-        Assert.Contains("ToolPanelAnalysisActions", xaml);
-        Assert.Contains("ToolPanelRunCheckActions", xaml);
-        Assert.Contains("ToolPanelBaselineActions", xaml);
-        Assert.Contains("ToolPanelExportActions", xaml);
-        Assert.Contains("ToggleAgentToolsPanelCommand", xaml);
-        Assert.Contains("BoolToMaxHeight", xaml);
-        Assert.Contains("HasImpactPreview", xaml);
-        Assert.Contains("ImpactPreviewRiskBefore", xaml);
-        Assert.Contains("ImpactPreviewRollbackAvailabilityLabel", xaml);
-        Assert.Contains("HasCountermeasureCommands", xaml);
-        Assert.Contains("CountermeasureCommands", xaml);
-        Assert.Contains("DeployCountermeasuresCommand", xaml);
-        Assert.Contains("HasActiveSession", xaml);
-        Assert.Contains("VerifySessionCommand", xaml);
-        Assert.Contains("HasSessionTimeline", xaml);
-        Assert.Contains("SessionTimeline", xaml);
-
-        foreach (var directAction in new[]
+        foreach (var binding in new[]
         {
-            "Export Remediation",
-            "Export Session",
-            "Compare Last Two",
-            "Compare Selected"
+            "HasImpactPreview",
+            "ImpactPreviewRiskBefore",
+            "ImpactPreviewRollbackAvailabilityLabel",
+            "HasCountermeasureCommands",
+            "CountermeasureCommands",
+            "DeployCountermeasuresCommand",
+            "HasActiveSession",
+            "VerifySessionCommand",
+            "HasSessionTimeline",
+            "SessionTimeline",
+            "FormattedBlocks",
+            "Suggestions",
+            "PinnedMessages",
+            "Sessions"
         })
         {
-            Assert.DoesNotContain($"<Button Content=\"{directAction}\"", xaml);
-            Assert.DoesNotContain($"<MenuItem Header=\"{directAction}\"", xaml);
+            Assert.Contains(binding, xaml);
         }
+
+        Assert.Contains("Command=\"{Binding FullAuditCommand}\"", xaml);
+        Assert.Contains("Command=\"{Binding PrepareLogAnalysisCommand}\"", xaml);
+        Assert.Contains("Command=\"{Binding PrepareInvestigationCommand}\"", xaml);
     }
 
     [AvaloniaFact]
@@ -1959,10 +1965,8 @@ public class AgentViewModelTests
     {
         var xaml = ReadAgentViewXaml();
 
-        Assert.Contains("<ListBox x:Name=\"ChatListBox\"\n               Grid.Row=\"4\"", xaml);
-        Assert.Contains("<!-- Welcome suggestions overlay -->\n        <!-- Intentionally stretches to fill the chat cell so the list's own welcome bubble cannot show through. -->\n        <Border Grid.Row=\"4\"", xaml);
-        Assert.Contains("<controls:FilterEmptyStateView Grid.Row=\"4\"", xaml);
-        Assert.Contains("IsVisible=\"{Binding HasNoVisibleFilterMessages}\"", xaml);
+        Assert.Contains("x:Name=\"ChatListBox\"", xaml);
+        Assert.Contains("IsVisible=\"{Binding HasNoSearchMatches}\"", xaml);
     }
 
     [AvaloniaFact]
@@ -1971,9 +1975,9 @@ public class AgentViewModelTests
         var xaml = ReadAgentViewXaml();
 
         Assert.Contains("AutomationProperties.AutomationId=\"AgentStreamingMessage\"", xaml);
-        Assert.Contains("<Grid ColumnDefinitions=\"*,Auto\"", xaml);
-        Assert.Contains("<TextBlock Grid.Column=\"0\"\n                                 Text=\"{Binding StreamingText}\"\n                                 TextWrapping=\"Wrap\"", xaml);
-        Assert.Contains("<Border Grid.Column=\"1\"\n                              Width=\"2\"", xaml);
+        Assert.Contains("Text=\"{Binding StreamingText}\"", xaml);
+        Assert.Contains("TextWrapping=\"Wrap\"", xaml);
+        Assert.Contains("Width=\"2\"", xaml);
     }
 
     [AvaloniaFact]
@@ -1984,9 +1988,6 @@ public class AgentViewModelTests
         Assert.Contains(
             "AutomationProperties.AutomationId=\"{Binding MessageId, StringFormat='AgentMessage_{0}'}\"",
             xaml);
-        Assert.DoesNotContain(
-            "AutomationProperties.AutomationId=\"{Binding Text, StringFormat='AgentMessage_{0}'}\"",
-            xaml);
     }
 
     [AvaloniaFact]
@@ -1994,15 +1995,9 @@ public class AgentViewModelTests
     {
         var xaml = ReadAgentViewXaml();
 
-        Assert.Contains(
-            "AutomationProperties.AutomationId=\"AgentLatestSuggestionButton\"",
-            xaml);
-        Assert.Contains(
-            "AutomationProperties.Name=\"Run latest suggested follow-up\"",
-            xaml);
-        Assert.Contains(
-            "Command=\"{Binding RunLatestSuggestedFollowUpCommand}\"",
-            xaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"AgentLatestSuggestionButton\"", xaml);
+        Assert.Contains("AutomationProperties.Name=\"Run latest suggested follow-up\"", xaml);
+        Assert.Contains("Command=\"{Binding RunLatestSuggestedFollowUpCommand}\"", xaml);
     }
 
     [AvaloniaFact]
@@ -2452,6 +2447,21 @@ public class AgentViewModelTests
         return File.ReadAllText(baseDirectoryPath);
     }
 
+    private static string ReadAgentComposerXaml()
+    {
+        var currentDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "VulcansTrace.Linux.Avalonia", "Controls", "AgentComposer.axaml");
+        if (File.Exists(currentDirectoryPath))
+            return File.ReadAllText(currentDirectoryPath);
+
+        var baseDirectoryPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..",
+            "VulcansTrace.Linux.Avalonia",
+            "Controls",
+            "AgentComposer.axaml"));
+        return File.ReadAllText(baseDirectoryPath);
+    }
+
     private static Finding CreateFinding() => new()
     {
         Category = "Firewall",
@@ -2501,6 +2511,7 @@ public class AgentViewModelTests
         };
         vm.AddFindingCard(new FindingItemViewModel(finding), null, null);
         vm.AddMoreFindingsLink(2, null, "findings");
+        vm.IsTranscriptOpen = true;
 
         var window = new Window
         {
@@ -3225,6 +3236,127 @@ public class AgentViewModelTests
 
         Assert.False(vm.CanBatchAutoFix);
         Assert.False(vm.BatchAutoFixCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task FullAudit_NoFindings_ShowsTruthfulCleanResultsState()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
+
+        Assert.Equal(AgentPageState.Results, vm.CurrentPageState);
+        Assert.True(vm.IsResultsState);
+        Assert.True(vm.HasNoResultFindings);
+        Assert.False(vm.HasResultFindings);
+        Assert.True(vm.ShowResultsWorkspace);
+        Assert.True(vm.IsTranscriptOpen);
+        Assert.Equal(100, vm.TracePulseProgress);
+        Assert.False(vm.TracePulseIsIndeterminate);
+        Assert.Equal("Completed", vm.TracePulseStatusText);
+        Assert.Contains("0 active findings", vm.TracePulseDetailText);
+
+        vm.IsTranscriptOpen = false;
+
+        Assert.True(vm.ShowResultsWorkspace);
+    }
+
+    [AvaloniaFact]
+    public async Task FailedOperation_ShowsErrorState_WhileCancellationDoesNot()
+    {
+        var failed = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        failed.SendQueryCommand.Execute(null);
+        await failed.SendQueryCommand.ExecutionTask!;
+        FlushDispatcher();
+
+        Assert.Equal(AgentPageState.Error, failed.CurrentPageState);
+        Assert.True(failed.IsErrorState);
+        Assert.Equal(100, failed.TracePulseProgress);
+        Assert.Equal("Blocked", failed.TracePulseStatusText);
+        Assert.Contains("recovery context", failed.TracePulseDetailText);
+
+        var cancelled = new AgentViewModel(new CancellableAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+        cancelled.SendQueryCommand.Execute(null);
+        cancelled.CancelQueryCommand.Execute(null);
+        await cancelled.SendQueryCommand.ExecutionTask!;
+        FlushDispatcher();
+
+        Assert.NotEqual(AgentPageState.Error, cancelled.CurrentPageState);
+    }
+
+    [AvaloniaFact]
+    public async Task RunningOperation_DrivesTruthfulTracePulseState()
+    {
+        var vm = new AgentViewModel(
+            new CancellableAgent(),
+            new InMemoryAuditHistoryStore(),
+            PlanBuilder,
+            new RemediationExecutor(new ProcessRunner()))
+        {
+            UserQuery = "check firewall"
+        };
+
+        vm.SendQueryCommand.Execute(null);
+        FlushDispatcher();
+
+        Assert.True(vm.IsRunningState);
+        Assert.Equal("Investigating", vm.TracePulseStatusText);
+        Assert.Equal("check firewall", vm.TracePulseDetailText);
+        Assert.StartsWith("Agent Investigating:", vm.TracePulseAccessibleName);
+
+        vm.CancelQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask!;
+        FlushDispatcher();
+    }
+
+    [AvaloniaFact]
+    public async Task ResultSelection_DrivesCommandsAndPinAction()
+    {
+        var finding = CreateFindingWithFix();
+        var vm = new AgentViewModel(new FindingAuditAgent(finding), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        FindingItemViewModel? toggled = null;
+        vm.RequestToggleResultFindingPin = item =>
+        {
+            toggled = item;
+            item.IsPinned = true;
+        };
+
+        vm.FullAuditCommand.Execute(null);
+        await vm.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
+        vm.SelectedResultFinding = Assert.Single(vm.ResultFindings);
+
+        Assert.True(vm.HasSelectedResultFinding);
+        Assert.True(vm.ExplainSelectedCommand.CanExecute(null));
+        Assert.True(vm.ToggleResultFindingPinCommand.CanExecute(null));
+
+        vm.ToggleResultFindingPinCommand.Execute(null);
+
+        Assert.Same(vm.SelectedResultFinding, toggled);
+        Assert.Equal("Unpin", vm.SelectedResultFindingPinLabel);
+    }
+
+    [AvaloniaFact]
+    public void MissionPreparationCommands_RequestComposerFocus()
+    {
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        var focusRequests = 0;
+        vm.ComposerFocusRequested += (_, _) => focusRequests++;
+
+        vm.PrepareLogAnalysisCommand.Execute(null);
+        vm.PrepareInvestigationCommand.Execute(null);
+
+        Assert.Equal(2, focusRequests);
+        Assert.Equal("Investigate ", vm.UserQuery);
     }
 
     [AvaloniaFact]

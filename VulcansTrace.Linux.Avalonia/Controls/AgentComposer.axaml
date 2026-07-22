@@ -1,0 +1,168 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.AgentComposer"
+             x:CompileBindings="False"
+             DataContext="{Binding $parent[Window].DataContext}">
+
+    <Border Theme="{StaticResource VtComposer}">
+        <StackPanel Spacing="6">
+            <!-- Slash command palette overlay -->
+            <Border Background="{StaticResource VtBackground700Brush}"
+                    BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource VtRadiusMd}"
+                    Padding="8"
+                    IsVisible="{Binding Agent.IsSlashPaletteOpen}">
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                    <ListBox ItemsSource="{Binding Agent.FilteredSlashCommands}"
+                             AutomationProperties.AutomationId="AgentSlashCommandPaletteList"
+                             AutomationProperties.Name="Agent composer slash command palette"
+                             SelectedItem="{Binding Agent.SelectedSlashCommand}"
+                             Focusable="False"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="2"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="vm:SlashCommandItem">
+                                <Button Command="{Binding Command}"
+                                        CommandParameter="{Binding}"
+                                        AutomationProperties.AutomationId="AgentSlashCommandPaletteItem"
+                                        AutomationProperties.Name="{Binding Title}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        Padding="10,6"
+                                        Theme="{StaticResource VtSecondaryButton}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding CommandText}"
+                                                   FontFamily="{StaticResource VtFontFamilyMono}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
+                                                   Foreground="{StaticResource VtPrimaryBrush}"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="{StaticResource VtFontSizeSm}"
+                                                   Foreground="{StaticResource VtTextPrimaryBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Main input row -->
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                <!-- This is the user's input surface, so it intentionally does
+                     not carry the Agent avatar. -->
+                <TextBox Grid.Column="0"
+                         x:Name="ComposerInputBox"
+                         Theme="{StaticResource VtInput}"
+                         Text="{Binding LogText, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="Ask about logs, findings, hosts, ports, or services..."
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MinHeight="36"
+                         MaxHeight="120"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         FontSize="{StaticResource VtFontSizeSm}"
+                         KeyDown="OnComposerKeyDown"
+                         LostFocus="OnComposerLostFocus"
+                         VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="AgentComposerInput"
+                         AutomationProperties.Name="Agent workspace input"/>
+
+                <!-- Focused checks live in one contextual launcher instead of
+                     consuming a permanent inspector section. -->
+                <Button Grid.Column="1"
+                        Theme="{StaticResource VtGhostButton}"
+                        VerticalAlignment="Center"
+                        Padding="8"
+                        ToolTip.Tip="Run a focused check"
+                        AutomationProperties.AutomationId="AgentFocusedChecksButton"
+                        AutomationProperties.Name="Run a focused security check">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <i:Icon Value="mdi-crosshairs" FontSize="{StaticResource VtIconSizeMd}" VerticalAlignment="Center"/>
+                        <i:Icon Value="mdi-chevron-down" FontSize="{StaticResource VtIconSizeXs}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Firewall" Command="{Binding Agent.FirewallCommand}"
+                                      AutomationProperties.AutomationId="FocusedCheckFirewall"
+                                      AutomationProperties.Name="Run firewall check"/>
+                            <MenuItem Header="Ports" Command="{Binding Agent.PortsCommand}"
+                                      AutomationProperties.AutomationId="FocusedCheckPorts"
+                                      AutomationProperties.Name="Run ports check"/>
+                            <MenuItem Header="Services" Command="{Binding Agent.ServicesCommand}"
+                                      AutomationProperties.AutomationId="FocusedCheckServices"
+                                      AutomationProperties.Name="Run services check"/>
+                            <MenuItem Header="Processes" Command="{Binding Agent.ProcessRuntimeCommand}"
+                                      AutomationProperties.AutomationId="FocusedCheckProcesses"
+                                      AutomationProperties.Name="Run process runtime check"/>
+                            <MenuItem Header="Advanced scan options" Command="{Binding AdvancedScanOptionsCommand}"
+                                      AutomationProperties.AutomationId="AdvancedScanOptionsButton"
+                                      AutomationProperties.Name="Open advanced scan options from Agent composer"/>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <!-- Scan profile selector -->
+                <Border Grid.Column="2"
+                        Background="{StaticResource VtBackground700Brush}"
+                        BorderBrush="{StaticResource VtBorderDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource VtRadiusMd}"
+                        Padding="8,4"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <i:Icon Value="mdi-shield-search" FontSize="{StaticResource VtIconSizeSm}"
+                                Foreground="{StaticResource VtPrimaryBrush}" VerticalAlignment="Center"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Center">
+                            <TextBlock Text="Scan Profile" FontSize="{StaticResource VtFontSizeXs}"
+                                       Foreground="{StaticResource VtTextMutedBrush}"/>
+                            <ComboBox ItemsSource="{Binding Intensities}"
+                                      SelectedItem="{Binding SelectedIntensity}"
+                                      Theme="{StaticResource VtComboBox}"
+                                      MinWidth="80"
+                                      Padding="4,2"
+                                      FontSize="{StaticResource VtFontSizeXs}"
+                                      AutomationProperties.AutomationId="ComposerIntensitySelector"
+                                      AutomationProperties.Name="Agent composer scan intensity"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Run button -->
+                <Button Grid.Column="3"
+                        Theme="{StaticResource VtPrimaryButton}"
+                        Command="{Binding HeroPrimaryCommand}"
+                        VerticalAlignment="Center"
+                        Padding="16,8"
+                        AutomationProperties.AutomationId="ComposerRunButton"
+                        AutomationProperties.Name="{Binding HeroPrimaryLabel}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <i:Icon Value="mdi-play" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding HeroPrimaryLabel}" FontWeight="SemiBold"
+                                   FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Helper text -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Shift + Enter for new line"
+                           Foreground="{StaticResource VtTextMutedBrush}"
+                           FontSize="{StaticResource VtFontSizeXs}"/>
+                <TextBlock Text="•" Foreground="{StaticResource VtTextMutedBrush}" FontSize="{StaticResource VtFontSizeXs}"/>
+                <TextBlock Text="/ for shortcuts"
+                           Foreground="{StaticResource VtTextMutedBrush}"
+                           FontSize="{StaticResource VtFontSizeXs}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

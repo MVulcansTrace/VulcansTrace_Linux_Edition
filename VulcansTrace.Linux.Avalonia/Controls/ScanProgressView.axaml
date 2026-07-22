@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:vm="using:VulcansTrace.Linux.Avalonia.ViewModels"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.ScanProgressView"
+             x:CompileBindings="False"
+             x:DataType="vm:AgentViewModel">
+
+    <StackPanel Spacing="16" Margin="24">
+        <!-- Header: scan name + running badge -->
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="{Binding CurrentOperationTitle}"
+                       FontSize="{StaticResource VtFontSizeLg}"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                       VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="AgentCurrentOperationTitle"/>
+            <Border Background="{StaticResource VtPrimaryGlowBrush}"
+                    CornerRadius="{StaticResource VtRadiusSm}"
+                    Padding="8,3"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Ellipse Width="6" Height="6" Fill="{StaticResource VtPrimaryBrush}" VerticalAlignment="Center">
+                        <Ellipse.Styles>
+                            <Style Selector="Ellipse">
+                                <Style.Animations>
+                                    <Animation Duration="0:0:1.5" IterationCount="INFINITE">
+                                        <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                        <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+                                        <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+                                    </Animation>
+                                </Style.Animations>
+                            </Style>
+                        </Ellipse.Styles>
+                    </Ellipse>
+                    <TextBlock Text="Running" Foreground="{StaticResource VtPrimaryBrush}"
+                               FontSize="{StaticResource VtFontSizeXs}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Progress bar -->
+        <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="Progress" Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"/>
+                <TextBlock Grid.Column="1" Text="{Binding AuditProgressPercent, StringFormat='{}{0:F0}%'}"
+                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}" FontWeight="SemiBold"
+                           IsVisible="{Binding !AuditProgressIsIndeterminate}"/>
+            </Grid>
+            <ProgressBar Value="{Binding AuditProgressPercent}"
+                         Maximum="100"
+                         IsIndeterminate="{Binding AuditProgressIsIndeterminate}"
+                         Height="6"
+                         Classes="VtAuditProgress"
+                         AutomationProperties.AutomationId="AgentAuditProgressBar"
+                         AutomationProperties.Name="Audit progress"/>
+        </StackPanel>
+
+        <!-- Phase checklist -->
+        <ItemsControl ItemsSource="{Binding PhaseSteps}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:PhaseStepViewModel">
+                    <Border Padding="0,3" Classes.VtPhaseStepActive="{Binding IsActive}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <!-- Completed icon -->
+                            <i:Icon Value="mdi-check-circle" FontSize="{StaticResource VtIconSizeSm}"
+                                    Foreground="{StaticResource VtSuccessBrush}"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding IsCompleted}"/>
+                            <!-- Active icon -->
+                            <Ellipse Width="10" Height="10"
+                                     Fill="{StaticResource VtPrimaryBrush}"
+                                     VerticalAlignment="Center"
+                                     IsVisible="{Binding IsActive}"/>
+                            <!-- Pending icon -->
+                            <Ellipse Width="10" Height="10"
+                                     Stroke="{StaticResource VtBorderHoverBrush}"
+                                     StrokeThickness="1.5"
+                                     VerticalAlignment="Center"
+                                     IsVisible="{Binding IsPending}"/>
+                            <!-- Phase name -->
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                                       IsVisible="{Binding IsActive}"/>
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource VtTextMutedBrush}"
+                                       IsVisible="{Binding IsCompleted}"/>
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="{StaticResource VtFontSizeSm}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource VtTextMutedBrush}"
+                                       IsVisible="{Binding IsPending}"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Current activity -->
+        <Border Background="{StaticResource VtBackground700Brush}"
+                CornerRadius="{StaticResource VtRadiusMd}"
+                Padding="12"
+                IsVisible="{Binding ShowAuditProgress}">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Current activity:" Foreground="{StaticResource VtTextMutedBrush}"
+                           FontSize="{StaticResource VtFontSizeXs}"/>
+                <TextBlock Text="{Binding AuditProgressMessage}"
+                           Foreground="{StaticResource VtTextPrimaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Elapsed + Cancel -->
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <i:Icon Value="mdi-clock-outline" FontSize="{StaticResource VtIconSizeSm}"
+                        Foreground="{StaticResource VtTextMutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ElapsedDisplay}"
+                           Foreground="{StaticResource VtTextSecondaryBrush}"
+                           FontSize="{StaticResource VtFontSizeSm}"
+                           FontFamily="{StaticResource VtFontFamilyMono}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    Command="{Binding CancelQueryCommand}"
+                    Padding="12,6"
+                    AutomationProperties.AutomationId="ScanCancelButton"
+                    AutomationProperties.Name="Cancel scan">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <i:Icon Value="mdi-stop" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Cancel" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+    </StackPanel>
+</UserControl>

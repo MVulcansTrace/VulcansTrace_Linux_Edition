@@ -100,6 +100,7 @@ public class AgentOperationRunnerTests
         FlushDispatcher();
 
         Assert.False(runner.LastSucceeded);
+        Assert.True(runner.LastFailed);
     }
 
     [AvaloniaFact]
@@ -120,6 +121,22 @@ public class AgentOperationRunnerTests
         FlushDispatcher();
 
         Assert.False(runner.LastSucceeded);
+        Assert.False(runner.LastFailed);
+    }
+
+    [AvaloniaFact]
+    public async Task LastFailed_ResetsAfterLaterSuccess()
+    {
+        var runner = CreateRunner();
+
+        await runner.RunAsync(_ => throw new InvalidOperationException("boom"));
+        FlushDispatcher();
+        Assert.True(runner.LastFailed);
+
+        await runner.RunAsync(_ => Task.CompletedTask);
+        FlushDispatcher();
+
+        Assert.False(runner.LastFailed);
     }
 
     [AvaloniaFact]

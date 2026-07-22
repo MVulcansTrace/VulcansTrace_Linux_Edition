@@ -6,43 +6,53 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 public class MainWindowAccessibilityContractTests
 {
     [Fact]
+    public void AgentIdentity_UsesTraceGlyphOnlyOnAgentOwnedSurfaces()
+    {
+        var avatar = LoadAvaloniaDocument("Controls/VtAgentAvatar.axaml");
+        Assert.DoesNotContain(avatar.Descendants(), element =>
+            element.Name.LocalName == "TextBlock" &&
+            Attribute(element, "Text")?.Value == "VT");
+
+        var glyphPaths = avatar.Descendants()
+            .Where(element => element.Name.LocalName == "Path")
+            .ToList();
+        Assert.Equal(2, glyphPaths.Count);
+        Assert.All(glyphPaths, path => Assert.Contains(
+            "M 3,5 L 10,18 L 16,5",
+            Attribute(path, "Data")?.Value));
+
+        var composer = LoadAvaloniaDocument("Controls/AgentComposer.axaml");
+        Assert.DoesNotContain(composer.Descendants(), element =>
+            element.Name.LocalName == "VtAgentAvatar");
+
+        var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
+        Assert.True(agent.Descendants().Count(element =>
+            element.Name.LocalName == "VtAgentAvatar") >= 3);
+    }
+
+    [Fact]
     public void PrimaryAnalysisControls_ExposeStableAccessibleNamesAndLabels()
     {
-        // The unified hero input, flipping primary action, slash surfaces, and
-        // scan options live in the agent-home hero panel (UI v2 Phase 3).
-        var document = LoadAvaloniaDocument("Controls/HeroPanel.axaml");
+        // The redesigned Agent workspace owns the active composer. HeroPanel is
+        // retained for compatibility but is no longer mounted by MainWindow.
+        var document = LoadAvaloniaDocument("Controls/AgentComposer.axaml");
 
-        AssertAutomationName(document, "HeroInputBox", "Agent input");
-        // The primary button's accessible name is intent-bound (Chat ↔ Analyze);
-        // the flip is deterministic — same content, same label.
+        AssertAutomationName(document, "AgentComposerInput", "Agent workspace input");
         var primary = document.Descendants().Single(element =>
             Attribute(element, "AutomationProperties.AutomationId")?.Value
-                == "HeroPrimaryButton");
+                == "ComposerRunButton");
         Assert.Equal(
             "{Binding HeroPrimaryLabel}",
             Attribute(primary, "AutomationProperties.Name")?.Value);
-        AssertAutomationName(document, "AgentSlashHelpButton", "Command help");
         AssertAutomationName(
             document,
             "AgentSlashCommandPaletteList",
-            "Agent slash command palette");
-        AssertAutomationName(document, "PromptChipItems", "Suggested prompts");
-        AssertLabeledControl(
+            "Agent composer slash command palette");
+        AssertAutomationName(document, "ComposerIntensitySelector", "Agent composer scan intensity");
+        AssertAutomationName(
             document,
-            "IntensityComboBox",
-            "Scan intensity",
-            "ScanIntensityLabel",
-            "Scan intensity:");
-        AssertLabeledControl(
-            document,
-            "MachineRoleComboBox",
-            "Machine role",
-            "MachineRoleLabel",
-            "Machine role:");
-
-        // The advanced numerics live in a dialog since Phase 2; the hero keeps
-        // only intensity + role plus the dialog launcher.
-        AssertAutomationName(document, "AdvancedScanOptionsButton", "Advanced scan options");
+            "AdvancedScanOptionsButton",
+            "Open advanced scan options from Agent composer");
     }
 
     [Fact]
@@ -71,19 +81,21 @@ public class MainWindowAccessibilityContractTests
             "Remove active suppression");
 
         var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
-        AssertAutomationName(
-            agent,
-            "AgentRemediationSessionsRefreshButton",
-            "Refresh remediation sessions");
-        AssertAutomationName(
-            agent,
-            "AgentRemediationSessionDeleteButton",
-            "Delete remediation session");
+        AssertAutomationName(agent, "AgentConversation", "Agent conversation");
+        AssertAutomationName(agent, "AgentInspectorContextTab", "Agent context");
+        AssertAutomationName(agent, "AgentInspectorEvidenceTab", "Agent evidence");
+        AssertAutomationName(agent, "AgentInspectorRunsTab", "Agent runs");
+        AssertAutomationName(agent, "AgentInspectorToggleButton", "Open Agent inspector");
+        AssertAutomationName(agent, "AgentInspectorCloseButton", "Close Agent inspector");
+        AssertAutomationName(agent, "AgentCommandPalette", "Agent command palette");
+        var tracePulse = FindByAutomationId(agent, "AgentTracePulse");
+        Assert.Equal(
+            "{Binding TracePulseAccessibleName}",
+            Attribute(tracePulse, "AutomationProperties.Name")?.Value);
         AssertAutomationName(
             agent,
             "AgentChatSeverityFilter",
             "Agent chat severity filter");
-        AssertCommandName(agent, "{Binding CopyCommand}", "Copy code block");
 
         var findings = LoadAvaloniaDocument("Views/FindingsView.axaml");
         AssertAutomationName(
@@ -124,45 +136,32 @@ public class MainWindowAccessibilityContractTests
     }
 
     [Fact]
-    public void SidebarNavigation_GroupsExposeBoundToggleMetadata()
+    public void SidebarNavigation_ExposesFiveDestinationMetadata()
     {
         var sidebar = LoadAvaloniaDocument("Controls/NavigationSidebar.axaml");
 
         AssertAutomationName(sidebar, "PrimaryNavigationList", "Primary navigation");
-
-        // Group expand/collapse toggles get their automation metadata from the
-        // NavigationGroup model (verified concretely in MainViewModelTests).
-        var toggle = sidebar.Descendants().Single(element =>
-            Attribute(element, "AutomationProperties.AutomationId")?.Value
-                == "{Binding ToggleAutomationId}");
-        Assert.Equal(
-            "{Binding ToggleAccessibleName}",
-            Attribute(toggle, "AutomationProperties.Name")?.Value);
-        Assert.Equal("ToggleButton", toggle.Name.LocalName);
-
-        // Each group's item list gets a per-group id the same way.
-        var list = sidebar.Descendants().Single(element =>
-            Attribute(element, "AutomationProperties.AutomationId")?.Value
-                == "{Binding ListAutomationId}");
-        Assert.Equal("ListBox", list.Name.LocalName);
-
-        // Icon rail (UI v2 Phase 3): the collapse toggle is the single home for
-        // rail expand/collapse; rail group buttons bind per-group metadata and
-        // open flyouts with the same item labels.
         AssertAutomationName(sidebar, "SidebarCollapseToggle", "Toggle sidebar");
+
+        var destination = sidebar.Descendants().Single(element =>
+            Attribute(element, "AutomationProperties.AutomationId")?.Value
+                == "{Binding AutomationId}");
+        Assert.Equal(
+            "Border",
+            destination.Name.LocalName);
+
         var railButton = sidebar.Descendants().Single(element =>
             Attribute(element, "AutomationProperties.AutomationId")?.Value
-                == "{Binding RailAutomationId}");
-        Assert.Equal(
-            "{Binding ToggleAccessibleName}",
-            Attribute(railButton, "AutomationProperties.Name")?.Value);
+                == "{Binding AutomationId, StringFormat='{}{0}Rail'}");
+        Assert.Equal("{Binding Label}", Attribute(railButton, "AutomationProperties.Name")?.Value);
     }
 
     [Fact]
     public void LinuxAtSpiTargets_DoNotDependOnAutomationIdAlone()
     {
         var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
-        AssertAutomationName(agent, "AgentAuditProgressBar", "Audit progress");
+        var progress = LoadAvaloniaDocument("Controls/ScanProgressView.axaml");
+        AssertAutomationName(progress, "AgentAuditProgressBar", "Audit progress");
         AssertAutomationName(
             agent,
             "AgentSlashHelpSearchInput",
@@ -307,14 +306,6 @@ public class MainWindowAccessibilityContractTests
     private static readonly string[] MissingAutomationIdBaseline =
     {
         "Controls/HeroPanel.axaml|Button|{Binding CommandText}",
-        "Views/AgentView.axaml|Expander|Audit History",
-        "Views/AgentView.axaml|Expander|Remediation Sessions",
-        "Views/AgentView.axaml|Button|{Binding PinTooltip}",
-        "Views/AgentView.axaml|Button|{Binding Label}",
-        "Views/AgentView.axaml|Button|{Binding Label}",
-        "Views/AgentView.axaml|ListBox|ChatListBox",
-        "Views/AgentView.axaml|Button|Copy code block",
-        "Views/AgentView.axaml|Button|{Binding CommandText}",
         "Views/CommandRow.axaml|Button|Copy command",
         "Views/IncidentStoryView.axaml|Button|Copy Markdown",
         "Views/LiveStreamView.axaml|Button|Start",

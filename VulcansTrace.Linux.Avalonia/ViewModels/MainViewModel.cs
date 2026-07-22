@@ -55,6 +55,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly EventHandler<string> _evidenceStatusHandler;
     private readonly EventHandler _evidenceExportCompletedHandler;
+    private readonly PropertyChangedEventHandler _evidencePropertyChangedHandler;
     private readonly PropertyChangedEventHandler _findingsPropertyChangedHandler;
     private readonly PropertyChangedEventHandler _agentPropertyChangedHandler;
     private readonly EventHandler _analystActionStoreChangedHandler;
@@ -145,11 +146,20 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the child ViewModel for the System → Logs page (raw log browser + skipped-lines detail).</summary>
     public LogsViewModel Logs { get; }
 
+    /// <summary>Gets the hub for investigation artifacts and narratives.</summary>
+    public NavigationHubViewModel InvestigationsHub { get; }
+
+    /// <summary>Gets the hub for policy, intelligence, and posture management.</summary>
+    public NavigationHubViewModel PolicyIntelligenceHub { get; }
+
+    /// <summary>Gets the hub for recurring and live operations.</summary>
+    public NavigationHubViewModel OperationsHub { get; }
+
+    /// <summary>Gets the hub for diagnostics and raw system evidence.</summary>
+    public NavigationHubViewModel SystemHub { get; }
+
     /// <summary>Gets the sidebar navigation items.</summary>
     public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
-
-    /// <summary>Gets the collapsible sidebar groups (projection of <see cref="NavigationItems"/>).</summary>
-    public ObservableCollection<NavigationGroup> NavigationGroups { get; } = new();
 
     /// <summary>Gets or sets the currently selected navigation item.</summary>
     public NavigationItem? SelectedNavigationItem
@@ -157,25 +167,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         get => _selectedNavigationItem;
         set
         {
+            var previous = _selectedNavigationItem;
             if (SetField(ref _selectedNavigationItem, value))
             {
+                if (previous != null)
+                    previous.IsSelected = false;
+                if (value != null)
+                    value.IsSelected = true;
+
                 SelectedContent = value?.Content;
-                if (ReferenceEquals(value?.Content, ThreatIntel))
+                if (ReferenceEquals(value?.Content, PolicyIntelligenceHub) &&
+                    ReferenceEquals(PolicyIntelligenceHub.SelectedSection.Content, ThreatIntel))
                 {
                     ThreatIntel.Refresh();
                 }
                 RefreshAppState();
-                RefreshActiveNavigationGroup();
                 CurrentPageTitle = value?.Label ?? string.Empty;
             }
         }
-    }
-
-    private void RefreshActiveNavigationGroup()
-    {
-        var selected = _selectedNavigationItem;
-        foreach (var group in NavigationGroups)
-            group.IsActive = selected != null && group.Items.Contains(selected);
     }
 
     /// <summary>Gets or sets the content displayed in the main area.</summary>
@@ -188,6 +197,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(IsAgentHomeVisible));
                 OnPropertyChanged(nameof(ShowKpiStrip));
+                OnPropertyChanged(nameof(ShowStatusBar));
             }
         }
     }
@@ -200,9 +210,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public bool ShowKpiStrip =>
         ReferenceEquals(_selectedContent, Agent) ||
-        ReferenceEquals(_selectedContent, Findings) ||
-        ReferenceEquals(_selectedContent, Timeline) ||
-        ReferenceEquals(_selectedContent, IncidentStory);
+        ReferenceEquals(_selectedContent, InvestigationsHub);
+
+    /// <summary>
+    /// Gets whether the shared status bar is needed. The Agent page supplies its own
+    /// header, but main-log analysis and evidence export still use the shared runners
+    /// and must retain their progress and cancellation controls.
+    /// </summary>
+    public bool ShowStatusBar => !IsAgentHomeVisible || IsBusy || Evidence.IsBusy;
 
     private string _currentPageTitle = string.Empty;
 
@@ -349,7 +364,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         AppStateJson = JsonSerializer.Serialize(new
         {
-            view = SelectedNavigationItem?.Label ?? "",
+            view = ActiveViewLabel,
             busy = _isBusy,
             agent_busy = Agent?.IsBusy ?? false,
             summary = _summaryText,
@@ -366,6 +381,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                     ts = _lastAction.TimestampUtc.ToString("O"),
                 },
         });
+    }
+
+    private string ActiveViewLabel => SelectedContent is NavigationHubViewModel hub
+        ? hub.ActiveSectionLabel
+        : SelectedNavigationItem?.Label ?? string.Empty;
+
+    private void OnNavigationHubPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(NavigationHubViewModel.SelectedSection) &&
+            e.PropertyName != nameof(NavigationHubViewModel.ActiveSectionLabel))
+        {
+            return;
+        }
+
+        if (ReferenceEquals(sender, PolicyIntelligenceHub) &&
+            ReferenceEquals(PolicyIntelligenceHub.SelectedSection.Content, ThreatIntel))
+        {
+            ThreatIntel.Refresh();
+        }
+
+        if (ReferenceEquals(sender, SelectedContent))
+            RefreshAppState();
     }
 
     /// <summary>Gets or sets the bot intro text.</summary>
@@ -431,6 +468,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 CancelCommand.RaiseCanExecuteChanged();
                 CompareLogsCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(IsNotBusy));
+                OnPropertyChanged(nameof(ShowStatusBar));
                 RefreshAppState();
             }
         }
@@ -448,6 +486,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (SetField(ref _selectedIntensity, value))
             {
                 AnalyzeCommand.RaiseCanExecuteChanged();
+                if (Agent is not null && value is not null)
+                    Agent.UpdateScanProfile(value.Display, DescribeIntensity(value.Level));
             }
         }
     }
@@ -704,8 +744,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             RequestExportAudit = () => Evidence.ExportEvidenceCommand.Execute(null),
             RequestExportRemediation = async markdown => await ExportRemediationPlanAsync(markdown),
             RequestExportSession = async markdown => await ExportSessionReportAsync(markdown),
-            RequestExportThreatIntel = async () => await ExportThreatIntelAsync()
+            RequestExportThreatIntel = async () => await ExportThreatIntelAsync(),
+            RequestToggleResultFindingPin = ToggleAgentResultFindingPin,
+            PinnedFindingsProvider = () => _pinnedFindingStore.GetAll()
         };
+        Agent.RefreshInspectorPinnedFindings();
         Agent.AuditCompleted += OnAgentAuditCompleted;
         _agentPropertyChangedHandler = OnAgentPropertyChanged;
         Agent.PropertyChanged += _agentPropertyChangedHandler;
@@ -714,6 +757,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _evidenceStatusHandler = (s, msg) =>
             Dispatcher.UIThread.Post(() => SummaryText = msg);
         Evidence.StatusChanged += _evidenceStatusHandler;
+        _evidencePropertyChangedHandler = (_, e) =>
+        {
+            if (e.PropertyName == nameof(EvidenceViewModel.IsBusy))
+                OnPropertyChanged(nameof(ShowStatusBar));
+        };
+        Evidence.PropertyChanged += _evidencePropertyChangedHandler;
         _evidenceExportCompletedHandler = (_, _) =>
             Dispatcher.UIThread.Post(() => Agent.MarkLatestAuditExported());
         Evidence.ExportCompleted += _evidenceExportCompletedHandler;
@@ -747,6 +796,51 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         AnalystActionLog = new AnalystActionLogViewModel(_analystActionStore, dialogService);
         Logs = new LogsViewModel();
 
+        InvestigationsHub = new NavigationHubViewModel(
+            "Investigations",
+            "Review findings, reconstruct activity, and communicate what happened.",
+            new[]
+            {
+                new NavigationHubSection { Label = "Findings", Icon = "mdi-magnify", Content = Findings },
+                new NavigationHubSection { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline },
+                new NavigationHubSection { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory }
+            });
+        PolicyIntelligenceHub = new NavigationHubViewModel(
+            "Policy & Intelligence",
+            "Manage detection policy, intelligence, exceptions, and security posture.",
+            new[]
+            {
+                new NavigationHubSection { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog },
+                new NavigationHubSection { Label = "Threat Intel", Icon = "mdi-radar", Content = ThreatIntel },
+                new NavigationHubSection { Label = "Suppressions", Icon = "mdi-volume-off", Content = Suppressions },
+                new NavigationHubSection { Label = "Coverage", Icon = "mdi-bullseye-arrow", Content = RuleCoverage },
+                new NavigationHubSection { Label = "Compliance", Icon = "mdi-clipboard-check", Content = ComplianceScorecard },
+                new NavigationHubSection { Label = "Risk", Icon = "mdi-alert-decagram", Content = RiskScorecard }
+            });
+        OperationsHub = new NavigationHubViewModel(
+            "Operations",
+            "Schedule recurring work, configure notifications, and monitor live activity.",
+            new[]
+            {
+                new NavigationHubSection { Label = "Schedules", Icon = "mdi-calendar-clock", Content = Schedules },
+                new NavigationHubSection { Label = "Notifications", Icon = "mdi-bell", Content = NotificationSettings },
+                new NavigationHubSection { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream }
+            });
+        SystemHub = new NavigationHubViewModel(
+            "System",
+            "Inspect raw logs, environment health, and the analyst action trail.",
+            new[]
+            {
+                new NavigationHubSection { Label = "Logs", Icon = "mdi-text-box-outline", Content = Logs },
+                new NavigationHubSection { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor },
+                new NavigationHubSection { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog }
+            });
+
+        InvestigationsHub.PropertyChanged += OnNavigationHubPropertyChanged;
+        PolicyIntelligenceHub.PropertyChanged += OnNavigationHubPropertyChanged;
+        OperationsHub.PropertyChanged += OnNavigationHubPropertyChanged;
+        SystemHub.PropertyChanged += OnNavigationHubPropertyChanged;
+
         // Wire empty-state action commands
         Findings.EmptyStateActionCommand = AnalyzeCommand;
         Timeline.EmptyStateActionCommand = AnalyzeCommand;
@@ -768,36 +862,43 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _demoCompletedHandler = (_, e) => OnDemoCompleted(e);
         LiveStream.DemoCompleted += _demoCompletedHandler;
 
-        // Initialize sidebar navigation
-        NavigationItems.Add(new NavigationItem { Label = "Agent", Icon = "mdi-robot", Content = Agent, Group = "ANALYSIS" });
-        NavigationItems.Add(new NavigationItem { Label = "Findings", Icon = "mdi-magnify", Content = Findings, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Timeline", Icon = "mdi-chart-timeline-variant", Content = Timeline, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Incident Story", Icon = "mdi-book-open-variant", Content = IncidentStory, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Rules", Icon = "mdi-shield-check", Content = RuleCatalog, Group = "MANAGEMENT" });
-        NavigationItems.Add(new NavigationItem { Label = "Threat Intel", Icon = "mdi-radar", Content = ThreatIntel, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Suppressions", Icon = "mdi-volume-off", Content = Suppressions, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Coverage", Icon = "mdi-bullseye-arrow", Content = RuleCoverage, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Compliance", Icon = "mdi-clipboard-check", Content = ComplianceScorecard, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Risk", Icon = "mdi-alert-decagram", Content = RiskScorecard, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Schedules", Icon = "mdi-calendar-clock", Content = Schedules, Group = "OPERATIONS" });
-        NavigationItems.Add(new NavigationItem { Label = "Notifications", Icon = "mdi-bell", Content = NotificationSettings, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Live Stream", Icon = "mdi-antenna", Content = LiveStream, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Doctor", Icon = "mdi-stethoscope", Content = Doctor, Group = "" });
-        NavigationItems.Add(new NavigationItem { Label = "Logs", Icon = "mdi-text-box-outline", Content = Logs, Group = "SYSTEM" });
-        NavigationItems.Add(new NavigationItem { Label = "Analyst Action Log", Icon = "mdi-clipboard-text-clock", Content = AnalystActionLog, Group = "" });
-
-        // Collapsible sidebar groups: a presentation projection of the flat
-        // list, which stays the canonical model for selection and lookups.
-        NavigationGroup? currentGroup = null;
-        foreach (var item in NavigationItems)
+        // Five product-level destinations replace the former flat feature catalog.
+        // Existing view models remain the capability sources inside the four hubs.
+        NavigationItems.Add(new NavigationItem
         {
-            if (!string.IsNullOrEmpty(item.Group) || currentGroup is null)
-            {
-                currentGroup = new NavigationGroup { Name = item.Group };
-                NavigationGroups.Add(currentGroup);
-            }
-            currentGroup.Items.Add(item);
-        }
+            Label = "Agent",
+            Icon = "mdi-robot",
+            AutomationId = "NavAgent",
+            Content = Agent
+        });
+        NavigationItems.Add(new NavigationItem
+        {
+            Label = "Investigations",
+            Icon = "mdi-magnify-scan",
+            AutomationId = "NavInvestigations",
+            Content = InvestigationsHub
+        });
+        NavigationItems.Add(new NavigationItem
+        {
+            Label = "Policy & Intelligence",
+            Icon = "mdi-shield-lock-outline",
+            AutomationId = "NavPolicyIntelligence",
+            Content = PolicyIntelligenceHub
+        });
+        NavigationItems.Add(new NavigationItem
+        {
+            Label = "Operations",
+            Icon = "mdi-access-point",
+            AutomationId = "NavOperations",
+            Content = OperationsHub
+        });
+        NavigationItems.Add(new NavigationItem
+        {
+            Label = "System",
+            Icon = "mdi-server-outline",
+            AutomationId = "NavSystem",
+            Content = SystemHub
+        });
 
         // Icon-rail flyouts (UI v2 Phase 3) invoke the item's own command —
         // popup DataContexts cannot reach the window's MainViewModel.
@@ -864,6 +965,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Intensities.Add(new IntensityOption("Medium - Investigation Review", IntensityLevel.Medium));
         Intensities.Add(new IntensityOption("High - Deep Hunt / Forensics", IntensityLevel.High));
         SelectedIntensity = Intensities[0];
+        Agent.UpdateScanProfile(SelectedIntensity.Display, DescribeIntensity(SelectedIntensity.Level));
         PortScanMaxEntriesPerSource = 0;
         PortScanMinPorts = 0;
         FloodMinEvents = 0;
@@ -1208,8 +1310,19 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 SelectNavigationItem("Findings");
                 Findings.RevealParseErrorsCard();
                 break;
+            case "skipped":
+                SelectNavigationItem("Logs");
+                break;
         }
     }
+
+    private static string DescribeIntensity(IntensityLevel level) => level switch
+    {
+        IntensityLevel.Low => "Shows High and Critical findings for rapid triage.",
+        IntensityLevel.Medium => "Shows Medium, High, and Critical findings for balanced investigation.",
+        IntensityLevel.High => "Shows all severities for deep hunting and forensics.",
+        _ => "Uses the selected analysis profile."
+    };
 
     private void SelectNavigationItem(string label)
     {
@@ -1217,6 +1330,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (item != null)
         {
             SelectedNavigationItem = item;
+            return;
+        }
+
+        foreach (var destination in NavigationItems)
+        {
+            if (destination.Content is NavigationHubViewModel hub && hub.SelectSection(label))
+            {
+                SelectedNavigationItem = destination;
+                RefreshAppState();
+                return;
+            }
         }
     }
 
@@ -1238,11 +1362,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public void NavigateToThreatIntel()
     {
         ThreatIntel.Refresh();
-        var item = NavigationItems.FirstOrDefault(i => ReferenceEquals(i.Content, ThreatIntel));
-        if (item != null)
-        {
-            SelectedNavigationItem = item;
-        }
+        SelectNavigationItem("Threat Intel");
     }
 
     private static string BuildDemoBaselineLog()
@@ -1552,7 +1672,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         if (e.PropertyName == nameof(FindingsViewModel.SelectedItem))
         {
+            Agent.ClearResultSelection();
             Agent.NotifySelectedFindingChanged();
+        }
+        if (e.PropertyName == nameof(FindingsViewModel.PinnedCount))
+        {
+            Agent.RefreshInspectorPinnedFindings();
         }
         if (e.PropertyName is nameof(FindingsViewModel.FindingsCount)
             or nameof(FindingsViewModel.HighCriticalCount)
@@ -1657,6 +1782,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SummaryText = $"Suppressed: {selected.RuleId} ({selected.Target}). Re-run audit to apply suppression.";
 
         await _analystActionLogger.LogSuppressionAsync("avalonia", selected.RuleId, selected.Target);
+    }
+
+    private void ToggleAgentResultFindingPin(FindingItemViewModel item)
+    {
+        var canonical = Findings.Items.FirstOrDefault(candidate =>
+            string.Equals(candidate.Finding.Fingerprint, item.Finding.Fingerprint, StringComparison.Ordinal));
+
+        if (canonical is not null)
+        {
+            var command = canonical.IsPinned ? Findings.UnpinCommand : Findings.PinCommand;
+            if (command.CanExecute(canonical))
+                command.Execute(canonical);
+            item.IsPinned = canonical.IsPinned;
+            return;
+        }
+
+        if (_pinnedFindingStore.IsPinned(item.Finding.Fingerprint))
+            _pinnedFindingStore.Unpin(item.Finding.Fingerprint);
+        else
+            _pinnedFindingStore.Pin(FindingsViewModel.CreatePinnedFinding(item));
+
+        item.IsPinned = _pinnedFindingStore.IsPinned(item.Finding.Fingerprint);
     }
 
     private async Task InvestigateFindingAsync(object? parameter)
@@ -1852,9 +1999,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
         _analystActionStore.Changed -= _analystActionStoreChangedHandler;
 
+        InvestigationsHub.PropertyChanged -= OnNavigationHubPropertyChanged;
+        PolicyIntelligenceHub.PropertyChanged -= OnNavigationHubPropertyChanged;
+        OperationsHub.PropertyChanged -= OnNavigationHubPropertyChanged;
+        SystemHub.PropertyChanged -= OnNavigationHubPropertyChanged;
+
         if (Evidence != null)
         {
             Evidence.StatusChanged -= _evidenceStatusHandler;
+            Evidence.PropertyChanged -= _evidencePropertyChangedHandler;
             Evidence.ExportCompleted -= _evidenceExportCompletedHandler;
             Evidence.Dispose();
         }

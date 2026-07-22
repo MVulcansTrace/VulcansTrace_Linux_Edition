@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows.Input;
 
 namespace VulcansTrace.Linux.Avalonia.Models;
@@ -6,8 +7,10 @@ namespace VulcansTrace.Linux.Avalonia.Models;
 /// <summary>
 /// Represents a single item in the sidebar navigation.
 /// </summary>
-public sealed class NavigationItem
+public sealed class NavigationItem : INotifyPropertyChanged
 {
+    private bool _isSelected;
+
     /// <summary>Display label for the navigation item.</summary>
     public string Label { get; set; } = "";
 
@@ -17,11 +20,25 @@ public sealed class NavigationItem
     /// <summary>The ViewModel instance to display when this item is selected.</summary>
     public object? Content { get; set; }
 
-    /// <summary>Group name for categorization (Analysis, Management, Operations, System).</summary>
+    /// <summary>Legacy group name retained for persisted and test compatibility.</summary>
     public string Group { get; set; } = "";
 
     /// <summary>Whether this item is currently selected.</summary>
-    public bool IsSelected { get; set; }
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+    }
+
+    /// <summary>Stable automation id for the top-level destination.</summary>
+    public string AutomationId { get; set; } = "";
 
     /// <summary>
     /// Command that selects this item. Used by the icon-rail flyouts (UI v2
@@ -29,4 +46,7 @@ public sealed class NavigationItem
     /// so the item carries its own navigation command.
     /// </summary>
     public ICommand? NavigateCommand { get; set; }
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
 }

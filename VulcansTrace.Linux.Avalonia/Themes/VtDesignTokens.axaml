@@ -383,6 +383,34 @@
       <Setter Property="Padding" Value="8,6" />
       <Setter Property="FontSize" Value="{StaticResource VtFontSizeMd}" />
     </ControlTheme>
+
+    <!-- === Telemetry Pill (compact metric for top strip) === -->
+    <ControlTheme x:Key="VtTelemetryPill" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusMd}" />
+      <Setter Property="Padding" Value="12,6" />
+    </ControlTheme>
+
+    <!-- === Inspector Section (right panel card) === -->
+    <ControlTheme x:Key="VtInspectorSection" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="16" />
+    </ControlTheme>
+
+    <!-- === Composer (sticky bottom input bar) === -->
+    <ControlTheme x:Key="VtComposer" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource VtBackground800Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource VtBorderDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1,1,1,0" />
+      <Setter Property="CornerRadius" Value="{StaticResource VtRadiusLg}" />
+      <Setter Property="Padding" Value="12,8" />
+    </ControlTheme>
+
   </Styles.Resources>
 
   <!-- === DataGrid === -->
@@ -478,6 +506,16 @@
   <Style Selector="ListBox.VtChatList ListBoxItem:selected">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+
+  <!-- === Phase Step styles === -->
+  <Style Selector="Border.VtPhaseStepCompleted">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Border.VtPhaseStepActive">
+    <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
+    <Setter Property="CornerRadius" Value="{StaticResource VtRadiusSm}" />
+    <Setter Property="Padding" Value="8,4" />
   </Style>
 
 </Styles>

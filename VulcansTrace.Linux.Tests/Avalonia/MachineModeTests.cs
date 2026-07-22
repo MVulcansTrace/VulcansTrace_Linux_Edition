@@ -4,17 +4,20 @@ using Xunit;
 
 namespace VulcansTrace.Linux.Tests.Avalonia;
 
+[Collection(AvaloniaUiTestCollection.Name)]
 public class MachineModeTests : IDisposable
 {
     public MachineModeTests()
     {
         Environment.SetEnvironmentVariable("VT_MACHINE_MODE", null);
+        Environment.SetEnvironmentVariable("VT_REDUCED_MOTION", null);
         MachineMode.ResetForTests();
     }
 
     public void Dispose()
     {
         Environment.SetEnvironmentVariable("VT_MACHINE_MODE", null);
+        Environment.SetEnvironmentVariable("VT_REDUCED_MOTION", null);
         MachineMode.ResetForTests();
     }
 
@@ -62,5 +65,22 @@ public class MachineModeTests : IDisposable
 
         MachineMode.ResetForTests();
         Assert.False(MachineMode.IsEnabled);
+    }
+
+    [Fact]
+    public void MotionSettings_ReducedMotionOptOut_DisablesOptionalMotion()
+    {
+        Environment.SetEnvironmentVariable("VT_REDUCED_MOTION", "true");
+
+        Assert.False(MotionSettings.IsEnabled);
+    }
+
+    [Fact]
+    public void MotionSettings_MachineMode_DisablesOptionalMotion()
+    {
+        Environment.SetEnvironmentVariable("VT_MACHINE_MODE", "1");
+        MachineMode.ResetForTests();
+
+        Assert.False(MotionSettings.IsEnabled);
     }
 }

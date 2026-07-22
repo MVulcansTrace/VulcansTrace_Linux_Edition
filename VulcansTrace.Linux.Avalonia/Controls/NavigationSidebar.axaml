@@ -8,9 +8,6 @@
 
   <Border BorderBrush="{StaticResource VtBorderDefaultBrush}" BorderThickness="0,0,1,0">
     <Grid RowDefinitions="Auto,*">
-      <!-- Collapse toggle (UI v2 Phase 3 icon rail): single home for
-           rail expand/collapse. Hidden in machine mode, where the sidebar
-           always stays expanded so the a11y contract and scenarios are stable. -->
       <Button Grid.Row="0"
               Command="{Binding ToggleSidebarCommand}"
               IsVisible="{Binding ShowSidebarCollapseToggle}"
@@ -21,255 +18,101 @@
               Margin="0,4,8,0"
               Padding="8,4"
               ToolTip.Tip="Collapse or expand the sidebar">
-        <i:Icon Value="{Binding SidebarCollapseToggleIcon}" FontSize="{StaticResource VtIconSizeXl}" />
+        <i:Icon Value="{Binding SidebarCollapseToggleIcon}" FontSize="{StaticResource VtIconSizeXl}"/>
       </Button>
 
-      <Grid Grid.Row="1">
-        <!-- Expanded sidebar (default) -->
-        <Border IsVisible="{Binding !IsSidebarCollapsed}" Width="220">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="NavItemsControl"
-                    AutomationProperties.AutomationId="PrimaryNavigationList"
-                    AutomationProperties.Name="Primary navigation"
-                    ItemsSource="{Binding NavigationGroups}"
-                    Padding="0,8">
-        <ItemsControl.Styles>
-          <Style Selector="TextBlock.group-header">
-            <Setter Property="Foreground" Value="{StaticResource VtTextMutedBrush}" />
-            <Setter Property="FontSize" Value="{StaticResource VtFontSizeXs}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LetterSpacing" Value="1" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:pointerover TextBlock.group-header">
-            <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:pointerover i|Icon.group-chevron">
-            <Setter Property="Foreground" Value="{StaticResource VtTextSecondaryBrush}" />
-          </Style>
-          <!-- The group toggle is checked while its group is expanded; the default
-               theme paints that checked state with the primary (accent) brush,
-               which turned the section header into a loud blue bar that
-               out-shouted the selected nav item (the same accent). Keep the
-               header quiet in every state so the accent belongs to the selected
-               item only. -->
-          <Style Selector="ToggleButton.group-toggle:checked">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:checked:pointerover">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:pressed">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <!-- The default theme paints the checked band on the template's
-               ContentPresenter (not the control Background), exactly as it does
-               for ListBoxItem:selected above — so suppress it there too, or the
-               blue bar survives the control-level override. -->
-          <Style Selector="ToggleButton.group-toggle:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ToggleButton.group-toggle:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ListBoxItem">
-            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,1,8,1" />
-            <!-- Item stays transparent: the highlight lives on Border.nav-row so
-                 group headers above the row are never inside the selection. -->
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-          </Style>
-          <Style Selector="Border.nav-row">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="3,0,0,0" />
-            <Setter Property="CornerRadius" Value="0,6,6,0" />
-            <Setter Property="Transitions">
-              <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.1" />
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
-              </Transitions>
-            </Setter>
-          </Style>
-          <Style Selector="ListBoxItem:pointerover Border.nav-row">
-            <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
-          </Style>
-          <Style Selector="ListBoxItem:pointerover StackPanel.nav-content">
-            <Setter Property="RenderTransform" Value="translateX(4px)" />
-            <Setter Property="Transitions">
-              <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
-              </Transitions>
-            </Setter>
-          </Style>
-          <Style Selector="ListBoxItem:pointerover i|Icon">
-            <Setter Property="RenderTransform" Value="scale(1.1)" />
-            <Setter Property="Transitions">
-              <Transitions>
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseOut" />
-              </Transitions>
-            </Setter>
-          </Style>
-          <Style Selector="ListBoxItem:selected Border.nav-row">
-            <Setter Property="Background" Value="{StaticResource VtBackground700Brush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource VtPrimaryBrush}" />
-          </Style>
-          <!-- Suppress the Fluent theme's own hover/selected background on the item's
-               ContentPresenter; otherwise it paints a band behind the group header too. -->
-          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent" />
-          </Style>
-          <Style Selector="ListBoxItem:selected i|Icon">
-            <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}" />
-            <Setter Property="RenderTransform" Value="scale(1.1)" />
-            <Setter Property="Transitions">
-              <Transitions>
-                <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-              </Transitions>
-            </Setter>
-          </Style>
-          <Style Selector="ListBoxItem:selected TextBlock.nav-label">
-            <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="RenderTransform" Value="translateX(2px)" />
-            <Setter Property="Transitions">
-              <Transitions>
-                <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-              </Transitions>
-            </Setter>
-          </Style>
-        </ItemsControl.Styles>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate DataType="models:NavigationGroup">
-            <StackPanel>
-              <!-- Group header: expand/collapse toggle (groups default expanded) -->
-              <ToggleButton Classes="group-toggle"
-                            IsChecked="{Binding IsExpanded}"
-                            AutomationProperties.AutomationId="{Binding ToggleAutomationId}"
-                            AutomationProperties.Name="{Binding ToggleAccessibleName}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Margin="0,10,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="6" Margin="16,2,16,4">
-                  <TextBlock Text="{Binding Name}"
-                             Classes="group-header"
-                             VerticalAlignment="Center" />
-                  <i:Icon Classes="group-chevron"
-                          Value="mdi-chevron-up"
+      <!-- Five product-level destinations replace the former sixteen-item
+           feature catalog. Capability tabs live inside each destination hub. -->
+      <Border Grid.Row="1" IsVisible="{Binding !IsSidebarCollapsed}" Width="220">
+        <ListBox ItemsSource="{Binding NavigationItems}"
+                 SelectedItem="{Binding SelectedNavigationItem, Mode=TwoWay}"
+                 AutomationProperties.AutomationId="PrimaryNavigationList"
+                 AutomationProperties.Name="Primary navigation"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Padding="0,10">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="AutomationProperties.Name" Value="{Binding Label}"/>
+              <Setter Property="Padding" Value="0"/>
+              <Setter Property="Margin" Value="0,2,8,2"/>
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="BorderThickness" Value="0"/>
+            </Style>
+            <Style Selector="Border.nav-row">
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="BorderBrush" Value="Transparent"/>
+              <Setter Property="BorderThickness" Value="3,0,0,0"/>
+              <Setter Property="CornerRadius" Value="0,6,6,0"/>
+            </Style>
+            <Style Selector="ListBoxItem:pointerover Border.nav-row">
+              <Setter Property="Background" Value="{StaticResource VtBackground700Brush}"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected Border.nav-row">
+              <Setter Property="Background" Value="{StaticResource VtBackground700Brush}"/>
+              <Setter Property="BorderBrush" Value="{StaticResource VtPrimaryBrush}"/>
+            </Style>
+            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+              <Setter Property="Background" Value="Transparent"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+              <Setter Property="Background" Value="Transparent"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected i|Icon">
+              <Setter Property="Foreground" Value="{StaticResource VtPrimaryBrush}"/>
+            </Style>
+            <Style Selector="ListBoxItem:selected TextBlock.nav-label">
+              <Setter Property="Foreground" Value="{StaticResource VtTextPrimaryBrush}"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="models:NavigationItem">
+              <Border Classes="nav-row" Padding="12,11,12,11"
+                      AutomationProperties.AutomationId="{Binding AutomationId}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <i:Icon Value="{Binding Icon}"
                           FontSize="{StaticResource VtIconSizeLg}"
-                          Foreground="{StaticResource VtTextMutedBrush}"
-                          VerticalAlignment="Center"
-                          IsVisible="{Binding IsExpanded}" />
-                  <i:Icon Classes="group-chevron"
-                          Value="mdi-chevron-down"
-                          FontSize="{StaticResource VtIconSizeLg}"
-                          Foreground="{StaticResource VtTextMutedBrush}"
-                          VerticalAlignment="Center"
-                          IsVisible="{Binding !IsExpanded}" />
+                          Foreground="{StaticResource VtTextSecondaryBrush}"/>
+                  <TextBlock Text="{Binding Label}"
+                             Classes="nav-label"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource VtTextSecondaryBrush}"
+                             FontSize="{StaticResource VtFontSizeMd}"/>
                 </StackPanel>
-              </ToggleButton>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
 
-              <!-- Group items -->
-              <ListBox ItemsSource="{Binding Items}"
-                       IsVisible="{Binding IsExpanded}"
-                       SelectedItem="{Binding $parent[UserControl].DataContext.SelectedNavigationItem, Mode=TwoWay}"
-                       AutomationProperties.AutomationId="{Binding ListAutomationId}"
-                       Background="Transparent"
-                       BorderThickness="0">
-                <ListBox.ItemTemplate>
-                  <DataTemplate DataType="models:NavigationItem">
-                    <!-- Navigation item content: the highlight row. -->
-                    <Border Classes="nav-row" Padding="12,8,12,8">
-                      <StackPanel Classes="nav-content" Orientation="Horizontal" Spacing="10">
-                        <i:Icon Value="{Binding Icon}"
-                                FontSize="{StaticResource VtIconSizeMd}"
-                                Foreground="{StaticResource VtTextSecondaryBrush}" />
-                        <TextBlock Text="{Binding Label}"
-                                   Classes="nav-label"
-                                   VerticalAlignment="Center"
-                                   Foreground="{StaticResource VtTextSecondaryBrush}"
-                                   FontSize="{StaticResource VtFontSizeMd}" />
-                      </StackPanel>
-                    </Border>
-                  </DataTemplate>
-                </ListBox.ItemTemplate>
-              </ListBox>
-            </StackPanel>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-          </ScrollViewer>
-        </Border>
-
-        <!-- Icon rail (collapsed): one icon button per group; the group's items
-             ride a flyout with the SAME labels (the expanded list is hidden in
-             rail mode, so accessible names never duplicate). Flyout items are
-             reachable while open — proven by the Session tools scenarios. -->
-        <Border IsVisible="{Binding IsSidebarCollapsed}" Width="56">
-          <StackPanel Margin="0,8">
-            <ItemsControl ItemsSource="{Binding NavigationGroups}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="models:NavigationGroup">
-                  <Button AutomationProperties.AutomationId="{Binding RailAutomationId}"
-                          AutomationProperties.Name="{Binding ToggleAccessibleName}"
-                          Theme="{StaticResource VtGhostButton}"
-                          HorizontalAlignment="Stretch"
-                          HorizontalContentAlignment="Stretch"
-                          VerticalContentAlignment="Stretch"
-                          Padding="0,10"
-                          ToolTip.Tip="{Binding Name}">
-                    <Grid>
-                      <!-- Active-group indicator: the rail otherwise gives no cue
-                           which group the selected page belongs to. Uses the same
-                           left-accent language as the expanded sidebar's selected
-                           row so the two modes read consistently. -->
-                      <Border IsVisible="{Binding IsActive}"
-                              HorizontalAlignment="Left"
-                              VerticalAlignment="Stretch"
-                              Width="3"
-                              Margin="0,2"
-                              CornerRadius="0,2,2,0"
-                              Background="{StaticResource VtPrimaryBrush}" />
-                      <i:Icon Value="{Binding RailIcon}"
-                              FontSize="{StaticResource VtIconSizeMd}"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center" />
-                    </Grid>
-                    <Button.Flyout>
-                      <MenuFlyout ItemsSource="{Binding Items}" Placement="RightEdgeAlignedTop">
-                        <MenuFlyout.ItemContainerTheme>
-                          <ControlTheme TargetType="MenuItem">
-                            <Setter Property="Header" Value="{Binding Label}" />
-                            <Setter Property="Command" Value="{Binding NavigateCommand}" />
-                            <Setter Property="CommandParameter" Value="{Binding}" />
-                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
-                          </ControlTheme>
-                        </MenuFlyout.ItemContainerTheme>
-                      </MenuFlyout>
-                    </Button.Flyout>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </Border>
-      </Grid>
+      <Border Grid.Row="1" IsVisible="{Binding IsSidebarCollapsed}" Width="56">
+        <ItemsControl ItemsSource="{Binding NavigationItems}" Margin="0,10">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="models:NavigationItem">
+              <Button Command="{Binding NavigateCommand}"
+                      CommandParameter="{Binding}"
+                      AutomationProperties.AutomationId="{Binding AutomationId, StringFormat='{}{0}Rail'}"
+                      AutomationProperties.Name="{Binding Label}"
+                      Theme="{StaticResource VtGhostButton}"
+                      ToolTip.Tip="{Binding Label}"
+                      HorizontalAlignment="Stretch"
+                      Padding="0,12">
+                <Grid>
+                  <Border IsVisible="{Binding IsSelected}"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Stretch"
+                          Width="3"
+                          Background="{StaticResource VtPrimaryBrush}"/>
+                  <i:Icon Value="{Binding Icon}"
+                          FontSize="{StaticResource VtIconSizeLg}"
+                          HorizontalAlignment="Center"/>
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
     </Grid>
   </Border>
 </UserControl>

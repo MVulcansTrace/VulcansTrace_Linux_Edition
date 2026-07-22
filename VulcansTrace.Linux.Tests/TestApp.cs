@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Themes.Fluent;
+using VulcansTrace.Linux.Avalonia.Converters;
 
 [assembly: AvaloniaTestApplication(typeof(VulcansTrace.Linux.Tests.TestAppBuilder))]
 
@@ -25,6 +26,7 @@ public class TestApp : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme());
+        Resources["SeverityToBrushConverter"] = new SeverityToBrushConverter();
         base.Initialize();
     }
 }

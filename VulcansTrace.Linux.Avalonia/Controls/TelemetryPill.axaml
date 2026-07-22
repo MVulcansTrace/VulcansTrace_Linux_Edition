@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             x:Class="VulcansTrace.Linux.Avalonia.Controls.TelemetryPill"
+             x:CompileBindings="False">
+    <Button Command="{Binding Command, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            CommandParameter="{Binding CommandParameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            AutomationProperties.AutomationId="{Binding PillAutomationId, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            AutomationProperties.Name="{Binding Label, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Theme="{StaticResource VtGhostButton}"
+            Padding="0">
+      <Border Theme="{StaticResource VtTelemetryPill}">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <i:Icon Value="{Binding Icon, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    FontSize="{StaticResource VtIconSizeSm}"
+                    Foreground="{Binding AccentBrush, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Label, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       Foreground="{StaticResource VtTextSecondaryBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Value, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       Foreground="{StaticResource VtTextPrimaryBrush}"
+                       FontSize="{StaticResource VtFontSizeSm}"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Button>
+</UserControl>

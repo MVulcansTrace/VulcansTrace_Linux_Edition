@@ -4,20 +4,33 @@
              x:Name="Root"
              xmlns:controls="using:VulcansTrace.Linux.Avalonia.Controls">
   <Design.PreviewWith>
-    <controls:VtAgentAvatar AvatarSize="36" AvatarFontSize="14" />
+    <controls:VtAgentAvatar AvatarSize="36" />
   </Design.PreviewWith>
 
   <Border Width="{Binding AvatarSize, ElementName=Root}"
           Height="{Binding AvatarSize, ElementName=Root}"
-          CornerRadius="{Binding CornerRadius, ElementName=Root}"
+          CornerRadius="999"
           Background="{StaticResource VtPrimaryGlowBrush}"
           BorderBrush="{StaticResource VtPrimaryBrush}"
           BorderThickness="1">
-    <TextBlock Text="VT"
-               FontWeight="Bold"
-               FontSize="{Binding AvatarFontSize, ElementName=Root}"
-               Foreground="{StaticResource VtPrimaryBrush}"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center" />
+    <Viewbox Margin="6" Stretch="Uniform"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
+      <Canvas Width="24" Height="24">
+        <!-- A continuous V + signal trace: brand identity without literal
+             initials or the familiar robot-head shorthand. -->
+        <Path Data="M 3,5 L 10,18 L 16,5 M 13,12 L 16,12 L 17.5,9 L 19,15 L 20.5,12 L 23,12"
+              Stroke="{StaticResource VtPrimaryBrush}"
+              StrokeThickness="4"
+              StrokeLineCap="Round"
+              StrokeJoin="Round"
+              Opacity="0.18"/>
+        <Path Data="M 3,5 L 10,18 L 16,5 M 13,12 L 16,12 L 17.5,9 L 19,15 L 20.5,12 L 23,12"
+              Stroke="{StaticResource VtPrimaryBrush}"
+              StrokeThickness="1.8"
+              StrokeLineCap="Round"
+              StrokeJoin="Round"/>
+      </Canvas>
+    </Viewbox>
   </Border>
 </UserControl>

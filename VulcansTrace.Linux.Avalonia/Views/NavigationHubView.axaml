@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:models="using:VulcansTrace.Linux.Avalonia.Models"
+             x:Class="VulcansTrace.Linux.Avalonia.Views.NavigationHubView"
+             x:CompileBindings="False">
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Grid.Row="0" Spacing="4" Margin="4,0,4,12">
+      <TextBlock Text="{Binding Title}"
+                 FontSize="{StaticResource VtFontSizeXl}"
+                 FontWeight="Bold"
+                 Foreground="{StaticResource VtTextPrimaryBrush}"/>
+      <TextBlock Text="{Binding Description}"
+                 FontSize="{StaticResource VtFontSizeSm}"
+                 Foreground="{StaticResource VtTextSecondaryBrush}"/>
+    </StackPanel>
+
+    <TabControl Grid.Row="1"
+                ItemsSource="{Binding Sections}"
+                SelectedItem="{Binding SelectedSection}"
+                AutomationProperties.AutomationId="NavigationHubTabs"
+                AutomationProperties.Name="{Binding Title, StringFormat='{}{0} sections'}">
+      <TabControl.ItemTemplate>
+        <DataTemplate DataType="models:NavigationHubSection">
+          <StackPanel Orientation="Horizontal" Spacing="7">
+            <i:Icon Value="{Binding Icon}" FontSize="{StaticResource VtIconSizeSm}"/>
+            <TextBlock Text="{Binding Label}"/>
+          </StackPanel>
+        </DataTemplate>
+      </TabControl.ItemTemplate>
+      <TabControl.ContentTemplate>
+        <DataTemplate DataType="models:NavigationHubSection">
+          <Border Padding="0,12,0,0">
+            <ContentControl Content="{Binding Content}"/>
+          </Border>
+        </DataTemplate>
+      </TabControl.ContentTemplate>
+    </TabControl>
+  </Grid>
+</UserControl>

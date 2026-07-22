@@ -103,6 +103,30 @@ public sealed class AgentStatusToForegroundBrushConverter : IValueConverter
 }
 
 /// <summary>
+/// Converts the Agent workspace state to the shared Trace Pulse color.
+/// </summary>
+public sealed class AgentPageStateToBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value is AgentPageState state
+            ? state switch
+            {
+                AgentPageState.Running => ThemeBrush.Get("VtPrimaryBrush", Color.Parse("#3B82F6")),
+                AgentPageState.Results => ThemeBrush.Get("VtSuccessBrush", Color.Parse("#22C55E")),
+                AgentPageState.Error => ThemeBrush.Get("VtDangerBrush", Color.Parse("#EF4444")),
+                _ => ThemeBrush.Get("VtTextMutedBrush", Color.Parse("#64748B"))
+            }
+            : ThemeBrush.Get("VtTextMutedBrush", Color.Parse("#64748B"));
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+/// <summary>
 /// Converts an <see cref="AgentMessageViewModel"/> to a message bubble background brush,
 /// taking both the user/agent role and the error state into account.
 /// </summary>

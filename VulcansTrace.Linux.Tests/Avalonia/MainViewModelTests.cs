@@ -71,7 +71,7 @@ public class MainViewModelTests : IAsyncLifetime
     {
         _vm.SummaryText = "Analysis complete: 3 findings";
         _vm.IsBusy = true;
-        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Findings");
+        _vm.KpiNavigateCommand.Execute("findings");
 
         using var doc = JsonDocument.Parse(_vm.AppStateJson);
         var root = doc.RootElement;
@@ -81,11 +81,22 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
+    public void AppStateJson_TracksActiveLeafInsideNavigationHub()
+    {
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(item => item.Label == "Investigations");
+        _vm.InvestigationsHub.SelectSection("Timeline");
+
+        using var doc = JsonDocument.Parse(_vm.AppStateJson);
+        Assert.Equal("Timeline", doc.RootElement.GetProperty("view").GetString());
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+    }
+
+    [AvaloniaFact]
     public void IsAgentHomeVisible_TracksSelectedContent()
     {
         Assert.True(_vm.IsAgentHomeVisible);
 
-        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Findings");
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Investigations");
         Assert.False(_vm.IsAgentHomeVisible);
 
         _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Agent");
@@ -93,27 +104,33 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
-    public void NavigationGroups_ProjectFlatListWithToggleMetadata()
+    public void ShowStatusBar_RemainsAvailableForMainAnalysisOnAgentPage()
+    {
+        Assert.True(_vm.IsAgentHomeVisible);
+        Assert.False(_vm.ShowStatusBar);
+
+        _vm.IsBusy = true;
+
+        Assert.True(_vm.ShowStatusBar);
+
+        _vm.IsBusy = false;
+        _vm.SelectedNavigationItem = _vm.NavigationItems.First(i => i.Label == "Investigations");
+        Assert.True(_vm.ShowStatusBar);
+    }
+
+    [AvaloniaFact]
+    public void NavigationItems_ExposeFiveDestinationsWithCapabilityHubs()
     {
         Assert.Equal(
-            new[] { "ANALYSIS", "MANAGEMENT", "OPERATIONS", "SYSTEM" },
-            _vm.NavigationGroups.Select(g => g.Name).ToArray());
-        Assert.Equal(_vm.NavigationItems.Count, _vm.NavigationGroups.Sum(g => g.Items.Count));
-        Assert.All(_vm.NavigationGroups, group => Assert.True(group.IsExpanded));
-
-        var analysis = _vm.NavigationGroups[0];
-        Assert.Equal("NavGroupAnalysisToggle", analysis.ToggleAutomationId);
-        Assert.Equal("Analysis navigation group", analysis.ToggleAccessibleName);
-        Assert.Equal("NavGroupAnalysisList", analysis.ListAutomationId);
-        Assert.Equal("Agent", analysis.Items[0].Label);
-        // Same instances as the flat list — selection state stays shared.
-        Assert.Same(_vm.NavigationItems[0], analysis.Items[0]);
-
-        // SYSTEM keeps the Analyst Action Log after the Warnings / Parse Errors
-        // nav aliases were removed (UI v2 Phase 2).
-        var system = _vm.NavigationGroups[3];
-        Assert.Equal("NavGroupSystemToggle", system.ToggleAutomationId);
-        Assert.Contains(system.Items, i => i.Label == "Analyst Action Log");
+            new[] { "Agent", "Investigations", "Policy & Intelligence", "Operations", "System" },
+            _vm.NavigationItems.Select(item => item.Label).ToArray());
+        Assert.Equal(
+            new[] { "Findings", "Timeline", "Incident Story" },
+            _vm.InvestigationsHub.Sections.Select(section => section.Label).ToArray());
+        Assert.Contains(_vm.PolicyIntelligenceHub.Sections, section => section.Label == "Threat Intel");
+        Assert.Contains(_vm.OperationsHub.Sections, section => section.Label == "Live Stream");
+        Assert.Contains(_vm.SystemHub.Sections, section => section.Label == "Analyst Action Log");
+        Assert.All(_vm.NavigationItems, item => Assert.False(string.IsNullOrWhiteSpace(item.AutomationId)));
     }
 
     [AvaloniaFact]
@@ -123,7 +140,8 @@ public class MainViewModelTests : IAsyncLifetime
 
         _vm.KpiNavigateCommand.Execute("findings");
 
-        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.InvestigationsHub.ActiveSectionLabel);
         Assert.Equal("All severities", _vm.Findings.SelectedSeverityFilter?.Display);
     }
 
@@ -132,7 +150,8 @@ public class MainViewModelTests : IAsyncLifetime
     {
         _vm.KpiNavigateCommand.Execute("high-critical");
 
-        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.InvestigationsHub.ActiveSectionLabel);
         Assert.Equal("High & Critical only", _vm.Findings.SelectedSeverityFilter?.Display);
     }
 
@@ -141,12 +160,32 @@ public class MainViewModelTests : IAsyncLifetime
         // The dedicated Warnings / Parse Errors nav items are gone (UI v2 Phase 2);
         // both routes land on Findings, where the banner cards live.
         _vm.KpiNavigateCommand.Execute("warnings");
-        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.InvestigationsHub.ActiveSectionLabel);
 
         _vm.KpiNavigateCommand.Execute("parse-errors");
-        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.InvestigationsHub.ActiveSectionLabel);
 
         Assert.DoesNotContain(_vm.NavigationItems, i => i.Label is "Warnings" or "Parse Errors");
+    }
+
+    [AvaloniaFact]
+    public void KpiNavigate_Skipped_SelectsLogsView()
+    {
+        _vm.KpiNavigateCommand.Execute("skipped");
+
+        Assert.Equal("System", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Logs", _vm.SystemHub.ActiveSectionLabel);
+    }
+
+    [AvaloniaFact]
+    public void SelectedIntensity_UpdatesAgentInspectorProfile()
+    {
+        _vm.SelectedIntensity = _vm.Intensities[2];
+
+        Assert.Equal("High - Deep Hunt / Forensics", _vm.Agent.ScanProfileName);
+        Assert.Contains("all severities", _vm.Agent.ScanProfileDescription, StringComparison.OrdinalIgnoreCase);
     }
 
     [AvaloniaFact]
@@ -197,9 +236,10 @@ public class MainViewModelTests : IAsyncLifetime
     {
         var store = new InMemoryThreatIntelStore();
         using var vm = BuildViewModel(threatIntelStore: store);
-        var threatIntelNav = vm.NavigationItems.First(i => i.Label == "Threat Intel");
+        var threatIntelNav = vm.NavigationItems.First(i => i.Label == "Policy & Intelligence");
 
         vm.SelectedNavigationItem = threatIntelNav;
+        vm.PolicyIntelligenceHub.SelectSection("Threat Intel");
         Assert.Empty(vm.ThreatIntel.FilteredEntries);
 
         store.Import(new[]
@@ -339,7 +379,7 @@ public class MainViewModelTests : IAsyncLifetime
         // Posting the card ends the welcome state: the overlay must not cover the thread,
         // and the stale welcome hint is removed from the transcript.
         Assert.False(_vm.Agent.HasOnlyWelcomeMessage);
-        Assert.DoesNotContain(_vm.Agent.Messages, m => m.Text.StartsWith("Ask me about", StringComparison.Ordinal));
+        Assert.DoesNotContain(_vm.Agent.Messages, m => m.Text.StartsWith("I'm the VulcansTrace", StringComparison.Ordinal));
         // Hero compaction: the intro and advisor tip collapse once the thread exists.
         Assert.True(_vm.IsAgentThreadActive);
         Assert.False(_vm.ShowHeroIntro);
@@ -354,7 +394,8 @@ public class MainViewModelTests : IAsyncLifetime
 
         // Chip click-through mirrors the KPI strip: navigate to Findings.
         card.NavigateCommand!.Execute(card.Chips[0].CommandParameter);
-        Assert.Equal("Findings", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", _vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", _vm.InvestigationsHub.ActiveSectionLabel);
     }
 
     [AvaloniaFact]
@@ -416,7 +457,8 @@ public class MainViewModelTests : IAsyncLifetime
 
         // Deep link lands on the Findings view with the card's finding selected.
         cards[1].OpenCommand!.Execute(cards[1].Item);
-        Assert.Equal("Findings", vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Investigations", vm.SelectedNavigationItem?.Label);
+        Assert.Equal("Findings", vm.InvestigationsHub.ActiveSectionLabel);
         Assert.Same(cards[1].Item, vm.Findings.SelectedItem);
     }
 
@@ -764,18 +806,19 @@ not a firewall line";
     {
         Assert.All(_vm.NavigationItems, item => Assert.NotNull(item.NavigateCommand));
 
-        var findings = _vm.NavigationItems.First(i => i.Label == "Findings");
-        findings.NavigateCommand!.Execute(findings);
-        Assert.Same(findings, _vm.SelectedNavigationItem);
+        var investigations = _vm.NavigationItems.First(i => i.Label == "Investigations");
+        investigations.NavigateCommand!.Execute(investigations);
+        Assert.Same(investigations, _vm.SelectedNavigationItem);
+        Assert.True(investigations.IsSelected);
+        Assert.False(_vm.NavigationItems.First(i => i.Label == "Agent").IsSelected);
     }
 
     [AvaloniaFact]
-    public void NavigationGroups_ExposeRailMetadata()
+    public void NavigationItems_ExposeRailMetadata()
     {
-        var analysis = _vm.NavigationGroups[0];
-        Assert.Equal("NavGroupAnalysisRailButton", analysis.RailAutomationId);
-        Assert.Equal("mdi-magnify", analysis.RailIcon);
-        Assert.All(_vm.NavigationGroups, group => Assert.False(string.IsNullOrEmpty(group.RailIcon)));
+        Assert.Equal("NavAgent", _vm.NavigationItems[0].AutomationId);
+        Assert.Equal("mdi-robot", _vm.NavigationItems[0].Icon);
+        Assert.All(_vm.NavigationItems, item => Assert.False(string.IsNullOrEmpty(item.Icon)));
     }
 
     private static async Task WaitForBusyAsync(MainViewModel vm, int timeoutMs = 10000)
