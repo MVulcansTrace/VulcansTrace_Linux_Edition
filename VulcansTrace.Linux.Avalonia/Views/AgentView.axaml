@@ -195,7 +195,7 @@
         <!-- Findings remain directly selectable while their explanation stays
              in the conversation and their detail appears in Context. -->
         <Grid Grid.Row="0" x:Name="ResultsArtifact" IsVisible="{Binding ShowResultsWorkspace}"
-              RowDefinitions="Auto" Margin="0,0,0,8" MaxHeight="230">
+              RowDefinitions="*" Margin="0,0,0,8" MaxHeight="230" ClipToBounds="True">
           <!-- Findings list -->
           <DataGrid IsVisible="{Binding HasResultFindings}"
                     ItemsSource="{Binding ResultFindings}"
