@@ -135,8 +135,23 @@ public partial class MainWindow : Window
 
         if (e.PropertyName == nameof(MainViewModel.SelectedContent))
         {
+            DismissOpenFlyouts();
             _ = AnimateContentTransitionAsync();
         }
+    }
+
+    /// <summary>
+    /// Hides any open button flyouts (Session tools, Share, rail groups) when
+    /// navigation swaps the main content. On this platform (X11/WSLg) Avalonia's
+    /// light-dismiss only fires for presses that land on inert areas — a press on
+    /// an interactive control activates the control without dismissing the flyout,
+    /// so an open MenuFlyout would otherwise survive navigation and float over the
+    /// new view. Hiding a flyout that is not open is a no-op.
+    /// </summary>
+    private void DismissOpenFlyouts()
+    {
+        foreach (var button in this.GetVisualDescendants().OfType<Button>())
+            button.Flyout?.Hide();
     }
 
     private async Task AnimateContentTransitionAsync()
