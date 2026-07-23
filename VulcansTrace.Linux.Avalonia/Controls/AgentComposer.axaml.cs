@@ -79,12 +79,21 @@ public partial class AgentComposer : UserControl
 
         if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
-            if (vm.IsLogIntent)
-                return;
-
             if (vm.HeroPrimaryCommand.CanExecute(null))
             {
                 vm.HeroPrimaryCommand.Execute(null);
+                e.Handled = true;
+            }
+            return;
+        }
+
+        if (e.Key == Key.Enter && e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            if (sender is TextBox tb)
+            {
+                var caret = tb.CaretIndex;
+                tb.Text = (tb.Text ?? string.Empty).Insert(caret, "\n");
+                tb.CaretIndex = caret + 1;
                 e.Handled = true;
             }
             return;
