@@ -73,7 +73,7 @@ internal sealed class AgentResultPresenter
     /// Suppresses automatic chat-filter re-evaluation while messages are being added in bulk.
     /// Dispose the returned object to re-enable filtering. Scopes may be nested.
     /// </summary>
-    private IDisposable SuppressChatFilters()
+    internal IDisposable SuppressChatFilters()
     {
         _suppressChatFilters++;
         return new SuppressScope(this);

@@ -3419,6 +3419,7 @@ public class AgentViewModelTests
 
         vm.FullAuditCommand.Execute(null);
         await vm.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
 
         Assert.True(vm.CanBatchAutoFix);
 
@@ -3440,6 +3441,7 @@ public class AgentViewModelTests
 
         vm.FullAuditCommand.Execute(null);
         await vm.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
 
         Assert.True(vm.CanBatchAutoFix);
 

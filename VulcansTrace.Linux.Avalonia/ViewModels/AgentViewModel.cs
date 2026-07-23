@@ -1932,10 +1932,15 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             CurrentOperationTitle = query;
             var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, progress, token);
-            SetLastResult(result);
 
+            // SetLastResult and PresentFindings must run in the same dispatcher
+            // job: SetLastResult repopulates ResultFindings (clear + refill) and
+            // PresentFindings adds the chat cards. Splitting them across two
+            // Dispatcher.UIThread.Post calls lets the UI render a frame showing
+            // the cleared findings panel before the cards arrive — visible flicker.
             Dispatcher.UIThread.Post(() =>
             {
+                SetLastResult(result);
                 PresentFindings(result);
                 RefreshSessionsIfNeeded(result);
             });
@@ -1956,9 +1961,12 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         {
             CurrentOperationTitle = displayQuery;
             var result = await _agent.RunAuditAsync(intent, LogText, progress, token);
-            SetLastResult(result);
 
-            Dispatcher.UIThread.Post(() => PresentFindings(result));
+            Dispatcher.UIThread.Post(() =>
+            {
+                SetLastResult(result);
+                PresentFindings(result);
+            });
 
             PublishAuditCompleted(result);
         });
@@ -2030,6 +2038,24 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 : TimeSpan.FromMilliseconds(DefaultTypewriterTickMilliseconds);
     }
 
+    private void ResetChatFilters()
+    {
+        // Atomic reset: sets both backing fields before firing any notifications
+        // or calling ApplyChatFilters, so the filter pipeline runs exactly once
+        // instead of once per property setter (which fires ApplyChatFilters twice
+        // and produces a transient intermediate state observable to bindings).
+        if (EqualityComparer<SeverityFilterOption?>.Default.Equals(_selectedChatSeverityFilter, ChatSeverityFilters[0])
+            && _selectedChatCategoryFilter is null)
+            return;
+        _selectedChatSeverityFilter = ChatSeverityFilters[0];
+        _selectedChatCategoryFilter = null;
+        OnPropertyChanged(nameof(SelectedChatSeverityFilter));
+        OnPropertyChanged(nameof(SelectedChatCategoryFilter));
+        _presenter.ApplyChatFilters();
+        RefreshActiveFilterChips();
+        UpdateHasNoSearchMatches();
+    }
+
     private void PresentFindings(AgentResult result, bool showCapabilityReport = true, bool showPassedCount = true, bool showWarnings = true)
     {
         // Reset chat filters when a new audit result (or a findings recap of the last audit)
@@ -2038,8 +2064,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         if (AgentResultStateCoordinator.IsAuditIntent(result.Intent)
             || result.Intent == AgentIntent.ShowFindings)
         {
-            SelectedChatSeverityFilter = ChatSeverityFilters[0];
-            SelectedChatCategoryFilter = null;
+            ResetChatFilters();
         }
 
         var created = _presenter.PresentFindings(result, showCapabilityReport, showPassedCount, showWarnings);
@@ -2124,17 +2149,23 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         IReadOnlyList<SummaryChipViewModel> chips,
         ICommand? navigateCommand)
     {
-        // The welcome hint is stale once real analysis content arrives; dropping it
-        // keeps the thread compact and the scroll position deterministic.
-        if (HasOnlyWelcomeMessage && Messages.Count == 1)
+        // Suppress filter re-evaluation across the remove+add pair: without
+        // this, RemoveAt(0) fires CollectionChanged with Count==0 before the
+        // new card is added, letting the empty-state flash for one layout pass.
+        using (_presenter.SuppressChatFilters())
         {
-            Messages.RemoveAt(0);
-        }
+            // The welcome hint is stale once real analysis content arrives; dropping it
+            // keeps the thread compact and the scroll position deterministic.
+            if (HasOnlyWelcomeMessage && Messages.Count == 1)
+            {
+                Messages.RemoveAt(0);
+            }
 
-        // Card content ends the welcome state even though it arrives outside the
-        // agent conversation flow (log-paste analysis posts from MainViewModel).
-        MarkChatInteracted();
-        return _presenter.AddAnalysisSummaryCard(headerLine, summaryLine, chips, navigateCommand);
+            // Card content ends the welcome state even though it arrives outside the
+            // agent conversation flow (log-paste analysis posts from MainViewModel).
+            MarkChatInteracted();
+            return _presenter.AddAnalysisSummaryCard(headerLine, summaryLine, chips, navigateCommand);
+        }
     }
 
     /// <summary>
