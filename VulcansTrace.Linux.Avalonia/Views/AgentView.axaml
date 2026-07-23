@@ -139,7 +139,7 @@
             <Button Grid.Column="2" Command="{Binding FullAuditCommand}"
                     Theme="{StaticResource VtSecondaryButton}" Padding="10,6"
                     AutomationProperties.AutomationId="MissionCardFullAudit"
-                    AutomationProperties.Name="Run full security audit">
+                    AutomationProperties.Name="Full audit — run full security audit">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <i:Icon Value="mdi-shield-search" FontSize="{StaticResource VtIconSizeSm}"/>
                 <TextBlock Text="Full audit"/>
@@ -148,7 +148,7 @@
             <Button Grid.Column="3" Command="{Binding PrepareLogAnalysisCommand}"
                     Theme="{StaticResource VtSecondaryButton}" Padding="10,6"
                     AutomationProperties.AutomationId="MissionCardAnalyzeLog"
-                    AutomationProperties.Name="Prepare log analysis">
+                    AutomationProperties.Name="Analyze log — prepare log analysis">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <i:Icon Value="mdi-file-document-outline" FontSize="{StaticResource VtIconSizeSm}"/>
                 <TextBlock Text="Analyze log"/>
@@ -157,7 +157,7 @@
             <Button Grid.Column="4" Command="{Binding PrepareInvestigationCommand}"
                     Theme="{StaticResource VtSecondaryButton}" Padding="10,6"
                     AutomationProperties.AutomationId="MissionCardInvestigate"
-                    AutomationProperties.Name="Prepare target investigation">
+                    AutomationProperties.Name="Investigate target — prepare target investigation">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <i:Icon Value="mdi-target" FontSize="{StaticResource VtIconSizeSm}"/>
                 <TextBlock Text="Investigate target"/>
@@ -380,7 +380,8 @@
               <DataTemplate DataType="vm:AgentMessageViewModel">
                 <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,12"
                       IsVisible="{Binding IsRowVisible}"
-                      AutomationProperties.AutomationId="{Binding MessageId, StringFormat='AgentMessage_{0}'}">
+                      AutomationProperties.AutomationId="{Binding MessageId, StringFormat='AgentMessage_{0}'}"
+                      AutomationProperties.Name="{Binding AutomationName}">
                   <controls:VtAgentAvatar Grid.Column="0" Margin="0,0,10,0"
                                           VerticalAlignment="Top"
                                           IsVisible="{Binding !IsUser}"/>
