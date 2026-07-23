@@ -1100,6 +1100,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         PostAnalysisSummaryCard($"Analysis · {DateTime.Now:MMM d HH:mm} · {_selectedIntensity.Level} · {_selectedMachineRole}");
         PostFindingCards();
         InjectCountermeasureMessages(traceMap);
+        Agent.RecordLogAnalysis(result);
 
         // Build summary text
         var total = Findings.FindingsCount;

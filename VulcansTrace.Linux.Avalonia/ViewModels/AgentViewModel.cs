@@ -2186,6 +2186,35 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         });
     }
 
+    /// <summary>
+    /// Publishes a completed composer log analysis into the agent session: the
+    /// inspector (Context tab), the results workspace, and agent follow-ups
+    /// (short verdict, findings recap) then reflect the latest run instead of a
+    /// stale system audit. Recorded as a non-audit result — audit history,
+    /// LastAuditIntent, and baseline/drift semantics are untouched.
+    /// </summary>
+    public void RecordLogAnalysis(AnalysisResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var wrapped = new AgentResult
+        {
+            Intent = AgentIntent.LogAnalysis,
+            AgentFindings = result.Findings,
+            LogAnalysisResult = result,
+            RiskScorecard = result.RiskScorecard,
+            Warnings = result.Warnings,
+            UtcTimestamp = DateTime.UtcNow,
+            Summary = result.Findings.Count == 0
+                ? "Log analysis complete — no findings."
+                : $"Log analysis complete — {result.Findings.Count} finding(s)."
+        };
+        UiThread.Run(() =>
+        {
+            _resultState.PublishAnalysisCompleted(wrapped);
+            _agent.RecordLogAnalysisResult(wrapped);
+        });
+    }
+
     private void ShowMemoryPersistenceWarningIfAny()
     {
         if (_memoryStore == null)

@@ -95,6 +95,44 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task AskAsync_ShortVersionAfterLogAnalysis_AnswersFromAnalysisNotStaleAudit()
+    {
+        var scanner = new CountingScanner();
+        var agent = new SecurityAgent(
+            new IScanner[] { scanner },
+            new IRule[] { new AlwaysFailRule() },
+            new ExplanationProvider());
+
+        // Complete a system audit (one scan), then record a fresher log analysis
+        // from outside the agent flow (the composer's Analyze path).
+        await agent.AskAsync("is my system secure?", null, CancellationToken.None);
+        Assert.Equal(1, scanner.Count);
+
+        agent.RecordLogAnalysisResult(new AgentResult
+        {
+            Intent = AgentIntent.LogAnalysis,
+            Summary = "Log analysis complete — 3 finding(s).",
+            AgentFindings = new[]
+            {
+                new Finding { Severity = Severity.High, ShortDescription = "f1", Category = "Firewall", SourceHost = "h", Target = "t", TimeRangeStart = DateTime.UtcNow },
+                new Finding { Severity = Severity.Medium, ShortDescription = "f2", Category = "Firewall", SourceHost = "h", Target = "t", TimeRangeStart = DateTime.UtcNow },
+                new Finding { Severity = Severity.Medium, ShortDescription = "f3", Category = "Firewall", SourceHost = "h", Target = "t", TimeRangeStart = DateTime.UtcNow },
+            },
+        });
+
+        // A brevity follow-up must answer from the analysis, not the stale audit.
+        var result = await agent.AskAsync("give me the short version", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.ShortVerdict, result.Intent);
+        Assert.Equal(1, scanner.Count); // no fresh scan
+        Assert.Contains("From your log analysis", result.Summary);
+        Assert.Contains("3 issue(s)", result.Summary);
+        Assert.Contains("1 High", result.Summary);
+        // The analysis stays the context for subsequent follow-ups.
+        Assert.Equal(AgentIntent.LogAnalysis, agent.LastResult!.Intent);
+    }
+
+    [Fact]
     public async Task AskAsync_ShortVersionFollowUp_WithoutPriorAudit_ReturnsGuidance()
     {
         var scanner = new CountingScanner();

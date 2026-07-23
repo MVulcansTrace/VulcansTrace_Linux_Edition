@@ -2553,8 +2553,60 @@ public class AgentViewModelTests
         }
     }
 
+    [AvaloniaFact]
+    public void RecordLogAnalysis_UpdatesSessionContextAndResultsWorkspace()
+    {
+        var agent = new RecordingStubAgent();
+        var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        Assert.Equal("Idle", vm.CurrentSessionStatus);
+        Assert.Equal("None", vm.SessionDataStatusText);
+        Assert.Equal(0, vm.ActiveFindingCount);
+        Assert.Equal("Not started", vm.SessionCreatedDisplay);
+        Assert.True(vm.IsIdleState);
+
+        vm.RecordLogAnalysis(new AnalysisResult
+        {
+            Findings = new[] { CreateFinding(), CreateFinding() },
+        });
+
+        Assert.Equal("Completed", vm.CurrentSessionStatus);
+        Assert.Equal("Loaded", vm.SessionDataStatusText);
+        Assert.Equal(2, vm.ActiveFindingCount);
+        Assert.NotEqual("Not started", vm.SessionCreatedDisplay);
+        Assert.True(vm.IsResultsState);
+        Assert.False(vm.IsIdleState);
+        Assert.True(vm.HasResultFindings);
+        Assert.Equal(2, vm.ResultFindings.Count);
+
+        var recorded = Assert.IsType<AgentResult>(agent.RecordedAnalysis);
+        Assert.Equal(AgentIntent.LogAnalysis, recorded.Intent);
+        Assert.Equal(2, recorded.AgentFindings.Count);
+    }
+
+    [AvaloniaFact]
+    public void RecordLogAnalysis_DoesNotTouchAuditIntentOrHistory()
+    {
+        var history = new InMemoryAuditHistoryStore();
+        var vm = new AgentViewModel(new RecordingStubAgent(), history, PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+
+        vm.RecordLogAnalysis(new AnalysisResult { Findings = new[] { CreateFinding() } });
+
+        // A log analysis is not a system audit: no audit history entry, no exportable audit.
+        Assert.False(vm.CanExportAudit);
+    }
+
+    private sealed class RecordingStubAgent : StubAgent
+    {
+        public AgentResult? RecordedAnalysis { get; private set; }
+
+        public override void RecordLogAnalysisResult(AgentResult result) => RecordedAnalysis = result;
+    }
+
     private class StubAgent : IAgent
     {
+        public virtual void RecordLogAnalysisResult(AgentResult result) { }
+
         public virtual Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct) =>
             Task.FromResult(new AgentResult
             {

@@ -458,6 +458,13 @@ public sealed class SecurityAgent : IAgent
     public AgentResult? LastResult => _auditState.LastResult;
 
     /// <inheritdoc />
+    public void RecordLogAnalysisResult(AgentResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        _auditState.RememberResult(result);
+    }
+
+    /// <inheritdoc />
     public AgentQuery ResolveQuery(string query)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
@@ -675,7 +682,8 @@ public sealed class SecurityAgent : IAgent
 
         // Lead with provenance so a cached answer is never mistaken for a fresh scan, and offer the
         // explicit escape hatch that the re-run guard honors.
-        var summary = $"From your audit {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {body}. "
+        var sourceLabel = last.Intent == AgentIntent.LogAnalysis ? "log analysis" : "audit";
+        var summary = $"From your {sourceLabel} {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {body}. "
             + BuildCoverageQualifier(last)
             + "Say 're-scan' for a fresh check.";
 
@@ -707,7 +715,8 @@ public sealed class SecurityAgent : IAgent
             ? "no issues found"
             : $"{findings.Count} finding(s){SevereClause(critical, high)}";
 
-        var summary = $"From your last audit {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {detail}. "
+        var sourceLabel = last.Intent == AgentIntent.LogAnalysis ? "log analysis" : "audit";
+        var summary = $"From your last {sourceLabel} {FormatAge(DateTime.UtcNow - last.UtcTimestamp)}: {detail}. "
             + BuildCoverageQualifier(last)
             + "Say 're-scan' for a fresh check.";
 

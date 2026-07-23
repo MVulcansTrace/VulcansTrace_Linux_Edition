@@ -145,5 +145,13 @@ public enum AgentIntent
     InvestigateRecurrence,
 
     /// <summary>Answer a diagnostic question asked during a recurrence investigation.</summary>
-    AnswerDiagnosticQuestion
+    AnswerDiagnosticQuestion,
+
+    /// <summary>
+    /// A pasted-log analysis produced outside the agent audit flow (the composer's
+    /// Analyze path). Recorded as a non-audit result so follow-up answers reflect
+    /// the latest run without affecting audit semantics (LastAuditIntent,
+    /// baseline/drift comparisons, audit history).
+    /// </summary>
+    LogAnalysis
 }

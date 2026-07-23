@@ -48,6 +48,15 @@ public interface IAgent
     AgentResult? LastResult => null;
 
     /// <summary>
+    /// Records a log analysis produced outside the agent audit flow (the composer's
+    /// Analyze path) as the agent's most recent result, so follow-up answers (short
+    /// verdict, findings recap) reflect the latest run instead of a stale audit.
+    /// Recorded as a non-audit result: audit semantics are untouched.
+    /// </summary>
+    /// <param name="result">The analysis wrapped as an agent result.</param>
+    void RecordLogAnalysisResult(AgentResult result) { }
+
+    /// <summary>
     /// Runs a targeted audit for the specified intent.
     /// </summary>
     /// <param name="intent">The structured intent to execute.</param>

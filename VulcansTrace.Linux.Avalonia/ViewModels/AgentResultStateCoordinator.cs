@@ -87,6 +87,22 @@ internal sealed class AgentResultStateCoordinator
         _historyCoordinator.AppendHistoryEntry(result);
     }
 
+    /// <summary>
+    /// Publishes a completed composer log analysis (a run produced outside the
+    /// agent audit flow): marks the run completed for page-state/session display
+    /// and exposes its findings, WITHOUT touching audit history or the last
+    /// audit intent — a log analysis is not a system audit.
+    /// </summary>
+    public void PublishAnalysisCompleted(AgentResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        LastResult = result;
+        HasCompletedAudit = true;
+        IsExportableAudit = IsAuditIntent(result.Intent);
+        NotifyResultStateChanged();
+    }
+
     private void NotifyResultStateChanged()
     {
         _notifyPropertyChanged(nameof(AgentViewModel.LastResult));
