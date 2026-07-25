@@ -69,11 +69,14 @@ internal sealed class AgentResultStateCoordinator
 
     /// <summary>
     /// Results that re-present the most recent audit in a different shape (a one-line verdict or
-    /// a findings recap) rather than producing a new audit. These are render-only with respect to
-    /// the view-model's "last result" state.
+    /// a findings recap) or report a metadata operation on it (baseline set/show, drift check)
+    /// rather than producing a new audit. These are render-only with respect to the view-model's
+    /// "last result" state; without this guard, a /baseline result (which carries no findings)
+    /// would replace the audit and reset the active-findings display to zero.
     /// </summary>
     private static bool IsCachedRendering(AgentIntent intent) =>
-        intent is AgentIntent.ShortVerdict or AgentIntent.ShowFindings;
+        intent is AgentIntent.ShortVerdict or AgentIntent.ShowFindings
+            or AgentIntent.SetBaseline or AgentIntent.ShowBaseline or AgentIntent.CheckDrift;
 
     public void PublishAuditCompleted(AgentResult result)
     {

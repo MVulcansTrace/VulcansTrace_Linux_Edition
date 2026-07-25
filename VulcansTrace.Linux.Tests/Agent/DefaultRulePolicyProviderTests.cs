@@ -45,6 +45,39 @@ public class DefaultRulePolicyProviderTests
     }
 
     [Fact]
+    public void GetPolicy_Srv003DesktopRoles_AutoPass()
+    {
+        var provider = new DefaultRulePolicyProvider();
+        foreach (var role in new[] { MachineRole.Workstation, MachineRole.DevMachine, MachineRole.LabBox })
+        {
+            var policy = provider.GetPolicy("SRV-003", role);
+            Assert.NotNull(policy);
+            Assert.True(policy.AutoPass);
+        }
+    }
+
+    [Fact]
+    public void GetPolicy_Srv003ServerAndRouter_NoPolicy()
+    {
+        var provider = new DefaultRulePolicyProvider();
+        Assert.Null(provider.GetPolicy("SRV-003", MachineRole.Server));
+        Assert.Null(provider.GetPolicy("SRV-003", MachineRole.Router));
+    }
+
+    [Fact]
+    public void GetPolicy_Srv003UserOverrideCanDisableAutoPass()
+    {
+        var inner = new InMemoryRulePolicyStore();
+        inner.SetPolicy("SRV-003", MachineRole.Workstation, new RulePolicy { AutoPass = false });
+        var provider = new DefaultRulePolicyProvider(inner);
+
+        var policy = provider.GetPolicy("SRV-003", MachineRole.Workstation);
+
+        Assert.NotNull(policy);
+        Assert.False(policy.AutoPass);
+    }
+
+    [Fact]
     public void GetPolicy_UnknownRule_ReturnsNull()
     {
         var provider = new DefaultRulePolicyProvider();

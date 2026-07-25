@@ -76,6 +76,13 @@ public sealed class DefaultRulePolicyProvider : IRulePolicyProvider
                 Parameters = new Dictionary<string, string> { ["expectedPublicPorts"] = "22,80,443,8080,8443" }.ToImmutableDictionary()
             },
 
+            // Workstation / DevMachine / LabBox: SSH server absence is expected — these
+            // roles need no remote management. AutoPass is applied centrally by the
+            // rule evaluation service, so the rule class itself stays untouched.
+            ("SRV-003", MachineRole.Workstation) => new RulePolicy { AutoPass = true },
+            ("SRV-003", MachineRole.DevMachine) => new RulePolicy { AutoPass = true },
+            ("SRV-003", MachineRole.LabBox) => new RulePolicy { AutoPass = true },
+
             // DevMachine: looser on unnecessary services (ignore nfs, smb)
             ("SRV-005", MachineRole.DevMachine) => new RulePolicy
             {

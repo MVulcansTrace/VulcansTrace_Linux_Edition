@@ -109,12 +109,16 @@ public class AgentResultStateCoordinatorTests
         harness.State.SetLastResult(new AgentResult { Intent = AgentIntent.CheckDrift });
 
         Assert.Equal(AgentIntent.SshCheck, harness.State.LastAuditIntent);
-        Assert.False(harness.State.IsExportableAudit);
+        // Drift checks are cached renderings: the completed audit stays exportable.
+        Assert.True(harness.State.IsExportableAudit);
     }
 
     [AvaloniaTheory]
     [InlineData(AgentIntent.ShortVerdict)]
     [InlineData(AgentIntent.ShowFindings)]
+    [InlineData(AgentIntent.SetBaseline)]
+    [InlineData(AgentIntent.ShowBaseline)]
+    [InlineData(AgentIntent.CheckDrift)]
     public void SetLastResult_CachedRendering_PreservesPriorAuditLastResult(AgentIntent cachedIntent)
     {
         var harness = new CoordinatorHarness();

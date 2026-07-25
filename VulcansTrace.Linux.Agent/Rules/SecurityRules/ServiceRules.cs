@@ -14,6 +14,20 @@ internal static class ServiceMitreMappings
 
 
 /// <summary>
+/// Matches systemd unit names against candidate service names by exact name or
+/// unit suffix (<c>name.service</c>, <c>name@instance.service</c>). This narrow
+/// matcher is for service families whose short names overlap unrelated units
+/// (for example, "login" inside systemd-logind.service).
+/// </summary>
+internal static class ServiceNameMatcher
+{
+    public static bool MatchesAny(string unitName, string[] candidates) =>
+        candidates.Any(c => unitName.Equals(c, StringComparison.OrdinalIgnoreCase)
+            || unitName.StartsWith(c + ".", StringComparison.OrdinalIgnoreCase)
+            || unitName.StartsWith(c + "@", StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
 /// SRV-001: Telnet service should not be running.
 /// </summary>
 public sealed class TelnetServiceRule : IRule
@@ -39,6 +53,9 @@ public sealed class TelnetServiceRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        // Keep broad protocol-name matching here. Real distro and custom units can
+        // prefix the daemon name (for example, mactelnet-server.service), and any
+        // running Telnet-family daemon is in scope for this rule.
         var telnet = data.RunningServices.FirstOrDefault(s =>
             s.Name.Contains("telnet", StringComparison.OrdinalIgnoreCase));
 
@@ -76,11 +93,23 @@ public sealed class FtpServiceRule : IRule
     };
     public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
+    private static bool IsSftpOnlyUnit(string unitName) =>
+        unitName.StartsWith("sftp", StringComparison.OrdinalIgnoreCase) ||
+        unitName.Contains("-sftp", StringComparison.OrdinalIgnoreCase) ||
+        unitName.Contains("_sftp", StringComparison.OrdinalIgnoreCase) ||
+        unitName.Contains(".sftp", StringComparison.OrdinalIgnoreCase) ||
+        unitName.Contains("@sftp", StringComparison.OrdinalIgnoreCase);
+
     public RuleResult Evaluate(ScanData data)
     {
+        // FTP-family unit names vary by implementation and distro (for example,
+        // atftpd.service and tftpd-hpa.service). Preserve broad coverage while
+        // excluding SFTP-only service tokens, which use SSH rather than legacy
+        // FTP. Token-aware matching matters because "vsftpd" contains the letters
+        // "sftp" but is an FTP daemon.
         var ftp = data.RunningServices.FirstOrDefault(s =>
             s.Name.Contains("ftp", StringComparison.OrdinalIgnoreCase) &&
-            !s.Name.Contains("sftp", StringComparison.OrdinalIgnoreCase));
+            !IsSftpOnlyUnit(s.Name));
 
         if (ftp != null)
         {
@@ -155,12 +184,15 @@ public sealed class LegacyRservicesRule : IRule
     };
     public IReadOnlyList<MitreTechnique> MitreTechniques => ServiceMitreMappings.Techniques;
 
-    private static readonly string[] LegacyServices = { "rsh", "rexec", "rlogin", "shell", "login", "exec" };
+    private static readonly string[] LegacyServices = { "rsh", "rexec", "rlogin" };
 
     public RuleResult Evaluate(ScanData data)
     {
+        // Exact unit names only ("rsh.service", "rlogin@.service"). Bare substring
+        // matching on names like "login" false-positives on systemd-logind.service,
+        // which runs on every systemd host.
         var found = data.RunningServices.FirstOrDefault(s =>
-            LegacyServices.Any(l => s.Name.Contains(l, StringComparison.OrdinalIgnoreCase)));
+            ServiceNameMatcher.MatchesAny(s.Name, LegacyServices));
 
         if (found != null)
         {

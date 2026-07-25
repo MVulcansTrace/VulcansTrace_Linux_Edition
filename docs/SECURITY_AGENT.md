@@ -606,6 +606,8 @@ The agent supports local role-aware policy for `Workstation`, `Server`, `LabBox`
 
 The policy file lives at `~/.config/VulcansTrace/policy.json`. It can disable a rule, auto-pass a rule, override severity, or provide rule-specific parameters. Current contextual rules include `PORT-001`, `PORT-002`, `SRV-005`, `SSH-007`, `KERN-005`, and `LOG-005`.
 
+The built-in defaults also auto-pass `SRV-003` when SSH is absent on `Workstation`, `DevMachine`, and `LabBox`; `Server` and `Router` continue to enforce the rule. A user policy can explicitly set `autoPass` to `false` to override that default.
+
 The Avalonia UI already exposes a **Machine role** dropdown that hot-swaps the agent role without code changes; the CLI uses the `--role` flag.
 
 ## Explanation Behavior

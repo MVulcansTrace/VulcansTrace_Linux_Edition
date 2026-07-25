@@ -40,6 +40,20 @@ public class AgentViewModelTests
 
     private static RemediationPlanBuilder PlanBuilder => new(new ExplanationProvider());
 
+    // Icon-provider registration is process-global and view tests share one test-host
+    // process, so only the first view test to run may register the "mdi" prefix.
+    private static void RegisterIconProviderOnce()
+    {
+        try
+        {
+            IconProvider.Current.Register<MaterialDesignIconProvider>();
+        }
+        catch (ArgumentException)
+        {
+            // Already registered by an earlier view test in this process.
+        }
+    }
+
     [AvaloniaFact]
     public void NotifySelectedFindingChanged_RefreshesExplainSelectedState()
     {
@@ -2483,7 +2497,7 @@ public class AgentViewModelTests
         // the need — vm-level tests cannot see template resolution failures).
         // The headless TestApp skips App.axaml.cs, so register the icon provider
         // the same way the real app startup does — before any view resolves icons.
-        IconProvider.Current.Register<MaterialDesignIconProvider>();
+        RegisterIconProviderOnce();
 
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
         var chips = new[]
@@ -2546,6 +2560,93 @@ public class AgentViewModelTests
             Assert.Contains("FindingCardOpenENG-POLICY-001", ids);
             Assert.Contains("FindingCardSuppressENG-POLICY-001", ids);
             Assert.Contains("ThreadMoreFindingsLink", ids);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void ChatList_AgentReplyFollowingUserAction_ForceScrollsToBottom()
+    {
+        // /drift issue shape: the user issues a command, scrolls up while the operation
+        // runs, and the agent's prose response must still snap the chat to the bottom —
+        // it is the answer to the user's own action, not background noise.
+        RegisterIconProviderOnce();
+
+        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
+        for (var i = 0; i < 80; i++)
+        {
+            vm.Messages.Add(new AgentMessageViewModel { Text = $"history message {i} with enough text to form a bubble", IsInfo = true });
+        }
+
+        var window = new Window
+        {
+            Width = 1400,
+            Height = 1000,
+            Content = new AgentView { DataContext = vm }
+        };
+        try
+        {
+            var app = Application.Current!;
+            app.Resources["SeverityToBrushConverter"] = new SeverityToBrushConverter();
+            app.Resources["SeverityToForegroundBrushConverter"] = new SeverityToForegroundBrushConverter();
+            app.Resources["IntToBoolConverter"] = new IntToBoolConverter();
+            window.Styles.Add(new StyleInclude((Uri?)null)
+            {
+                Source = new Uri("avares://VulcansTrace.Linux.Avalonia/Themes/VtDesignTokens.axaml")
+            });
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var listBox = window.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "ChatListBox");
+            var scrollViewer = listBox.GetVisualDescendants().OfType<ScrollViewer>().First();
+
+            double MaxOffset() => scrollViewer.Extent.Height - scrollViewer.Viewport.Height;
+
+            // The user action itself snaps to the bottom (existing behavior).
+            vm.Messages.Add(new AgentMessageViewModel { Text = "Check drift (FullAudit)", IsUser = true });
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            // The user scrolls up while the operation runs.
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, 0);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(scrollViewer.Offset.Y < MaxOffset(), "precondition: chat is scrolled up");
+
+            // The agent's response directly follows the user's action. In the real flow it
+            // arrives queued for streaming (an empty bubble), so the add-time scroll cannot
+            // land yet — stay scrolled up past it and only finalize the stream later.
+            var reply = new AgentMessageViewModel { Text = "No drift detected against baseline.", IsProse = true };
+            vm.Messages.Add(reply);
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, 0);
+            reply.IsStreamingPending = true;
+            reply.IsStreaming = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(scrollViewer.Offset.Y < MaxOffset(), "precondition: still scrolled up while streaming");
+
+            // Stream finalizes: the bubble now has its real height and the snap must land.
+            reply.IsStreaming = false;
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(scrollViewer.Offset.Y >= MaxOffset() - 64,
+                $"expected snap to bottom after reply to user action (offset {scrollViewer.Offset.Y}, max {MaxOffset()})");
+
+            // Control: a later agent message that does NOT follow a user action must
+            // not yank the view when the user has deliberately scrolled up.
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, 0);
+            Dispatcher.UIThread.RunJobs();
+            vm.Messages.Add(new AgentMessageViewModel { Text = "unrelated background detail", IsProse = true });
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(scrollViewer.Offset.Y < MaxOffset(),
+                "agent message not following a user action must respect the scrolled-up position");
         }
         finally
         {

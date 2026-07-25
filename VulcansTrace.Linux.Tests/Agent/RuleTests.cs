@@ -189,6 +189,176 @@ public class RuleTests
     }
 
     [Fact]
+    public void LegacyRservicesRule_RshRunning_Fails()
+    {
+        var rule = new LegacyRservicesRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "rsh.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void LegacyRservicesRule_RloginInstance_Fails()
+    {
+        var rule = new LegacyRservicesRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "rlogin@23.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void LegacyRservicesRule_SystemdLogind_Passes()
+    {
+        // systemd-logind runs on every systemd host; bare substring matching on
+        // "login" used to flag it as a Critical r-services finding.
+        var rule = new LegacyRservicesRule();
+        var data = new ScanData
+        {
+            RunningServices = new[]
+            {
+                new RunningService { Name = "systemd-logind.service", State = "running" },
+                new RunningService { Name = "dbus.service", State = "running" },
+                new RunningService { Name = "rsyslog.service", State = "running" }
+            }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void TelnetServiceRule_TelnetdRunning_Fails()
+    {
+        var rule = new TelnetServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "telnetd.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void TelnetServiceRule_MacTelnetServerRunning_Fails()
+    {
+        // Distro and custom unit names may prefix the daemon name. They remain
+        // in scope because the rule prohibits running Telnet-family servers.
+        var rule = new TelnetServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "mactelnet-server.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void FtpServiceRule_VsftpdRunning_Fails()
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "vsftpd.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void FtpServiceRule_ProftpdRunning_Fails()
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "proftpd.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+    }
+
+    [Theory]
+    [InlineData("atftpd.service")]
+    [InlineData("tftpd-hpa.service")]
+    public void FtpServiceRule_TftpFamilyServerRunning_Fails(string unitName)
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = unitName, State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.False(result.Passed);
+        Assert.Equal(Severity.High, result.Severity);
+    }
+
+    [Fact]
+    public void FtpServiceRule_SftpOnly_Passes()
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "sftpgo.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void FtpServiceRule_OpenSshSftpOnly_Passes()
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "openssh-sftp-server.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
+    public void FtpServiceRule_NoFtp_Passes()
+    {
+        var rule = new FtpServiceRule();
+        var data = new ScanData
+        {
+            RunningServices = new[] { new RunningService { Name = "nginx.service", State = "running" } }
+        };
+
+        var result = rule.Evaluate(data);
+
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
     public void SshNonDefaultPortRule_Workstation_PassesOnDefaultPort()
     {
         var rule = new SshNonDefaultPortRule();

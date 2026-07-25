@@ -457,13 +457,22 @@ public partial class AgentView : UserControl
         var isCardMessage = e.NewItems.OfType<AgentMessageViewModel>().Any(m =>
             m is AnalysisSummaryCardMessageViewModel or FindingCardMessageViewModel or MoreFindingsLinkMessageViewModel);
 
+        // An agent message that directly follows the user's own action is the response
+        // to that action (command replies, /baseline and /drift results). Snap to the
+        // bottom even if the user scrolled up while the operation ran — otherwise the
+        // response they explicitly asked for can land off-screen. For streamed prose
+        // this add-time scroll only reaches the pending (still empty) bubble; the
+        // finalize branch in OnStreamingMessagePropertyChanged repeats the snap once
+        // the message has its real height.
+        var followsUserAction = e.NewItems.OfType<AgentMessageViewModel>().Any(MessageFollowsUserAction);
+
         // Subscribe to prose messages (set at add time) so queued bubbles that begin
         // streaming later still drive the per-tick auto-scroll.
         AttachStreamingMessageSubscriptions(e.NewItems.OfType<AgentMessageViewModel>().Where(message =>
             message.IsProse && !message.IsUser));
 
         // Defer scrolling until layout has updated with the new item.
-        Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: isUserMessage || isCardMessage), DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: isUserMessage || isCardMessage || followsUserAction), DispatcherPriority.Background);
     }
 
     private void OnStreamingMessagePropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -479,7 +488,9 @@ public partial class AgentView : UserControl
 
         // A streaming message is finalized once it is neither actively streaming nor queued.
         // Drop the subscription then. Either transition (stream finishing, or a queued message
-        // being revealed) can change what is on screen, so post a scroll in both cases.
+        // being revealed) can change what is on screen, so post a scroll in both cases. If the
+        // message was the reply to the user's own action, force the scroll: the bubble had no
+        // real height when it was added, so only now can the snap-to-bottom actually land.
         var becameInactive = e.PropertyName == nameof(AgentMessageViewModel.IsStreaming) && !message.IsStreaming;
         var becameRevealed = e.PropertyName == nameof(AgentMessageViewModel.IsStreamingPending) && !message.IsStreamingPending;
         if (becameInactive || becameRevealed)
@@ -490,8 +501,22 @@ public partial class AgentView : UserControl
                 message.PropertyChanged -= OnStreamingMessagePropertyChanged;
             }
 
-            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: false), DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: MessageFollowsUserAction(message)), DispatcherPriority.Background);
         }
+    }
+
+    /// <summary>
+    /// Whether the message directly follows a user message in the chat, i.e. it is the
+    /// response to the user's own action (command replies, /baseline and /drift results).
+    /// </summary>
+    private bool MessageFollowsUserAction(AgentMessageViewModel message)
+    {
+        var messages = _viewModel?.Messages;
+        if (messages is null)
+            return false;
+
+        var index = messages.IndexOf(message);
+        return index > 0 && messages[index - 1].IsUser;
     }
 
     private void AttachStreamingMessageSubscriptions(IEnumerable<AgentMessageViewModel> messages)

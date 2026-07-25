@@ -537,6 +537,7 @@ The agent supports per-machine-role rule tuning via a local policy file. Roles a
 Rules can be stricter or looser depending on the role. For example:
 - `PORT-001` (SSH on default port) is stricter on **Server** and looser on **Workstation**.
 - `PORT-002` (wide-open services) allows extra ports such as `8080` on **DevMachine**.
+- `SRV-003` (SSH service availability) auto-passes when SSH is absent on **Workstation**, **DevMachine**, and **LabBox**; it remains enforced on **Server** and **Router**.
 - `SRV-005` (unnecessary services) ignores `nfs` and `smb` on **DevMachine**.
 
 Policies are stored in `~/.config/VulcansTrace/policy.json` (or `$XDG_CONFIG_HOME/VulcansTrace/policy.json` if `XDG_CONFIG_HOME` is set) and can override:
