@@ -482,7 +482,9 @@ public partial class AgentView : UserControl
 
         if (e.PropertyName == nameof(AgentMessageViewModel.StreamingText))
         {
-            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: false), DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(
+                () => ScrollChatToEnd(force: message.KeepInViewWhileStreaming),
+                DispatcherPriority.Background);
             return;
         }
 
@@ -501,7 +503,11 @@ public partial class AgentView : UserControl
                 message.PropertyChanged -= OnStreamingMessagePropertyChanged;
             }
 
-            Dispatcher.UIThread.Post(() => ScrollChatToEnd(force: MessageFollowsUserAction(message)), DispatcherPriority.Background);
+            Dispatcher.UIThread.Post(
+                () => ScrollChatToEnd(
+                    force: message.KeepInViewWhileStreaming ||
+                        MessageFollowsUserAction(message)),
+                DispatcherPriority.Background);
         }
     }
 

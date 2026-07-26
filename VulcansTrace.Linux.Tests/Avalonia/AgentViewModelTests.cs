@@ -813,6 +813,40 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task SendQueryCommand_ScenarioFailure_UsesProductionErrorState()
+    {
+        Environment.SetEnvironmentVariable("VT_MACHINE_MODE", "1");
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", "agent-error");
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", "query");
+        MachineMode.ResetForTests();
+        try
+        {
+            var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
+            {
+                UserQuery = "Exercise deterministic failure"
+            };
+
+            vm.SendQueryCommand.Execute(null);
+            await vm.SendQueryCommand.ExecutionTask;
+            FlushDispatcher();
+
+            Assert.Equal(AgentPageState.Error, vm.CurrentPageState);
+            Assert.Contains(
+                vm.Messages,
+                message => message.Text ==
+                    "Agent error: The deterministic scenario Agent dependency failed." &&
+                    message.IsError);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VT_MACHINE_MODE", null);
+            Environment.SetEnvironmentVariable("VT_SCENARIO_ID", null);
+            Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", null);
+            MachineMode.ResetForTests();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task SendQueryCommand_AgentError_StylingUsesErrorBubbleConverter()
     {
         var vm = new AgentViewModel(new ErrorAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -2265,6 +2299,7 @@ public class AgentViewModelTests
         Assert.False(summary.IsStreamingPending);
         Assert.False(narrative.IsStreaming);
         Assert.True(narrative.IsStreamingPending);
+        Assert.All(prose, message => Assert.True(message.KeepInViewWhileStreaming));
 
         // Finishing the summary must promote the narrative to active (no full-text flash first).
         while (summary.IsStreaming)
@@ -2535,6 +2570,43 @@ public class AgentViewModelTests
 
             Assert.True(scrollViewer.Offset.Y >= MaxOffset() - 64,
                 $"expected snap to bottom after reply to user action (offset {scrollViewer.Offset.Y}, max {MaxOffset()})");
+
+            // A response can contain several sequential prose bubbles. Only the first
+            // directly follows the user row, but later bubbles are still part of the
+            // requested result and must remain visible as their height grows.
+            vm.Messages.Add(new AgentMessageViewModel { Text = "Run a full audit", IsUser = true });
+            var firstBatchReply = new AgentMessageViewModel
+            {
+                Text = "Capability summary",
+                IsProse = true,
+                KeepInViewWhileStreaming = true,
+                IsStreaming = true
+            };
+            var secondBatchReply = new AgentMessageViewModel
+            {
+                Text = "Long narrative",
+                IsProse = true,
+                KeepInViewWhileStreaming = true,
+                IsStreamingPending = true
+            };
+            vm.Messages.Add(firstBatchReply);
+            vm.Messages.Add(secondBatchReply);
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, 0);
+            Dispatcher.UIThread.RunJobs();
+            firstBatchReply.IsStreaming = false;
+            secondBatchReply.IsStreamingPending = false;
+            secondBatchReply.IsStreaming = true;
+            secondBatchReply.StreamingText = new string('x', 240);
+            Dispatcher.UIThread.RunJobs();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(scrollViewer.Offset.Y >= MaxOffset() - 64,
+                $"expected later response bubble to stay visible (offset {scrollViewer.Offset.Y}, max {MaxOffset()})");
+            secondBatchReply.IsStreaming = false;
+            Dispatcher.UIThread.RunJobs();
 
             // Control: a later agent message that does NOT follow a user action must
             // not yank the view when the user has deliberately scrolled up.

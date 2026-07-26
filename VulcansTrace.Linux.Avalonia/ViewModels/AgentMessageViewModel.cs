@@ -42,6 +42,7 @@ public class AgentMessageViewModel : ViewModelBase
     private bool _isProse;
     private bool _isStreaming;
     private bool _isStreamingPending;
+    private bool _keepInViewWhileStreaming;
     private string _streamingText = "";
     private string _streamingFinalText = "";
     private IReadOnlyList<AgentMessageBlock> _formattedBlocks = Array.Empty<AgentMessageBlock>();
@@ -172,6 +173,16 @@ public class AgentMessageViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanBePinned));
             }
         }
+    }
+
+    /// <summary>
+    /// Gets or sets whether this message belongs to a user-requested streamed
+    /// result batch whose growing bubble should remain in view.
+    /// </summary>
+    public bool KeepInViewWhileStreaming
+    {
+        get => _keepInViewWhileStreaming;
+        set => SetField(ref _keepInViewWhileStreaming, value);
     }
 
     /// <summary>Gets or sets the full final text, exposed immediately for accessibility.</summary>

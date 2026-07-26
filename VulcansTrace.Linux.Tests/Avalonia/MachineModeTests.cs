@@ -11,6 +11,8 @@ public class MachineModeTests : IDisposable
     {
         Environment.SetEnvironmentVariable("VT_MACHINE_MODE", null);
         Environment.SetEnvironmentVariable("VT_REDUCED_MOTION", null);
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", null);
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", null);
         MachineMode.ResetForTests();
     }
 
@@ -18,6 +20,8 @@ public class MachineModeTests : IDisposable
     {
         Environment.SetEnvironmentVariable("VT_MACHINE_MODE", null);
         Environment.SetEnvironmentVariable("VT_REDUCED_MOTION", null);
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", null);
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", null);
         MachineMode.ResetForTests();
     }
 
@@ -82,5 +86,24 @@ public class MachineModeTests : IDisposable
         MachineMode.ResetForTests();
 
         Assert.False(MotionSettings.IsEnabled);
+    }
+
+    [Fact]
+    public void ScenarioFailure_RequiresMachineModeScenarioAndExactFault()
+    {
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", "agent-error");
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", "query");
+        Assert.False(ScenarioMode.ShouldFailAgentQuery);
+
+        Environment.SetEnvironmentVariable("VT_MACHINE_MODE", "1");
+        MachineMode.ResetForTests();
+        Assert.True(ScenarioMode.ShouldFailAgentQuery);
+
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", "audit");
+        Assert.False(ScenarioMode.ShouldFailAgentQuery);
+
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", "query");
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", null);
+        Assert.False(ScenarioMode.ShouldFailAgentQuery);
     }
 }

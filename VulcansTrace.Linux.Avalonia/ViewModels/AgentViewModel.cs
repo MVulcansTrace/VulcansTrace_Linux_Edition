@@ -1733,6 +1733,11 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         await _operationRunner.RunAsync(async (progress, token) =>
         {
             CurrentOperationTitle = query;
+            if (ScenarioMode.ShouldFailAgentQuery)
+            {
+                throw new InvalidOperationException(
+                    "The deterministic scenario Agent dependency failed.");
+            }
             var result = await _queryExecutor.ExecuteAsync(query, LogText, SelectedFindingProvider, progress, token);
 
             // SetLastResult and PresentFindings must run in the same dispatcher
@@ -1889,6 +1894,10 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         // Hide every streamable prose bubble until its turn; only the active one is shown streaming.
         foreach (var message in streamableMessages)
         {
+            // PresentFindings only streams results produced by an explicit
+            // Agent operation. Every prose bubble belongs to that one response,
+            // even when only the first bubble directly follows the user row.
+            message.KeepInViewWhileStreaming = true;
             message.StreamingText = string.Empty;
             message.IsStreaming = false;
             message.IsStreamingPending = true;
