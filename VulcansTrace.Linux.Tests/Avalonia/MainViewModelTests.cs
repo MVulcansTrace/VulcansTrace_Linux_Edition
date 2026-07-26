@@ -410,6 +410,24 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
+    public async Task AgentAuditCompleted_WhenEveryCheckIsNotApplicable_ShowsInconclusiveState()
+    {
+        using var vm = BuildViewModel(agent: new MockAgent(allChecksNotApplicable: true));
+
+        vm.Agent.FullAuditCommand.Execute(null);
+        await vm.Agent.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
+
+        var card = vm.Agent.Messages.OfType<AnalysisSummaryCardMessageViewModel>().Single();
+        Assert.Equal("Inconclusive. No checks ran.", card.SummaryLine);
+        Assert.True(vm.Agent.HasInconclusiveResult);
+        Assert.False(vm.Agent.HasNoResultFindings);
+        Assert.Equal("Limited", vm.Agent.TracePulseStatusText);
+        Assert.Equal("No checks ran in the latest scope", vm.Agent.TracePulseDetailText);
+        Assert.Equal("Limited", vm.Agent.CurrentSessionStatus);
+    }
+
+    [AvaloniaFact]
     public async Task AnalyzeAsync_PostsFindingCardsAndMoreLink()
     {
         var now = DateTime.UtcNow;
@@ -943,6 +961,13 @@ not a firewall line";
 
     private sealed class MockAgent : IAgent
     {
+        private readonly bool _allChecksNotApplicable;
+
+        public MockAgent(bool allChecksNotApplicable = false)
+        {
+            _allChecksNotApplicable = allChecksNotApplicable;
+        }
+
         public Task<AgentResult> AskAsync(string query, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
@@ -961,7 +986,17 @@ not a firewall line";
                 Intent = intent,
                 Summary = "Mock audit complete",
                 AgentFindings = Array.Empty<Finding>(),
-                Warnings = Array.Empty<string>()
+                Warnings = Array.Empty<string>(),
+                RuleResults = _allChecksNotApplicable
+                    ? new[]
+                    {
+                        RuleResult.NotApplicable(
+                            "TEST-001",
+                            "Test",
+                            "TEST-001",
+                            "Test data source was unavailable.")
+                    }
+                    : Array.Empty<RuleResult>()
             });
         }
 

@@ -1439,7 +1439,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Timeline.LoadAnalysisResult(analysisResult, agentTraceMap.Edges);
         Logs.Load(analysisResult, string.Empty);
         IncidentStory.LoadTraceMap(agentTraceMap);
-        PostAnalysisSummaryCard($"Analysis · {agentResult.UtcTimestamp.ToLocalTime():MMM d HH:mm} · Agent audit");
+        PostAnalysisSummaryCard(
+            $"Analysis · {agentResult.UtcTimestamp.ToLocalTime():MMM d HH:mm} · Agent audit",
+            noChecksRan: agentResult.RuleResults.Count > 0 &&
+                agentResult.RuleResults.All(rule => rule.Status == RuleStatus.NotApplicable));
         PostFindingCards();
         InjectCountermeasureMessages(agentTraceMap);
         Suppressions.Refresh();
@@ -1456,7 +1459,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// so the card counts always match the KPI strip. The chips mirror the KPI cards —
     /// same navigate command, same parameters.
     /// </summary>
-    private void PostAnalysisSummaryCard(string contextLine)
+    private void PostAnalysisSummaryCard(string contextLine, bool noChecksRan = false)
     {
         var findings = Findings.FindingsCount;
         var highCritical = Findings.HighCriticalCount;
@@ -1464,7 +1467,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var parseErrors = Findings.ParseErrorCount;
 
         var summaryLine = findings == 0
-            ? "Done. No findings."
+            ? noChecksRan
+                ? "Inconclusive. No checks ran."
+                : "Done. No findings."
             : $"Done. {findings} {(findings == 1 ? "finding" : "findings")} — {highCritical} High/Critical, {warnings} {(warnings == 1 ? "warning" : "warnings")}.";
 
         var chips = new List<SummaryChipViewModel>

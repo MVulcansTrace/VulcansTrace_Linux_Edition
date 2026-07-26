@@ -16,6 +16,7 @@ using VulcansTrace.Linux.Agent.Messages;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
 using VulcansTrace.Linux.Agent.Remediation;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Sessions;
 using VulcansTrace.Linux.Agent.Suggestions;
 using VulcansTrace.Linux.Agent.ThreatIntel;
@@ -403,6 +404,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public string TracePulseStatusText => CurrentPageState switch
     {
         AgentPageState.Running => "Investigating",
+        AgentPageState.Results when HasInconclusiveResult => "Limited",
         AgentPageState.Results => "Completed",
         AgentPageState.Error => "Blocked",
         _ => "Ready"
@@ -413,6 +415,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     {
         AgentPageState.Running when !string.IsNullOrWhiteSpace(AuditProgressMessage) => AuditProgressMessage,
         AgentPageState.Running => CurrentOperationTitle,
+        AgentPageState.Results when HasInconclusiveResult => "No checks ran in the latest scope",
         AgentPageState.Results => ActiveFindingCount == 1
             ? "1 active finding in the latest run"
             : $"{ActiveFindingCount} active findings in the latest run",
@@ -493,7 +496,19 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public bool HasResultFindings => ResultFindings.Count > 0;
 
     /// <summary>Gets whether the completed audit finished cleanly with no findings.</summary>
-    public bool HasNoResultFindings => _resultState.HasCompletedAudit && ResultFindings.Count == 0;
+    public bool HasNoResultFindings =>
+        _resultState.HasCompletedAudit &&
+        ResultFindings.Count == 0 &&
+        !HasInconclusiveResult;
+
+    /// <summary>
+    /// Gets whether the completed scope produced no findings because every rule was
+    /// not applicable, so no check actually ran.
+    /// </summary>
+    public bool HasInconclusiveResult =>
+        _resultState.HasCompletedAudit &&
+        _resultState.LastResult is { RuleResults.Count: > 0 } result &&
+        result.RuleResults.All(rule => rule.Status == RuleStatus.NotApplicable);
 
     /// <summary>Gets the pin action label for the selected result finding.</summary>
     public string SelectedResultFindingPinLabel => SelectedResultFinding?.IsPinned == true ? "Unpin" : "Pin";
@@ -517,6 +532,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     public string CurrentSessionStatus => CurrentPageState switch
     {
         AgentPageState.Running => "Running",
+        AgentPageState.Results when HasInconclusiveResult => "Limited",
         AgentPageState.Results => "Completed",
         AgentPageState.Error => "Error",
         _ => "Idle"
@@ -613,6 +629,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         }
         OnPropertyChanged(nameof(HasResultFindings));
         OnPropertyChanged(nameof(HasNoResultFindings));
+        OnPropertyChanged(nameof(HasInconclusiveResult));
     }
 
     /// <summary>Clears the results-grid selection when another finding surface takes focus.</summary>

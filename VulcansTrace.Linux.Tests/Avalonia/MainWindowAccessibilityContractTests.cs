@@ -157,6 +157,34 @@ public class MainWindowAccessibilityContractTests
     }
 
     [Fact]
+    public void CollectionContainers_ExposeItemLabelsInsteadOfModelTypeNames()
+    {
+        var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
+        var messageContainerName = agent.Descendants()
+            .Where(element =>
+                element.Name.LocalName == "Style" &&
+                Attribute(element, "Selector")?.Value == "ListBoxItem")
+            .SelectMany(style => style.Elements())
+            .Single(element =>
+                element.Name.LocalName == "Setter" &&
+                Attribute(element, "Property")?.Value == "AutomationProperties.Name");
+        Assert.Equal(
+            "{ReflectionBinding AutomationName}",
+            Attribute(messageContainerName, "Value")?.Value);
+
+        var hub = LoadAvaloniaDocument("Views/NavigationHubView.axaml");
+        var tabContainerName = hub.Descendants()
+            .Where(element =>
+                element.Name.LocalName == "Style" &&
+                Attribute(element, "Selector")?.Value == "TabItem")
+            .SelectMany(style => style.Elements())
+            .Single(element =>
+                element.Name.LocalName == "Setter" &&
+                Attribute(element, "Property")?.Value == "AutomationProperties.Name");
+        Assert.Equal("{Binding Label}", Attribute(tabContainerName, "Value")?.Value);
+    }
+
+    [Fact]
     public void LinuxAtSpiTargets_DoNotDependOnAutomationIdAlone()
     {
         var agent = LoadAvaloniaDocument("Views/AgentView.axaml");

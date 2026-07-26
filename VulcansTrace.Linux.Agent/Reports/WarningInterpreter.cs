@@ -248,10 +248,13 @@ public sealed class WarningInterpreter
                 "Install iptables or nftables, or run this on a production Linux host.");
         }
 
-        var named = backends.Count == 1 ? backends[0] : string.Join(" or ", backends);
+        var named = backends.Count == 1 ? backends[0] : string.Join(" and ", backends);
+        var subject = backends.Count == 1
+            ? $"{named} firewall backend was"
+            : $"{named} firewall backends were";
         return (
-            $"This system doesn't have {named} installed, so I couldn't inspect active firewall rules.",
-            $"Install {named}, or run this on a production Linux host.");
+            $"The {subject} unavailable, so I couldn't inspect active firewall rules.",
+            $"Install {named} or make it available on PATH, or run this on a production Linux host.");
     }
 
     private static IReadOnlyList<UserFriendlyWarning> CollapseMissingTools(

@@ -84,7 +84,7 @@ Hardening pass over the searchable slash-command help popup (? button, Ctrl+K, `
   - Code: `VulcansTrace.Linux.Agent/Scanners/FirewallScanner.cs`
   - Tests: `VulcansTrace.Linux.Tests/Agent/ScannerParserFixtureTests.cs`
 
-- **User-friendly warning interpretation** — raw scanner warnings are classified into `MissingTool`, `PermissionDenied`, `ConfigurationMissing`, or `ScannerError`, collapsed, and surfaced in plain language. `IntentSummaryBuilder` produces friendly lead sentences when a primary tool is missing (e.g., "I ran a firewall check. `iptables` is missing, so only partial results were available.").
+- **User-friendly warning interpretation** — raw scanner warnings are classified into `MissingTool`, `PermissionDenied`, `ConfigurationMissing`, or `ScannerError`, collapsed, and surfaced in plain language. `IntentSummaryBuilder` produces friendly lead sentences when a primary tool is unavailable (e.g., "I ran a firewall check. The `iptables` firewall backend was unavailable, so only partial results were available.").
   - Code: `VulcansTrace.Linux.Agent/Reports/WarningInterpreter.cs`, `VulcansTrace.Linux.Agent/Reports/UserFriendlyWarning.cs`, `VulcansTrace.Linux.Agent/Reports/IntentSummaryBuilder.cs`, `VulcansTrace.Linux.Avalonia/ViewModels/AgentResultPresenter.cs`
   - Tests: `VulcansTrace.Linux.Tests/Agent/Reports/WarningInterpreterTests.cs`, `VulcansTrace.Linux.Tests/Agent/Reports/IntentSummaryBuilderTests.cs`, `VulcansTrace.Linux.Tests/Avalonia/AgentResultPresenterTests.cs`
 

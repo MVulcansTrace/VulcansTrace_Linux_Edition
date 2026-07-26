@@ -142,7 +142,8 @@ public class WarningInterpreterTests
 
         var friendly = Assert.Single(result);
         Assert.Equal(WarningCategory.MissingTool, friendly.Category);
-        Assert.Contains("iptables installed", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("iptables firewall backend", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unavailable", friendly.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("nftables", friendly.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -159,7 +160,8 @@ public class WarningInterpreterTests
 
         var friendly = Assert.Single(result);
         Assert.Equal(WarningCategory.MissingTool, friendly.Category);
-        Assert.Contains("iptables or nftables installed", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("iptables and nftables firewall backends", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unavailable", friendly.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

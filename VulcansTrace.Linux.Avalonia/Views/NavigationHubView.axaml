@@ -20,6 +20,11 @@
                 SelectedItem="{Binding SelectedSection}"
                 AutomationProperties.AutomationId="NavigationHubTabs"
                 AutomationProperties.Name="{Binding Title, StringFormat='{}{0} sections'}">
+      <TabControl.Styles>
+        <Style Selector="TabItem">
+          <Setter Property="AutomationProperties.Name" Value="{Binding Label}"/>
+        </Style>
+      </TabControl.Styles>
       <TabControl.ItemTemplate>
         <DataTemplate DataType="models:NavigationHubSection">
           <StackPanel Orientation="Horizontal" Spacing="7">

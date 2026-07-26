@@ -119,7 +119,7 @@ Raw scanner warnings are interpreted before they reach the UI or narrative:
 
 - `WarningInterpreter` classifies each warning into `MissingTool`, `PermissionDenied`, `ConfigurationMissing`, or `ScannerError`, collapses duplicates, and extracts the missing tool or permission path when present.
 - `UserFriendlyWarning` carries the classification and a plain-language message.
-- `IntentSummaryBuilder` builds a friendly lead sentence for the audit intent when a primary tool is missing (e.g., "I ran a firewall check. `iptables` is missing, so only partial results were available.").
+- `IntentSummaryBuilder` builds a friendly lead sentence for the audit intent when a primary tool is unavailable (e.g., "I ran a firewall check. The `iptables` firewall backend was unavailable, so only partial results were available.").
 - `AgentResultPresenter` integrates the interpreter and summary builder so chat messages surface missing tools, permission limits, and scanner errors in plain language instead of dumping raw warning strings.
 
 The `ShowEvidence` follow-up path is handled by `EvidenceProvenanceService`:

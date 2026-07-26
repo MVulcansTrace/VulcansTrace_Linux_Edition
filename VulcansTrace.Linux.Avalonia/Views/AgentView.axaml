@@ -232,6 +232,18 @@
                          VerticalAlignment="Center"/>
             </StackPanel>
           </Border>
+          <Border IsVisible="{Binding HasInconclusiveResult}"
+                  Theme="{StaticResource VtCard}" Padding="14"
+                  AutomationProperties.AutomationId="AgentInconclusiveAuditState"
+                  AutomationProperties.Name="Audit incomplete because no checks ran">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+              <i:Icon Value="mdi-alert-circle-outline" FontSize="24"
+                      Foreground="{StaticResource VtSeverityMediumBrush}"/>
+              <TextBlock Text="Audit incomplete — no checks ran"
+                         FontWeight="SemiBold" Foreground="{StaticResource VtTextPrimaryBrush}"
+                         VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
         </Grid>
 
         <!-- The Agent conversation is the permanent workspace. -->
@@ -293,6 +305,11 @@
                    Classes="VtChatList"
                    ItemsSource="{Binding Messages}"
                    AutomationProperties.AutomationId="ChatListBox">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="AutomationProperties.Name" Value="{ReflectionBinding AutomationName}"/>
+              </Style>
+            </ListBox.Styles>
             <ListBox.ItemsPanel>
               <ItemsPanelTemplate>
                 <StackPanel Spacing="0"/>
