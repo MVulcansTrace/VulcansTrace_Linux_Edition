@@ -119,6 +119,35 @@ public class MainViewModelTests : IAsyncLifetime
     }
 
     [AvaloniaFact]
+    public async Task ShowStatusBar_FollowsAgentBusyStateOnAgentPage()
+    {
+        _vm.Dispose();
+        _vm = BuildViewModel(agent: new CancellableAgent());
+        var statusBarNotifications = 0;
+        _vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MainViewModel.ShowStatusBar))
+            {
+                statusBarNotifications++;
+            }
+        };
+
+        _vm.Agent.FullAuditCommand.Execute(null);
+        FlushDispatcher();
+
+        Assert.True(_vm.Agent.IsBusy);
+        Assert.True(_vm.ShowStatusBar);
+        Assert.True(statusBarNotifications > 0);
+
+        _vm.Agent.CancelQueryCommand.Execute(null);
+        await _vm.Agent.FullAuditCommand.ExecutionTask!;
+        FlushDispatcher();
+
+        Assert.False(_vm.Agent.IsBusy);
+        Assert.False(_vm.ShowStatusBar);
+    }
+
+    [AvaloniaFact]
     public void NavigationItems_ExposeFiveDestinationsWithCapabilityHubs()
     {
         Assert.Equal(
@@ -938,7 +967,7 @@ not a firewall line";
         return xaml[elementStart..(elementEnd + 2)];
     }
 
-    private sealed class MockAgent : IAgent
+    private class MockAgent : IAgent
     {
         private readonly bool _allChecksNotApplicable;
 
@@ -958,7 +987,7 @@ not a firewall line";
             });
         }
 
-        public Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
+        public virtual Task<AgentResult> RunAuditAsync(AgentIntent intent, string? rawLog, IProgress<AgentAuditProgress>? progress, CancellationToken ct)
         {
             return Task.FromResult(new AgentResult
             {
@@ -1120,6 +1149,19 @@ not a firewall line";
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             });
+        }
+    }
+
+    private sealed class CancellableAgent : MockAgent
+    {
+        public override async Task<AgentResult> RunAuditAsync(
+            AgentIntent intent,
+            string? rawLog,
+            IProgress<AgentAuditProgress>? progress,
+            CancellationToken ct)
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+            return new AgentResult { Intent = intent };
         }
     }
 

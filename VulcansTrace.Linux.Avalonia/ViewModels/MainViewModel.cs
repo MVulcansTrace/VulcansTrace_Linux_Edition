@@ -217,7 +217,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// header, but main-log analysis and evidence export still use the shared runners
     /// and must retain their progress and cancellation controls.
     /// </summary>
-    public bool ShowStatusBar => !IsAgentHomeVisible || IsBusy || Evidence.IsBusy;
+    public bool ShowStatusBar =>
+        !IsAgentHomeVisible ||
+        IsBusy ||
+        Agent.IsBusy ||
+        Evidence.IsBusy;
 
     private string _currentPageTitle = string.Empty;
 
@@ -1679,6 +1683,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             InvestigateCommand?.RaiseCanExecuteChanged();
             VerifyFindingCommand?.RaiseCanExecuteChanged();
             HeroPrimaryCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(ShowStatusBar));
             RefreshAppState();
         }
         else if (e.PropertyName == nameof(AgentViewModel.UserQuery))

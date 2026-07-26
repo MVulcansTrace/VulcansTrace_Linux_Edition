@@ -930,6 +930,20 @@
               </StackPanel>
             </Border>
 
+            <Border Theme="{StaticResource VtInspectorSection}"
+                    IsVisible="{Binding HasLatestSuggestedFollowUp}"
+                    AutomationProperties.AutomationId="AgentLatestSuggestionSection"
+                    AutomationProperties.Name="Latest suggested follow-up">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Suggested follow-up" FontWeight="SemiBold"/>
+                <Button Content="{Binding LatestSuggestedFollowUpLabel}"
+                        Command="{Binding RunLatestSuggestedFollowUpCommand}"
+                        Theme="{StaticResource VtGhostButton}" HorizontalAlignment="Left"
+                        AutomationProperties.AutomationId="AgentLatestSuggestionButton"
+                        AutomationProperties.Name="Run latest suggested follow-up"/>
+              </StackPanel>
+            </Border>
+
             <Border Theme="{StaticResource VtInspectorSection}">
               <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
@@ -937,12 +951,6 @@
                   <TextBlock Grid.Column="1" Text="{Binding PinnedMessageCountLabel}"
                              Foreground="{StaticResource VtTextMutedBrush}"/>
                 </Grid>
-                <Button Content="{Binding LatestSuggestedFollowUpLabel}"
-                        Command="{Binding RunLatestSuggestedFollowUpCommand}"
-                        IsVisible="{Binding HasLatestSuggestedFollowUp}"
-                        Theme="{StaticResource VtGhostButton}" HorizontalAlignment="Left"
-                        AutomationProperties.AutomationId="AgentLatestSuggestionButton"
-                        AutomationProperties.Name="Run latest suggested follow-up"/>
                 <TextBlock Text="{Binding PinMessageStatusMessage}" TextWrapping="Wrap"
                            IsVisible="{Binding HasPinMessageStatusMessage}"
                            Foreground="{StaticResource VtWarningBrush}"/>
@@ -1143,7 +1151,7 @@
               <Button Command="{Binding Command}" CommandParameter="{Binding}"
                       Content="{Binding CommandText}"
                       ToolTip.Tip="{Binding Description}"
-                      Theme="{StaticResource VtGhostButton}"
+                      Theme="{StaticResource VtSecondaryButton}"
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Left"
                       Padding="10,8" Margin="0,2"

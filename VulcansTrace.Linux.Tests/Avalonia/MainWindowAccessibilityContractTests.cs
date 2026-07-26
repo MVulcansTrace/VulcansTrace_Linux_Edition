@@ -141,6 +141,14 @@ public class MainWindowAccessibilityContractTests
         AssertAutomationName(agent, "AgentInspectorToggleButton", "Open Agent inspector");
         AssertAutomationName(agent, "AgentInspectorCloseButton", "Close Agent inspector");
         AssertAutomationName(agent, "AgentCommandPalette", "Agent command palette");
+        AssertAutomationName(
+            agent,
+            "AgentLatestSuggestionSection",
+            "Latest suggested follow-up");
+        var commandPaletteItem = FindByAutomationId(agent, "AgentCommandPaletteItem");
+        Assert.Equal(
+            "{StaticResource VtSecondaryButton}",
+            Attribute(commandPaletteItem, "Theme")?.Value);
         var tracePulse = FindByAutomationId(agent, "AgentTracePulse");
         Assert.Equal(
             "{Binding TracePulseAccessibleName}",
