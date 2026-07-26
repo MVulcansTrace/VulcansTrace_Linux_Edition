@@ -75,7 +75,7 @@
                         <ItemsControl ItemsSource="{Binding NewFindings}" AutomationProperties.AutomationId="AuditDiffNewFindingsList" AutomationProperties.Name="New audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2" TextWrapping="Wrap">
                                         <Run Text="+" Foreground="{StaticResource VtSuccessBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
@@ -98,7 +98,7 @@
                         <ItemsControl ItemsSource="{Binding ResolvedFindings}" AutomationProperties.AutomationId="AuditDiffResolvedFindingsList" AutomationProperties.Name="Resolved audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2" TextWrapping="Wrap">
                                         <Run Text="✓" Foreground="{StaticResource VtTextSecondaryBrush}"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
@@ -121,7 +121,7 @@
                         <ItemsControl ItemsSource="{Binding WorsenedFindings}" AutomationProperties.AutomationId="AuditDiffWorsenedFindingsList" AutomationProperties.Name="Worsened audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2" TextWrapping="Wrap">
                                         <Run Text="↑" Foreground="{StaticResource VtDangerBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
@@ -148,7 +148,7 @@
                         <ItemsControl ItemsSource="{Binding ImprovedFindings}" AutomationProperties.AutomationId="AuditDiffImprovedFindingsList" AutomationProperties.Name="Improved audit findings">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2" TextWrapping="Wrap">
                                         <Run Text="↓" Foreground="{StaticResource VtPrimaryBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>
@@ -175,7 +175,7 @@
                         <ItemsControl ItemsSource="{Binding ConfidenceChangedFindings}" AutomationProperties.AutomationId="AuditDiffConfidenceChangesList" AutomationProperties.Name="Audit finding confidence changes">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2">
+                                    <TextBlock FontSize="{StaticResource VtFontSizeSm}" Foreground="{StaticResource VtTextPrimaryBrush}" Margin="0,2" TextWrapping="Wrap">
                                         <Run Text="~" Foreground="{StaticResource VtInfoBrush}" FontWeight="Bold"/>
                                         <Run Text=" "/>
                                         <Run Text="{Binding RuleId}" FontWeight="SemiBold"/>

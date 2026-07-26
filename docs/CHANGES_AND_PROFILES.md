@@ -5,7 +5,33 @@ current analysis profiles (Low, Medium, High), including the detectors they
 enable and the thresholds they use. It is intended as a concise portfolio
 reference and a technical verification checklist.
 
-Last updated: 2026-07-10
+Last updated: 2026-07-26
+
+### Live Computer-Use Output and Dialog Verification
+
+The canonical Computer-Use harness now exercises the Agent’s finding, parse
+error, warning, export, and owned-dialog outputs in isolated Avalonia
+processes. The current partial catalog report contains 13 passing scenarios
+and 18 explicitly not run.
+
+- **Finding cards retain decision context** — each card once again renders its
+  severity/category, rule ID, description, evidence signals, and time range
+  above the existing actions.
+- **Audit Diff stays readable** — long descriptions wrap inside all five
+  change sections. The live workflow opens, closes, reopens, and scrolls the
+  owned window so upper and lower diff output are both captured.
+- **Remediation copy matches executable state** — a plan with zero permitted
+  commands says, “No system changes are queued. This preview is read-only.”
+  The destructive warning appears only when at least one command is permitted.
+  Execute and Close also expose explicit accessible names.
+- **Owned dialogs are proven as transitions** — Audit Diff, Rule Policy, and
+  Remediation Preview expose the correct title, owner relationship, purpose,
+  and button labels; every scenario proves dismissal and reopening without
+  executing or saving changes.
+
+**Validation:** 4,159/4,159 Avalonia solution tests pass. The live
+Computer-Use catalog evidence is 13/31 executed, 13 passed, 0 failed,
+0 blocked, and 18 not run.
 
 ### UI-Thread Affinity Hardening (View-Model State)
 

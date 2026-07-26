@@ -938,6 +938,7 @@ public class AgentResultPresenterTests
         Assert.Equal("Open FW-001 in Findings", card.OpenAccessibleName);
         Assert.Equal("Suppress FW-001", card.SuppressAccessibleName);
         Assert.Equal("Critical · Firewall", card.Header);
+        Assert.True(card.HasTimeRange);
         Assert.Same(open, card.OpenCommand);
         Assert.Same(suppress, card.SuppressCommand);
         Assert.Equal(Severity.Critical, card.Severity);

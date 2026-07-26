@@ -130,8 +130,11 @@ public sealed class RemediationPreviewViewModel : ViewModelBase
     /// <summary>Whether execution has completed and produced a result.</summary>
     public bool HasResult => ExecutionResult != null;
 
+    /// <summary>Whether the current policy permits at least one configuration command.</summary>
+    public bool HasExecutableCommands => CommandsPermitted > 0;
+
     /// <summary>Whether the plan has any permitted commands to execute (pre-execution gate).</summary>
-    public bool CanExecute => !IsExecuting && !IsCompleted && CommandsPermitted > 0;
+    public bool CanExecute => !IsExecuting && !IsCompleted && HasExecutableCommands;
 
     private async Task ExecuteCoreAsync()
     {

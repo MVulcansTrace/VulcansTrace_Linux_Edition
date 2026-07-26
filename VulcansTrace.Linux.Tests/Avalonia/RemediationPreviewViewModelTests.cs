@@ -8,6 +8,20 @@ namespace VulcansTrace.Linux.Tests.Avalonia;
 public class RemediationPreviewViewModelTests
 {
     [AvaloniaFact]
+    public void EmptyPlan_DisablesExecutionAndExposesReadOnlyImpact()
+    {
+        var vm = new RemediationPreviewViewModel(
+            new RemediationPlan(),
+            AutoFixPolicy.Standard(),
+            () => Task.FromResult(CreateResult()));
+
+        Assert.False(vm.HasExecutableCommands);
+        Assert.False(vm.CanExecute);
+        Assert.False(vm.ExecuteCommand.CanExecute(null));
+        Assert.Contains("Commands permitted: 0", vm.Summary);
+    }
+
+    [AvaloniaFact]
     public async Task ExecuteCommand_WhileExecuting_DisablesExecutionAndIgnoresSecondClick()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -24,6 +38,7 @@ public class RemediationPreviewViewModelTests
                 return CreateResult();
             });
 
+        Assert.True(vm.HasExecutableCommands);
         vm.ExecuteCommand.Execute(null);
         await started.Task;
 

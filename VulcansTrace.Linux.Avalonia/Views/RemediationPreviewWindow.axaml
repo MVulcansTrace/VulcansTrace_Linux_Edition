@@ -16,7 +16,12 @@
         <Border Grid.Row="1" Theme="{StaticResource VtCard}" Padding="12" Margin="0,0,0,12">
             <StackPanel Spacing="4">
                 <TextBlock Text="{Binding Summary}" Foreground="{StaticResource VtTextPrimaryBrush}" TextWrapping="Wrap" FontFamily="{StaticResource VtFontFamily}"/>
-                <TextBlock Text="This will change system configuration. Review carefully before confirming." Foreground="{StaticResource VtDangerBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <TextBlock Text="This will change system configuration. Review carefully before confirming."
+                           Foreground="{StaticResource VtDangerBrush}" TextWrapping="Wrap"
+                           Margin="0,8,0,0" IsVisible="{Binding HasExecutableCommands}"/>
+                <TextBlock Text="No system changes are queued. This preview is read-only."
+                           Foreground="{StaticResource VtTextSecondaryBrush}" TextWrapping="Wrap"
+                           Margin="0,8,0,0" IsVisible="{Binding !HasExecutableCommands}"/>
             </StackPanel>
         </Border>
 
@@ -32,8 +37,15 @@
         <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" Foreground="{StaticResource VtWarningBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-            <Button x:Name="ExecuteButton" Content="Execute" MinWidth="100" Theme="{StaticResource VtPrimaryButton}" Command="{Binding ExecuteCommand}"/>
-            <Button x:Name="CloseButton" Content="Close" MinWidth="100" Theme="{StaticResource VtSecondaryButton}" Click="CloseButton_Click" IsEnabled="{Binding !IsExecuting}"/>
+            <Button x:Name="ExecuteButton" Content="Execute" MinWidth="100"
+                    Theme="{StaticResource VtPrimaryButton}" Command="{Binding ExecuteCommand}"
+                    AutomationProperties.AutomationId="RemediationPreviewExecuteButton"
+                    AutomationProperties.Name="Execute remediation plan"/>
+            <Button x:Name="CloseButton" Content="Close" MinWidth="100"
+                    Theme="{StaticResource VtSecondaryButton}" Click="CloseButton_Click"
+                    IsEnabled="{Binding !IsExecuting}"
+                    AutomationProperties.AutomationId="RemediationPreviewCloseButton"
+                    AutomationProperties.Name="Close remediation preview"/>
         </StackPanel>
     </Grid>
 </Window>

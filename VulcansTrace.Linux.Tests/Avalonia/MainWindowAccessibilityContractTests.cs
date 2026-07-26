@@ -77,6 +77,48 @@ public class MainWindowAccessibilityContractTests
     }
 
     [Fact]
+    public void RemediationPreview_ExposesTruthfulImpactAndStableActions()
+    {
+        var document = LoadAvaloniaDocument("Views/RemediationPreviewWindow.axaml");
+
+        AssertAutomationName(
+            document,
+            "RemediationPreviewExecuteButton",
+            "Execute remediation plan");
+        AssertAutomationName(
+            document,
+            "RemediationPreviewCloseButton",
+            "Close remediation preview");
+        Assert.Contains(document.Descendants(), element =>
+            Attribute(element, "Text")?.Value
+                == "This will change system configuration. Review carefully before confirming." &&
+            Attribute(element, "IsVisible")?.Value == "{Binding HasExecutableCommands}");
+        Assert.Contains(document.Descendants(), element =>
+            Attribute(element, "Text")?.Value
+                == "No system changes are queued. This preview is read-only." &&
+            Attribute(element, "IsVisible")?.Value == "{Binding !HasExecutableCommands}");
+    }
+
+    [Fact]
+    public void AuditDiffFindingRows_WrapLongDescriptions()
+    {
+        var document = LoadAvaloniaDocument("Views/AuditDiffWindow.axaml");
+        var findingLists = document.Descendants()
+            .Where(element => element.Name.LocalName == "ItemsControl")
+            .Where(element => Attribute(element, "AutomationProperties.AutomationId")
+                ?.Value?.StartsWith("AuditDiff", StringComparison.Ordinal) == true)
+            .ToList();
+
+        Assert.Equal(5, findingLists.Count);
+        Assert.All(findingLists, list =>
+        {
+            var rowText = list.Descendants()
+                .Single(element => element.Name.LocalName == "TextBlock");
+            Assert.Equal("Wrap", Attribute(rowText, "TextWrapping")?.Value);
+        });
+    }
+
+    [Fact]
     public void RepeatedVisibleLabels_ExposeContextSpecificAccessibleNames()
     {
         var mainWindow = LoadAvaloniaDocument("MainWindow.axaml");
@@ -366,8 +408,6 @@ public class MainWindowAccessibilityContractTests
         "Views/IncidentStoryView.axaml|Button|Copy Markdown",
         "Views/LiveStreamView.axaml|Button|Start",
         "Views/LiveStreamView.axaml|Button|Stop",
-        "Views/RemediationPreviewWindow.axaml|Button|ExecuteButton",
-        "Views/RemediationPreviewWindow.axaml|Button|CloseButton",
         "Views/RulePolicyEditWindow.axaml|CheckBox|Override Enabled",
         "Views/RulePolicyEditWindow.axaml|CheckBox|Enabled",
         "Views/RulePolicyEditWindow.axaml|CheckBox|Override Severity",

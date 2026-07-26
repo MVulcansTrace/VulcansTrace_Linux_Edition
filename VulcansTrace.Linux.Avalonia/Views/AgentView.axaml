@@ -369,9 +369,34 @@
                         BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}"
                         Padding="12" Margin="0,0,0,12">
                   <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                 Fill="{Binding Severity, Converter={StaticResource SeverityToBrushConverter}}"/>
+                        <TextBlock Text="{Binding Header}"
+                                   Foreground="{StaticResource VtTextSecondaryBrush}"
+                                   FontSize="{StaticResource VtFontSizeXs}"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding Item.RuleId}"
+                                 FontFamily="{StaticResource VtFontFamilyMono}"
+                                 Foreground="{StaticResource VtTextMutedBrush}"
+                                 FontSize="{StaticResource VtFontSizeXs}"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
                     <TextBlock Text="{Binding Item.ShortDescription}" FontWeight="SemiBold"
                                Foreground="{StaticResource VtTextPrimaryBrush}"
-                               FontSize="{StaticResource VtFontSizeSm}"/>
+                               FontSize="{StaticResource VtFontSizeSm}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.EvidenceSignalsDisplay}"
+                               IsVisible="{Binding HasEvidence}"
+                               Foreground="{StaticResource VtTextSecondaryBrush}"
+                               FontSize="{StaticResource VtFontSizeXs}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Item.TimeRangeDisplay}"
+                               IsVisible="{Binding HasTimeRange}"
+                               Foreground="{StaticResource VtTextMutedBrush}"
+                               FontSize="{StaticResource VtFontSizeXs}"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                       <Button Content="Open in Findings"
                               Command="{Binding OpenCommand}"

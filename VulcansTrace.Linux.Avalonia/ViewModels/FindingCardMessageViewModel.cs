@@ -1,3 +1,4 @@
+using System;
 using System.Windows.Input;
 
 namespace VulcansTrace.Linux.Avalonia.ViewModels;
@@ -28,6 +29,11 @@ public sealed class FindingCardMessageViewModel : AgentMessageViewModel
 
     /// <summary>Gets whether the card has evidence signals to show.</summary>
     public bool HasEvidence => !string.IsNullOrWhiteSpace(Item.EvidenceSignalsDisplay);
+
+    /// <summary>Gets whether the finding has a meaningful time range to show.</summary>
+    public bool HasTimeRange =>
+        Item.TimeStart != DateTime.MinValue &&
+        Item.TimeEnd != DateTime.MinValue;
 
     /// <summary>Gets the unique accessible name of the card itself.</summary>
     public string CardAccessibleName => $"{Item.RuleId} {Item.Category} finding";

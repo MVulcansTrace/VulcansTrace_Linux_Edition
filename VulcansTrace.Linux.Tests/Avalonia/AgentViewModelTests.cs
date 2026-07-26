@@ -2457,9 +2457,18 @@ public class AgentViewModelTests
             TimeRangeStart = DateTime.UtcNow,
             TimeRangeEnd = DateTime.UtcNow,
             ShortDescription = "Disallowed outbound port 21",
-            Details = "details"
+            Details = "details",
+            EvidenceSignals =
+            [
+                new EvidenceSignal
+                {
+                    Name = "Rule policy match",
+                    Source = "SecurityRule"
+                }
+            ]
         };
-        vm.AddFindingCard(new FindingItemViewModel(finding), null, null);
+        var findingItem = new FindingItemViewModel(finding);
+        vm.AddFindingCard(findingItem, null, null);
         vm.AddMoreFindingsLink(2, null, "findings");
         var window = new Window
         {
@@ -2494,6 +2503,17 @@ public class AgentViewModelTests
             Assert.Contains("FindingCardOpenENG-POLICY-001", ids);
             Assert.Contains("FindingCardSuppressENG-POLICY-001", ids);
             Assert.Contains("ThreadMoreFindingsLink", ids);
+
+            var visibleText = window.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Select(text => text.Text ?? string.Empty)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToHashSet(StringComparer.Ordinal);
+            Assert.Contains("High · PolicyViolation", visibleText);
+            Assert.Contains("ENG-POLICY-001", visibleText);
+            Assert.Contains("Disallowed outbound port 21", visibleText);
+            Assert.Contains("Rule policy match", visibleText);
+            Assert.Contains(findingItem.TimeRangeDisplay, visibleText);
         }
         finally
         {
