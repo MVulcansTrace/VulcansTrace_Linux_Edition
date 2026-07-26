@@ -64,6 +64,28 @@ public class DataGridXamlContractTests
             columns[1].Descendants()
                 .Where(element => element.Name.LocalName == "Button")
                 .Select(button => (string?)button.Attribute("Content")));
+        Assert.Equal("140", (string?)columns[0].Attribute("Width"));
+        Assert.All(
+            columns.Where(column =>
+                new[] { "Created", "Expires", "Review" }
+                    .Contains((string?)column.Attribute("Header"))),
+            column =>
+            {
+                Assert.Equal("Auto", (string?)column.Attribute("Width"));
+                Assert.Equal("140", (string?)column.Attribute("MaxWidth"));
+            });
+        Assert.All(
+            columns.Where(column =>
+                new[] { "Rule", "Target" }
+                    .Contains((string?)column.Attribute("Header"))),
+            column => Assert.Equal("Auto", (string?)column.Attribute("Width")));
+
+        var expander = document.Descendants()
+            .Single(element =>
+                element.Name.LocalName == "Expander" &&
+                (string?)element.Attribute("Header") == "Active Suppressions");
+        Assert.Equal("Stretch", (string?)expander.Attribute("HorizontalAlignment"));
+        Assert.Equal("Stretch", (string?)expander.Attribute("HorizontalContentAlignment"));
     }
 
     private static XDocument LoadView(string fileName)

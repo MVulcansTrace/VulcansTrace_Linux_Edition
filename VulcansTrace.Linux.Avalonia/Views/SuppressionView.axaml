@@ -24,6 +24,8 @@
                   Theme="{StaticResource VtExpander}"
                   AutomationProperties.AutomationId="ActiveSuppressionsExpander"
                   AutomationProperties.Name="Active suppressions"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Stretch"
                   Margin="0,0,0,8">
             <StackPanel Orientation="Vertical">
                 <TextBlock Text="No active suppressions."
@@ -42,24 +44,26 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
                                 <TextBlock Grid.Column="0"
                                            Text="{Binding RuleId}"
+                                           ToolTip.Tip="{Binding RuleId}"
                                            Foreground="{StaticResource VtTextPrimaryBrush}"
                                            FontSize="{StaticResource VtFontSizeSm}"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Target}"
+                                           ToolTip.Tip="{Binding Target}"
                                            Foreground="{StaticResource VtTextSecondaryBrush}"
                                            FontSize="{StaticResource VtFontSizeSm}"
                                            Margin="8,0,8,0"
                                            VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding Reason}"
+                                           ToolTip.Tip="{Binding Reason}"
                                            Foreground="{StaticResource VtTextMutedBrush}"
                                            FontSize="{StaticResource VtFontSizeXs}"
                                            TextTrimming="CharacterEllipsis"
-                                           MaxWidth="120"
                                            VerticalAlignment="Center"/>
                                 <Button Grid.Column="3"
                                         Content="Remove"
@@ -124,7 +128,7 @@
                   AutomationProperties.AutomationId="SuppressionsDataGrid"
                   AutomationProperties.Name="Suppressions Review Queue">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Status" Width="120" MinWidth="110">
+                <DataGridTemplateColumn Header="Status" Width="140" MinWidth="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border Background="{Binding StatusBackground}"
@@ -181,12 +185,12 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="150" MinWidth="130" />
+                <DataGridTextColumn Header="Rule" Binding="{Binding Entry.RuleId}" Width="Auto" MinWidth="110" MaxWidth="240" />
+                <DataGridTextColumn Header="Target" Binding="{Binding Entry.Target}" Width="Auto" MinWidth="130" MaxWidth="260" />
                 <DataGridTextColumn Header="Reason" Binding="{Binding Entry.Reason}" Width="*" MinWidth="180" />
-                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
-                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="120" MinWidth="110" />
+                <DataGridTextColumn Header="Created" Binding="{Binding Entry.CreatedAt, StringFormat={}{0:yyyy-MM-dd}}" Width="Auto" MinWidth="120" MaxWidth="140" />
+                <DataGridTextColumn Header="Expires" Binding="{Binding Entry.ExpiresAt, StringFormat={}{0:yyyy-MM-dd}}" Width="Auto" MinWidth="120" MaxWidth="140" />
+                <DataGridTextColumn Header="Review" Binding="{Binding Entry.ReviewDate, StringFormat={}{0:yyyy-MM-dd}}" Width="Auto" MinWidth="120" MaxWidth="140" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

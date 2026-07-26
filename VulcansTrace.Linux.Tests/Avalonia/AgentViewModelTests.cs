@@ -1916,6 +1916,9 @@ public class AgentViewModelTests
 
         Assert.Contains("x:Name=\"ChatListBox\"", xaml);
         Assert.Contains("IsVisible=\"{Binding HasNoSearchMatches}\"", xaml);
+        Assert.Contains(
+            "<Setter Property=\"IsVisible\" Value=\"{Binding IsVisible}\"/>",
+            xaml);
     }
 
     [AvaloniaFact]

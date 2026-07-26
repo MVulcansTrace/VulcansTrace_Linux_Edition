@@ -315,6 +315,7 @@
             <ListBox.Styles>
               <Style Selector="ListBoxItem" x:DataType="vm:AgentMessageViewModel">
                 <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
+                <Setter Property="IsVisible" Value="{Binding IsVisible}"/>
               </Style>
             </ListBox.Styles>
             <ListBox.ItemsPanel>
