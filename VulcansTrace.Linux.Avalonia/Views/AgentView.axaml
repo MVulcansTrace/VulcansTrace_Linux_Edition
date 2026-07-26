@@ -222,8 +222,8 @@
               </DataGridTemplateColumn>
               <DataGridTextColumn Header="FINDING" Binding="{Binding ShortDescription}" Width="*"/>
               <DataGridTextColumn Header="ASSET" Binding="{Binding SourceHost}" Width="120"/>
-              <DataGridTextColumn Header="CATEGORY" Binding="{Binding Category}" Width="100"/>
-              <DataGridTextColumn Header="SEVERITY" Binding="{Binding Severity}" Width="80"/>
+              <DataGridTextColumn Header="CATEGORY" Binding="{Binding Category}" Width="160"/>
+              <DataGridTextColumn Header="SEVERITY" Binding="{Binding Severity}" Width="128"/>
             </DataGrid.Columns>
           </DataGrid>
           <Border IsVisible="{Binding HasNoResultFindings}"

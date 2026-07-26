@@ -100,6 +100,21 @@ public class MainWindowAccessibilityContractTests
     }
 
     [Fact]
+    public void AgentResultGrid_ReservesTruthBearingCategoryAndSeverityWidths()
+    {
+        var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
+        var category = agent.Descendants().Single(element =>
+            element.Name.LocalName == "DataGridTextColumn" &&
+            Attribute(element, "Header")?.Value == "CATEGORY");
+        var severity = agent.Descendants().Single(element =>
+            element.Name.LocalName == "DataGridTextColumn" &&
+            Attribute(element, "Header")?.Value == "SEVERITY");
+
+        Assert.Equal("160", Attribute(category, "Width")?.Value);
+        Assert.Equal("128", Attribute(severity, "Width")?.Value);
+    }
+
+    [Fact]
     public void AuditDiffFindingRows_WrapLongDescriptions()
     {
         var document = LoadAvaloniaDocument("Views/AuditDiffWindow.axaml");
