@@ -2,6 +2,7 @@ using VulcansTrace.Linux.Agent.Dialogue;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 using Xunit;
@@ -21,6 +22,47 @@ public class NarrativeComposerTests
 
         Assert.Contains("No active findings", narrative.Summary);
         Assert.Empty(narrative.SourceIds);
+    }
+
+    [Fact]
+    public void Compose_NoFindingsAllChecksNotApplicable_DoesNotClaimClean()
+    {
+        // /containers with no runtime: every rule is not-applicable, so "looks clean for the
+        // checked scope" would contradict the "checks were skipped" lead — say so instead.
+        var result = new AgentResult
+        {
+            AgentFindings = Array.Empty<Finding>(),
+            RuleResults = new[]
+            {
+                RuleResult.NotApplicable("CTR-001", "Containers", "CTR-001", "No container runtime"),
+                RuleResult.NotApplicable("CTR-002", "Containers", "CTR-002", "No container runtime")
+            }
+        };
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), new EntityFrame());
+
+        Assert.Contains("nothing in this scope actually ran", narrative.Summary);
+        Assert.DoesNotContain("looks clean", narrative.Summary);
+    }
+
+    [Fact]
+    public void Compose_NoFindingsSomeChecksPassed_KeepsCleanSummary()
+    {
+        // Mixed pass + not-applicable (e.g. /ssh): the checks that ran passed, so the clean
+        // message stays accurate.
+        var result = new AgentResult
+        {
+            AgentFindings = Array.Empty<Finding>(),
+            RuleResults = new[]
+            {
+                RuleResult.Pass("SSH-001", "SSH", "SSH-001", "ok"),
+                RuleResult.NotApplicable("SSH-002", "SSH", "SSH-002", "no sshd_config")
+            }
+        };
+
+        var narrative = _composer.Compose(result, new Dictionary<string, RuleMemoryEntry>(), new EntityFrame());
+
+        Assert.Contains("looks clean", narrative.Summary);
     }
 
     [Fact]

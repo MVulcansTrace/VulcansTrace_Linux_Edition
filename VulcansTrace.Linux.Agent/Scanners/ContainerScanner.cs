@@ -35,6 +35,12 @@ public sealed class ContainerScanner : IScanner
             Command = "docker ps --format '{{.Names}}|{{.Image}}'"
         });
 
+        // docker ps succeeding — even with empty output — means the daemon is reachable, so an empty
+        // result is a genuine "checked, no containers" rather than "docker not installed". Without this,
+        // a docker-up/zero-container host would look runtime-absent and the container rules would skip.
+        if (dockerPsOk)
+            runtimeInfo = runtimeInfo with { DockerAvailable = true };
+
         if (dockerPsOk && !string.IsNullOrWhiteSpace(dockerPsOutput))
         {
             runtimeInfo = runtimeInfo with { DockerAvailable = true };
@@ -137,6 +143,14 @@ public sealed class ContainerScanner : IScanner
         }
 
         builder.SetContainerRuntime(runtimeInfo);
+
+        // No runtime tool produced anything — surface it so the reply can explain that container
+        // checks were skipped (mirrors how /ssh explains a missing sshd_config) rather than claiming
+        // "all checks passed" on an empty inventory.
+        if (!runtimeInfo.DockerAvailable && !runtimeInfo.ContainerdAvailable)
+        {
+            builder.AddWarning("Container scan skipped: no container runtime (docker/crictl/ctr) detected.");
+        }
 
         // Docker socket capability
         builder.AddCapability(new DataSourceCapability

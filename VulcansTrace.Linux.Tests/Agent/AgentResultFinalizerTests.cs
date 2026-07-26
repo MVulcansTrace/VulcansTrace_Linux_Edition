@@ -260,7 +260,8 @@ public class AgentResultFinalizerTests
         var auditState = new AgentAuditState();
         var historyStore = new InMemoryAuditHistoryStore();
         var complianceBuilder = new TestComplianceScorecardBuilder(new ComplianceScorecard());
-        var riskBuilder = new TestRiskScorecardBuilder(new RiskScorecard());
+        var riskScorecard = new RiskScorecard { NumericScore = 81.5, LetterGrade = "B" };
+        var riskBuilder = new TestRiskScorecardBuilder(riskScorecard);
         var finalizer = new AgentResultFinalizer(auditState, historyStore, complianceBuilder, riskBuilder);
         var finding = CreateFinding();
         var ruleResult = RuleResult.Fail("TEST-001", "Test", "TEST-001", "Test failed", Severity.High, "target");
@@ -290,6 +291,7 @@ public class AgentResultFinalizerTests
         Assert.Equal(0, entry.PassedCount);
         Assert.Equal(1, entry.FailedCount);
         Assert.Equal(1, entry.WarningCount);
+        Assert.Same(riskScorecard, entry.RiskScorecard);
     }
 
     [Fact]

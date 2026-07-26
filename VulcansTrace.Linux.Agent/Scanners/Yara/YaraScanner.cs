@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using VulcansTrace.Linux.Agent;
 
 namespace VulcansTrace.Linux.Agent.Scanners;
@@ -7,7 +8,7 @@ namespace VulcansTrace.Linux.Agent.Scanners;
 /// Scans security-interesting files and running process executables with YARA rules.
 /// Targets: SUID/SGID binaries, /proc/&lt;pid&gt;/exe, and cron script directories.
 /// </summary>
-public sealed class YaraScanner : IScanner
+public sealed partial class YaraScanner : IScanner
 {
     private const int DefaultMaxOutputChars = 1_048_576;
     private static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromSeconds(60);
@@ -104,14 +105,18 @@ public sealed class YaraScanner : IScanner
             return;
         }
 
-        var targets = await DiscoverTargetsAsync(builder, cancellationToken);
+        var discovery = await DiscoverTargetsAsync(builder, cancellationToken);
+        var targets = discovery.Targets;
         if (targets.Count == 0)
         {
+            builder.SetYaraScanCompleted(discovery.Complete);
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "yara-scan",
-                Status = CapabilityStatus.Available,
-                Detail = "No targets discovered.",
+                Status = discovery.Complete ? CapabilityStatus.Available : CapabilityStatus.PermissionLimited,
+                Detail = discovery.Complete
+                    ? "No targets discovered."
+                    : "No targets discovered; target discovery was incomplete.",
                 Command = "yara <rules> <targets>"
             });
             return;
@@ -120,6 +125,7 @@ public sealed class YaraScanner : IScanner
         var scanned = 0;
         var matchCount = 0;
         var errors = new List<string>();
+        var transientProcessSkips = 0;
         var semaphore = new SemaphoreSlim(8, 8);
 
         try
@@ -152,9 +158,20 @@ public sealed class YaraScanner : IScanner
                 }
                 catch (Exception ex)
                 {
-                    lock (errors)
+                    // Running-process targets routinely vanish between enumeration and scan (the process
+                    // exits, /proc/<pid>/exe disappears, libyara returns error 3). That is benign churn, not
+                    // a scanner failure, so count it quietly instead of surfacing it as a scanner warning
+                    // (which would otherwise read as "N scanners returned unexpected errors").
+                    if (IsTransientProcessExitFailure(target, ex))
                     {
-                        errors.Add($"YARA scan failed for {target.ScanPath}: {ex.Message}");
+                        Interlocked.Increment(ref transientProcessSkips);
+                    }
+                    else
+                    {
+                        lock (errors)
+                        {
+                            errors.Add($"YARA scan failed for {target.ScanPath}: {ex.Message}");
+                        }
                     }
                 }
                 finally
@@ -175,14 +192,52 @@ public sealed class YaraScanner : IScanner
             builder.AddWarning(error);
         }
 
+        var detail = $"Scanned {scanned} target(s), {matchCount} match(es), {errors.Count} error(s)";
+        if (transientProcessSkips > 0)
+            detail += $", {transientProcessSkips} transient process target(s) skipped";
+
+        var completed = discovery.Complete && errors.Count == 0 && transientProcessSkips == 0;
+        builder.SetYaraScanCompleted(completed);
         builder.AddCapability(new DataSourceCapability
         {
             SourceName = "yara-scan",
-            Status = errors.Count > 0 ? CapabilityStatus.PermissionLimited : CapabilityStatus.Available,
-            Detail = $"Scanned {scanned} target(s), {matchCount} match(es), {errors.Count} error(s).",
+            Status = completed ? CapabilityStatus.Available : CapabilityStatus.PermissionLimited,
+            Detail = detail + ".",
             Command = "yara <rules> <targets>"
         });
     }
+
+    /// <summary>
+    /// True when a RunningProcess target failed because its executable vanished between enumeration and
+    /// scan — a process exiting mid-scan. Matches libyara's "could not open file" (error 3) and the .NET
+    /// file-not-found exceptions raised when the /proc/&lt;pid&gt;/exe symlink target is already gone.
+    /// </summary>
+    private static bool IsTransientProcessExitFailure(YaraScanTarget target, Exception ex)
+    {
+        if (!string.Equals(target.TargetKind, "RunningProcess", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (ex is FileNotFoundException or DirectoryNotFoundException)
+            return true;
+
+        var message = ex.Message ?? string.Empty;
+        if (message.Contains("permission denied", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("access denied", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("operation not permitted", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return message.Contains("could not open file", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("no such file", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("could not find file", StringComparison.OrdinalIgnoreCase)
+            || Error3Pattern().IsMatch(message);
+    }
+
+    // libyara's "error 3" exactly — a bare substring would also swallow "error 30"/"error 31"
+    // (genuine failures) on RunningProcess targets.
+    [GeneratedRegex(@"\berror 3\b", RegexOptions.IgnoreCase)]
+    private static partial Regex Error3Pattern();
 
     private async Task<string> LoadRulesTextAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
     {
@@ -242,34 +297,49 @@ public sealed class YaraScanner : IScanner
         return reader.ReadToEnd();
     }
 
-    private async Task<List<YaraScanTarget>> DiscoverTargetsAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+    private async Task<YaraTargetDiscoveryResult> DiscoverTargetsAsync(
+        ScanDataBuilder builder,
+        CancellationToken cancellationToken)
     {
         var targets = new List<YaraScanTarget>();
 
         if (_targetDiscoveryOverride != null)
-            return await _targetDiscoveryOverride(builder, cancellationToken);
+        {
+            return new YaraTargetDiscoveryResult(
+                await _targetDiscoveryOverride(builder, cancellationToken),
+                Complete: true);
+        }
 
-        var suidSgid = await DiscoverSuidSgidBinariesAsync(builder, cancellationToken);
-        targets.AddRange(suidSgid);
+        var suidSgid = await DiscoverSuidSgidBinariesWithStatusAsync(builder, cancellationToken);
+        targets.AddRange(suidSgid.Targets);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var processes = DiscoverRunningProcessExecutables();
-        targets.AddRange(processes);
+        var processes = DiscoverRunningProcessExecutablesWithStatus("/proc");
+        targets.AddRange(processes.Targets);
 
         cancellationToken.ThrowIfCancellationRequested();
 
         var cronScripts = DiscoverCronScripts();
-        targets.AddRange(cronScripts);
+        targets.AddRange(cronScripts.Targets);
 
-        return targets
+        var uniqueTargets = targets
             .GroupBy(t => t.ScanPath, StringComparer.Ordinal)
             .Select(g => g.First())
             .OrderBy(t => t.ScanPath, StringComparer.Ordinal)
             .ToList();
+
+        return new YaraTargetDiscoveryResult(
+            uniqueTargets,
+            suidSgid.Complete && processes.Complete && cronScripts.Complete);
     }
 
     internal async Task<List<YaraScanTarget>> DiscoverSuidSgidBinariesAsync(ScanDataBuilder builder, CancellationToken cancellationToken)
+        => (await DiscoverSuidSgidBinariesWithStatusAsync(builder, cancellationToken)).Targets;
+
+    private async Task<YaraTargetDiscoveryResult> DiscoverSuidSgidBinariesWithStatusAsync(
+        ScanDataBuilder builder,
+        CancellationToken cancellationToken)
     {
         var targets = new List<YaraScanTarget>();
         var (stdout, stderr, success) = await RunCommandAsync("find", new[]
@@ -289,24 +359,28 @@ public sealed class YaraScanner : IScanner
             });
         }
 
-        if (string.IsNullOrWhiteSpace(stdout))
-            return targets;
-
-        foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        if (!string.IsNullOrWhiteSpace(stdout))
         {
-            var path = line.Trim();
-            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            foreach (var line in stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                targets.Add(new YaraScanTarget(path, "SuidBinary", DisplayPath: path));
+                var path = line.Trim();
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    targets.Add(new YaraScanTarget(path, "SuidBinary", DisplayPath: path));
+                }
             }
         }
 
-        return targets;
+        return new YaraTargetDiscoveryResult(targets, Complete: success);
     }
 
     internal static List<YaraScanTarget> DiscoverRunningProcessExecutables(string procRoot = "/proc")
+        => DiscoverRunningProcessExecutablesWithStatus(procRoot).Targets;
+
+    private static YaraTargetDiscoveryResult DiscoverRunningProcessExecutablesWithStatus(string procRoot)
     {
         var targets = new List<YaraScanTarget>();
+        var complete = true;
         try
         {
             foreach (var dir in Directory.GetDirectories(procRoot))
@@ -331,25 +405,26 @@ public sealed class YaraScanner : IScanner
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    // Ignore permission-limited processes.
+                    complete = false;
                 }
                 catch
                 {
-                    // Ignore other per-process errors to keep enumeration robust.
+                    complete = false;
                 }
             }
         }
         catch
         {
-            // Ignore top-level /proc enumeration failures.
+            complete = false;
         }
 
-        return targets;
+        return new YaraTargetDiscoveryResult(targets, complete);
     }
 
-    private static List<YaraScanTarget> DiscoverCronScripts()
+    private static YaraTargetDiscoveryResult DiscoverCronScripts()
     {
         var targets = new List<YaraScanTarget>();
+        var complete = true;
         var directories = new[]
         {
             "/etc/cron.d",
@@ -376,11 +451,11 @@ public sealed class YaraScanner : IScanner
             }
             catch
             {
-                // Ignore per-directory enumeration errors.
+                complete = false;
             }
         }
 
-        return targets;
+        return new YaraTargetDiscoveryResult(targets, complete);
     }
 
     private async Task<(string? Stdout, string? Stderr, bool Success)> RunCommandAsync(
@@ -401,4 +476,6 @@ public sealed class YaraScanner : IScanner
         => Path.Combine(VulcansTraceConfig.GetDirectory(), "yara");
 
     internal sealed record YaraScanTarget(string ScanPath, string TargetKind, int? ProcessId = null, string DisplayPath = "");
+
+    private sealed record YaraTargetDiscoveryResult(List<YaraScanTarget> Targets, bool Complete);
 }

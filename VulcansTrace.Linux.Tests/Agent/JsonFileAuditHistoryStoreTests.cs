@@ -57,6 +57,32 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Append_RoundTripsRiskScorecard()
+    {
+        var riskScorecard = new RiskScorecard
+        {
+            NumericScore = 82.4,
+            LetterGrade = "B",
+            SummaryStatus = "Moderate",
+            TotalDeduction = 175,
+            IsSaturated = true,
+            TotalFindings = 9
+        };
+        var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        store.Append(CreateEntry("snap-risk") with { RiskScorecard = riskScorecard });
+        store.Dispose();
+
+        var reloaded = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 10);
+        var restored = Assert.Single(reloaded.GetAll()).RiskScorecard;
+
+        Assert.NotNull(restored);
+        Assert.Equal(riskScorecard.NumericScore, restored.NumericScore);
+        Assert.Equal(riskScorecard.LetterGrade, restored.LetterGrade);
+        Assert.Equal(riskScorecard.TotalDeduction, restored.TotalDeduction);
+        Assert.True(restored.IsSaturated);
+    }
+
+    [Fact]
     public void Append_Prunes_To_MaxEntries()
     {
         var store = new JsonFileAuditHistoryStore(_tempFile, maxEntries: 3);
@@ -191,9 +217,10 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void ToSlimSummary_PreservesSnapshotFindingsAndScorecard_DropsVerboseFields()
+    public void ToSlimSummary_PreservesSnapshotFindingsAndScorecards_DropsVerboseFields()
     {
         var scorecard = new VulcansTrace.Linux.Core.Compliance.ComplianceScorecard { OverallScore = 42 };
+        var riskScorecard = new RiskScorecard { NumericScore = 73.5, LetterGrade = "C" };
         var entry = CreateEntry("snap-1") with
         {
             SnapshotFindings = new[]
@@ -201,6 +228,7 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
                 new AuditSnapshotFinding { RuleId = "FW-001", Target = "22/tcp", Severity = "High", ShortDescription = "SSH exposed" }
             },
             Scorecard = scorecard,
+            RiskScorecard = riskScorecard,
             AttackChains = new[] { new AttackChain { RuleIds = new[] { "FW-002" } } },
             DataSourceCapabilities = new[] { new DataSourceCapability { SourceName = "iptables" } },
             RuleResults = new[] { RuleResult.Fail("TEST-001", "Test", "TEST-001", "desc", Severity.High, "target") },
@@ -215,6 +243,7 @@ public class JsonFileAuditHistoryStoreTests : IDisposable
         Assert.Equal("FW-001", slim.SnapshotFindings[0].RuleId);
         Assert.NotNull(slim.Scorecard);
         Assert.Equal(42, slim.Scorecard.OverallScore);
+        Assert.Same(riskScorecard, slim.RiskScorecard);
         Assert.Empty(slim.AttackChains);
         Assert.Empty(slim.DataSourceCapabilities);
         Assert.Empty(slim.RuleResults);

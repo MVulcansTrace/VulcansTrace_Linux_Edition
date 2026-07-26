@@ -14,6 +14,7 @@ public class RiskScorecardFormatterTests
         NumericScore = 75.0,
         LetterGrade = "C",
         SummaryStatus = "High",
+        TotalDeduction = 40.0,
         TotalFindings = 3,
         ByCategory =
         [
@@ -43,6 +44,8 @@ public class RiskScorecardFormatterTests
         Assert.Contains("C", html);
         Assert.Contains("75.0", html);
         Assert.Contains("High", html);
+        Assert.Contains("diminishing returns", html);
+        Assert.Contains("Raw deduction", html);
     }
 
     [Fact]
@@ -75,6 +78,8 @@ public class RiskScorecardFormatterTests
         Assert.Contains("C", md);
         Assert.Contains("75.0", md);
         Assert.Contains("High", md);
+        Assert.Contains("diminishing returns", md);
+        Assert.Contains("Raw deduction", md);
     }
 
     [Fact]
@@ -96,5 +101,14 @@ public class RiskScorecardFormatterTests
 
         Assert.Contains("# Risk Scorecard", md);
         Assert.DoesNotContain("| Category |", md);
+    }
+
+    [Fact]
+    public void SaturatedScorecard_ExplainsMaterialDampening()
+    {
+        var scorecard = SampleScorecard() with { IsSaturated = true };
+
+        Assert.Contains("Dampening is materially affecting", _htmlFormatter.ToHtml(scorecard));
+        Assert.Contains("Dampening is materially affecting", _markdownFormatter.ToMarkdown(scorecard));
     }
 }

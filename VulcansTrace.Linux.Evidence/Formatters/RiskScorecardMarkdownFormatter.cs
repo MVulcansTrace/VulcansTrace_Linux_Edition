@@ -33,13 +33,20 @@ public sealed class RiskScorecardMarkdownFormatter
         sb.AppendLine();
         sb.AppendLine($"**Total risk-relevant findings:** {scorecard.TotalFindings}");
         sb.AppendLine();
+        sb.AppendLine($"Scoring uses diminishing returns with per-severity caps (Critical 35, High 22, Medium 12, Low 5). Raw deductions total **{scorecard.TotalDeduction:F1}** and are not subtracted directly from 100.");
+        sb.AppendLine();
+        if (scorecard.IsSaturated)
+        {
+            sb.AppendLine("**Dampening is materially affecting this score:** additional findings in a filled severity tier may have little effect on the displayed grade.");
+            sb.AppendLine();
+        }
 
         if (scorecard.ByCategory.Count > 0)
         {
             sb.AppendLine("## Risk by Category");
             sb.AppendLine();
-            sb.AppendLine("| Category | Findings | Avg Severity | Deduction |");
-            sb.AppendLine("|----------|----------|--------------|-----------|");
+            sb.AppendLine("| Category | Findings | Avg Severity | Raw deduction |");
+            sb.AppendLine("|----------|----------|--------------|---------------|");
 
             foreach (var category in scorecard.ByCategory)
             {

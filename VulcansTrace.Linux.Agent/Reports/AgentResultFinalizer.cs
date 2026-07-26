@@ -28,7 +28,7 @@ internal sealed class AgentResultFinalizer
         var scorecard = _scorecardBuilder?.Build(request.RuleResults, _historyStore, timestamp);
         var riskScorecard = _riskScorecardBuilder.Build(request.AgentFindings, timestamp);
 
-        var snapshotId = AppendAuditHistory(request, timestamp, scorecard);
+        var snapshotId = AppendAuditHistory(request, timestamp, scorecard, riskScorecard);
 
         var result = new AgentResult
         {
@@ -58,7 +58,11 @@ internal sealed class AgentResultFinalizer
         return result;
     }
 
-    private string? AppendAuditHistory(AgentResultFinalizationRequest request, DateTime timestamp, ComplianceScorecard? scorecard)
+    private string? AppendAuditHistory(
+        AgentResultFinalizationRequest request,
+        DateTime timestamp,
+        ComplianceScorecard? scorecard,
+        RiskScorecard? riskScorecard)
     {
         if (_historyStore == null)
             return null;
@@ -105,7 +109,8 @@ internal sealed class AgentResultFinalizer
             RuleResults = request.RuleResults,
             Warnings = request.Warnings,
             LogAnalysisResult = request.LogAnalysisResult,
-            Scorecard = scorecard
+            Scorecard = scorecard,
+            RiskScorecard = riskScorecard
         };
 
         _historyStore.Append(entry);

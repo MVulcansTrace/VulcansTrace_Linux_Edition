@@ -65,7 +65,7 @@ public class DoctorViewModelTests
         });
 
         var friendly = Assert.Single(vm.Warnings);
-        Assert.Contains("scanner returned", friendly, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scan step reported", friendly, System.StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("boom", friendly, System.StringComparison.OrdinalIgnoreCase);
     }
 

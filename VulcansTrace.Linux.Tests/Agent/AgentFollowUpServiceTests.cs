@@ -150,6 +150,8 @@ public class AgentFollowUpServiceTests
         Assert.Same(finding, followUp.AgentFindings[0]);
         Assert.Equal("warning", Assert.Single(followUp.Warnings));
         Assert.Contains("Risk Grade: C", followUp.Summary);
+        Assert.Contains("diminishing returns", followUp.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("raw deductions", followUp.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

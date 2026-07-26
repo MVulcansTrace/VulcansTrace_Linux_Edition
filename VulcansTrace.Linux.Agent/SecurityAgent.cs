@@ -783,15 +783,7 @@ public sealed class SecurityAgent : IAgent
         Warnings = Array.Empty<string>()
     };
 
-    private static string FormatAge(TimeSpan age)
-    {
-        if (age < TimeSpan.Zero) age = TimeSpan.Zero;
-        if (age < TimeSpan.FromMinutes(1)) return "just now";
-        if (age < TimeSpan.FromHours(1)) return $"{(int)age.TotalMinutes} min ago";
-        if (age < TimeSpan.FromDays(1)) return $"{(int)age.TotalHours} hr ago";
-        var days = (int)age.TotalDays;
-        return days == 1 ? "1 day ago" : $"{days} days ago";
-    }
+    private static string FormatAge(TimeSpan age) => AuditAgeFormatter.FormatAge(age);
 
     private static bool IsBaselineIntent(AgentIntent intent) => intent switch
     {
@@ -1374,9 +1366,11 @@ public sealed class SecurityAgent : IAgent
             return null;
 
         var findings = entry.SnapshotFindings.Select(RehydrateFinding).ToList();
-        var riskScorecard = findings.Count > 0
+        // Persisted scorecards are authoritative: recomputing them under the current algorithm
+        // would silently rewrite a historical grade. Recompute only for legacy history entries.
+        var riskScorecard = entry.RiskScorecard ?? (findings.Count > 0
             ? new RiskScorecardBuilder().Build(findings, entry.TimestampUtc)
-            : null;
+            : null);
 
         return new AgentResult
         {

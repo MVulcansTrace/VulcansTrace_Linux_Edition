@@ -1,4 +1,5 @@
 using VulcansTrace.Linux.Agent.Rules.SecurityRules;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Agent.Scanners;
 using VulcansTrace.Linux.Core;
 
@@ -10,12 +11,20 @@ public class YaraRulesTests
     public void YaraMatchRule_NoMatches_Passes()
     {
         var rule = new YaraMatchRule();
-        var data = new ScanData();
+        var data = new ScanData { YaraScanCompleted = true };
 
         var result = rule.Evaluate(data);
 
         Assert.True(result.Passed);
         Assert.Equal(FindingCategories.Yara, result.Category);
+    }
+
+    [Fact]
+    public void YaraMatchRule_NoMatchesWithoutCompletedScan_NotApplicable()
+    {
+        var result = new YaraMatchRule().Evaluate(new ScanData());
+
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
     }
 
     [Fact]

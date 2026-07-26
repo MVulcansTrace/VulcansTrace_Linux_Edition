@@ -2,6 +2,7 @@ using System;
 using VulcansTrace.Linux.Agent;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 
 namespace VulcansTrace.Linux.Agent.Baselines;
@@ -35,6 +36,36 @@ internal sealed class BaselineDriftService
             {
                 Intent = AgentIntent.SetBaseline,
                 Summary = "Run an audit first, then say 'set baseline' to save it as a known-good snapshot.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        // Coherence guard: LastResult must be a host audit. A non-audit result (e.g. a pasted-log
+        // analysis recorded via RememberResult, which does not move LastAuditIntent) would
+        // otherwise be snapshotted under the previous audit's intent, and a later drift check
+        // would diff host findings against log findings.
+        if (!_auditState.LastResult.Intent.IsAuditIntent())
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SetBaseline,
+                Summary = $"Your latest result is a {_auditState.LastResult.Intent}, not a host audit — baselines snapshot host audits. Run an audit first, then set a baseline.",
+                AgentFindings = Array.Empty<Finding>(),
+                Warnings = Array.Empty<string>()
+            });
+        }
+
+        // Vacuous guard: an audit whose every check was not-applicable (its data sources were
+        // absent) examined nothing, so a baseline of it is empty and every later drift check
+        // would be a vacuous "no drift" verdict.
+        var setRuleResults = _auditState.LastResult.RuleResults;
+        if (setRuleResults.Count > 0 && setRuleResults.All(r => r.Status == RuleStatus.NotApplicable))
+        {
+            return Task.FromResult(new AgentResult
+            {
+                Intent = AgentIntent.SetBaseline,
+                Summary = $"Every check in the {_auditState.LastAuditIntent} audit was skipped because its data sources were unavailable, so there is nothing meaningful to baseline. Run the audit on a host where those checks can execute, then set a baseline.",
                 AgentFindings = Array.Empty<Finding>(),
                 Warnings = Array.Empty<string>()
             });
@@ -85,7 +116,10 @@ internal sealed class BaselineDriftService
             warnings.Add(_baselineStore.PersistenceWarning);
         }
 
-        var summary = $"Baseline '{name}' saved for {_auditState.LastAuditIntent} with {findings.Count} finding(s).";
+        // Lead with provenance so a baseline taken from a cached (e.g. rehydrated prior-session)
+        // audit is never mistaken for a snapshot of a fresh scan — parity with the /risk reply.
+        var auditAge = AuditAgeFormatter.FormatAge(DateTime.UtcNow - _auditState.LastResult.UtcTimestamp);
+        var summary = $"From your audit {auditAge}: baseline '{name}' saved for {_auditState.LastAuditIntent} with {findings.Count} finding(s).";
         if (findings.Count > 0)
         {
             summary += $" ({entry.CriticalCount} Critical, {entry.HighCount} High).";
@@ -174,7 +208,7 @@ internal sealed class BaselineDriftService
         {
             $"**Baseline: {baseline.Name}**",
             $"Intent: {baseline.Intent}",
-            $"Created: {baseline.CreatedUtc:yyyy-MM-dd HH:mm} UTC",
+            $"Created: {baseline.CreatedUtc:yyyy-MM-dd HH:mm} UTC ({AuditAgeFormatter.FormatAge(DateTime.UtcNow - baseline.CreatedUtc)})",
             $"Findings: {baseline.TotalFindings} ({baseline.CriticalCount} Critical, {baseline.HighCount} High, {baseline.MediumCount} Medium, {baseline.LowCount} Low, {baseline.InfoCount} Info)"
         };
 
@@ -224,6 +258,20 @@ internal sealed class BaselineDriftService
         try
         {
             var liveResult = await _runAudit(intent, rawLog, progress, ct);
+
+            // A re-audit whose every check was not-applicable examined nothing, so a diff
+            // against the baseline would be a vacuous "no drift" verdict — say so instead.
+            if (liveResult.RuleResults.Count > 0 &&
+                liveResult.RuleResults.All(r => r.Status == RuleStatus.NotApplicable))
+            {
+                return new AgentResult
+                {
+                    Intent = AgentIntent.CheckDrift,
+                    Summary = $"Every check in the {intent} re-audit was skipped because its data sources were unavailable, so drift against baseline '{baseline.Name}' cannot be evaluated.",
+                    AgentFindings = Array.Empty<Finding>(),
+                    Warnings = liveResult.Warnings
+                };
+            }
 
             var currentEntry = new AuditHistoryEntry
             {

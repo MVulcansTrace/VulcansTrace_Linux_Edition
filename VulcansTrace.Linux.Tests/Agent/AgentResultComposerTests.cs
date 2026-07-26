@@ -24,6 +24,28 @@ public class AgentResultComposerTests
     }
 
     [Fact]
+    public void BuildSummary_AllNotApplicable_OmitsVacuousAllPassed()
+    {
+        // When every check was not-applicable (its data source never ran — e.g. /containers with no
+        // docker, /kubernetes with no kubeconfig), the summary must NOT claim "All 0 checks passed".
+        // That would read as a clean bill of health that was never earned; the not-applicable count
+        // is the honest signal.
+        var summary = _composer.BuildSummary(
+            AgentIntent.ContainerCheck,
+            Array.Empty<Finding>(),
+            logResult: null,
+            new[]
+            {
+                RuleResult.NotApplicable("CTR-001", "Containers", "CTR-001", "No container runtime"),
+                RuleResult.NotApplicable("CTR-002", "Containers", "CTR-002", "No container runtime")
+            });
+
+        Assert.Equal("Container check complete. 2 check(s) not applicable.", summary);
+        Assert.DoesNotContain("All", summary);
+        Assert.DoesNotContain("passed", summary);
+    }
+
+    [Fact]
     public void BuildSummary_FindingsSuppressedCrashedAndNotApplicable_IncludesCounts()
     {
         var summary = _composer.BuildSummary(

@@ -41,7 +41,17 @@ public sealed class ThreatIntelIpRule : IRule
 
         if (ipIocs.Count == 0)
         {
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+            // No intel to correlate against — can't tell "clean" from "never checked".
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
+
+        if (data.ActiveConnections.Count == 0)
+        {
+            // Empty connection list: a genuine "checked, none" only when the connection scan
+            // actually ran; otherwise the check never happened and must not read as a pass.
+            return data.ConnectionsCollected
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
         }
 
         var ipSet = new HashSet<string>(ipIocs.Select(i => i.Value), StringComparer.OrdinalIgnoreCase);

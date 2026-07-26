@@ -560,7 +560,11 @@ public class ScannerParserFixtureTests
         var data = builder.Build();
 
         Assert.Contains(data.Capabilities, c => c.SourceName == "ss");
-        Assert.Contains(data.Capabilities, c => c.SourceName == "netstat");
+        // netstat is only probed (and reported) when ss is unavailable. When ss succeeds it must be
+        // omitted entirely — previously it was recorded as "unknown", which read like a missing tool.
+        var ssAvailable = data.Capabilities.Any(c => c.SourceName == "ss" && c.Status == CapabilityStatus.Available);
+        if (ssAvailable)
+            Assert.DoesNotContain(data.Capabilities, c => c.SourceName == "netstat");
     }
 
     [Fact]
@@ -1601,9 +1605,12 @@ public class ScannerParserFixtureTests
             """;
 
         var builder = new ScanDataBuilder();
-        KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var outcome = KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
         var data = builder.Build();
 
+        Assert.Equal(KubernetesInventoryParseOutcome.Complete, outcome);
+        Assert.True(data.KubernetesInventoryCollected);
+        Assert.True(data.KubernetesInventoryComplete);
         Assert.Single(data.KubernetesPods);
         var pod = data.KubernetesPods[0];
         Assert.Equal("default", pod.Namespace);
@@ -1624,10 +1631,70 @@ public class ScannerParserFixtureTests
     public void KubernetesScanner_ParseKubectlGetPodsJson_EmptyInput_YieldsNoPods()
     {
         var builder = new ScanDataBuilder();
-        KubernetesScanner.ParseKubectlGetPodsJson("", builder);
+        var outcome = KubernetesScanner.ParseKubectlGetPodsJson("", builder);
         var data = builder.Build();
 
+        Assert.Equal(KubernetesInventoryParseOutcome.Failed, outcome);
         Assert.Empty(data.KubernetesPods);
+        Assert.False(data.KubernetesInventoryCollected);
+        Assert.False(data.KubernetesInventoryComplete);
+        Assert.Contains(data.Warnings, w => w.Contains("could not parse kubectl JSON", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_ValidEmptyInventory_IsComplete()
+    {
+        var builder = new ScanDataBuilder();
+
+        var outcome = KubernetesScanner.ParseKubectlGetPodsJson("""{"items":[]}""", builder);
+        var data = builder.Build();
+
+        Assert.Equal(KubernetesInventoryParseOutcome.Complete, outcome);
+        Assert.True(data.KubernetesInventoryCollected);
+        Assert.True(data.KubernetesInventoryComplete);
+        Assert.Empty(data.KubernetesPods);
+        Assert.Empty(data.Warnings);
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_MissingItems_IsFailed()
+    {
+        var builder = new ScanDataBuilder();
+
+        var outcome = KubernetesScanner.ParseKubectlGetPodsJson("""{"kind":"PodList"}""", builder);
+        var data = builder.Build();
+
+        Assert.Equal(KubernetesInventoryParseOutcome.Failed, outcome);
+        Assert.False(data.KubernetesInventoryCollected);
+        Assert.Contains(data.Warnings, w => w.Contains("items", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void KubernetesScanner_ParseKubectlGetPodsJson_MixedPods_IsPartial()
+    {
+        const string json = """
+            {
+              "items": [
+                {
+                  "metadata": { "namespace": "default", "name": "safe-pod" },
+                  "spec": { "containers": [] }
+                },
+                {
+                  "metadata": { "namespace": "default" }
+                }
+              ]
+            }
+            """;
+        var builder = new ScanDataBuilder();
+
+        var outcome = KubernetesScanner.ParseKubectlGetPodsJson(json, builder);
+        var data = builder.Build();
+
+        Assert.Equal(KubernetesInventoryParseOutcome.Partial, outcome);
+        Assert.True(data.KubernetesInventoryCollected);
+        Assert.False(data.KubernetesInventoryComplete);
+        Assert.Single(data.KubernetesPods);
+        Assert.Contains(data.Warnings, w => w.Contains("skipped malformed pod", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -9,10 +9,10 @@ public sealed record RiskScorecard
     /// <summary>Overall risk score from 0 to 100, where 100 means no risk.</summary>
     public double NumericScore { get; init; }
 
-    /// <summary>Sum of all per-finding deductions before clamping (may exceed 100).</summary>
+    /// <summary>Raw (undamped) sum of per-finding deductions, before the per-severity caps are applied.</summary>
     public double TotalDeduction { get; init; }
 
-    /// <summary>True when <see cref="TotalDeduction"/> exceeds 100 and <see cref="NumericScore"/> is floored at 0.</summary>
+    /// <summary>True when the per-severity caps materially dampen the score (raw <see cref="TotalDeduction"/> exceeds the capped deduction by 10+ points).</summary>
     public bool IsSaturated { get; init; }
 
     /// <summary>Letter grade derived from the numeric score (A–F).</summary>

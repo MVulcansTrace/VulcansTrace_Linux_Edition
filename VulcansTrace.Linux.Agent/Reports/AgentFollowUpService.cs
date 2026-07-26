@@ -353,15 +353,28 @@ internal sealed class AgentFollowUpService
             });
         }
 
-        var summary = $"**Risk Grade: {risk.LetterGrade}** ({risk.NumericScore:F1}) — {risk.SummaryStatus}\n" +
-            $"Risk-relevant findings: {risk.TotalFindings}";
+        // Lead with provenance so a cached scorecard (often rehydrated from a prior session) is never
+        // mistaken for a fresh scan — parity with the short-verdict reply's "From your audit …" cue.
+        var last = _auditState.LastResult;
+        var sourceLabel = last.Intent == AgentIntent.LogAnalysis ? "log analysis" : "audit";
+        var age = AuditAgeFormatter.FormatAge(DateTime.UtcNow - last.UtcTimestamp);
+
+        var summary = $"From your {sourceLabel} {age}: **Risk Grade: {risk.LetterGrade}** ({risk.NumericScore:F1}) — {risk.SummaryStatus}\n" +
+            $"Risk-relevant findings: {risk.TotalFindings}\n" +
+            "_Scoring uses diminishing returns with per-severity caps (Critical 35, High 22, Medium 12, Low 5); category values are raw deductions._";
+
+        // Surface material dampening so a "good" grade on a large audit isn't misread as clean.
+        if (risk.IsSaturated)
+        {
+            summary += $"\n_Dampening is materially affecting this score: raw deductions total {risk.TotalDeduction:F1}, so adding more same-severity findings may not lower the grade further._";
+        }
 
         if (risk.ByCategory.Count > 0)
         {
-            summary += "\n\n**Top categories by deduction:**";
+            summary += "\n\n**Top categories by raw deduction:**";
             foreach (var cat in risk.ByCategory.Take(5))
             {
-                summary += $"\n• {cat.Category}: {cat.FindingCount} finding(s), avg severity {cat.AverageSeverity:F1}, deduction {cat.TotalDeduction:F1}";
+                summary += $"\n• {cat.Category}: {cat.FindingCount} finding(s), avg severity {cat.AverageSeverity:F1}, raw deduction {cat.TotalDeduction:F1}";
             }
         }
 

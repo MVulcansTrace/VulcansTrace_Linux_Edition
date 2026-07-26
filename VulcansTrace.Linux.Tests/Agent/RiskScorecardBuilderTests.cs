@@ -51,7 +51,8 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(80.0, scorecard.NumericScore);
+        // Capped: Critical load 20 damped against cap 35 -> 15.2 deduction -> 84.8 (B)
+        Assert.Equal(84.8, scorecard.NumericScore);
         Assert.Equal("B", scorecard.LetterGrade);
         Assert.Equal("Moderate", scorecard.SummaryStatus);
         Assert.Single(scorecard.ByCategory);
@@ -70,7 +71,8 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(85.0, scorecard.NumericScore);
+        // Capped: High load 15 damped against cap 22 -> 10.9 deduction -> 89.1 (B)
+        Assert.Equal(89.1, scorecard.NumericScore);
         Assert.Equal("B", scorecard.LetterGrade);
         Assert.Equal(15.0, scorecard.ByCategory[0].TotalDeduction);
     }
@@ -78,7 +80,7 @@ public class RiskScorecardBuilderTests
     [Fact]
     public void Build_MultipleSeverities_ReturnsCorrectScore()
     {
-        // Critical (20) + High (15) + Medium (10) = 45 deduction -> 55 score -> F
+        // Capped: C(15.2) + H(10.9) + M(6.8) = 32.9 damped deduction -> 67.1 score -> D
         var findings = new[]
         {
             CreateFinding(Severity.Critical, "PortScan"),
@@ -89,15 +91,16 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(55.0, scorecard.NumericScore);
-        Assert.Equal("F", scorecard.LetterGrade);
-        Assert.Equal("Severe", scorecard.SummaryStatus);
+        Assert.Equal(67.1, scorecard.NumericScore);
+        Assert.Equal("D", scorecard.LetterGrade);
+        Assert.Equal("High", scorecard.SummaryStatus);
     }
 
     [Fact]
-    public void Build_ClampedAtZero()
+    public void Build_ManyCriticals_NotClampedToZero()
     {
-        // 6 * Critical (20) = 120 deduction, clamped to 0
+        // 6 * Critical (raw load 120) is damped by the Critical cap (35) to ~33.9 -> 66.1 (D), not 0.
+        // This is the headline fix: a finding-heavy audit no longer reads as a hopeless "F".
         var findings = Enumerable.Range(0, 6)
             .Select(_ => CreateFinding(Severity.Critical, "PortScan"))
             .ToArray();
@@ -105,15 +108,15 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(0.0, scorecard.NumericScore);
-        Assert.Equal("F", scorecard.LetterGrade);
+        Assert.Equal(66.1, scorecard.NumericScore);
+        Assert.Equal("D", scorecard.LetterGrade);
     }
 
     [Fact]
     public void Build_Saturated_ExposesTotalDeductionAndFlag()
     {
-        // 6 * Critical (20) = 120 deduction -> score floored at 0, but the
-        // raw deduction and a saturation flag must still be surfaced.
+        // 6 * Critical (raw load 120) damped to ~33.9 -> score 66.1, but the raw deduction and a
+        // saturation flag must still be surfaced so the dampened grade isn't misread as unconditionally clean.
         var findings = Enumerable.Range(0, 6)
             .Select(_ => CreateFinding(Severity.Critical, "PortScan"))
             .ToArray();
@@ -121,7 +124,7 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(0.0, scorecard.NumericScore);
+        Assert.Equal(66.1, scorecard.NumericScore);
         Assert.Equal(120.0, scorecard.TotalDeduction);
         Assert.True(scorecard.IsSaturated);
     }
@@ -129,7 +132,7 @@ public class RiskScorecardBuilderTests
     [Fact]
     public void Build_NotSaturated_TotalDeductionEqualsSumAndFlagFalse()
     {
-        // Critical (20) + High (15) = 35 deduction -> 65 score, not saturated
+        // Critical (20) + High (15) = 35 raw, damped to 26.1 -> 73.9 score; caps shave only 8.9 (< 10), not saturated
         var findings = new[]
         {
             CreateFinding(Severity.Critical, "PortScan"),
@@ -139,7 +142,7 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        Assert.Equal(65.0, scorecard.NumericScore);
+        Assert.Equal(73.9, scorecard.NumericScore);
         Assert.Equal(35.0, scorecard.TotalDeduction);
         Assert.False(scorecard.IsSaturated);
     }
@@ -167,9 +170,9 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        // Critical (4) * 5 * weight (2.0) = 40 deduction -> 60 score -> D
-        Assert.Equal(60.0, scorecard.NumericScore);
-        Assert.Equal("D", scorecard.LetterGrade);
+        // Capped: Critical load 40 (weight 2.0) damped against cap 35 -> 23.8 -> 76.2 (C)
+        Assert.Equal(76.2, scorecard.NumericScore);
+        Assert.Equal("C", scorecard.LetterGrade);
         Assert.Equal(40.0, scorecard.ByCategory[0].TotalDeduction);
     }
 
@@ -197,9 +200,9 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        // High (3) * 5 * avg weight (2.0) = 30 deduction -> 70 score -> C
-        Assert.Equal(70.0, scorecard.NumericScore);
-        Assert.Equal("C", scorecard.LetterGrade);
+        // Capped: High load 30 damped against cap 22 -> 16.4 -> 83.6 (B)
+        Assert.Equal(83.6, scorecard.NumericScore);
+        Assert.Equal("B", scorecard.LetterGrade);
     }
 
     [Fact]
@@ -225,8 +228,8 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        // double.MaxValue should fall back to 1.0, so Critical = 4 * 5 * 1 = 20 deduction -> 80 score -> B
-        Assert.Equal(80.0, scorecard.NumericScore);
+        // double.MaxValue falls back to 1.0, so Critical load 20 damped against cap 35 -> 15.2 -> 84.8 (B)
+        Assert.Equal(84.8, scorecard.NumericScore);
         Assert.Equal("B", scorecard.LetterGrade);
         Assert.Equal(20.0, scorecard.ByCategory[0].TotalDeduction);
         Assert.True(double.IsFinite(scorecard.ByCategory[0].TotalDeduction));
@@ -255,8 +258,8 @@ public class RiskScorecardBuilderTests
         var scorecard = _builder.Build(findings);
 
         Assert.NotNull(scorecard);
-        // Weight 0.0 should fall back to 1.0, so Critical = 4 * 5 * 1 = 20 deduction -> 80 score -> B
-        Assert.Equal(80.0, scorecard.NumericScore);
+        // Weight 0.0 falls back to 1.0, so Critical load 20 damped against cap 35 -> 15.2 -> 84.8 (B)
+        Assert.Equal(84.8, scorecard.NumericScore);
         Assert.Equal("B", scorecard.LetterGrade);
         Assert.Equal(20.0, scorecard.ByCategory[0].TotalDeduction);
     }
@@ -299,8 +302,9 @@ public class RiskScorecardBuilderTests
     [Fact]
     public void Build_RawScoreBelowThreshold_RoundsUpButKeepsLowerGrade()
     {
-        // A Medium finding with weight 1.005 produces deduction 10.05 → raw score 89.95
-        // Grade must be computed from raw 89.95 (B), not from rounded 90.0 (A)
+        // A single Medium finding with weight 2.17 produces a raw tier load of 21.7, which the Medium
+        // cap (12) damps to ~10.0 -> raw score ~89.97. The grade must come from raw 89.97 (B), not
+        // from the rounded display value 90.0 (A).
         var findings = new[]
         {
             new Finding
@@ -313,7 +317,7 @@ public class RiskScorecardBuilderTests
                 Details = "Details",
                 CisMappings = new[]
                 {
-                    new CisBenchmarkMapping { ControlId = "CIS 4.1", ControlName = "Test", WhyItMatters = "M", ControlWeight = 1.005 }
+                    new CisBenchmarkMapping { ControlId = "CIS 4.1", ControlName = "Test", WhyItMatters = "M", ControlWeight = 2.17 }
                 }
             }
         };
@@ -347,32 +351,25 @@ public class RiskScorecardBuilderTests
     [Fact]
     public void Build_GradeBoundaries_C()
     {
-        // 70.0 should be C
+        // Capped: C(15.2) + H(10.9) = 26.1 damped -> 73.9 (C)
         var findings = new[]
         {
             CreateFinding(Severity.Critical, "Flood"),
-            CreateFinding(Severity.Low, "Flood") // 20 + 5 = 25 -> 75, need 30 -> 70
-        };
-        // Actually 75 is C. Let's do 2 Critical = 40 -> 60 = D. Need exact 70.
-        // High (15) + Medium (10) = 25 -> 75 (C)
-        // High (15) + High (15) = 30 -> 70 (C)
-        var findings2 = new[]
-        {
-            CreateFinding(Severity.High, "Flood"),
             CreateFinding(Severity.High, "Flood")
         };
-        var scorecard = _builder.Build(findings2);
+        var scorecard = _builder.Build(findings);
         Assert.Equal("C", scorecard!.LetterGrade);
     }
 
     [Fact]
     public void Build_GradeBoundaries_D()
     {
-        // 60.0 should be D
+        // Capped: C(15.2) + H(10.9) + M(6.8) = 32.9 damped -> 67.1 (D)
         var findings = new[]
         {
             CreateFinding(Severity.Critical, "Flood"),
-            CreateFinding(Severity.High, "Flood") // 20 + 15 = 35 -> 65 (D)
+            CreateFinding(Severity.High, "Flood"),
+            CreateFinding(Severity.Medium, "Flood")
         };
         var scorecard = _builder.Build(findings);
         Assert.Equal("D", scorecard!.LetterGrade);
@@ -381,19 +378,22 @@ public class RiskScorecardBuilderTests
     [Fact]
     public void Build_GradeBoundaries_F()
     {
-        // < 60 should be F
+        // Reaching F (<60) needs near-saturated Critical AND High tiers: 5 C (load 100 -> 33.0) +
+        // 5 H (load 75 -> 21.3) = 54.3 damped -> 45.7 (F). Criticals alone can't get there (cap 35 -> floor 65).
         var findings = new[]
         {
             CreateFinding(Severity.Critical, "Flood"),
-            CreateFinding(Severity.Critical, "Flood") // 40 -> 60 is D, need more
-        };
-        var findings2 = new[]
-        {
             CreateFinding(Severity.Critical, "Flood"),
             CreateFinding(Severity.Critical, "Flood"),
-            CreateFinding(Severity.Low, "Flood") // 45 -> 55 (F)
+            CreateFinding(Severity.Critical, "Flood"),
+            CreateFinding(Severity.Critical, "Flood"),
+            CreateFinding(Severity.High, "Flood"),
+            CreateFinding(Severity.High, "Flood"),
+            CreateFinding(Severity.High, "Flood"),
+            CreateFinding(Severity.High, "Flood"),
+            CreateFinding(Severity.High, "Flood")
         };
-        var scorecard = _builder.Build(findings2);
+        var scorecard = _builder.Build(findings);
         Assert.Equal("F", scorecard!.LetterGrade);
     }
 

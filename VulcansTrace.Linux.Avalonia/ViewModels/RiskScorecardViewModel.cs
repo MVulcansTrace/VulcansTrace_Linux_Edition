@@ -29,14 +29,14 @@ public sealed class RiskScorecardViewModel : ViewModelBase
         private set => SetField(ref _numericScore, value);
     }
 
-    /// <summary>Gets the sum of all per-finding deductions before clamping (may exceed 100).</summary>
+    /// <summary>Gets the raw (undamped) sum of per-finding deductions, before the per-severity caps are applied.</summary>
     public double TotalDeduction
     {
         get => _totalDeduction;
         private set => SetField(ref _totalDeduction, value);
     }
 
-    /// <summary>Gets whether deductions exceed 100 and the numeric score is floored at 0.</summary>
+    /// <summary>Gets whether the per-severity caps materially dampen the score (raw deduction exceeds the capped deduction by 10+ points).</summary>
     public bool IsSaturated
     {
         get => _isSaturated;

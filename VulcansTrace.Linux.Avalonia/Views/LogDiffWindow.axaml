@@ -14,6 +14,7 @@
         <conv:IntToBoolConverter x:Key="IntToBoolConverter" />
         <conv:LogDiffStateToBrushConverter x:Key="LogDiffStateToBrushConverter" />
         <conv:LogDiffStateToForegroundBrushConverter x:Key="LogDiffStateToForegroundBrushConverter" />
+        <conv:DateTimeMinValueToTextConverter x:Key="DateTimeMinValueToTextConverter" />
     </Window.Resources>
 
     <Design.DataContext>
@@ -128,8 +129,8 @@
                 <DataGridTextColumn Header="Count Δ" Binding="{Binding CountDelta}" Width="110" MinWidth="100" />
                 <DataGridTextColumn Header="Baseline" Binding="{Binding BaselineDominantAction}" Width="140" MinWidth="120" />
                 <DataGridTextColumn Header="Incident" Binding="{Binding IncidentDominantAction}" Width="140" MinWidth="120" />
-                <DataGridTextColumn Header="Baseline First" Binding="{Binding BaselineFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="210" MinWidth="200" />
-                <DataGridTextColumn Header="Incident First" Binding="{Binding IncidentFirstSeen, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="210" MinWidth="200" />
+                <DataGridTextColumn Header="Baseline First" Binding="{Binding BaselineFirstSeen, Converter={StaticResource DateTimeMinValueToTextConverter}}" Width="210" MinWidth="200" />
+                <DataGridTextColumn Header="Incident First" Binding="{Binding IncidentFirstSeen, Converter={StaticResource DateTimeMinValueToTextConverter}}" Width="210" MinWidth="200" />
             </DataGrid.Columns>
         </DataGrid>
 

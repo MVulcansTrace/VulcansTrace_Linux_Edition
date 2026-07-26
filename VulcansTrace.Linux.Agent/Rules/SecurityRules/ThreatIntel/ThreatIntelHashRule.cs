@@ -34,9 +34,19 @@ public sealed class ThreatIntelHashRule : IRule
     {
         var hashIocs = _store.GetByType(IocType.FileHash).ToList();
 
-        if (hashIocs.Count == 0 || data.FileHashes.Count == 0)
+        if (hashIocs.Count == 0)
         {
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+            // No intel to correlate against — can't tell "clean" from "never checked".
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
+
+        if (data.FileHashes.Count == 0)
+        {
+            // Empty hash list: a genuine "checked, none" only when the hash scan actually ran;
+            // otherwise the check never happened and must not read as a pass.
+            return data.FileHashesCollected
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
         }
 
         // Build a lookup: algorithm -> set of hash values
@@ -53,6 +63,12 @@ public sealed class ThreatIntelHashRule : IRule
 
         if (matches.Count == 0)
         {
+            var scanIncomplete = data.Capabilities.Any(c =>
+                string.Equals(c.SourceName, "file-hash", StringComparison.OrdinalIgnoreCase)
+                && c.Status == CapabilityStatus.PermissionLimited);
+            if (scanIncomplete)
+                return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
             return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
         }
 

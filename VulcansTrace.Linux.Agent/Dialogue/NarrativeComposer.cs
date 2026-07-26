@@ -2,6 +2,7 @@ using System.Text;
 using VulcansTrace.Linux.Agent.Memory;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 using VulcansTrace.Linux.Engine;
 
@@ -56,6 +57,15 @@ public sealed class NarrativeComposer : INarrativeComposer
     {
         if (result.AgentFindings.Count == 0)
         {
+            // An empty findings list only means "clean" if checks actually ran. When every rule
+            // was not-applicable (its data source absent — e.g. no container runtime), the scope
+            // was never examined, so don't claim it looks clean.
+            if (result.RuleResults.Count > 0 &&
+                result.RuleResults.All(r => r.Status == RuleStatus.NotApplicable))
+            {
+                return "No findings, but every check was skipped — nothing in this scope actually ran.";
+            }
+
             return "No active findings. Your system looks clean for the checked scope.";
         }
 

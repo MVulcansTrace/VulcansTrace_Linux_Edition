@@ -39,8 +39,12 @@ public sealed class FirewallDefaultDropRule : IRule
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Fail(Id, Category, "FW-001", Description, Severity.High, "INPUT",
-                new Dictionary<string, string> { ["issue"] = "No active firewall detected" }, CisMappings, MitreTechniques);
+        {
+            // Can't measure the INPUT default policy without a readable ruleset (no iptables/nftables
+            // output). FW-004 already owns the "firewall should be active" finding, so don't assert a
+            // High "default policy not DROP" here — that would present inference as measurement.
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var inputChain = data.FirewallRules.FirstOrDefault(r => r.Chain.Equals("INPUT", StringComparison.OrdinalIgnoreCase));
         if (inputChain == null)
@@ -96,7 +100,7 @@ public sealed class FirewallSshExposureRule : IRule
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-002", Description, CisMappings, MitreTechniques); // Can't verify without firewall
+            return RuleResult.NotApplicable(Id, Category, "FW-002", Description, CisMappings, MitreTechniques);
 
         var sshRules = data.FirewallRules.Where(r =>
             r.DestinationPort == "22" || r.RawLine.Contains("dpt:22") || r.RawLine.Contains("--dport 22")).ToList();
@@ -149,7 +153,7 @@ public sealed class FirewallStateTrackingRule : IRule
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-003", Description, CisMappings, MitreTechniques);
+            return RuleResult.NotApplicable(Id, Category, "FW-003", Description, CisMappings, MitreTechniques);
 
         var hasStateTracking = data.FirewallRules.Any(r =>
             r.StateMatch != null &&
@@ -194,6 +198,9 @@ public sealed class FirewallActiveRule : IRule
         if (data.FirewallActive && data.FirewallRules.Count > 0)
             return RuleResult.Pass(Id, Category, "FW-004", Description, CisMappings, MitreTechniques);
 
+        if (!data.FirewallRulesetAvailable)
+            return RuleResult.NotApplicable(Id, Category, "FW-004", Description, CisMappings, MitreTechniques);
+
         return RuleResult.Fail(Id, Category, "FW-004", Description, Severity.Critical, "firewall",
             new Dictionary<string, string>(), CisMappings, MitreTechniques);
     }
@@ -226,7 +233,7 @@ public sealed class FirewallIcmpRule : IRule
     public RuleResult Evaluate(ScanData data)
     {
         if (!data.FirewallActive)
-            return RuleResult.Pass(Id, Category, "FW-005", Description, CisMappings, MitreTechniques);
+            return RuleResult.NotApplicable(Id, Category, "FW-005", Description, CisMappings, MitreTechniques);
 
         var icmpRules = data.FirewallRules.Where(r =>
             r.Protocol.Equals("icmp", StringComparison.OrdinalIgnoreCase) ||

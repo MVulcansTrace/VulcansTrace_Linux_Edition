@@ -404,7 +404,7 @@ After any agent audit, view the aggregate risk scorecard:
    - **D** (orange) — score ≥60, High risk
    - **F** (red) — score <60, Severe risk
 4. Review the numeric score (0–100) and summary status.
-5. Review the **By Category** breakdown showing finding counts, average severity, and total deduction per category.
+5. Review the **By Category** breakdown showing finding counts, average severity, and raw deduction per category.
 6. Ask in chat: `What's my risk grade?` — the agent returns the scorecard summary without switching tabs.
 7. Export evidence — the signed ZIP includes `risk-scorecard.html` and `risk-scorecard.md` for manager handoff.
 
@@ -412,7 +412,12 @@ Scoring rules:
 - Deduction per finding = `SeverityValue × 5 × AverageControlWeight`
 - Control weight defaults to 1.0; zero, negative, NaN, Infinity, and excessive weights fall back to 1.0
 - Info findings (severity = 0) do not contribute to the risk score
-- Total score = `max(0, 100 − TotalDeduction)`
+- Raw deduction is accumulated separately for Critical, High, Medium, and Low findings
+- Each severity tier uses diminishing returns: `effective tier deduction = cap × (1 − e^(−raw tier deduction / cap))`
+- Tier caps are Critical 35, High 22, Medium 12, and Low 5
+- Total score = `clamp(100 − sum(effective tier deductions), 0, 100)`
+- `TotalDeduction` and category deductions remain raw values for transparent ranking; they are not subtracted directly from 100
+- `IsSaturated` is true when caps reduce the effective deduction by at least 10 points
 - Grade is computed from the raw score before rounding; display uses 1-decimal rounding
 
 ## Recurring Audit Scheduling — GUI

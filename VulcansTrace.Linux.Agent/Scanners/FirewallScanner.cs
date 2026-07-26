@@ -62,7 +62,8 @@ public sealed class FirewallScanner : IScanner
             return;
         }
 
-        // No firewall detected
+        // No usable ruleset was returned. Capability state distinguishes a successful empty response
+        // (firewall observably inactive) from unavailable or unreadable backends.
         builder.FirewallActive = false;
 
         if (!iptablesOk && !string.IsNullOrWhiteSpace(iptablesError))

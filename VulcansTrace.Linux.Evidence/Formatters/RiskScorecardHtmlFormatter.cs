@@ -59,12 +59,17 @@ public sealed class RiskScorecardHtmlFormatter
         sb.AppendLine("</div>");
 
         sb.AppendLine($"<p>Total risk-relevant findings: <strong>{scorecard.TotalFindings}</strong></p>");
+        sb.AppendLine($"<p>Scoring uses diminishing returns with per-severity caps (Critical 35, High 22, Medium 12, Low 5). Raw deductions total <strong>{scorecard.TotalDeduction:F1}</strong> and are not subtracted directly from 100.</p>");
+        if (scorecard.IsSaturated)
+        {
+            sb.AppendLine("<p><strong>Dampening is materially affecting this score:</strong> additional findings in a filled severity tier may have little effect on the displayed grade.</p>");
+        }
 
         if (scorecard.ByCategory.Count > 0)
         {
             sb.AppendLine("<h2>Risk by Category</h2>");
             sb.AppendLine("<table>");
-            sb.AppendLine("<tr><th>Category</th><th>Findings</th><th>Avg Severity</th><th>Deduction</th></tr>");
+            sb.AppendLine("<tr><th>Category</th><th>Findings</th><th>Avg Severity</th><th>Raw deduction</th></tr>");
 
             foreach (var category in scorecard.ByCategory)
             {

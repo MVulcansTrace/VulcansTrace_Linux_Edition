@@ -38,6 +38,9 @@ public sealed class PrivilegedContainerRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.IsContainerRuntimeDetected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var privileged = data.Containers.Where(c => c.IsPrivileged).ToList();
         if (privileged.Count == 0)
             return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
@@ -75,6 +78,9 @@ public sealed class LatestTagRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.IsContainerRuntimeDetected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var latest = data.Containers
             .Where(c => c.Tag.Equals("latest", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(c.Tag))
             .ToList();
@@ -118,7 +124,13 @@ public sealed class DockerSocketExposedRule : IRule
         var hostSocketExposed = data.ContainerRuntime?.DockerSocketExposed == true;
 
         if (mountedContainers.Count == 0 && !hostSocketExposed)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            // The host-socket check (File.Exists) always runs, so a present socket still fails below.
+            // But with no socket and no container runtime, this is "not applicable", not a clean pass.
+            return data.IsContainerRuntimeDetected
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var details = new List<string>();
         if (hostSocketExposed)
@@ -159,6 +171,9 @@ public sealed class KnownBadBaseLayerRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.IsContainerRuntimeDetected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var risky = data.Containers
             .Where(c => c.KnownBadBaseLayers.Count > 0)
             .ToList();
@@ -203,7 +218,7 @@ public sealed class ContainerdWeakDefaultsRule : IRule
     public RuleResult Evaluate(ScanData data)
     {
         if (data.ContainerRuntime?.ContainerdAvailable != true)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
 
         var hasDefaultOnly = data.Warnings.Any(w => w.Contains("Containerd default namespace", StringComparison.OrdinalIgnoreCase));
         if (!hasDefaultOnly)

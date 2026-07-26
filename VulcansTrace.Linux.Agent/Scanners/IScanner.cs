@@ -58,6 +58,9 @@ public sealed class ScanDataBuilder
     private BootloaderConfig? _bootloaderConfig;
     private PackageVulnerabilityStatus? _packageVulnerabilityStatus;
     private ContainerRuntimeInfo? _containerRuntime;
+    private bool _kubernetesInventoryCollected;
+    private bool _kubernetesInventoryComplete;
+    private bool _yaraScanCompleted;
 
     public string FirewallRaw
     {
@@ -216,9 +219,23 @@ public sealed class ScanDataBuilder
         lock (_lock) { _kubernetesPods.Add(pod); }
     }
 
+    public void SetKubernetesInventoryState(bool collected, bool complete)
+    {
+        lock (_lock)
+        {
+            _kubernetesInventoryCollected = collected;
+            _kubernetesInventoryComplete = complete;
+        }
+    }
+
     public void AddYaraMatch(YaraMatchEntry entry)
     {
         lock (_lock) { _yaraMatches.Add(entry); }
+    }
+
+    public void SetYaraScanCompleted(bool completed)
+    {
+        lock (_lock) { _yaraScanCompleted = completed; }
     }
 
     public void AddProcessRuntime(ProcessRuntimeEntry entry)
@@ -263,7 +280,10 @@ public sealed class ScanDataBuilder
                 ContainerRuntime = _containerRuntime,
                 Containers = _containers.ToArray(),
                 KubernetesPods = _kubernetesPods.ToArray(),
+                KubernetesInventoryCollected = _kubernetesInventoryCollected,
+                KubernetesInventoryComplete = _kubernetesInventoryComplete,
                 YaraMatches = _yaraMatches.ToArray(),
+                YaraScanCompleted = _yaraScanCompleted,
                 ProcessRuntimes = _processRuntimes.ToArray()
             };
         }

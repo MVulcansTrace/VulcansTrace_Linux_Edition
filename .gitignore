@@ -497,5 +497,8 @@ VulcansTrace_Evidence.zip
 *.jpg
 *.png
 
+# Agent remediation sessions (operator-specific runtime state)
+remediation-sessions.json
+
 # Keep app assets despite generic rules
 !VulcansTrace.Linux.Avalonia/Assets/*.png

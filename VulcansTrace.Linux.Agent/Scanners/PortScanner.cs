@@ -25,10 +25,9 @@ public sealed class PortScanner : IScanner
             permissionLimited |= netstatStatus == CapabilityStatus.PermissionLimited;
             builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = netstatStatus, Detail = error, Command = "netstat -tulnp" });
         }
-        else
-        {
-            builder.AddCapability(new DataSourceCapability { SourceName = "netstat", Status = CapabilityStatus.Unknown, Command = "netstat -tulnp" });
-        }
+        // When ss succeeded, netstat was never probed — don't report it (previously it was recorded
+        // as "unknown", which read like a not-installed tool and was inconsistent with other sources
+        // that report "unavailable" only when actually attempted and missing).
 
         if (permissionLimited && (!ok || string.IsNullOrWhiteSpace(output) || DataSourceCapability.ContainsPermissionDenied(output)))
         {

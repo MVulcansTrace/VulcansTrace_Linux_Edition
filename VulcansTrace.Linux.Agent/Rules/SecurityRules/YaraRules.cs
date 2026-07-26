@@ -57,7 +57,11 @@ public sealed class YaraMatchRule : IRule
             .ToList();
 
         if (entries.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            return data.YaraScanCompleted
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var first = entries.First();
         var firstDisplayPath = GetDisplayPath(first);

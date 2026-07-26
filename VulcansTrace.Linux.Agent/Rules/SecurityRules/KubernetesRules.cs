@@ -38,12 +38,19 @@ public sealed class K8sPrivilegedPodRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.KubernetesInventoryCollected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var violatingPods = data.KubernetesPods
             .Where(p => p.Containers.Any(c => c.Privileged))
             .ToList();
 
         if (violatingPods.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            return data.KubernetesInventoryComplete
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var target = string.Join(", ", violatingPods.Select(p => $"{p.Namespace}/{p.Name}").Take(5));
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,
@@ -78,12 +85,19 @@ public sealed class K8sHostNamespaceRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.KubernetesInventoryCollected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var violatingPods = data.KubernetesPods
             .Where(p => p.HostNetwork || p.HostPid || p.HostIpc)
             .ToList();
 
         if (violatingPods.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            return data.KubernetesInventoryComplete
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var target = string.Join(", ", violatingPods.Select(p => $"{p.Namespace}/{p.Name}").Take(5));
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,
@@ -118,12 +132,19 @@ public sealed class K8sRunAsRootRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.KubernetesInventoryCollected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var violatingPods = data.KubernetesPods
             .Where(p => p.Containers.Any(c => c.RunAsRoot))
             .ToList();
 
         if (violatingPods.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            return data.KubernetesInventoryComplete
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var target = string.Join(", ", violatingPods.Select(p => $"{p.Namespace}/{p.Name}").Take(5));
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,
@@ -158,6 +179,9 @@ public sealed class K8sSecurityContextRule : IRule
 
     public RuleResult Evaluate(ScanData data)
     {
+        if (!data.KubernetesInventoryCollected)
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+
         var violatingPods = data.KubernetesPods
             .Where(p => p.Containers.Any(c =>
                 c.AllowPrivilegeEscalation
@@ -168,7 +192,11 @@ public sealed class K8sSecurityContextRule : IRule
             .ToList();
 
         if (violatingPods.Count == 0)
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        {
+            return data.KubernetesInventoryComplete
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
 
         var target = string.Join(", ", violatingPods.Select(p => $"{p.Namespace}/{p.Name}").Take(5));
         return RuleResult.Fail(Id, Category, Id, Description, Severity, target,

@@ -78,7 +78,7 @@ public class WarningInterpreterTests
 
         var friendly = Assert.Single(result);
         Assert.Equal(WarningCategory.ScannerError, friendly.Category);
-        Assert.Contains("scanner returned", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scan step reported", friendly.Message, StringComparison.OrdinalIgnoreCase);
         // Scanner errors collapse raw text away, so the message must not point the user at a
         // "warnings banner for raw details": that UI does not exist, and the details were
         // deliberately summarized out of the message.
@@ -160,6 +160,81 @@ public class WarningInterpreterTests
         var friendly = Assert.Single(result);
         Assert.Equal(WarningCategory.MissingTool, friendly.Category);
         Assert.Contains("iptables or nftables installed", friendly.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Interpret_ContainerParserWarning_IsScannerError()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.ContainerCheck,
+            new[] { "Container scanner skipped malformed record: invalid JSON." },
+            Array.Empty<DataSourceCapability>());
+
+        Assert.Equal(WarningCategory.ScannerError, Assert.Single(result).Category);
+    }
+
+    [Fact]
+    public void Interpret_KubernetesParserWarning_IsScannerError()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.KubernetesCheck,
+            new[] { "Kubernetes scanner skipped malformed pod: missing spec." },
+            Array.Empty<DataSourceCapability>());
+
+        Assert.Equal(WarningCategory.ScannerError, Assert.Single(result).Category);
+    }
+
+    [Fact]
+    public void Interpret_KubectlConnectionFailure_IsScannerError()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.KubernetesCheck,
+            new[] { "Kubernetes scan skipped: kubectl failed. connection refused" },
+            Array.Empty<DataSourceCapability>());
+
+        Assert.Equal(WarningCategory.ScannerError, Assert.Single(result).Category);
+    }
+
+    [Fact]
+    public void Interpret_NoKubeconfig_NamesConfiguration()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.KubernetesCheck,
+            new[] { "Kubernetes scan skipped: no kubeconfig found." },
+            Array.Empty<DataSourceCapability>());
+
+        var friendly = Assert.Single(result);
+        Assert.Equal(WarningCategory.ConfigurationMissing, friendly.Category);
+        Assert.Contains("kubeconfig", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("command was not found", friendly.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Interpret_KubectlCommandNotFound_NamesKubectl()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.KubernetesCheck,
+            new[] { "kubectl: command not found" },
+            Array.Empty<DataSourceCapability>());
+
+        var friendly = Assert.Single(result);
+        Assert.Equal(WarningCategory.MissingTool, friendly.Category);
+        Assert.Contains("kubectl command", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("No kubeconfig", friendly.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Interpret_UnrelatedMissingTool_DoesNotInferIntentSpecificDependency()
+    {
+        var result = _interpreter.Interpret(
+            AgentIntent.KubernetesCheck,
+            new[] { "ss: command not found" },
+            Array.Empty<DataSourceCapability>());
+
+        var friendly = Assert.Single(result);
+        Assert.Contains("ss", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("kubeconfig", friendly.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("kubectl", friendly.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

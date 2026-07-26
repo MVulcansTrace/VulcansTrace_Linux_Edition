@@ -98,16 +98,24 @@ public sealed record AuditHistoryEntry
     public VulcansTrace.Linux.Core.Compliance.ComplianceScorecard? Scorecard { get; init; }
 
     /// <summary>
+    /// Risk scorecard snapshot produced by this audit. Persisting the calculated result keeps
+    /// historical grades stable when scoring algorithms or finding snapshots evolve.
+    /// </summary>
+    public RiskScorecard? RiskScorecard { get; init; }
+
+    /// <summary>
     /// True when this entry has been reduced to a slim summary. Verbose fields such as
     /// <see cref="DataSourceCapabilities"/>, <see cref="AttackChains"/>, <see cref="RuleResults"/>,
     /// <see cref="Warnings"/>, and <see cref="LogAnalysisResult"/> are empty in slim entries.
-    /// Counts, metadata, <see cref="SnapshotFindings"/>, and <see cref="Scorecard"/> are retained.
+    /// Counts, metadata, <see cref="SnapshotFindings"/>, <see cref="Scorecard"/>, and
+    /// <see cref="RiskScorecard"/> are retained.
     /// </summary>
     public bool IsSlimSummary { get; init; }
 
     /// <summary>
     /// Returns a slim copy of this entry, preserving only metadata, counts,
-    /// <see cref="SnapshotFindings"/>, and <see cref="Scorecard"/>. Dropping verbose fields
+    /// <see cref="SnapshotFindings"/>, <see cref="Scorecard"/>, and <see cref="RiskScorecard"/>.
+    /// Dropping verbose fields
     /// keeps the on-disk history bounded even as per-audit metadata grows.
     /// </summary>
     public AuditHistoryEntry ToSlimSummary() => this with

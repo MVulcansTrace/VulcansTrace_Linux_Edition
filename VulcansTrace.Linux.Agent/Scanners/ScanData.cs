@@ -92,8 +92,74 @@ public sealed record ScanData
     /// <summary>Kubernetes pods and their security contexts detected via kubectl.</summary>
     public IReadOnlyList<KubernetesPodInfo> KubernetesPods { get; init; } = Array.Empty<KubernetesPodInfo>();
 
+    /// <summary>
+    /// True when kubectl returned a structurally valid inventory and at least one pod was parsed,
+    /// or when it returned a valid empty items array.
+    /// </summary>
+    public bool KubernetesInventoryCollected { get; init; }
+
+    /// <summary>
+    /// True when every pod in the kubectl inventory was parsed successfully. A partial inventory
+    /// can still prove a violation, but cannot prove the absence of violations.
+    /// </summary>
+    public bool KubernetesInventoryComplete { get; init; }
+
+    /// <summary>
+    /// True when a container runtime (docker or containerd/crictl) was detected and queryable, so an
+    /// empty <see cref="Containers"/> list is a genuine "checked, found nothing" rather than "never ran".
+    /// </summary>
+    public bool IsContainerRuntimeDetected =>
+        ContainerRuntime is { DockerAvailable: true } or { ContainerdAvailable: true };
+
+    /// <summary>
+    /// True when a usable Kubernetes inventory was collected. Retained as a compatibility alias for
+    /// callers that only need to distinguish usable inventory from a scan that never produced data.
+    /// </summary>
+    public bool KubernetesAvailable => KubernetesInventoryCollected;
+
+    /// <summary>
+    /// True when the connection scan actually ran (ss connections available), so an empty
+    /// <see cref="ActiveConnections"/> list is a genuine "checked, none" rather than "never ran".
+    /// </summary>
+    public bool ConnectionsCollected =>
+        Capabilities.Any(c => string.Equals(c.SourceName, "ss connections", StringComparison.OrdinalIgnoreCase)
+            && c.Status == CapabilityStatus.Available);
+
+    /// <summary>
+    /// True when the port scan actually ran (ss or netstat available), so an empty
+    /// <see cref="OpenPorts"/> list is a genuine "checked, none" rather than "never ran".
+    /// </summary>
+    public bool OpenPortsCollected =>
+        Capabilities.Any(c => (string.Equals(c.SourceName, "ss", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(c.SourceName, "netstat", StringComparison.OrdinalIgnoreCase))
+            && c.Status == CapabilityStatus.Available);
+
+    /// <summary>
+    /// True when the file-hash scan completed successfully. Permission-limited scans that produced
+    /// no hashes cannot prove that no malicious hashes are present.
+    /// </summary>
+    public bool FileHashesCollected =>
+        Capabilities.Any(c => string.Equals(c.SourceName, "file-hash", StringComparison.OrdinalIgnoreCase)
+            && c.Status == CapabilityStatus.Available);
+
     /// <summary>YARA rule matches discovered on SUID/SGID binaries, running process executables, and cron scripts.</summary>
     public IReadOnlyList<YaraMatchEntry> YaraMatches { get; init; } = Array.Empty<YaraMatchEntry>();
+
+    /// <summary>
+    /// True when YARA prerequisites were available and every discovered target was scanned. Partial
+    /// scans can still prove a match, but cannot prove that no suspicious files were found.
+    /// </summary>
+    public bool YaraScanCompleted { get; init; }
+
+    /// <summary>
+    /// True when at least one firewall backend returned a readable ruleset response, including a
+    /// successful empty response that proves no active rules were configured.
+    /// </summary>
+    public bool FirewallRulesetAvailable =>
+        Capabilities.Any(c =>
+            (string.Equals(c.SourceName, "iptables", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(c.SourceName, "nftables", StringComparison.OrdinalIgnoreCase))
+            && c.Status == CapabilityStatus.Available);
 
     /// <summary>Runtime process snapshots from /proc inspection.</summary>
     public IReadOnlyList<ProcessRuntimeEntry> ProcessRuntimes { get; init; } = Array.Empty<ProcessRuntimeEntry>();

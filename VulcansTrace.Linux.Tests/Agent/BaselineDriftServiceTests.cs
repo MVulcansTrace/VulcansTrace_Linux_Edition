@@ -1,6 +1,7 @@
 using VulcansTrace.Linux.Agent.Baselines;
 using VulcansTrace.Linux.Agent.Query;
 using VulcansTrace.Linux.Agent.Reports;
+using VulcansTrace.Linux.Agent.Rules;
 using VulcansTrace.Linux.Core;
 using Xunit;
 
@@ -14,9 +15,11 @@ public class BaselineDriftServiceTests
         var state = new AgentAuditState();
         var store = new InMemoryBaselineStore("baseline warning");
         var finding = CreateFinding("SSH-001", "sshd_config", Severity.High);
+        // Production invariant: agent-side LastResult.Intent always matches LastAuditIntent for
+        // real audits (drift state is restored after a check) — the baseline guard relies on it.
         var audit = new AgentResult
         {
-            Intent = AgentIntent.CheckDrift,
+            Intent = AgentIntent.SshCheck,
             UtcTimestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc),
             AgentFindings = new[] { finding }
         };
@@ -36,6 +39,99 @@ public class BaselineDriftServiceTests
         Assert.Equal("baseline warning", Assert.Single(result.Warnings));
         Assert.NotNull(result.Baseline);
         Assert.Equal(baseline.BaselineId, result.Baseline.BaselineId);
+        // Provenance cue: the reply must name the source audit's age so a baseline taken from a
+        // cached/rehydrated audit is never mistaken for a fresh-scan snapshot.
+        Assert.Contains("From your audit", result.Summary);
+        Assert.Contains("baseline 'Known SSH' saved for SshCheck with 1 finding(s).", result.Summary);
+    }
+
+    [Fact]
+    public async Task SetBaselineAsync_LogAnalysisResult_RefusesWithGuidance()
+    {
+        // Coherence guard: a log-analysis result (recorded via RememberResult, which does not move
+        // LastAuditIntent) must not be snapshotted under the previous host audit's intent — a later
+        // drift check would diff host findings against log findings.
+        var state = new AgentAuditState();
+        var store = new InMemoryBaselineStore();
+        var finding = CreateFinding("SSH-001", "sshd_config", Severity.High);
+        var audit = new AgentResult
+        {
+            Intent = AgentIntent.SshCheck,
+            UtcTimestamp = DateTime.UtcNow,
+            AgentFindings = new[] { finding }
+        };
+        state.RememberAudit(audit, AgentIntent.SshCheck, new[] { ("SSH-001", finding) });
+        state.RememberResult(new AgentResult
+        {
+            Intent = AgentIntent.LogAnalysis,
+            UtcTimestamp = DateTime.UtcNow,
+            AgentFindings = new[] { CreateFinding("LOG-001", "auth.log", Severity.Medium) }
+        });
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline), CancellationToken.None);
+
+        Assert.Contains("not a host audit", result.Summary);
+        Assert.Empty(store.GetAll());
+    }
+
+    [Fact]
+    public async Task SetBaselineAsync_AllNotApplicableAudit_RefusesWithGuidance()
+    {
+        // Vacuous guard: an audit whose every check was not-applicable examined nothing, so a
+        // baseline of it would be empty and every later drift verdict vacuous.
+        var state = new AgentAuditState();
+        var store = new InMemoryBaselineStore();
+        var audit = new AgentResult
+        {
+            Intent = AgentIntent.ContainerCheck,
+            UtcTimestamp = DateTime.UtcNow,
+            AgentFindings = Array.Empty<Finding>(),
+            RuleResults = new[]
+            {
+                RuleResult.NotApplicable("CTR-001", "Containers", "CTR-001", "No container runtime"),
+                RuleResult.NotApplicable("CTR-002", "Containers", "CTR-002", "No container runtime")
+            }
+        };
+        state.RememberAudit(audit, AgentIntent.ContainerCheck, Array.Empty<(string, Finding)>());
+        var service = new BaselineDriftService(state, store, RunAuditShouldNotBeCalled);
+
+        var result = await service.SetBaselineAsync(new AgentQuery(AgentIntent.SetBaseline), CancellationToken.None);
+
+        Assert.Contains("nothing meaningful to baseline", result.Summary);
+        Assert.Empty(store.GetAll());
+    }
+
+    [Fact]
+    public async Task RunDriftCheckAsync_AllNotApplicableReaudit_ReportsSkippedInsteadOfNoDrift()
+    {
+        // A fully-skipped re-audit examined nothing, so "No drift detected — configuration matches
+        // baseline" would be a vacuous verdict; the reply must say drift cannot be evaluated.
+        var state = new AgentAuditState();
+        var baseline = CreateBaseline(
+            AgentIntent.ContainerCheck,
+            CreateFinding("CTR-001", "web", Severity.High),
+            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var store = new InMemoryBaselineStore();
+        store.Save(baseline);
+        store.SetActive(baseline.BaselineId);
+
+        var liveResult = new AgentResult
+        {
+            Intent = AgentIntent.ContainerCheck,
+            UtcTimestamp = DateTime.UtcNow,
+            AgentFindings = Array.Empty<Finding>(),
+            RuleResults = new[]
+            {
+                RuleResult.NotApplicable("CTR-001", "Containers", "CTR-001", "No container runtime")
+            }
+        };
+        var service = new BaselineDriftService(state, store, (_, _, _, _) => Task.FromResult(liveResult));
+
+        var result = await service.RunDriftCheckAsync(AgentIntent.ContainerCheck, null, CancellationToken.None);
+
+        Assert.Contains("cannot be evaluated", result.Summary);
+        Assert.Null(result.BaselineDiff);
     }
 
     [Fact]

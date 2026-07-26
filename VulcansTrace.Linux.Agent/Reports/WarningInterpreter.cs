@@ -21,7 +21,7 @@ public sealed class WarningInterpreter
     {
         var classified = warnings.Select(Classify).ToList();
 
-        var missingTools = CollapseMissingTools(classified, capabilities, intent);
+        var missingTools = CollapseMissingTools(classified);
         var permissionDenied = CollapsePermissionDenied(classified);
         var configMissing = CollapseConfigurationMissing(classified);
         var scannerErrors = CollapseScannerErrors(classified);
@@ -37,6 +37,12 @@ public sealed class WarningInterpreter
     private static (WarningCategory Category, string Text, string? ToolName, string? Prefix) Classify(string warning)
     {
         var text = warning ?? string.Empty;
+
+        if (text.Equals("Container scan skipped: no container runtime detected.", StringComparison.OrdinalIgnoreCase))
+            return (WarningCategory.MissingTool, text, "container runtime", null);
+
+        if (text.Equals("Kubernetes scan skipped: no kubeconfig found.", StringComparison.OrdinalIgnoreCase))
+            return (WarningCategory.ConfigurationMissing, text, "kubeconfig", null);
 
         // Permission denied on filesystem paths or scanner summaries
         if (text.Contains("permission denied", StringComparison.OrdinalIgnoreCase) ||
@@ -134,6 +140,8 @@ public sealed class WarningInterpreter
             return "sshd";
         if (text.Contains("ufw", StringComparison.OrdinalIgnoreCase))
             return "ufw";
+        if (text.Contains("kubectl", StringComparison.OrdinalIgnoreCase))
+            return "kubectl";
 
         // Try to extract a quoted or plain command name before "failed"
         var parts = text.Split(new[] { ' ', '\'', '"', '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
@@ -180,8 +188,6 @@ public sealed class WarningInterpreter
             "Logging scan",
             "Cron scan",
             "Package scan",
-            "Container scan",
-            "Kubernetes scan",
             "Process runtime scan",
         };
 
@@ -249,9 +255,7 @@ public sealed class WarningInterpreter
     }
 
     private static IReadOnlyList<UserFriendlyWarning> CollapseMissingTools(
-        List<(WarningCategory Category, string Text, string? ToolName, string? Prefix)> classified,
-        IReadOnlyList<DataSourceCapability> capabilities,
-        AgentIntent intent)
+        List<(WarningCategory Category, string Text, string? ToolName, string? Prefix)> classified)
     {
         var missing = classified
             .Where(c => c.Category == WarningCategory.MissingTool)
@@ -278,7 +282,7 @@ public sealed class WarningInterpreter
             || missing.Contains("nft")
             || missing.Contains("ufw")
             || missing.Contains("firewall");
-        if (intent == AgentIntent.FirewallCheck || hasFirewallSignal)
+        if (hasFirewallSignal)
         {
             var (firewallMessage, firewallSuggestion) = BuildFirewallMessage(missing);
             domainMessages.Add(new UserFriendlyWarning(
@@ -288,7 +292,7 @@ public sealed class WarningInterpreter
                 firewallSuggestion));
         }
 
-        if (intent == AgentIntent.SshCheck || missing.Contains("sshd_config") || missing.Contains("sshd"))
+        if (missing.Contains("sshd_config") || missing.Contains("sshd"))
         {
             domainMessages.Add(new UserFriendlyWarning(
                 WarningCategory.MissingTool,
@@ -297,8 +301,26 @@ public sealed class WarningInterpreter
                 "Ensure sshd is installed and the config file is accessible."));
         }
 
+        if (missing.Contains("container runtime"))
+        {
+            domainMessages.Add(new UserFriendlyWarning(
+                WarningCategory.MissingTool,
+                "No container runtime (docker/crictl/ctr) was detected, so container security checks were skipped.",
+                1,
+                "Install docker or containerd, or run this on a host with containers running."));
+        }
+
+        if (missing.Contains("kubectl"))
+        {
+            domainMessages.Add(new UserFriendlyWarning(
+                WarningCategory.MissingTool,
+                "The kubectl command was not found, so Kubernetes security checks were skipped.",
+                1,
+                "Install kubectl to enable Kubernetes checks."));
+        }
+
         // Generic missing tools not covered above
-        var covered = new[] { "iptables", "nft", "firewall", "ufw", "sshd_config", "sshd" };
+        var covered = new[] { "iptables", "nft", "firewall", "ufw", "sshd_config", "sshd", "container runtime", "kubectl" };
         var genericMissing = missing.Where(m => !covered.Contains(m, StringComparer.OrdinalIgnoreCase)).ToList();
         foreach (var tool in genericMissing)
         {
@@ -357,17 +379,32 @@ public sealed class WarningInterpreter
         if (config.Count == 0)
             return Array.Empty<UserFriendlyWarning>();
 
-        var message = config.Count == 1
-            ? "One expected configuration file or setting was missing."
-            : $"{config.Count} expected configuration files or settings were missing.";
-
-        return new[]
+        var result = new List<UserFriendlyWarning>();
+        var kubeconfigCount = config.Count(c =>
+            string.Equals(c.ToolName, "kubeconfig", StringComparison.OrdinalIgnoreCase));
+        if (kubeconfigCount > 0)
         {
-            new UserFriendlyWarning(
+            result.Add(new UserFriendlyWarning(
+                WarningCategory.ConfigurationMissing,
+                "No kubeconfig was found, so Kubernetes security checks were skipped.",
+                kubeconfigCount,
+                "Configure ~/.kube/config (or set KUBECONFIG) to enable Kubernetes checks."));
+        }
+
+        var otherCount = config.Count - kubeconfigCount;
+        if (otherCount > 0)
+        {
+            var message = otherCount == 1
+                ? "One expected configuration file or setting was missing."
+                : $"{otherCount} expected configuration files or settings were missing.";
+
+            result.Add(new UserFriendlyWarning(
                 WarningCategory.ConfigurationMissing,
                 message,
-                config.Count),
-        };
+                otherCount));
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<UserFriendlyWarning> CollapseScannerErrors(
@@ -377,14 +414,16 @@ public sealed class WarningInterpreter
         if (errors.Count == 0)
             return Array.Empty<UserFriendlyWarning>();
 
-        // Keep scanner errors but don't dump raw text; summarize count.
+        // Keep scanner errors but don't dump raw text; summarize count. Say "scan steps", not
+        // "scanners" — these are typically many files/steps within one scanner, not N distinct
+        // broken scanners.
         return new[]
         {
             new UserFriendlyWarning(
                 WarningCategory.ScannerError,
                 errors.Count == 1
-                    ? "One scanner returned an unexpected error."
-                    : $"{errors.Count} scanners returned unexpected errors.",
+                    ? "One scan step reported an unexpected error."
+                    : $"{errors.Count} scan steps reported unexpected errors.",
                 errors.Count),
         };
     }

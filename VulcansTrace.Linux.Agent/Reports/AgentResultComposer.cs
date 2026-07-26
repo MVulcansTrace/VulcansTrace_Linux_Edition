@@ -52,11 +52,16 @@ internal sealed class AgentResultComposer
             _ => "Audit"
         };
 
+        var notApplicableCount = allResults.Count(r => r.Status == RuleStatus.NotApplicable);
         var parts = new List<string> { $"{intentLabel} complete." };
 
         if (failedCount == 0 && suppressedCount == 0 && crashedCount == 0)
         {
-            parts.Add($"All {passedCount} checks passed.");
+            // Don't claim "All N checks passed" when nothing actually ran. If every check was
+            // not-applicable (its data source was absent), the not-applicable count below says so — a
+            // vacuous "All 0 checks passed" would read as a clean bill of health that was never earned.
+            if (passedCount > 0)
+                parts.Add($"All {passedCount} checks passed.");
         }
         else if (failedCount == 0)
         {
@@ -87,7 +92,6 @@ internal sealed class AgentResultComposer
             parts.Add($"{crashedCount} rule(s) crashed.");
         }
 
-        var notApplicableCount = allResults.Count(r => r.Status == RuleStatus.NotApplicable);
         if (notApplicableCount > 0)
         {
             parts.Add($"{notApplicableCount} check(s) not applicable.");

@@ -178,6 +178,51 @@ public class SecurityAgentMemoryIntegrationTests
     }
 
     [Fact]
+    public async Task Restart_UsesPersistedRiskScorecardWithoutRecalculatingHistory()
+    {
+        var historyStore = new InMemoryAuditHistoryStore();
+        var persistedRisk = new RiskScorecard
+        {
+            NumericScore = 91.2,
+            LetterGrade = "A",
+            SummaryStatus = "Historical algorithm result",
+            TotalDeduction = 250,
+            TotalFindings = 1
+        };
+        historyStore.Append(new AuditHistoryEntry
+        {
+            SnapshotId = "risk01",
+            Intent = AgentIntent.FullAudit,
+            TimestampUtc = DateTime.UtcNow.AddHours(-1),
+            SnapshotFindings = new[]
+            {
+                new AuditSnapshotFinding
+                {
+                    RuleId = "TEST-001",
+                    Target = "test-target",
+                    Severity = "Critical",
+                    ShortDescription = "Would produce a different score if recalculated"
+                }
+            },
+            RiskScorecard = persistedRisk
+        });
+
+        var memoryStore = new InMemoryAgentMemoryStore();
+        await memoryStore.SaveAsync(new AgentMemorySnapshot
+        {
+            LatestAuditSnapshotId = "risk01",
+            LastAuditIntent = AgentIntent.FullAudit
+        });
+
+        var agent = CreateAgent(historyStore, memoryStore);
+
+        Assert.NotNull(agent.LastResult);
+        Assert.Same(persistedRisk, agent.LastResult!.RiskScorecard);
+        Assert.Equal(91.2, agent.LastResult.RiskScorecard!.NumericScore);
+        Assert.Equal("Historical algorithm result", agent.LastResult.RiskScorecard.SummaryStatus);
+    }
+
+    [Fact]
     public async Task Constructor_CorruptSnapshotFields_DoesNotThrow()
     {
         var historyStore = new InMemoryAuditHistoryStore();

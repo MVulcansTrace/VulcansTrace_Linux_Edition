@@ -38,7 +38,17 @@ public sealed class ThreatIntelPortRule : IRule
 
         if (portIocs.Count == 0)
         {
-            return RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques);
+            // No intel to correlate against — can't tell "clean" from "never checked".
+            return RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
+        }
+
+        if (data.OpenPorts.Count == 0)
+        {
+            // Empty port list: a genuine "checked, none" only when the port scan actually ran;
+            // otherwise the check never happened and must not read as a pass.
+            return data.OpenPortsCollected
+                ? RuleResult.Pass(Id, Category, Id, Description, CisMappings, MitreTechniques)
+                : RuleResult.NotApplicable(Id, Category, Id, Description, CisMappings, MitreTechniques);
         }
 
         var portMap = portIocs

@@ -28,6 +28,9 @@ public sealed class KubernetesScanner : IScanner
         var kubeConfigPath = GetKubeConfigPath();
         if (!File.Exists(kubeConfigPath))
         {
+            // Surface the skip so the reply explains kubectl checks were skipped rather than claiming
+            // they passed on an empty cluster inventory.
+            builder.AddWarning("Kubernetes scan skipped: no kubeconfig found.");
             builder.AddCapability(new DataSourceCapability
             {
                 SourceName = "kubectl",
@@ -41,47 +44,89 @@ public sealed class KubernetesScanner : IScanner
         var (output, error, ok) = await RunCommandAsync(
             "kubectl", new[] { "get", "pods", "--all-namespaces", "-o", "json" }, cancellationToken);
 
-        var status = DataSourceCapability.FromCommandResult(ok, output, error);
-        builder.AddCapability(new DataSourceCapability
-        {
-            SourceName = "kubectl",
-            Status = status,
-            Detail = error,
-            Command = "kubectl get pods --all-namespaces -o json"
-        });
-
         if (!ok || string.IsNullOrWhiteSpace(output))
         {
+            var status = DataSourceCapability.FromCommandResult(ok, output, error);
+            builder.AddCapability(new DataSourceCapability
+            {
+                SourceName = "kubectl",
+                Status = status,
+                Detail = error,
+                Command = "kubectl get pods --all-namespaces -o json"
+            });
             builder.AddWarning($"Kubernetes scan skipped: kubectl failed. {error}");
             return;
         }
 
-        ParseKubectlGetPodsJson(output, builder);
+        var parseOutcome = ParseKubectlGetPodsJson(output, builder);
+        builder.AddCapability(new DataSourceCapability
+        {
+            SourceName = "kubectl",
+            Status = parseOutcome switch
+            {
+                KubernetesInventoryParseOutcome.Complete => CapabilityStatus.Available,
+                KubernetesInventoryParseOutcome.Partial => CapabilityStatus.PermissionLimited,
+                _ => CapabilityStatus.Unavailable
+            },
+            Detail = parseOutcome switch
+            {
+                KubernetesInventoryParseOutcome.Complete => "Kubernetes pod inventory parsed completely.",
+                KubernetesInventoryParseOutcome.Partial => "Kubernetes pod inventory was only partially parsed.",
+                _ => "kubectl returned an unusable pod inventory."
+            },
+            Command = "kubectl get pods --all-namespaces -o json"
+        });
     }
 
-    internal static void ParseKubectlGetPodsJson(string json, ScanDataBuilder builder)
+    internal static KubernetesInventoryParseOutcome ParseKubectlGetPodsJson(string json, ScanDataBuilder builder)
     {
         try
         {
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("items", out var itemsProp))
-                return;
+            if (doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty("items", out var itemsProp)
+                || itemsProp.ValueKind != JsonValueKind.Array)
+            {
+                builder.AddWarning("Kubernetes scanner could not parse kubectl inventory: root 'items' array is missing.");
+                builder.SetKubernetesInventoryState(collected: false, complete: false);
+                return KubernetesInventoryParseOutcome.Failed;
+            }
 
+            var itemCount = 0;
+            var parsedCount = 0;
+            var skippedCount = 0;
             foreach (var item in itemsProp.EnumerateArray())
             {
+                itemCount++;
                 try
                 {
                     ParsePod(item, builder);
+                    parsedCount++;
                 }
                 catch (Exception ex)
                 {
+                    skippedCount++;
                     builder.AddWarning($"Kubernetes scanner skipped malformed pod: {ex.Message}");
                 }
             }
+
+            if (itemCount > 0 && parsedCount == 0)
+            {
+                builder.SetKubernetesInventoryState(collected: false, complete: false);
+                return KubernetesInventoryParseOutcome.Failed;
+            }
+
+            var complete = skippedCount == 0;
+            builder.SetKubernetesInventoryState(collected: true, complete: complete);
+            return complete
+                ? KubernetesInventoryParseOutcome.Complete
+                : KubernetesInventoryParseOutcome.Partial;
         }
-        catch
+        catch (JsonException ex)
         {
-            // Ignore malformed JSON
+            builder.AddWarning($"Kubernetes scanner could not parse kubectl JSON: {ex.Message}");
+            builder.SetKubernetesInventoryState(collected: false, complete: false);
+            return KubernetesInventoryParseOutcome.Failed;
         }
     }
 
@@ -275,4 +320,11 @@ public sealed class KubernetesScanner : IScanner
     {
         return await ScannerCommandRunner.RunAsync(fileName, args, ct);
     }
+}
+
+internal enum KubernetesInventoryParseOutcome
+{
+    Failed,
+    Partial,
+    Complete
 }

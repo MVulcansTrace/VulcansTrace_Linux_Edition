@@ -14,12 +14,41 @@ public class RuleTests
     public void FirewallActiveRule_NoFirewall_Fails()
     {
         var rule = new FirewallActiveRule();
-        var data = new ScanData { FirewallActive = false, FirewallRules = Array.Empty<FirewallRule>() };
+        var data = new ScanData
+        {
+            FirewallActive = false,
+            FirewallRules = Array.Empty<FirewallRule>(),
+            Capabilities = new[]
+            {
+                new DataSourceCapability { SourceName = "iptables", Status = CapabilityStatus.Available }
+            }
+        };
 
         var result = rule.Evaluate(data);
 
         Assert.False(result.Passed);
         Assert.Equal(Severity.Critical, result.Severity);
+    }
+
+    [Fact]
+    public void FirewallRules_UnavailableRuleset_AreNotApplicable()
+    {
+        var data = new ScanData
+        {
+            FirewallActive = false,
+            FirewallRules = Array.Empty<FirewallRule>(),
+            Capabilities = new[]
+            {
+                new DataSourceCapability { SourceName = "iptables", Status = CapabilityStatus.Unavailable },
+                new DataSourceCapability { SourceName = "nftables", Status = CapabilityStatus.PermissionLimited }
+            }
+        };
+
+        Assert.Equal(RuleStatus.NotApplicable, new FirewallDefaultDropRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new FirewallSshExposureRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new FirewallStateTrackingRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new FirewallActiveRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new FirewallIcmpRule().Evaluate(data).Status);
     }
 
     [Fact]
@@ -1685,7 +1714,15 @@ public class RuleTests
     public void CisMappings_FlowThrough_ToFailedResult()
     {
         var rule = new FirewallActiveRule();
-        var data = new ScanData { FirewallActive = false, FirewallRules = Array.Empty<FirewallRule>() };
+        var data = new ScanData
+        {
+            FirewallActive = false,
+            FirewallRules = Array.Empty<FirewallRule>(),
+            Capabilities = new[]
+            {
+                new DataSourceCapability { SourceName = "iptables", Status = CapabilityStatus.Available }
+            }
+        };
 
         var result = rule.Evaluate(data);
 
@@ -3386,6 +3423,7 @@ public class RuleTests
         var rule = new PrivilegedContainerRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", IsPrivileged = true, Runtime = "docker" }
@@ -3404,6 +3442,7 @@ public class RuleTests
         var rule = new PrivilegedContainerRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", IsPrivileged = false, Runtime = "docker" }
@@ -3421,6 +3460,7 @@ public class RuleTests
         var rule = new LatestTagRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", Runtime = "docker" }
@@ -3439,6 +3479,7 @@ public class RuleTests
         var rule = new LatestTagRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "1.25", Runtime = "docker" }
@@ -3456,6 +3497,7 @@ public class RuleTests
         var rule = new DockerSocketExposedRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "latest", HasDockerSocketMount = true, Runtime = "docker" }
@@ -3491,6 +3533,7 @@ public class RuleTests
         var rule = new DockerSocketExposedRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = Array.Empty<ContainerInfo>()
         };
 
@@ -3505,6 +3548,7 @@ public class RuleTests
         var rule = new KnownBadBaseLayerRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo
@@ -3530,6 +3574,7 @@ public class RuleTests
         var rule = new KnownBadBaseLayerRule();
         var data = new ScanData
         {
+            ContainerRuntime = new ContainerRuntimeInfo { DockerAvailable = true },
             Containers = new[]
             {
                 new ContainerInfo { Name = "web", Image = "nginx", Tag = "1.25", Runtime = "docker" }
@@ -3558,7 +3603,7 @@ public class RuleTests
     }
 
     [Fact]
-    public void ContainerdWeakDefaultsRule_NotAvailable_Passes()
+    public void ContainerdWeakDefaultsRule_NotAvailable_NotApplicable()
     {
         var rule = new ContainerdWeakDefaultsRule();
         var data = new ScanData
@@ -3568,19 +3613,22 @@ public class RuleTests
 
         var result = rule.Evaluate(data);
 
-        Assert.True(result.Passed);
+        // Without containerd, the weak-defaults check can't run — NotApplicable, not a clean pass.
+        Assert.Equal(RuleStatus.NotApplicable, result.Status);
     }
 
     [Fact]
-    public void ContainerRules_MissingData_Passes()
+    public void ContainerRules_MissingData_NotApplicable()
     {
         var data = new ScanData { Containers = Array.Empty<ContainerInfo>(), ContainerRuntime = null };
 
-        Assert.True(new PrivilegedContainerRule().Evaluate(data).Passed);
-        Assert.True(new LatestTagRule().Evaluate(data).Passed);
-        Assert.True(new DockerSocketExposedRule().Evaluate(data).Passed);
-        Assert.True(new KnownBadBaseLayerRule().Evaluate(data).Passed);
-        Assert.True(new ContainerdWeakDefaultsRule().Evaluate(data).Passed);
+        // No container runtime detected -> every container rule is not applicable (not a clean pass),
+        // so an audit on a host without docker/containerd can't be mistaken for a hardened host.
+        Assert.Equal(RuleStatus.NotApplicable, new PrivilegedContainerRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new LatestTagRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new DockerSocketExposedRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new KnownBadBaseLayerRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new ContainerdWeakDefaultsRule().Evaluate(data).Status);
     }
 
     // =====================================================================
@@ -3593,6 +3641,8 @@ public class RuleTests
         var rule = new K8sPrivilegedPodRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3619,6 +3669,8 @@ public class RuleTests
         var rule = new K8sPrivilegedPodRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3644,6 +3696,8 @@ public class RuleTests
         var rule = new K8sHostNamespaceRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3669,6 +3723,8 @@ public class RuleTests
         var rule = new K8sHostNamespaceRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3693,6 +3749,8 @@ public class RuleTests
         var rule = new K8sHostNamespaceRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3716,6 +3774,8 @@ public class RuleTests
         var rule = new K8sRunAsRootRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3742,6 +3802,8 @@ public class RuleTests
         var rule = new K8sRunAsRootRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3767,6 +3829,8 @@ public class RuleTests
         var rule = new K8sRunAsRootRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3792,6 +3856,8 @@ public class RuleTests
         var rule = new K8sSecurityContextRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3818,6 +3884,8 @@ public class RuleTests
         var rule = new K8sSecurityContextRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3852,6 +3920,8 @@ public class RuleTests
         var rule = new K8sSecurityContextRule();
         var data = new ScanData
         {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = true,
             KubernetesPods = new[]
             {
                 new KubernetesPodInfo
@@ -3872,14 +3942,75 @@ public class RuleTests
     }
 
     [Fact]
-    public void KubernetesRules_MissingData_Passes()
+    public void KubernetesRules_MissingData_NotApplicable()
     {
         var data = new ScanData { KubernetesPods = Array.Empty<KubernetesPodInfo>() };
 
-        Assert.True(new K8sPrivilegedPodRule().Evaluate(data).Passed);
-        Assert.True(new K8sHostNamespaceRule().Evaluate(data).Passed);
-        Assert.True(new K8sRunAsRootRule().Evaluate(data).Passed);
-        Assert.True(new K8sSecurityContextRule().Evaluate(data).Passed);
+        // No kubeconfig (kubectl never ran) -> every Kubernetes rule is not applicable, not a pass.
+        Assert.Equal(RuleStatus.NotApplicable, new K8sPrivilegedPodRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sHostNamespaceRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sRunAsRootRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sSecurityContextRule().Evaluate(data).Status);
+    }
+
+    [Fact]
+    public void KubernetesRules_PartialCleanInventory_NotApplicable()
+    {
+        var data = new ScanData
+        {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = false,
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "observed-safe-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo
+                        {
+                            Name = "app",
+                            Privileged = false,
+                            RunAsRoot = false,
+                            AllowPrivilegeEscalation = false,
+                            ReadOnlyRootFilesystem = true,
+                            DropAllCapabilities = true,
+                            SeccompProfile = "RuntimeDefault"
+                        }
+                    }
+                }
+            }
+        };
+
+        Assert.Equal(RuleStatus.NotApplicable, new K8sPrivilegedPodRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sHostNamespaceRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sRunAsRootRule().Evaluate(data).Status);
+        Assert.Equal(RuleStatus.NotApplicable, new K8sSecurityContextRule().Evaluate(data).Status);
+    }
+
+    [Fact]
+    public void KubernetesRules_PartialInventoryWithObservedViolation_Fails()
+    {
+        var data = new ScanData
+        {
+            KubernetesInventoryCollected = true,
+            KubernetesInventoryComplete = false,
+            KubernetesPods = new[]
+            {
+                new KubernetesPodInfo
+                {
+                    Namespace = "default",
+                    Name = "observed-bad-pod",
+                    Containers = new[]
+                    {
+                        new K8sContainerInfo { Name = "app", Privileged = true }
+                    }
+                }
+            }
+        };
+
+        Assert.Equal(RuleStatus.Failed, new K8sPrivilegedPodRule().Evaluate(data).Status);
     }
 
     [Fact]
