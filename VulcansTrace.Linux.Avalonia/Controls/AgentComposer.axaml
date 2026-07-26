@@ -33,23 +33,15 @@
                             <DataTemplate DataType="vm:SlashCommandItem">
                                 <Button Command="{Binding Command}"
                                         CommandParameter="{Binding}"
+                                        Content="{Binding CommandText}"
+                                        ToolTip.Tip="{Binding Description}"
                                         AutomationProperties.AutomationId="AgentSlashCommandPaletteItem"
-                                        AutomationProperties.Name="{Binding Title}"
+                                        AutomationProperties.Name="{Binding CommandText}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Left"
                                         Padding="10,6"
-                                        Theme="{StaticResource VtSecondaryButton}">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding CommandText}"
-                                                   FontFamily="{StaticResource VtFontFamilyMono}"
-                                                   FontSize="{StaticResource VtFontSizeSm}"
-                                                   Foreground="{StaticResource VtPrimaryBrush}"
-                                                   FontWeight="SemiBold"/>
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontSize="{StaticResource VtFontSizeSm}"
-                                                   Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                                    </StackPanel>
-                                </Button>
+                                        FontSize="{StaticResource VtFontSizeSm}"
+                                        Theme="{StaticResource VtSecondaryButton}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -57,7 +49,7 @@
             </Border>
 
             <!-- Main input row -->
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                 <!-- This is the user's input surface, so it intentionally does
                      not carry the Agent avatar. -->
                 <TextBox Grid.Column="0"
@@ -80,15 +72,12 @@
                      consuming a permanent inspector section. -->
                 <Button Grid.Column="1"
                         Theme="{StaticResource VtGhostButton}"
+                        Content="Checks"
                         VerticalAlignment="Center"
                         Padding="8"
                         ToolTip.Tip="Run a focused check"
                         AutomationProperties.AutomationId="AgentFocusedChecksButton"
                         AutomationProperties.Name="Run a focused security check">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <i:Icon Value="mdi-crosshairs" FontSize="{StaticResource VtIconSizeMd}" VerticalAlignment="Center"/>
-                        <i:Icon Value="mdi-chevron-down" FontSize="{StaticResource VtIconSizeXs}" VerticalAlignment="Center"/>
-                    </StackPanel>
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuItem Header="Firewall" Command="{Binding Agent.FirewallCommand}"
@@ -136,20 +125,28 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Run button -->
                 <Button Grid.Column="3"
+                        Theme="{StaticResource VtGhostButton}"
+                        Command="{Binding Agent.OpenSlashHelpCommand}"
+                        Content="Commands"
+                        VerticalAlignment="Center"
+                        Padding="10,8"
+                        AutomationProperties.AutomationId="AgentCommandHelpButton"
+                        AutomationProperties.Name="Command help"
+                        ToolTip.Tip="Show all Agent commands (Ctrl+K)"/>
+
+                <!-- Run button -->
+                <Button Grid.Column="4"
                         Theme="{StaticResource VtPrimaryButton}"
                         Command="{Binding HeroPrimaryCommand}"
+                        Content="{Binding HeroPrimaryLabel}"
                         VerticalAlignment="Center"
                         Padding="16,8"
                         AutomationProperties.AutomationId="ComposerRunButton"
-                        AutomationProperties.Name="{Binding HeroPrimaryLabel}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <i:Icon Value="mdi-play" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding HeroPrimaryLabel}" FontWeight="SemiBold"
-                                   FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
+                        AutomationProperties.Name="Run Agent input"
+                        AutomationProperties.HelpText="Runs the current input as chat or log analysis"
+                        FontWeight="SemiBold"
+                        FontSize="{StaticResource VtFontSizeSm}"/>
             </Grid>
 
             <!-- Helper text -->

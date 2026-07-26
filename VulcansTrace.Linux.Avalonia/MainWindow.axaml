@@ -76,7 +76,8 @@
                                Foreground="{StaticResource VtTextSecondaryBrush}"
                                FontSize="{StaticResource VtFontSizeSm}"
                                VerticalAlignment="Center"
-                               AutomationProperties.AutomationId="BaselineStatusText"/>
+                               AutomationProperties.AutomationId="BaselineStatusText"
+                               AutomationProperties.Name="Agent baseline status"/>
                 </StackPanel>
                 <TextBlock Text="{Binding Agent.AgentStatus, StringFormat='Agent: {0}'}"
                            Foreground="{StaticResource VtTextSecondaryBrush}"

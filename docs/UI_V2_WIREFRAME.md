@@ -103,17 +103,13 @@ by the current-state section.
 >      group name. The flyout still light-dismisses on window re-activation (a
 >      static observe never sees it — the harness asserts it via in-act
 >      `control_added`); that part is unchanged.
->    - **(E) Disabled buttons read as "broken" / transcript right gutter /
->      persistent collapsed Agent Tools bar in results state** → DEFERRED to the
->      finding-A / Phase-C layout decision: E2/E3 sit in the same hero/transcript
->      zone as the deferred split-input/output rework (A), so doing them now
->      risks rework, and E1 (disabled-button hints) is marginal/speculative.
->      Not in the 2026-07-20 polish pass (C + D shipped; see that commit).
-> 4. **OCR-disambiguation gotcha (harness, tied to B):** the empty-state
->    microcopy contains the substring "Agent Tools", so an unregioned
->    `click_text "Agent Tools"` matches it instead of the toggle bar; the
->    harness now region-constrains that click. Not a product defect — recorded
->    so future OCR drives region-constrain around the empty-state copy.
+>    - **(E) Disabled buttons read as "broken" / transcript right gutter** →
+>      DEFERRED to the finding-A / Phase-C layout decision. The former
+>      persistent Agent Tools bar no longer applies: the unmounted tool catalog
+>      was retired in favor of the first-class Command help palette.
+> 4. **Historical OCR-disambiguation gotcha (resolved):** the former Agent Tools
+>    surface and matching empty-state microcopy were removed. Current automation
+>    targets `Command help` and the concrete slash-command buttons directly.
 >
 > ## Amendments discovered during Phase 4 implementation
 > 1. **Timeline accessible companion list SHIPPED** (`TimelineEventsList`): the
@@ -320,7 +316,8 @@ Design goals:
 - Scan options (intensity, machine role) ride along on Analyze; defaults come from settings.
 
 ### (E) Suggested-prompt chips
-- `WrapPanel` of prompt Buttons (`PromptChipItems`), NOT filters. Filters live in Findings.
+- Suggested actions now live in the Agent workspace; the retired hero prompt-chip
+  control is no longer part of the mounted UI. Filters live in Findings.
 - Content: static list first; later, context-aware (e.g., after analysis: "Triage Criticals first").
 - Clicking a chip fills the input box (does NOT auto-send).
 

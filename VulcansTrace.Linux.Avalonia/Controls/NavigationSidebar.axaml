@@ -87,7 +87,10 @@
       </Border>
 
       <Border Grid.Row="1" IsVisible="{Binding IsSidebarCollapsed}" Width="56">
-        <ItemsControl ItemsSource="{Binding NavigationItems}" Margin="0,10">
+        <ItemsControl ItemsSource="{Binding NavigationItems}"
+                      Margin="0,10"
+                      AutomationProperties.AutomationId="CollapsedPrimaryNavigation"
+                      AutomationProperties.Name="Collapsed primary navigation">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="models:NavigationItem">
               <Button Command="{Binding NavigateCommand}"

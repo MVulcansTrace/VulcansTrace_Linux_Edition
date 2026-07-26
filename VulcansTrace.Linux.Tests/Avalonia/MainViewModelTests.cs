@@ -772,27 +772,6 @@ not a firewall line";
         Assert.Equal(summaryAfterAnalysis, _vm.SummaryText);
     }
 
-    [AvaloniaFact]
-    public void PromptChip_FillsInputWithoutSending()
-    {
-        var chip = _vm.PromptChips[1];
-
-        _vm.PromptChipCommand.Execute(chip);
-
-        Assert.Equal(chip.Label, _vm.LogText);
-        Assert.Equal(chip.Label, _vm.Agent.UserQuery);
-        Assert.False(_vm.IsLogIntent);
-        // Fill-only: nothing was sent — the thread is still welcome-only.
-        Assert.True(_vm.Agent.HasOnlyWelcomeMessage);
-    }
-
-    [AvaloniaFact]
-    public void PromptChips_HaveUniqueAutomationIds()
-    {
-        Assert.Equal(3, _vm.PromptChips.Count);
-        Assert.Equal(_vm.PromptChips.Count, _vm.PromptChips.Select(c => c.AutomationId).Distinct().Count());
-    }
-
     // ── UI v2 Phase 3: icon rail ─────────────────────────────────────────────
 
     [AvaloniaFact]

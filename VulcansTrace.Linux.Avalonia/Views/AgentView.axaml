@@ -82,31 +82,36 @@
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <Button x:Name="InspectorToggleButton"
                     Theme="{StaticResource VtSecondaryButton}" Padding="10,6"
+                    Content="Inspector"
                     IsVisible="False"
                     Click="OnInspectorToggleClick"
                     AutomationProperties.AutomationId="AgentInspectorToggleButton"
-                    AutomationProperties.Name="Open Agent inspector">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <i:Icon Value="mdi-dock-right" FontSize="{StaticResource VtIconSizeSm}"/>
-                <TextBlock Text="Inspector" FontSize="{StaticResource VtFontSizeSm}"/>
-              </StackPanel>
-            </Button>
+                    AutomationProperties.Name="Open Agent inspector"
+                    FontSize="{StaticResource VtFontSizeSm}"/>
             <Button Theme="{StaticResource VtSecondaryButton}" Padding="10,6"
+                    Content="Share"
                     AutomationProperties.AutomationId="AgentSessionToolsMenu"
-                    AutomationProperties.Name="Share Agent session" VerticalAlignment="Center">
-              <Button.Content>
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <i:Icon Value="mdi-cog-outline" FontSize="{StaticResource VtIconSizeSm}" VerticalAlignment="Center"/>
-                  <TextBlock Text="Share" FontSize="{StaticResource VtFontSizeSm}" VerticalAlignment="Center"/>
-                  <i:Icon Value="mdi-chevron-down" FontSize="{StaticResource VtIconSizeXs}" VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button.Content>
+                    AutomationProperties.Name="Share Agent session"
+                    VerticalAlignment="Center"
+                    FontSize="{StaticResource VtFontSizeSm}">
               <Button.Flyout>
                 <MenuFlyout>
                   <MenuItem Header="Export Audit" Command="{Binding ExportAuditCommand}"
-                            AutomationProperties.AutomationId="AgentExportAuditMenuItem"/>
+                            AutomationProperties.AutomationId="AgentExportAuditMenuItem"
+                            AutomationProperties.Name="Export Agent audit"/>
+                  <MenuItem Header="Export Remediation" Command="{Binding ExportRemediationCommand}"
+                            AutomationProperties.AutomationId="AgentExportRemediationMenuItem"
+                            AutomationProperties.Name="Export Agent remediation plan"/>
                   <MenuItem Header="Export Session" Command="{Binding ExportSessionCommand}"
-                            AutomationProperties.AutomationId="AgentExportSessionMenuItem"/>
+                            AutomationProperties.AutomationId="AgentExportSessionMenuItem"
+                            AutomationProperties.Name="Export Agent remediation session"/>
+                  <MenuItem Header="Export STIX/MISP" Command="{Binding ExportThreatIntelCommand}"
+                            AutomationProperties.AutomationId="AgentExportThreatIntelMenuItem"
+                            AutomationProperties.Name="Export Agent findings as STIX or MISP"/>
+                  <Separator/>
+                  <MenuItem Header="Import Threat Intel" Command="{Binding ImportThreatIntelCommand}"
+                            AutomationProperties.AutomationId="AgentImportThreatIntelMenuItem"
+                            AutomationProperties.Name="Import threat intelligence into Agent"/>
                 </MenuFlyout>
               </Button.Flyout>
             </Button>
@@ -204,7 +209,8 @@
                     IsReadOnly="True"
                     HeadersVisibility="Column"
                     GridLinesVisibility="Horizontal"
-                    AutomationProperties.AutomationId="ResultsFindingsGrid">
+                    AutomationProperties.AutomationId="ResultsFindingsGrid"
+                    AutomationProperties.Name="Agent result findings">
             <DataGrid.Columns>
               <DataGridTemplateColumn Header="" Width="32">
                 <DataGridTemplateColumn.CellTemplate>
@@ -304,7 +310,8 @@
           <ListBox Grid.Row="3" x:Name="ChatListBox"
                    Classes="VtChatList"
                    ItemsSource="{Binding Messages}"
-                   AutomationProperties.AutomationId="ChatListBox">
+                   AutomationProperties.AutomationId="ChatListBox"
+                   AutomationProperties.Name="Agent conversation">
             <ListBox.Styles>
               <Style Selector="ListBoxItem" x:DataType="vm:AgentMessageViewModel">
                 <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
@@ -319,6 +326,7 @@
               <!-- Analysis Summary Card -->
               <DataTemplate DataType="vm:AnalysisSummaryCardMessageViewModel">
                 <Border AutomationProperties.AutomationId="AnalysisSummaryCard"
+                        AutomationProperties.Name="Analysis summary"
                         Background="{StaticResource VtBackground700Brush}"
                         BorderBrush="{StaticResource VtBorderDefaultBrush}"
                         BorderThickness="1" CornerRadius="{StaticResource VtRadiusLg}"
@@ -330,7 +338,9 @@
                     <TextBlock Text="{Binding SummaryLine}"
                                Foreground="{StaticResource VtTextSecondaryBrush}"
                                FontSize="{StaticResource VtFontSizeSm}" TextWrapping="Wrap"/>
-                    <ItemsControl ItemsSource="{Binding Chips}">
+                    <ItemsControl ItemsSource="{Binding Chips}"
+                                  AutomationProperties.AutomationId="AnalysisSummaryChips"
+                                  AutomationProperties.Name="Analysis summary actions">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
@@ -485,7 +495,8 @@
                                 Background="{StaticResource VtBackground900Brush}"
                                 BorderBrush="{StaticResource VtBorderDefaultBrush}"
                                 BorderThickness="1" CornerRadius="{StaticResource VtRadiusMd}" Padding="12"
-                                AutomationProperties.AutomationId="AgentRemediationPlanCard">
+                                AutomationProperties.AutomationId="AgentRemediationPlanCard"
+                                AutomationProperties.Name="Agent remediation plan">
                           <StackPanel Spacing="12">
                             <TextBlock Text="Remediation plan" FontWeight="SemiBold"
                                        Foreground="{StaticResource VtTextPrimaryBrush}"/>
@@ -493,7 +504,8 @@
                             <Border IsVisible="{Binding HasImpactPreview}"
                                     Background="{StaticResource VtBackground800Brush}"
                                     CornerRadius="{StaticResource VtRadiusSm}" Padding="10"
-                                    AutomationProperties.AutomationId="AgentImpactPreview">
+                                    AutomationProperties.AutomationId="AgentImpactPreview"
+                                    AutomationProperties.Name="Agent remediation impact preview">
                               <StackPanel Spacing="6">
                                 <TextBlock Text="Impact preview" FontWeight="SemiBold"
                                            Foreground="{StaticResource VtPrimaryBrush}"/>
@@ -628,7 +640,8 @@
                       </StackPanel>
                       <Grid ColumnDefinitions="*,Auto"
                             IsVisible="{Binding IsStreaming}"
-                            AutomationProperties.AutomationId="AgentStreamingMessage">
+                            AutomationProperties.AutomationId="AgentStreamingMessage"
+                            AutomationProperties.Name="Agent streaming response">
                         <TextBlock Grid.Column="0"
                                    Text="{Binding StreamingText}"
                                    TextWrapping="Wrap"
@@ -661,12 +674,12 @@
                         <Button Theme="{StaticResource VtGhostButton}" Padding="4,2"
                                 Command="{Binding TogglePinCommand}"
                                 CommandParameter="{Binding}"
+                                Content="{Binding PinTooltip}"
                                 ToolTip.Tip="{Binding PinTooltip}"
                                 IsVisible="{Binding CanBePinned}"
                                 AutomationProperties.AutomationId="AgentMessagePinButton"
-                                AutomationProperties.Name="Toggle pin for agent message">
-                          <i:Icon Value="{Binding PinIcon}" FontSize="{StaticResource VtIconSizeXs}"/>
-                        </Button>
+                                AutomationProperties.Name="{Binding PinTooltip}"
+                                FontSize="{StaticResource VtFontSizeXs}"/>
                       </StackPanel>
                     </StackPanel>
                   </Border>
@@ -836,6 +849,14 @@
               </StackPanel>
             </Border>
 
+            <Button Content="Batch auto-fix"
+                    Command="{Binding BatchAutoFixCommand}"
+                    IsVisible="{Binding CanBatchAutoFix}"
+                    Theme="{StaticResource VtSecondaryButton}"
+                    HorizontalAlignment="Left"
+                    AutomationProperties.AutomationId="AgentBatchAutoFixButton"
+                    AutomationProperties.Name="Batch auto-fix latest findings"/>
+
             <TextBlock Text="Select a finding to inspect its evidence and actions here."
                        IsVisible="{Binding !HasSelectedResultFinding}"
                        TextWrapping="Wrap" TextAlignment="Center"
@@ -912,11 +933,10 @@
                         <Grid ColumnDefinitions="*,Auto">
                           <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis"/>
                           <Button Grid.Column="1" Command="{Binding TogglePinCommand}"
-                                  CommandParameter="{Binding}" Theme="{StaticResource VtGhostButton}"
+                                  CommandParameter="{Binding}" Content="Unpin"
+                                  Theme="{StaticResource VtGhostButton}"
                                   AutomationProperties.AutomationId="AgentPinnedMessageToggleButton"
-                                  AutomationProperties.Name="Unpin saved agent message">
-                            <i:Icon Value="mdi-pin-off"/>
-                          </Button>
+                                  AutomationProperties.Name="Unpin saved agent message"/>
                         </Grid>
                       </Border>
                     </DataTemplate>
@@ -947,10 +967,16 @@
                 <WrapPanel>
                   <Button Content="Set baseline" Command="{Binding SetBaselineCommand}"
                           Theme="{StaticResource VtSecondaryButton}" Margin="0,0,6,6"
-                          AutomationProperties.AutomationId="AgentSetBaselineButton"/>
+                          AutomationProperties.AutomationId="AgentSetBaselineButton"
+                          AutomationProperties.Name="Set Agent audit baseline"/>
                   <Button Content="Check drift" Command="{Binding CheckDriftCommand}"
                           Theme="{StaticResource VtSecondaryButton}" Margin="0,0,6,6"
-                          AutomationProperties.AutomationId="AgentCheckDriftButton"/>
+                          AutomationProperties.AutomationId="AgentCheckDriftButton"
+                          AutomationProperties.Name="Check Agent audit drift"/>
+                  <Button Content="Show baseline" Command="{Binding ShowBaselineCommand}"
+                          Theme="{StaticResource VtSecondaryButton}" Margin="0,0,6,6"
+                          AutomationProperties.AutomationId="AgentShowBaselineButton"
+                          AutomationProperties.Name="Show Agent audit baseline"/>
                 </WrapPanel>
               </StackPanel>
             </Border>
@@ -960,7 +986,8 @@
                 <TextBlock Text="Recent Investigations" FontWeight="SemiBold"/>
                 <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False"
                           IsReadOnly="True" HeadersVisibility="Column" MaxHeight="220"
-                          AutomationProperties.AutomationId="RecentInvestigationsGrid">
+                          AutomationProperties.AutomationId="RecentInvestigationsGrid"
+                          AutomationProperties.Name="Recent Agent investigations">
                   <DataGrid.Columns>
                     <DataGridTextColumn Header="RUN" Binding="{Binding Intent}" Width="*"/>
                     <DataGridTextColumn Header="FIND" Binding="{Binding TotalFindings}" Width="48"/>
@@ -978,6 +1005,10 @@
                         Theme="{StaticResource VtSecondaryButton}" HorizontalAlignment="Left"
                         AutomationProperties.AutomationId="AgentCompareSelectedAuditsButton"
                         AutomationProperties.Name="Compare selected audits"/>
+                <Button Content="Compare last two" Command="{Binding CompareAuditsCommand}"
+                        Theme="{StaticResource VtSecondaryButton}" HorizontalAlignment="Left"
+                        AutomationProperties.AutomationId="AgentCompareLastTwoAuditsButton"
+                        AutomationProperties.Name="Compare last two audits"/>
               </StackPanel>
             </Border>
 
@@ -1061,11 +1092,11 @@
             </StackPanel>
           </StackPanel>
           <Button Grid.Column="1" Theme="{StaticResource VtGhostButton}"
-                  Command="{Binding CloseSlashHelpCommand}" Padding="6"
+                  Command="{Binding CloseSlashHelpCommand}"
+                  Content="Close"
+                  Padding="6"
                   AutomationProperties.AutomationId="AgentSlashHelpCloseButton"
-                  AutomationProperties.Name="Close Agent command palette">
-            <i:Icon Value="mdi-close" FontSize="{StaticResource VtIconSizeMd}"/>
-          </Button>
+                  AutomationProperties.Name="Close Agent command palette"/>
         </Grid>
         <TextBox Grid.Row="1" x:Name="SlashHelpSearchBox"
                  Theme="{StaticResource VtInput}"
@@ -1079,37 +1110,20 @@
                  ItemsSource="{Binding FilteredSlashHelpCommands}"
                  SelectedItem="{Binding SelectedSlashHelpCommand}"
                  Background="Transparent" BorderThickness="0"
-                 AutomationProperties.AutomationId="SlashHelpList">
-          <AutomationProperties.Name>Agent command palette results</AutomationProperties.Name>
+                 AutomationProperties.AutomationId="SlashHelpList"
+                 AutomationProperties.Name="Agent command palette results">
           <ListBox.ItemTemplate>
             <DataTemplate DataType="vm:SlashCommandItem">
               <Button Command="{Binding Command}" CommandParameter="{Binding}"
+                      Content="{Binding CommandText}"
+                      ToolTip.Tip="{Binding Description}"
                       Theme="{StaticResource VtGhostButton}"
                       HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Stretch"
+                      HorizontalContentAlignment="Left"
                       Padding="10,8" Margin="0,2"
                       AutomationProperties.AutomationId="AgentCommandPaletteItem"
-                      AutomationProperties.Name="{Binding Title}">
-                <Grid ColumnDefinitions="110,*,Auto" ColumnSpacing="8">
-                  <TextBlock Grid.Column="0" Text="{Binding CommandText}"
-                             FontFamily="{StaticResource VtFontFamilyMono}"
-                             FontSize="{StaticResource VtFontSizeSm}"
-                             Foreground="{StaticResource VtPrimaryBrush}" FontWeight="SemiBold"/>
-                  <StackPanel Grid.Column="1" Spacing="2">
-                    <TextBlock Text="{Binding Title}"
-                               FontSize="{StaticResource VtFontSizeSm}"
-                               Foreground="{StaticResource VtTextPrimaryBrush}"/>
-                    <TextBlock Text="{Binding Description}"
-                               FontSize="{StaticResource VtFontSizeXs}"
-                               Foreground="{StaticResource VtTextSecondaryBrush}"/>
-                  </StackPanel>
-                  <TextBlock Grid.Column="2" Text="↵"
-                             FontFamily="{StaticResource VtFontFamilyMono}"
-                             FontSize="{StaticResource VtFontSizeSm}"
-                             Foreground="{StaticResource VtTextMutedBrush}"
-                             VerticalAlignment="Center"/>
-                </Grid>
-              </Button>
+                      AutomationProperties.Name="{Binding CommandText}"
+                      FontSize="{StaticResource VtFontSizeSm}"/>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>

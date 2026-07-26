@@ -33,8 +33,7 @@ public class MainWindowAccessibilityContractTests
     [Fact]
     public void PrimaryAnalysisControls_ExposeStableAccessibleNamesAndLabels()
     {
-        // The redesigned Agent workspace owns the active composer. HeroPanel is
-        // retained for compatibility but is no longer mounted by MainWindow.
+        // The redesigned Agent workspace owns the active composer.
         var document = LoadAvaloniaDocument("Controls/AgentComposer.axaml");
 
         AssertAutomationName(document, "AgentComposerInput", "Agent workspace input");
@@ -42,8 +41,11 @@ public class MainWindowAccessibilityContractTests
             Attribute(element, "AutomationProperties.AutomationId")?.Value
                 == "ComposerRunButton");
         Assert.Equal(
-            "{Binding HeroPrimaryLabel}",
+            "Run Agent input",
             Attribute(primary, "AutomationProperties.Name")?.Value);
+        Assert.Equal(
+            "{Binding HeroPrimaryLabel}",
+            Attribute(primary, "Content")?.Value);
         AssertAutomationName(
             document,
             "AgentSlashCommandPaletteList",
@@ -53,6 +55,15 @@ public class MainWindowAccessibilityContractTests
             document,
             "AdvancedScanOptionsButton",
             "Open advanced scan options from Agent composer");
+    }
+
+    [Fact]
+    public void TelemetryPill_InitializesItsXamlContent()
+    {
+        var codeBehind = ReadAvaloniaSource("Controls/TelemetryPill.axaml.cs");
+
+        Assert.Contains("public TelemetryPill()", codeBehind, StringComparison.Ordinal);
+        Assert.Contains("InitializeComponent();", codeBehind, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -325,6 +336,22 @@ public class MainWindowAccessibilityContractTests
         return XDocument.Load(baseDirectoryPath);
     }
 
+    private static string ReadAvaloniaSource(string relativePath)
+    {
+        var currentDirectoryPath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "VulcansTrace.Linux.Avalonia",
+            relativePath);
+        if (File.Exists(currentDirectoryPath))
+            return File.ReadAllText(currentDirectoryPath);
+
+        var baseDirectoryPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../VulcansTrace.Linux.Avalonia",
+            relativePath));
+        return File.ReadAllText(baseDirectoryPath);
+    }
+
     // ── Automation-id / accessible-name ratchet ─────────────────────────
     // Baselines for the UI v2 accessibility contract: every actionable
     // control that ships WITHOUT an AutomationProperties.AutomationId, and
@@ -335,7 +362,6 @@ public class MainWindowAccessibilityContractTests
     // Command, Click, ToolTip).
     private static readonly string[] MissingAutomationIdBaseline =
     {
-        "Controls/HeroPanel.axaml|Button|{Binding CommandText}",
         "Views/CommandRow.axaml|Button|Copy command",
         "Views/IncidentStoryView.axaml|Button|Copy Markdown",
         "Views/LiveStreamView.axaml|Button|Start",

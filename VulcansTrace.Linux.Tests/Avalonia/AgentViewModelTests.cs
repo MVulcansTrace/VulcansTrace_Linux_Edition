@@ -402,22 +402,6 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
-    public void QuickActions_ExposeCommonAuditsAndFollowUps()
-    {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-
-        var runCheckLabels = vm.QuickActionsChecks.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var baselineLabels = vm.QuickActionsBaseline.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var exportLabels = vm.QuickActionsExport.Select(action => action.Label).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        Assert.Contains("Processes", runCheckLabels);
-        Assert.Contains("Set baseline", baselineLabels);
-        Assert.Contains("Check drift", baselineLabels);
-        Assert.Contains("Show baseline", baselineLabels);
-        Assert.Contains("Export audit", exportLabels);
-    }
-
-    [AvaloniaFact]
     public void SlashPalette_LogDiffDemoPrefix_ShowsCommand()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
@@ -1097,69 +1081,6 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
-    public void Constructor_InitializesAgentToolsPanelCollections()
-    {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-
-        Assert.False(vm.IsAgentToolsPanelOpen);
-        Assert.NotEmpty(vm.ToolPanelAnalysisActions);
-        Assert.NotEmpty(vm.ToolPanelRunCheckActions);
-        Assert.NotEmpty(vm.ToolPanelBaselineActions);
-        Assert.NotEmpty(vm.ToolPanelExportActions);
-    }
-
-    [AvaloniaFact]
-    public void ToggleAgentToolsPanelCommand_FlipsIsAgentToolsPanelOpen()
-    {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-
-        Assert.False(vm.IsAgentToolsPanelOpen);
-
-        vm.ToggleAgentToolsPanelCommand.Execute(null);
-
-        Assert.True(vm.IsAgentToolsPanelOpen);
-
-        vm.ToggleAgentToolsPanelCommand.Execute(null);
-
-        Assert.False(vm.IsAgentToolsPanelOpen);
-    }
-
-    [AvaloniaFact]
-    public async Task RunCheckCommand_CollapsesAgentToolsPanel()
-    {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-
-        vm.ToggleAgentToolsPanelCommand.Execute(null);
-        Assert.True(vm.IsAgentToolsPanelOpen);
-
-        vm.FirewallCommand.Execute(null);
-        await vm.FirewallCommand.ExecutionTask;
-        FlushDispatcher();
-
-        Assert.False(vm.IsAgentToolsPanelOpen);
-    }
-
-    [AvaloniaFact]
-    public void AgentToolsPanel_PreservesLegacyAutomationIds()
-    {
-        var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
-
-        var panelIds = vm.ToolPanelAnalysisActions
-            .Concat(vm.ToolPanelRunCheckActions)
-            .Concat(vm.ToolPanelBaselineActions)
-            .Concat(vm.ToolPanelExportActions)
-            .Select(a => a.AutomationId)
-            .ToList();
-
-        Assert.Contains("AgentExplainSelectedButton", panelIds);
-        Assert.Contains("AgentThreatIntelButton", panelIds);
-        Assert.Contains("AgentCompareAuditsButton", panelIds);
-        Assert.Contains("AgentCompareSelectedButton", panelIds);
-        Assert.Contains("AgentExportRemediationButton", panelIds);
-        Assert.Contains("AgentExportSessionButton", panelIds);
-    }
-
-    [AvaloniaFact]
     public async Task SendQuery_MarksChatInteracted()
     {
         var vm = new AgentViewModel(new StubAgent(), new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()))
@@ -1341,27 +1262,6 @@ public class AgentViewModelTests
             Assert.Contains($"AutomationProperties.AutomationId=\"{automationId}\"", xaml);
         }
 
-        // The ViewModel still exposes tool panel action collections for programmatic access.
-        var panelIds = vm.ToolPanelAnalysisActions
-            .Concat(vm.ToolPanelRunCheckActions)
-            .Concat(vm.ToolPanelBaselineActions)
-            .Concat(vm.ToolPanelExportActions)
-            .Select(a => a.AutomationId)
-            .ToList();
-
-        foreach (var automationId in new[]
-        {
-            "AgentExplainSelectedButton",
-            "AgentThreatIntelButton",
-            "AgentExportRemediationButton",
-            "AgentExportSessionButton",
-            "AgentCompareAuditsButton",
-            "AgentCompareSelectedButton"
-        })
-        {
-            Assert.Contains(automationId, panelIds);
-        }
-
         foreach (var binding in new[]
         {
             "HasImpactPreview",
@@ -1389,13 +1289,14 @@ public class AgentViewModelTests
     }
 
     [AvaloniaFact]
-    public async Task YaraCommand_RunsYaraAudit()
+    public async Task YaraSlashCommand_RunsYaraAudit()
     {
         var agent = new TrackingAgent(AgentIntent.YaraCheck);
         var vm = new AgentViewModel(agent, new InMemoryAuditHistoryStore(), PlanBuilder, new RemediationExecutor(new ProcessRunner()));
 
-        vm.YaraCommand.Execute(null);
-        await vm.YaraCommand.ExecutionTask;
+        vm.UserQuery = "/yara";
+        vm.SendQueryCommand.Execute(null);
+        await vm.SendQueryCommand.ExecutionTask;
         FlushDispatcher();
 
         Assert.Equal(AgentIntent.YaraCheck, agent.LastRunAuditIntent);
@@ -2525,8 +2426,6 @@ public class AgentViewModelTests
         };
         vm.AddFindingCard(new FindingItemViewModel(finding), null, null);
         vm.AddMoreFindingsLink(2, null, "findings");
-        vm.IsTranscriptOpen = true;
-
         var window = new Window
         {
             Width = 1400,
@@ -3405,15 +3304,11 @@ public class AgentViewModelTests
         Assert.True(vm.HasNoResultFindings);
         Assert.False(vm.HasResultFindings);
         Assert.True(vm.ShowResultsWorkspace);
-        Assert.True(vm.IsTranscriptOpen);
         Assert.Equal(100, vm.TracePulseProgress);
         Assert.False(vm.TracePulseIsIndeterminate);
         Assert.Equal("Completed", vm.TracePulseStatusText);
         Assert.Contains("0 active findings", vm.TracePulseDetailText);
 
-        vm.IsTranscriptOpen = false;
-
-        Assert.True(vm.ShowResultsWorkspace);
     }
 
     [AvaloniaFact]

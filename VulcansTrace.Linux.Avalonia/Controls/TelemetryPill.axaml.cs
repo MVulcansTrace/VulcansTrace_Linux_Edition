@@ -10,6 +10,11 @@ namespace VulcansTrace.Linux.Avalonia.Controls;
 /// </summary>
 public partial class TelemetryPill : UserControl
 {
+    public TelemetryPill()
+    {
+        InitializeComponent();
+    }
+
     public static readonly StyledProperty<string> IconProperty =
         AvaloniaProperty.Register<TelemetryPill, string>(nameof(Icon));
 

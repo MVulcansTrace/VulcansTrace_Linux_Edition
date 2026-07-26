@@ -14,7 +14,8 @@
                        FontWeight="SemiBold"
                        Foreground="{StaticResource VtTextPrimaryBrush}"
                        VerticalAlignment="Center"
-                       AutomationProperties.AutomationId="AgentCurrentOperationTitle"/>
+                       AutomationProperties.AutomationId="AgentCurrentOperationTitle"
+                       AutomationProperties.Name="Agent current operation"/>
             <Border Background="{StaticResource VtPrimaryGlowBrush}"
                     CornerRadius="{StaticResource VtRadiusSm}"
                     Padding="8,3"
@@ -59,7 +60,9 @@
         </StackPanel>
 
         <!-- Phase checklist -->
-        <ItemsControl ItemsSource="{Binding PhaseSteps}">
+        <ItemsControl ItemsSource="{Binding PhaseSteps}"
+                      AutomationProperties.AutomationId="AgentAuditPhaseSteps"
+                      AutomationProperties.Name="Audit phase steps">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="vm:PhaseStepViewModel">
                     <Border Padding="0,3" Classes.VtPhaseStepActive="{Binding IsActive}">

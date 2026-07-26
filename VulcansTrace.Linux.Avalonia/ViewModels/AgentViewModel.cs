@@ -74,7 +74,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private RemediationSession? _selectedSession;
     private bool _hasOnlyWelcomeMessage = true;
     private bool _hasNoVisibleMessages;
-    private bool _isAgentToolsPanelOpen;
     private string _slashHelpQuery = "";
     private bool _isSlashHelpOpen;
     private SlashCommandItem? _selectedSlashHelpCommand;
@@ -96,7 +95,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     private DateTime _operationStartTime;
     private string _elapsedDisplay = string.Empty;
     private FindingItemViewModel? _selectedResultFinding;
-    private bool _isTranscriptOpen = true;
     private bool _lastOperationFailed;
     private string _currentOperationTitle = "Agent operation";
     private string _scanProfileName = "Low - Critical Threat Triage";
@@ -134,27 +132,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the contextual label shown beside the stable suggestion action.</summary>
     public string LatestSuggestedFollowUpLabel => LatestSuggestedFollowUp?.Label ?? string.Empty;
-
-    /// <summary>Gets quick-check actions for the "Run checks" group.</summary>
-    public ObservableCollection<AgentQuickAction> QuickActionsChecks { get; } = new();
-
-    /// <summary>Gets quick-check actions for the "Baseline" group.</summary>
-    public ObservableCollection<AgentQuickAction> QuickActionsBaseline { get; } = new();
-
-    /// <summary>Gets quick-check actions for the "Export" group.</summary>
-    public ObservableCollection<AgentQuickAction> QuickActionsExport { get; } = new();
-
-    /// <summary>Gets the programmatic action catalog for analysis actions.</summary>
-    public ObservableCollection<AgentQuickAction> ToolPanelAnalysisActions { get; } = new();
-
-    /// <summary>Gets the programmatic action catalog for focused checks.</summary>
-    public ObservableCollection<AgentQuickAction> ToolPanelRunCheckActions { get; } = new();
-
-    /// <summary>Gets the programmatic action catalog for baseline operations.</summary>
-    public ObservableCollection<AgentQuickAction> ToolPanelBaselineActions { get; } = new();
-
-    /// <summary>Gets the programmatic action catalog for export operations.</summary>
-    public ObservableCollection<AgentQuickAction> ToolPanelExportActions { get; } = new();
 
     /// <summary>Gets the filtered slash-command palette items.</summary>
     public ObservableCollection<SlashCommandItem> FilteredSlashCommands { get; } = new();
@@ -290,12 +267,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             if (SetField(ref _isBusy, value))
             {
                 AgentStatus = value ? "Busy" : "Online";
-                if (value)
-                {
-                    // Collapse the tools panel when an operation starts so it does not
-                    // cover the transcript/results while the check runs.
-                    IsAgentToolsPanelOpen = false;
-                }
                 // Reset on every transition: clears stale values when an operation ends (hide the
                 // bar) and when the next one starts (no leftover label/percent from the prior op,
                 // which a late Progress<T> callback may have written after the previous reset).
@@ -312,10 +283,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
                 FirewallCommand.RaiseCanExecuteChanged();
                 PortsCommand.RaiseCanExecuteChanged();
                 ServicesCommand.RaiseCanExecuteChanged();
-                NetworkCommand.RaiseCanExecuteChanged();
-                ContainerCommand.RaiseCanExecuteChanged();
-                KubernetesCommand.RaiseCanExecuteChanged();
-                YaraCommand.RaiseCanExecuteChanged();
                 ProcessRuntimeCommand.RaiseCanExecuteChanged();
                 ExplainSelectedCommand.RaiseCanExecuteChanged();
                 VerifySelectedCommand.RaiseCanExecuteChanged();
@@ -425,25 +392,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets a screen-reader description of the Trace Pulse state.</summary>
     public string TracePulseAccessibleName => $"Agent {TracePulseStatusText}: {TracePulseDetailText}";
-
-    /// <summary>
-    /// Whether the transcript is available. Agent-first layout keeps it open;
-    /// the property remains for command/test compatibility.
-    /// </summary>
-    public bool IsTranscriptOpen
-    {
-        get => _isTranscriptOpen;
-        set
-        {
-            if (SetField(ref _isTranscriptOpen, value))
-            {
-                OnPropertyChanged(nameof(ShowIdleWorkspace));
-                OnPropertyChanged(nameof(ShowRunningWorkspace));
-                OnPropertyChanged(nameof(ShowResultsWorkspace));
-                OnPropertyChanged(nameof(ShowErrorWorkspace));
-            }
-        }
-    }
 
     /// <summary>Elapsed time display string (e.g. "1:23") updated during operations.</summary>
     public string ElapsedDisplay
@@ -762,13 +710,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// results-state compaction of the agent header (UI v2 Phase 2).
     /// </summary>
     public bool IsThreadActive => !HasOnlyWelcomeMessage;
-
-    /// <summary>Gets whether the agent tools panel is expanded.</summary>
-    public bool IsAgentToolsPanelOpen
-    {
-        get => _isAgentToolsPanelOpen;
-        set => SetField(ref _isAgentToolsPanelOpen, value);
-    }
 
     /// <summary>Gets whether messages exist but none are visible under the current filters.</summary>
     public bool HasNoVisibleMessages
@@ -1096,18 +1037,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the command to run a service check.</summary>
     public AsyncRelayCommand ServicesCommand { get; }
 
-    /// <summary>Gets the command to run a network check.</summary>
-    public AsyncRelayCommand NetworkCommand { get; }
-
-    /// <summary>Gets the command to run a container security check.</summary>
-    public AsyncRelayCommand ContainerCommand { get; }
-
-    /// <summary>Gets the command to run a Kubernetes security check.</summary>
-    public AsyncRelayCommand KubernetesCommand { get; }
-
-    /// <summary>Gets the command to run a YARA malware signature scan.</summary>
-    public AsyncRelayCommand YaraCommand { get; }
-
     /// <summary>Gets the command to run a process runtime check.</summary>
     public AsyncRelayCommand ProcessRuntimeCommand { get; }
 
@@ -1170,12 +1099,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     /// <summary>Gets the command to import threat intelligence IOCs.</summary>
     public AsyncRelayCommand ImportThreatIntelCommand { get; }
-
-    /// <summary>Gets the command to toggle the agent tools panel.</summary>
-    public RelayCommand ToggleAgentToolsPanelCommand { get; }
-
-    /// <summary>Gets the command to toggle the chat transcript panel.</summary>
-    public RelayCommand ToggleTranscriptCommand { get; }
 
     /// <summary>Gets the command to pin or unpin the selected result finding.</summary>
     public RelayCommand ToggleResultFindingPinCommand { get; }
@@ -1353,7 +1276,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         PrepareLogAnalysisCommand = new RelayCommand(
             _ =>
             {
-                IsTranscriptOpen = true;
                 UserQuery = string.Empty;
                 ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
             },
@@ -1362,7 +1284,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         PrepareInvestigationCommand = new RelayCommand(
             _ =>
             {
-                IsTranscriptOpen = true;
                 if (string.IsNullOrWhiteSpace(UserQuery))
                     UserQuery = "Investigate ";
                 ComposerFocusRequested?.Invoke(this, EventArgs.Empty);
@@ -1381,26 +1302,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         ServicesCommand = new AsyncRelayCommand(
             async _ => await RunQuickAuditAsync(AgentIntent.ServiceCheck, "What services are running?"),
-            _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
-        NetworkCommand = new AsyncRelayCommand(
-            async _ => await RunQuickAuditAsync(AgentIntent.NetworkCheck, "Check my network"),
-            _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
-        ContainerCommand = new AsyncRelayCommand(
-            async _ => await RunQuickAuditAsync(AgentIntent.ContainerCheck, "Check my containers"),
-            _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
-        KubernetesCommand = new AsyncRelayCommand(
-            async _ => await RunQuickAuditAsync(AgentIntent.KubernetesCheck, "Check my kubernetes"),
-            _ => !_isBusy,
-            ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
-
-        YaraCommand = new AsyncRelayCommand(
-            async _ => await RunQuickAuditAsync(AgentIntent.YaraCheck, "Run a YARA scan"),
             _ => !_isBusy,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
@@ -1505,14 +1406,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
             _ => !_isBusy && _threatIntelStore != null && _dialogService != null,
             ex => AddAgentMessage($"Error: {ex.Message}", true, isError: true));
 
-        ToggleAgentToolsPanelCommand = new RelayCommand(
-            _ => IsAgentToolsPanelOpen = !IsAgentToolsPanelOpen,
-            _ => true);
-
-        ToggleTranscriptCommand = new RelayCommand(
-            _ => IsTranscriptOpen = !IsTranscriptOpen,
-            _ => true);
-
         ToggleResultFindingPinCommand = new RelayCommand(
             _ => ToggleSelectedResultFindingPin(),
             _ => !_isBusy && SelectedResultFinding != null && RequestToggleResultFindingPin != null);
@@ -1543,7 +1436,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
         _historyCoordinator.LoadExisting();
 
-        InitializeQuickActions();
         InitializeSlashCommands();
 
         // The permanent header owns identity; the first reply leads with
@@ -1561,113 +1453,6 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
 
     private bool CanSendQuery() => !string.IsNullOrWhiteSpace(_userQuery) && !_isBusy;
     private bool CanCancel() => _isBusy && _operationRunner.CanCancel;
-
-    private void InitializeQuickActions()
-    {
-        void AddRunCheck(AgentQuickAction action)
-        {
-            QuickActionsChecks.Add(action);
-            ToolPanelRunCheckActions.Add(action);
-        }
-
-        void AddBaseline(AgentQuickAction action)
-        {
-            QuickActionsBaseline.Add(action);
-            ToolPanelBaselineActions.Add(action);
-        }
-
-        void AddExport(AgentQuickAction action)
-        {
-            QuickActionsExport.Add(action);
-            ToolPanelExportActions.Add(action);
-        }
-
-        void AddAnalysis(AgentQuickAction action)
-        {
-            ToolPanelAnalysisActions.Add(action);
-        }
-
-        AddAnalysis(new AgentQuickAction
-        {
-            Label = "Explain Selected",
-            Icon = "mdi-comment-question-outline",
-            Group = "Analysis",
-            Command = ExplainSelectedCommand,
-            AutomationIdOverride = "AgentExplainSelectedButton"
-        });
-        AddAnalysis(new AgentQuickAction
-        {
-            Label = "Import Threat Intel",
-            Icon = "mdi-shield-link-variant",
-            Group = "Analysis",
-            Command = ImportThreatIntelCommand,
-            AutomationIdOverride = "AgentThreatIntelButton"
-        });
-        AddAnalysis(new AgentQuickAction
-        {
-            Label = "Compare Last Two",
-            Icon = "mdi-compare-horizontal",
-            Group = "Analysis",
-            Command = CompareAuditsCommand,
-            AutomationIdOverride = "AgentCompareAuditsButton"
-        });
-        AddAnalysis(new AgentQuickAction
-        {
-            Label = "Compare Selected",
-            Icon = "mdi-compare",
-            Group = "Analysis",
-            Command = CompareSelectedAuditsCommand,
-            AutomationIdOverride = "AgentCompareSelectedButton"
-        });
-        AddAnalysis(new AgentQuickAction
-        {
-            Label = "Batch Auto-Fix",
-            Icon = "mdi-wrench",
-            Group = "Analysis",
-            Command = BatchAutoFixCommand,
-            AutomationIdOverride = "AgentBatchAutoFixButton"
-        });
-
-        AddRunCheck(new AgentQuickAction { Label = "Full audit", Icon = "mdi-magnify", Group = "Run checks", Command = FullAuditCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Firewall", Icon = "mdi-shield", Group = "Run checks", Command = FirewallCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Ports", Icon = "mdi-ethernet", Group = "Run checks", Command = PortsCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Services", Icon = "mdi-cog", Group = "Run checks", Command = ServicesCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Network", Icon = "mdi-web", Group = "Run checks", Command = NetworkCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Containers", Icon = "mdi-cube", Group = "Run checks", Command = ContainerCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Kubernetes", Icon = "mdi-kubernetes", Group = "Run checks", Command = KubernetesCommand });
-        AddRunCheck(new AgentQuickAction { Label = "YARA", Icon = "mdi-virus", Group = "Run checks", Command = YaraCommand });
-        AddRunCheck(new AgentQuickAction { Label = "Processes", Icon = "mdi-monitor", Group = "Run checks", Command = ProcessRuntimeCommand });
-
-        AddBaseline(new AgentQuickAction { Label = "Set baseline", Icon = "mdi-pin", Group = "Baseline", Command = SetBaselineCommand });
-        AddBaseline(new AgentQuickAction { Label = "Check drift", Icon = "mdi-compare", Group = "Baseline", Command = CheckDriftCommand });
-        AddBaseline(new AgentQuickAction { Label = "Show baseline", Icon = "mdi-eye", Group = "Baseline", Command = ShowBaselineCommand });
-
-        AddExport(new AgentQuickAction { Label = "Export audit", Icon = "mdi-content-save", Group = "Export", Command = ExportAuditCommand });
-        AddExport(new AgentQuickAction
-        {
-            Label = "Export Remediation",
-            Icon = "mdi-file-document-arrow-right-outline",
-            Group = "Export",
-            Command = ExportRemediationCommand,
-            AutomationIdOverride = "AgentExportRemediationButton"
-        });
-        AddExport(new AgentQuickAction
-        {
-            Label = "Export Session",
-            Icon = "mdi-file-document-check-outline",
-            Group = "Export",
-            Command = ExportSessionCommand,
-            AutomationIdOverride = "AgentExportSessionButton"
-        });
-        AddExport(new AgentQuickAction
-        {
-            Label = "Export STIX/MISP",
-            Icon = "mdi-share-variant",
-            Group = "Export",
-            Command = ExportThreatIntelCommand,
-            AutomationIdOverride = "AgentExportThreatIntelButton"
-        });
-    }
 
     private void InitializeSlashCommands()
     {

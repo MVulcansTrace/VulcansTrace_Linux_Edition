@@ -321,17 +321,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Gets the hero primary button icon for the current intent.</summary>
     public string HeroPrimaryIcon => IsLogIntent ? "mdi-rocket-launch-outline" : "mdi-chat-processing-outline";
 
-    /// <summary>
-    /// Gets the suggested-prompt chips shown under the hero input in the empty
-    /// state. Clicking a chip fills the input — it never auto-sends.
-    /// </summary>
-    public IReadOnlyList<PromptChip> PromptChips { get; } = new[]
-    {
-        new PromptChip("Scan latest auth.log", "PromptChipScanAuthLog"),
-        new PromptChip("Why is port 443 flagged?", "PromptChipWhyPort443"),
-        new PromptChip("Summarize failed logins", "PromptChipFailedLogins")
-    };
-
     /// <summary>Gets or sets the summary status text.</summary>
     public string SummaryText
     {
@@ -596,9 +585,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public RelayCommand HeroPrimaryCommand { get; }
 
-    /// <summary>Gets the prompt-chip command: fills the hero input without sending.</summary>
-    public RelayCommand PromptChipCommand { get; }
-
     /// <summary>
     /// Gets the command that selects a navigation item by instance. Wired into
     /// each item's <see cref="NavigationItem.NavigateCommand"/> so icon-rail
@@ -703,14 +689,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         HeroPrimaryCommand = new RelayCommand(
             _ => ExecuteHeroPrimary(),
             _ => CanExecuteHeroPrimary());
-        PromptChipCommand = new RelayCommand(
-            parameter =>
-            {
-                if (parameter is PromptChip chip)
-                {
-                    LogText = chip.Label;
-                }
-            });
         SelectNavigationItemCommand = new RelayCommand(
             parameter =>
             {

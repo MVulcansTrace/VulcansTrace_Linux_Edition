@@ -7,7 +7,7 @@ using VulcansTrace.Linux.Avalonia.ViewModels;
 namespace VulcansTrace.Linux.Avalonia.Controls;
 
 /// <summary>
-/// Sticky bottom composer for the Agent workspace. Replaces the HeroPanel input row.
+/// Sticky bottom composer for the Agent workspace.
 /// Binds to MainViewModel via the window DataContext.
 /// </summary>
 public partial class AgentComposer : UserControl
