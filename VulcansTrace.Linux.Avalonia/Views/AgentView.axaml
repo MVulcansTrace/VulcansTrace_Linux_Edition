@@ -306,8 +306,8 @@
                    ItemsSource="{Binding Messages}"
                    AutomationProperties.AutomationId="ChatListBox">
             <ListBox.Styles>
-              <Style Selector="ListBoxItem">
-                <Setter Property="AutomationProperties.Name" Value="{ReflectionBinding AutomationName}"/>
+              <Style Selector="ListBoxItem" x:DataType="vm:AgentMessageViewModel">
+                <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
               </Style>
             </ListBox.Styles>
             <ListBox.ItemsPanel>

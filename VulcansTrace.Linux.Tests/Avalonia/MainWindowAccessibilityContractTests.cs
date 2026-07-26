@@ -160,16 +160,18 @@ public class MainWindowAccessibilityContractTests
     public void CollectionContainers_ExposeItemLabelsInsteadOfModelTypeNames()
     {
         var agent = LoadAvaloniaDocument("Views/AgentView.axaml");
-        var messageContainerName = agent.Descendants()
-            .Where(element =>
-                element.Name.LocalName == "Style" &&
-                Attribute(element, "Selector")?.Value == "ListBoxItem")
-            .SelectMany(style => style.Elements())
+        var messageContainerStyle = agent.Descendants().Single(element =>
+            element.Name.LocalName == "Style" &&
+            Attribute(element, "Selector")?.Value == "ListBoxItem");
+        Assert.Equal(
+            "vm:AgentMessageViewModel",
+            Attribute(messageContainerStyle, "DataType")?.Value);
+        var messageContainerName = messageContainerStyle.Elements()
             .Single(element =>
                 element.Name.LocalName == "Setter" &&
                 Attribute(element, "Property")?.Value == "AutomationProperties.Name");
         Assert.Equal(
-            "{ReflectionBinding AutomationName}",
+            "{Binding AutomationName}",
             Attribute(messageContainerName, "Value")?.Value);
 
         var hub = LoadAvaloniaDocument("Views/NavigationHubView.axaml");
