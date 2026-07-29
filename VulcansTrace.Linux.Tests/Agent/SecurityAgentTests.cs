@@ -151,6 +151,32 @@ public class SecurityAgentTests
     }
 
     [Fact]
+    public async Task RecordLogAnalysisResult_MakesFindingsReferenceableByFollowUps()
+    {
+        var agent = new SecurityAgent(
+            Array.Empty<IScanner>(),
+            Array.Empty<IRule>(),
+            new ExplanationProvider());
+
+        // The composer's Analyze path records its result outside the audit flow;
+        // its findings must still resolve for "fix <id>" follow-ups.
+        agent.RecordLogAnalysisResult(new AgentResult
+        {
+            Intent = AgentIntent.LogAnalysis,
+            Summary = "Log analysis complete — 1 finding(s).",
+            AgentFindings = new[]
+            {
+                new Finding { RuleId = "ENG-POLICY-001", Severity = Severity.High, ShortDescription = "f1", Category = "Firewall", SourceHost = "h", Target = "t", TimeRangeStart = DateTime.UtcNow },
+            },
+        });
+
+        var result = await agent.AskAsync("fix ENG-POLICY-001", null, CancellationToken.None);
+
+        Assert.Equal(AgentIntent.FixFinding, result.Intent);
+        Assert.DoesNotContain("couldn't find finding", result.Summary);
+    }
+
+    [Fact]
     public async Task AskAsync_ReuseOnlyWithPriorAudit_ReturnsVerdictWithoutScanning()
     {
         var scanner = new CountingScanner();

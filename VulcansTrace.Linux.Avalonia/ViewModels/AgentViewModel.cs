@@ -1733,7 +1733,7 @@ public sealed class AgentViewModel : ViewModelBase, IDisposable
         await _operationRunner.RunAsync(async (progress, token) =>
         {
             CurrentOperationTitle = query;
-            if (ScenarioMode.ShouldFailAgentQuery)
+            if (ScenarioMode.ConsumeAgentQueryFailure())
             {
                 throw new InvalidOperationException(
                     "The deterministic scenario Agent dependency failed.");

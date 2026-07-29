@@ -1560,7 +1560,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private async Task ExportRemediationPlanAsync(string markdown)
     {
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = ScenarioExport.ResolvePath() ?? await _dialogService.ShowSaveFileDialogAsync(
             "Export Remediation Plan",
             "Markdown files (*.md)|*.md|All files (*.*)|*.*",
             $"remediation-plan-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
@@ -1583,7 +1583,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private async Task<bool> ExportSessionReportAsync(string markdown)
     {
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = ScenarioExport.ResolvePath() ?? await _dialogService.ShowSaveFileDialogAsync(
             "Export Session Report",
             "Markdown files (*.md)|*.md|All files (*.*)|*.*",
             $"remediation-session-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");
@@ -1614,21 +1614,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        var formatOptions = new[] { "STIX 2.1", "MISP JSON" };
-        var formatIndex = await _dialogService.ShowSelectionDialogAsync(
-            "Export Threat Intelligence",
-            "Choose export format:",
-            formatOptions,
-            defaultIndex: 0);
+        var overridePath = ScenarioExport.ResolvePath();
+        string format;
+        if (overridePath != null)
+        {
+            // Scenario override: pick the format from the requested file name
+            // and skip both interactive dialogs.
+            format = overridePath.EndsWith(".misp.json", StringComparison.OrdinalIgnoreCase)
+                ? "misp"
+                : "stix";
+        }
+        else
+        {
+            var formatOptions = new[] { "STIX 2.1", "MISP JSON" };
+            var formatIndex = await _dialogService.ShowSelectionDialogAsync(
+                "Export Threat Intelligence",
+                "Choose export format:",
+                formatOptions,
+                defaultIndex: 0);
 
-        if (formatIndex == null)
-            return false;
+            if (formatIndex == null)
+                return false;
 
-        var format = formatIndex.Value == 0 ? "stix" : "misp";
+            format = formatIndex.Value == 0 ? "stix" : "misp";
+        }
+
         var extension = format == "stix" ? ".stix.json" : ".misp.json";
         var defaultFileName = $"vulcanstrace-threat-intel-{DateTime.UtcNow:yyyyMMdd-HHmmss}{extension}";
 
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = overridePath ?? await _dialogService.ShowSaveFileDialogAsync(
             "Export Threat Intelligence",
             "JSON files (*.json)|*.json|All files (*.*)|*.*",
             defaultFileName);

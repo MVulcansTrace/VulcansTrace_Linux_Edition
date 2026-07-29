@@ -273,13 +273,7 @@ public sealed class EvidenceViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static string? ResolveScenarioExportPath()
-    {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("VT_SCENARIO_ID")))
-            return null;
-
-        return Environment.GetEnvironmentVariable("VT_UI_TEST_EXPORT_PATH");
-    }
+    private static string? ResolveScenarioExportPath() => ScenarioExport.ResolvePath();
 
     private static Task DelayForScenarioAsync(CancellationToken token)
     {

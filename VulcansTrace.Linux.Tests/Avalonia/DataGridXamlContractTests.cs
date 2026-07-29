@@ -17,6 +17,20 @@ public class DataGridXamlContractTests
         Assert.Contains("HH:mm:ss.fff", (string?)timeColumn.Attribute("Binding") ?? string.Empty);
     }
 
+    [Fact]
+    public void ThreatIntel_ImportedTimestampBinding_IsOneWay()
+    {
+        var document = LoadView("ThreatIntelView.axaml");
+        var importedColumn = document.Descendants()
+            .Single(element =>
+                element.Name.LocalName == "DataGridTextColumn" &&
+                (string?)element.Attribute("Header") == "Imported");
+
+        var binding = (string?)importedColumn.Attribute("Binding") ?? string.Empty;
+        Assert.Contains("ImportedAt", binding);
+        Assert.Contains("Mode=OneWay", binding);
+    }
+
     [Theory]
     [InlineData("Enabled")]
     [InlineData("Notify on critical")]

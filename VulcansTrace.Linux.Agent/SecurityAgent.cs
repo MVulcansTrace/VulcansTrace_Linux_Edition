@@ -462,6 +462,7 @@ public sealed class SecurityAgent : IAgent
     {
         ArgumentNullException.ThrowIfNull(result);
         _auditState.RememberResult(result);
+        _auditState.TrackResultFindings(result.AgentFindings);
     }
 
     /// <inheritdoc />

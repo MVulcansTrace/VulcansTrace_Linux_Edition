@@ -70,6 +70,46 @@ public class ThreatIntelStoreTests
     }
 
     [Fact]
+    public void JsonFileStore_StixImportThenRemove_PreservesUtcTimestamps()
+    {
+        var path = Path.GetTempFileName();
+        const string json = """
+            {
+              "type": "bundle",
+              "objects": [
+                { "type": "ipv4-addr", "value": "10.99.99.100" },
+                { "type": "ipv4-addr", "value": "10.99.99.101" },
+                { "type": "indicator", "pattern": "[network-traffic:dst_port = 4444]" },
+                { "type": "indicator", "pattern": "[domain-name:value = 'evil.example.com']" }
+              ]
+            }
+            """;
+
+        try
+        {
+            var parsed = StixParser.Parse(json);
+            Assert.Equal(4, parsed.ImportedCount);
+            Assert.All(
+                parsed.Entries,
+                entry => Assert.Equal(DateTimeKind.Utc, entry.ImportedAt.Kind));
+
+            using var store = new JsonFileThreatIntelStore(path);
+            store.Import(parsed.Entries);
+            Assert.Null(store.PersistenceWarning);
+
+            var selected = store.GetAll().Single(
+                entry => entry.Value == "10.99.99.100");
+            Assert.True(store.Remove(selected.StorageKey));
+            Assert.Null(store.PersistenceWarning);
+            Assert.Equal(3, store.Count);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void JsonFileStore_RemoveSaveFailure_KeepsSessionChangeAndWarns()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"vt-ti-remove-fail-{Guid.NewGuid():N}");

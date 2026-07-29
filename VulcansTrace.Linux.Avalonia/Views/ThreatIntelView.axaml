@@ -109,7 +109,7 @@
                 <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="120" MinWidth="100" />
                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="180" />
                 <DataGridTextColumn Header="Algorithm" Binding="{Binding Algorithm}" Width="135" MinWidth="120" />
-                <DataGridTextColumn Header="Imported" Binding="{Binding ImportedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="195" MinWidth="185" />
+                <DataGridTextColumn Header="Imported" Binding="{Binding ImportedAt, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="195" MinWidth="185" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

@@ -192,7 +192,7 @@ public sealed class LogDiffViewModel : ViewModelBase
             return;
         }
 
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = ScenarioExport.ResolvePath() ?? await _dialogService.ShowSaveFileDialogAsync(
             "Save Log Diff HTML Report",
             "HTML files (*.html)|*.html|All files (*.*)|*.*",
             $"log-diff-{DateTime.UtcNow:yyyyMMdd-HHmmss}.html");
@@ -217,7 +217,7 @@ public sealed class LogDiffViewModel : ViewModelBase
             return;
         }
 
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = ScenarioExport.ResolvePath() ?? await _dialogService.ShowSaveFileDialogAsync(
             "Save Log Diff Markdown Report",
             "Markdown files (*.md)|*.md|All files (*.*)|*.*",
             $"log-diff-{DateTime.UtcNow:yyyyMMdd-HHmmss}.md");

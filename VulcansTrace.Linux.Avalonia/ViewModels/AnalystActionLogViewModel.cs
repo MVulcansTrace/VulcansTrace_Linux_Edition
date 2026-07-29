@@ -156,7 +156,7 @@ public sealed class AnalystActionLogViewModel : ViewModelBase
 
     private async Task ExportAsync()
     {
-        var path = await _dialogService.ShowSaveFileDialogAsync(
+        var path = ScenarioExport.ResolvePath() ?? await _dialogService.ShowSaveFileDialogAsync(
             "Export Analyst Action Log",
             "JSON files (*.json)|*.json|All files (*.*)|*.*",
             $"analyst-actions-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json");

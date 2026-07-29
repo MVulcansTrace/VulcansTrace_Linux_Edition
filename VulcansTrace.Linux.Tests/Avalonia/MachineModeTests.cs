@@ -106,4 +106,21 @@ public class MachineModeTests : IDisposable
         Environment.SetEnvironmentVariable("VT_SCENARIO_ID", null);
         Assert.False(ScenarioMode.ShouldFailAgentQuery);
     }
+
+    [Fact]
+    public void ConsumeAgentQueryFailure_FailsOnlyTheNextQuery()
+    {
+        ScenarioMode.ResetAgentQueryFailureForTests();
+        Environment.SetEnvironmentVariable("VT_SCENARIO_ID", "agent-retry-ready");
+        Environment.SetEnvironmentVariable("VT_SCENARIO_AGENT_FAILURE", "query");
+        Assert.False(ScenarioMode.ConsumeAgentQueryFailure());
+
+        ScenarioMode.ResetAgentQueryFailureForTests();
+        Environment.SetEnvironmentVariable("VT_MACHINE_MODE", "1");
+        MachineMode.ResetForTests();
+
+        Assert.True(ScenarioMode.ConsumeAgentQueryFailure());
+        Assert.False(ScenarioMode.ConsumeAgentQueryFailure());
+        ScenarioMode.ResetAgentQueryFailureForTests();
+    }
 }

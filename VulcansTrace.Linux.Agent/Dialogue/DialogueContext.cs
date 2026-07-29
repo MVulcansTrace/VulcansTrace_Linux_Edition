@@ -66,6 +66,22 @@ public class DialogueContext
         }
     }
 
+    /// <summary>
+    /// Records the findings of a non-audit result (for example a log
+    /// analysis) so explicit references like "fix ENG-POLICY-001" resolve
+    /// against the latest result, exactly as they do after an audit.
+    /// </summary>
+    public void TrackResultFindings(IEnumerable<Finding> findings)
+    {
+        ArgumentNullException.ThrowIfNull(findings);
+
+        lock (_lock)
+        {
+            _lastFindings.Clear();
+            _lastFindings.AddRange(findings.Select(f => (f.RuleId ?? string.Empty, f)));
+        }
+    }
+
     /// <summary>Records a non-audit result (e.g., follow-up, explanation).</summary>
     public void RememberResult(AgentResult? result)
     {
